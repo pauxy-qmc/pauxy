@@ -1,0 +1,7 @@
+bin*
+make.inc*
+dest*
+tags*
+*.dat
+*.out
+*pyc
