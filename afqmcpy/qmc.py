@@ -18,6 +18,8 @@ def do_qmc(state, interactive=False):
             w.prop_v(state.auxf, state.system.nbasis)
             w.prop_t2(state.projectors.bt2)
             w.overlap(psi_trial)
+            # if step%state.nmeasure == 0:
+                # w.reortho()
             elocal += estimators.local_energy(state.system, w, psi_trial)
         if step%state.nmeasure == 0:
             if interactive:

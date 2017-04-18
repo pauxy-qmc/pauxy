@@ -24,3 +24,9 @@ class Walker:
     def overlap(self, trial):
         self.ovlp[0] = scipy.linalg.inv(np.dot(np.transpose(trial[0]), self.phi[0]))
         self.ovlp[1] = scipy.linalg.inv(np.dot(np.transpose(trial[1]), self.phi[1]))
+
+    def reortho(self):
+        for (phi, ovlp) in zip(self.phi, self.ovlp):
+            (Q, R) = scipy.linalg.qr(phi, mode='economic')
+            phi = Q
+            ovlp = ovlp / scipy.linalg.det(R)
