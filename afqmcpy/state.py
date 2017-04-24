@@ -5,13 +5,16 @@ import random
 class State:
 
     def __init__(self, model, dt, nsteps, method='CPMC',
-                 constrained=False, temp=0.0, nmeasure=10, seed=7):
+                 constrained=False, temp=0.0, nmeasure=10, seed=7,
+                 nwalkers=1):
 
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model) 
             self.gamma = np.arccosh(np.exp(0.5*dt*self.system.U)) 
             self.auxf = [np.exp(self.gamma), np.exp(-self.gamma)]
+            self.nwalkers = nwalkers
+            self.gamma = np.arccosh(np.exp(0.5*dt*self.system.U))
             if method ==  'CPMC':
                 self.projectors = hubbard.Projectors(self.system, dt)
 
