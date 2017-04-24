@@ -36,7 +36,9 @@ def kinetic(t, nbasis, nx, ny):
         for j in range(0, nbasis):
             xy1 = decode_basis(nx, ny, i)
             xy2 = decode_basis(nx, ny, j)
-            if (np.dot(xy1-xy2,xy1-xy2) == 1):
+            # Only consider square/cubic grids for simplicity.
+            dij = sum(abs(xy1-xy2))
+            if (dij == 1 or dij == nx-1):
                 T[i, j] = -t
     return T
 
