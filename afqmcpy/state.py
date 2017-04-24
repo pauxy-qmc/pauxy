@@ -10,11 +10,12 @@ class State:
 
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
-            self.system = hubbard.Hubbard(model) 
-            self.gamma = np.arccosh(np.exp(0.5*dt*self.system.U)) 
-            self.auxf = [np.exp(self.gamma), np.exp(-self.gamma)]
+            self.system = hubbard.Hubbard(model)
             self.nwalkers = nwalkers
             self.gamma = np.arccosh(np.exp(0.5*dt*self.system.U))
+            self.auxf = np.array([[np.exp(self.gamma), np.exp(-self.gamma)],
+                                  [np.exp(-self.gamma), np.exp(self.gamma)]])
+            self.auxf = self.auxf * np.exp(-0.5*dt*self.system.U*self.system.ne)
             if method ==  'CPMC':
                 self.projectors = hubbard.Projectors(self.system, dt)
 
