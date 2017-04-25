@@ -6,7 +6,7 @@ import estimators
 def do_qmc(state, interactive=False):
 
     est = []
-    (eigs, eigv) = scipy.linalg.eig(state.system.T)
+    (eigs, eigv) = scipy.linalg.eigh(state.system.T)
     idx = eigs.argsort()
     eigs = eigs[idx]
     eigv = eigv[:,idx]
@@ -21,10 +21,8 @@ def do_qmc(state, interactive=False):
             w.prop_t2(state.projectors.bt2, psi_trial)
             if w.weight > 0:
                 w.prop_v(state.auxf, state.system.nbasis, psi_trial)
-            # print w.weight
             if w.weight > 0:
                 w.prop_t2(state.projectors.bt2, psi_trial)
-            # print w.weight
             if step%state.nmeasure == 0:
                 w.reortho()
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
