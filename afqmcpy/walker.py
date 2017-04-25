@@ -115,7 +115,7 @@ class Walker:
     def reortho(self):
         for phi in self.phi:
             (Q, R) = scipy.linalg.qr(phi, mode='economic')
-            phi = Q
+            phi = copy.deepcopy(Q)
 
     def greens_function(self, trial):
         self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), np.transpose(trial[0]))
