@@ -42,6 +42,7 @@ class Walker:
             self.weight = self.weight * norm
             # print "NORM: ", norm, self.weight, probs/norm
             r = random.random()
+            # r = rnm[i]
             # print norm
             # tmp = copy.deepcopy(self.phi[0])
             # print tmp[i,:]
