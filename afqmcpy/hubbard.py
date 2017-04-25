@@ -14,7 +14,7 @@ class Hubbard:
         self.nx = inputs['nx']
         self.ny = inputs['ny']
         if self.ny > 1:
-            self.nbasis = self.nx + self.ny
+            self.nbasis = self.nx*self.ny
         else:
             self.nbasis = self.nx
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
