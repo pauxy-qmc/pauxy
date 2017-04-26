@@ -14,9 +14,9 @@ def do_qmc(state, interactive=False):
     psi = [walker.Walker(1, state.system, psi_trial) for w in range(0, state.nwalkers)]
     E_T = estimators.local_energy(state.system, psi[0])
     estimators.header()
+    elocal = 0
+    nw = 0
     for step in range(0, state.nsteps):
-        elocal = 0.0
-        nw = 0.0
         for w in psi:
             w.prop_t2(state.projectors.bt2, psi_trial)
             if w.weight > 0:
@@ -33,7 +33,9 @@ def do_qmc(state, interactive=False):
             if interactive:
                 est.append(elocal/(state.nmeasure*nw))
             else:
-                print (("%9d %10.8e %10.8e")%(step, nw, elocal))
+                print (("%9d %10.8e %10.8e")%(step, nw/state.nmeasure, elocal))
+            elocal = 0.0
+            nw = 0.0
 
     if interactive:
         return est
