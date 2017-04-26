@@ -113,9 +113,10 @@ class Walker:
         return 1.0/(scipy.linalg.det(self.inv_ovlp[0])*scipy.linalg.det(self.inv_ovlp[1]))
 
     def reortho(self):
-        for phi in self.phi:
-            (Q, R) = scipy.linalg.qr(phi, mode='economic')
-            phi = copy.deepcopy(Q)
+        (self.phi, R) = [list(t)
+                         for t in zip(*[scipy.linalg.qr(p, mode='economic')
+                         for p in self.phi])]
+        self.ot = self.ot / (scipy.linalg.det(R[0])*scipy.linalg.det(R[1]))
 
     def greens_function(self, trial):
         self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), np.transpose(trial[0]))
