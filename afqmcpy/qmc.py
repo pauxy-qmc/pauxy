@@ -18,22 +18,24 @@ def do_qmc(state, interactive=False):
     nw = 0
     for step in range(0, state.nsteps):
         for w in psi:
-            w.prop_t2(state.projectors.bt2, psi_trial)
+            if w.weight > 0:
+                w.prop_t2(state.projectors.bt2, psi_trial)
             if w.weight > 0:
                 w.prop_v(state.auxf, state.system.nbasis, psi_trial)
             if w.weight > 0:
                 w.prop_t2(state.projectors.bt2, psi_trial)
-            if step%state.nmeasure == 0:
-                w.reortho()
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
             elocal += w.weight * estimators.local_energy(state.system, w)
             nw += w.weight
-        E_T = elocal / nw
+            if step%state.nmeasure == 0:
+                w.reortho()
         if step%state.nmeasure == 0:
             if interactive:
                 est.append(elocal/(state.nmeasure*nw))
             else:
-                print (("%9d %10.8e %10.8e")%(step, nw/state.nmeasure, elocal))
+                print (("%9d %10.8e %10.8e %10.8e")%(step, nw/state.nmeasure,
+                        elocal/state.nmeasure,np.exp(state.dt*(E_T-state.cfac)) ))
+            E_T = elocal / nw
             elocal = 0.0
             nw = 0.0
 
