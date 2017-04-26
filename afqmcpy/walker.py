@@ -24,7 +24,7 @@ class Walker:
         # print self.ot
         # print self.ot, self.weight, ot_new
         self.greens_function(trial)
-        if ot_new > 0:
+        if abs(ot_new) > 1e-16:
             self.weight = self.weight * (ot_new/self.ot)
             self.ot = ot_new
         else:
