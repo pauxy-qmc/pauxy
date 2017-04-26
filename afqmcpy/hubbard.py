@@ -31,14 +31,15 @@ def kinetic(t, nbasis, nx, ny):
 '''
 
     T = np.zeros((nbasis, nbasis))
+    dbc = (nx-1)**2
 
     for i in range(0, nbasis):
         for j in range(0, nbasis):
             xy1 = decode_basis(nx, ny, i)
             xy2 = decode_basis(nx, ny, j)
             # Only consider square/cubic grids for simplicity.
-            dij = sum(abs(xy1-xy2))
-            if (dij == 1 or dij == nx-1):
+            dij = (xy1-xy2).dot(xy1-xy2)
+            if (dij == 1 or dij == dbc):
                 T[i, j] = -t
     return T
 
