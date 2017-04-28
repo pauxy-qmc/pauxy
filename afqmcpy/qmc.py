@@ -3,15 +3,12 @@ import scipy.linalg
 import walker
 import estimators
 import pop_control
+import trial_wave_function
 
 def do_qmc(state, interactive=False):
 
     est = []
-    (eigs, eigv) = scipy.linalg.eigh(state.system.T)
-    idx = eigs.argsort()
-    eigs = eigs[idx]
-    eigv = eigv[:,idx]
-    psi_trial = np.array([eigv[:,:state.system.nup], eigv[:,:state.system.ndown]])
+    psi_trial = trial_wave_function.free_electron(state.system)
     psi = [walker.Walker(1, state.system, psi_trial) for w in range(0, state.nwalkers)]
     E_T = estimators.local_energy(state.system, psi[0])
     estimators.header()
