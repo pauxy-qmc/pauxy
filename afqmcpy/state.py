@@ -5,7 +5,7 @@ import random
 class State:
 
     def __init__(self, model, dt=None, nsteps=None, method='CPMC',
-                 constrained=False, temp=0.0, nmeasure=10, seed=7,
+                 constrained=False, temp=0.0, nmeasure=10, rng_seed=7,
                  nwalkers=1):
 
         if model['name'] == 'Hubbard':
@@ -21,6 +21,7 @@ class State:
             if method ==  'CPMC':
                 self.projectors = hubbard.Projectors(self.system, dt)
 
+        random.seed(rng_seed)
         self.dt = dt
         self.method = method
         self.constrainted = constrained
