@@ -36,7 +36,7 @@ def do_qmc(state, interactive=False):
             pop_control.comb(psi, state.nwalkers)
             E_T = elocal / total_weight
             elocal = 0.0
-            nw = 0.0
+            total_weight = 0.0
 
     if interactive:
         return est
