@@ -7,3 +7,4 @@ import afqmcpy.walker
 import afqmcpy.hubbard
 import afqmcpy.estimators
 import afqmcpy.trial_wave_function
+import afqmcpy.info
