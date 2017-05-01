@@ -1,0 +1,16 @@
+TODO:
+
+=== T=0 ===
+
+- [ ] Twisted boundaries
+- [ ] Parallelisation
+- [ ] Profile
+- [ ] Imaginary time green's functions
+- [ ] estimators
+- [ ] continuous HS transormation
+- [ ] error estimation
+
+=== T>0 ===
+
+- [ ] Algorithm
+- [ ] estimators
