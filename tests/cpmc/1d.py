@@ -8,20 +8,20 @@ import afqmcpy
 model = {
     'name': 'Hubbard',
     't': 1.0,
-    'U': 1,
-    'nx': 4,
+    'U': 4,
+    'nx': 8,
     'ny': 1,
-    'nup': 1,
-    'ndown': 1
+    'nup': 3,
+    'ndown': 3,
 }
 qmc_options = {
     'method': 'CPMC',
     'dt': 0.01,
     'nsteps': 100,
     'nmeasure': 10,
-    'nwalkers': 4,
+    'nwalkers': 100,
     'rng_seed': 7,
-    'temperature': 0.0
+    'temperature': 0.0,
 }
 # Set up the calculation state, i.e., model + method + common options
 state = afqmcpy.state.State(model, qmc_options)
