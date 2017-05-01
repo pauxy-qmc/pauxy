@@ -1,9 +1,9 @@
 import numpy as np
 import scipy.linalg
-import walker
-import estimators
-import pop_control
-import trial_wave_function
+import afqmcpy.walker as walker
+import afqmcpy.estimators as estimators
+import afqmcpy.pop_control as pop_control
+import afqmcpy.trial_wave_function as trial_wave_function
 
 def do_qmc(state, interactive=False):
 
