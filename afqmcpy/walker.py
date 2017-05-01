@@ -22,7 +22,7 @@ class Walker:
         # Update walker weight
         ot_new = self.calc_otrial(trial)
         self.greens_function(trial)
-        if abs(ot_new) > 1e-16:
+        if ot_new/self.ot > 1e-16:
             self.weight = self.weight * (ot_new/self.ot)
             self.ot = ot_new
         else:
