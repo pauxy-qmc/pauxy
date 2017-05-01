@@ -8,7 +8,9 @@ TODO:
 - [ ] Imaginary time green's functions
 - [ ] estimators
 - [ ] continuous HS transormation
-- [ ] error estimation
+- [X] error estimation
+- [ ] UHF trial wfn
+- [ ] Rectangular grid bcs issues
 
 === T>0 ===
 
