@@ -29,6 +29,6 @@ sha1 : string
                                      'afqmcpy/'],
                                      cwd=src).strip()
     if suffix:
-        return sha1 + '-dirty'
+        return sha1.decode('utf-8') + '-dirty'
     else:
-        return sha1
+        return sha1.decode('utf-8')
