@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import afqmcpy
 
@@ -31,3 +32,4 @@ state.write_json()
 afqmcpy.qmc.do_qmc(state)
 # Compare to S. Zhang et.al (PRB 55, 7464 (1997))'s value of -6.6632 +/- 0.056
 # and exact value of -6.672
+print ("# End Time: %s"%time.asctime())
