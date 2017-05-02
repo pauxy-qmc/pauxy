@@ -46,4 +46,4 @@ def kinetic(t, nbasis, nx, ny):
     return T + T.T
 
 def decode_basis(nx, ny, i):
-    return np.array([i%nx, i/nx])
+    return np.array([i%nx, i//nx])
