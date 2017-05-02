@@ -6,31 +6,10 @@ import argparse
 import os
 import sys
 import pandas as pd
+_script_dir = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(os.path.join(_script_dir, 'analysis'))
+import analysis
 import pyblock
-
-
-def run_blocking_analysis(filename, start_iter):
-    '''
-'''
-
-    with open(filename[0]) as f:
-        for ln, line in enumerate(f):
-            if 'End of input options' in line:
-                skip = ln + 1
-                break
-
-    data = pd.read_csv(filename[0], skiprows=skip, sep=r'\s+').drop(['iteration', 'exp(delta)'], axis=1)[start_iter::]
-    (data_len, reblock, covariances) = pyblock.pd_utils.reblock(data)
-    cov = covariances.xs('Weight', level=1)['E_num']
-    numerator = reblock.ix[:,'E_num']
-    denominator = reblock.ix[:,'Weight']
-    projected_energy = pyblock.error.ratio(numerator, denominator, cov, 4)
-    projected_energy.columns = pd.MultiIndex.from_tuples([('Energy', col)
-                                    for col in projected_energy.columns])
-    reblock = pd.concat([reblock, projected_energy], axis=1)
-    summary = pyblock.pd_utils.reblock_summary(reblock)
-
-    return (reblock, summary)
 
 
 def parse_args(args):
@@ -92,7 +71,7 @@ None.
 '''
 
     options = parse_args(args)
-    (reblock, summary) = run_blocking_analysis(options.filenames, options.start_iteration)
+    (reblock, summary) = analysis.blocking.run_blocking_analysis(options.filenames, options.start_iteration)
 
     if options.verbose:
         print (reblock)
