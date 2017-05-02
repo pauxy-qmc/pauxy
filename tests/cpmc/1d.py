@@ -17,7 +17,7 @@ model = {
 qmc_options = {
     'method': 'CPMC',
     'dt': 0.01,
-    'nsteps': 100,
+    'nsteps': 1000,
     'nmeasure': 10,
     'nwalkers': 100,
     'rng_seed': 7,
@@ -26,6 +26,8 @@ qmc_options = {
 # Set up the calculation state, i.e., model + method + common options
 state = afqmcpy.state.State(model, qmc_options)
 # Print out calculation information for posterity
-afqmcpy.info.print_header(state)
+state.write_json()
 # Run QMC calculation printing to stdout
 afqmcpy.qmc.do_qmc(state)
+# Compare to S. Zhang et.al (PRB 55, 7464 (1997))'s value of -6.6632 +/- 0.056
+# and exact value of -6.672
