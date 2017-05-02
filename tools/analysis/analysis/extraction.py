@@ -59,3 +59,11 @@ def extract_data(filename):
     data = pd.read_csv(filename, skiprows=skip+2, sep=r'\s+', comment='#')
 
     return (metadata, data)
+
+def pretty_table(summary, metadata):
+
+    vals = summary.ix['Energy',:]
+    model = metadata['model']
+    table = pd.DataFrame({'model': model['name'],
+                          'lattice': r'%sX$s'%(model['nx'],model['ny'])
+                          'electrons': })

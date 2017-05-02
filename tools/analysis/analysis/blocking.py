@@ -24,5 +24,6 @@ def run_blocking_analysis(filename, start_iter):
                                     for col in projected_energy.columns])
     reblock = pd.concat([reblock, projected_energy], axis=1)
     summary = pyblock.pd_utils.reblock_summary(reblock)
+    useful_table = extraction.pretty_table(summary, metadata)
 
     return (reblock, summary)
