@@ -26,6 +26,7 @@ class State:
             if self.method ==  'CPMC':
                 self.projectors = hubbard.Projectors(self.system, self.dt)
 
+        (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)
         random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model

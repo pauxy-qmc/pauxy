@@ -9,4 +9,4 @@ def free_electron(system):
     eigv = eigv[:,idx]
     psi_trial = numpy.array([eigv[:,:system.nup], eigv[:,:system.ndown]])
 
-    return psi_trial
+    return (psi_trial, eigs)
