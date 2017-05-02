@@ -56,6 +56,6 @@ def extract_data(filename):
 
     with open(filename) as f:
         (metadata, skip) = _extract_json(f, True)
-    data = pd.read_csv(filename, skiprows=skip+2, sep=r'\s+')
+    data = pd.read_csv(filename, skiprows=skip+2, sep=r'\s+', comment='#')
 
     return (metadata, data)
