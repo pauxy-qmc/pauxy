@@ -2,7 +2,8 @@ import numpy as np
 
 def header():
 
-    print ("%9s %14s %15s %14s"%('iteration', 'Weight', 'E_num', 'exp(delta)'))
+    print ("%9s %14s %15s %14s %5s"%('iteration', 'Weight', 'E_num',
+           'exp(delta)', 'time'))
 
 def local_energy(system, walker):
 
