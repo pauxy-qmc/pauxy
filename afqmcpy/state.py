@@ -2,6 +2,7 @@ import afqmcpy.hubbard as hubbard
 import numpy as np
 import random
 import json
+import afqmcpy.trial_wave_function as trial_wave_function
 
 class State:
 
