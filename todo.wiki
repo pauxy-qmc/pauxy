@@ -10,7 +10,10 @@ TODO:
 - [ ] continuous HS transormation
 - [X] error estimation
 - [ ] UHF trial wfn
-- [ ] Rectangular grid bcs issues
+- [X] Rectangular grid bcs issues
+- [X] python3
+- [ ] tests/benchmarks
+- [ ] extraction script
 
 === T>0 ===
 
