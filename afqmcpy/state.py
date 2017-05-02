@@ -1,9 +1,11 @@
 import random
 import json
+from json import encoder
 import subprocess
 import sys
 import time
 import json
+import numpy
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
 
@@ -21,9 +23,9 @@ class State:
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
-            self.gamma = np.arccosh(np.exp(0.5*self.dt*self.system.U))
-            self.auxf = np.array([[np.exp(self.gamma), np.exp(-self.gamma)],
-                                  [np.exp(-self.gamma), np.exp(self.gamma)]])
+            self.gamma = numpy.arccosh(numpy.exp(0.5*self.dt*self.system.U))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                  [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             # self.auxf = self.auxf * np.exp(-0.5*dt*self.system.U*self.system.ne)
             # Constant energy factor emerging from HS transformation.
             self.cfac = 0.5*self.system.U*self.system.ne
@@ -32,7 +34,6 @@ class State:
 
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)
         random.seed(qmc_opts['rng_seed'])
-        self.pack_metadata
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
         self.qmc_opts = qmc_opts
@@ -43,12 +44,17 @@ class State:
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {'sha1': get_git_revision_hash(),
                       'Run time': time.asctime()}
-        derived = {'sp_eigv': self.sp_eigs}
+        derived = {'sp_eigv': self.sp_eigs.round(6).tolist()}
+        # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
+        # ugh
+        encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+        info = {'calculation': calc_info,
+                'model': self.model,
+                'qmc_options': self.qmc_opts,
+                'derived': derived}
+        # Note that we require python 3.6 to print dict in ordered fashion.
         print ("# Input options: ")
-        print (json.dumps({'calculation': calc_info,
-                           'derived': derived,
-                           'model': self.model,
-                           'qmc_options': self.qmc_opts}, indent=4))
+        print (json.dumps(info, sort_keys=False, indent=4))
         print ("# End of input options ")
 
 
@@ -69,7 +75,7 @@ sha1 : string
                                    cwd=src).strip()
     suffix = subprocess.check_output(['git', 'status',
                                      '--porcelain',
-                                     'afqmcpy/'],
+                                     '.'],
                                      cwd=src).strip()
     if suffix:
         return sha1.decode('utf-8') + '-dirty'
