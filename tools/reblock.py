@@ -7,7 +7,7 @@ import os
 import sys
 import pandas as pd
 _script_dir = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(os.path.join(_script_dir, 'analysis'))
+sys.path.append(os.path.join(_script_dir, '../afqmcpy'))
 import analysis
 import pyblock
 
