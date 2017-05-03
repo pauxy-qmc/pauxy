@@ -63,7 +63,14 @@ def extract_data(filename):
 def pretty_table(summary, metadata):
 
     vals = summary.ix['Energy',:]
+    print vals['mean']
     model = metadata['model']
     table = pd.DataFrame({'model': model['name'],
-                          'lattice': r'%sX$s'%(model['nx'],model['ny'])
-                          'electrons': })
+                          'lattice': r'%sX%s'%(model['nx'],model['ny']),
+                          'nel': model['nup']+model['ndown'],
+                          'E': vals['mean'],
+                          'E_error': vals['standard error'],
+                          'E_error_error': vals['standard error error']},
+                          index=[0])
+
+    return table
