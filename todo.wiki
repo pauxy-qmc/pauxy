@@ -4,7 +4,9 @@ TODO:
 
 - [ ] Twisted boundaries
 - [ ] Parallelisation
-- [ ] Profile
+- [o] Profile:
+    - [X] timing per iteration
+    - [ ] unit profiling
 - [ ] Imaginary time green's functions
 - [ ] estimators
 - [ ] continuous HS transormation
@@ -13,7 +15,7 @@ TODO:
 - [X] Rectangular grid bcs issues
 - [X] python3
 - [ ] tests/benchmarks
-- [ ] extraction script
+- [X] extraction script
 
 === T>0 ===
 
