@@ -5,6 +5,7 @@ HANDE'''
 import pandas as pd
 import pyblock
 import analysis.extraction
+import numpy
 
 
 def run_blocking_analysis(filename, start_iter):
@@ -27,3 +28,26 @@ def run_blocking_analysis(filename, start_iter):
     useful_table = analysis.extraction.pretty_table(summary, metadata)
 
     return (reblock, useful_table)
+
+
+def average_tau(filenames):
+
+    data = analysis.extraction.extract_data_sets(filenames)
+    frames = []
+
+    for (m,d) in data:
+        frames.append(d)
+
+    frames = pd.concat(frames).groupby('iteration')
+    means = frames.mean()
+    err = frames.var()
+    covs = frames.cov()
+    energy = means['E_num'] / means['Weight']
+    energy_err = energy*numpy.sqrt((err['E_num']/means['E_num'])**2.0 +
+                                   (err['Weight']/means['Weight'])**2.0)
+                                   # 2*covs[['E_num','Weight']]/(means['E_num']*means['Weight']))
+    tau = m['qmc_options']['dt']
+    results = pd.DataFrame({'E': energy, 'E_error': energy_err}).reset_index()
+    results['iteration'] = results['iteration'] * tau
+
+    return results

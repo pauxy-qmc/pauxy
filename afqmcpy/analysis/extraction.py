@@ -52,6 +52,13 @@ Stolen from HANDE source code.
         return ({}, 0)
 
 
+def extract_data_sets(files):
+
+    data =  [extract_data(f) for f in files]
+
+    return data
+
+
 def extract_data(filename):
 
     with open(filename) as f:
@@ -63,7 +70,6 @@ def extract_data(filename):
 def pretty_table(summary, metadata):
 
     vals = summary.ix['Energy',:]
-    print vals['mean']
     model = metadata['model']
     table = pd.DataFrame({'model': model['name'],
                           'lattice': r'%sX%s'%(model['nx'],model['ny']),

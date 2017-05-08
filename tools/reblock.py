@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, '../afqmcpy'))
-import analysis
+import analysis.blocking
 import pyblock
 
 
@@ -43,6 +43,8 @@ start_iteration : int
                         'iteration automatically. ')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                         default=False, help='Increase verbosity of output.')
+    parser.add_argument('-l', '--loops', dest='loops', action='store_true',
+                        default=False, help='Average over independent simulations.')
     parser.add_argument('filenames', nargs=argparse.REMAINDER,
                         help='Space-separated list of files to analyse.')
 
@@ -71,12 +73,15 @@ None.
 '''
 
     options = parse_args(args)
-    (reblock, summary) = analysis.blocking.run_blocking_analysis(options.filenames, options.start_iteration)
-
-    if options.verbose:
-        print (reblock)
+    if options.loops:
+        data = analysis.blocking.average_tau(options.filenames)
+        print (data)
     else:
-        print (summary)
+        (reblock, summary) = analysis.blocking.run_blocking_analysis(options.filenames, options.start_iteration)
+        if options.verbose:
+            print (reblock)
+        else:
+            print (summary)
 
 if __name__ == '__main__':
 

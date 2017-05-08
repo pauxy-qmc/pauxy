@@ -1,2 +1,2 @@
-import extraction
-import blocking
+import analysis.extraction
+import analysis.blocking
