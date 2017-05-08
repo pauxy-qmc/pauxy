@@ -75,7 +75,7 @@ None.
     options = parse_args(args)
     if options.loops:
         data = analysis.blocking.average_tau(options.filenames)
-        print (data)
+        print (data.to_string(index=False))
     else:
         (reblock, summary) = analysis.blocking.run_blocking_analysis(options.filenames, options.start_iteration)
         if options.verbose:
