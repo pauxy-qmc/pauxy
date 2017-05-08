@@ -40,12 +40,12 @@ def average_tau(filenames):
 
     frames = pd.concat(frames).groupby('iteration')
     means = frames.mean()
-    err = frames.var()
-    covs = frames.cov()
+    err = numpy.sqrt(frames.var())
+    covs = frames.cov().loc[:,'E_num'].loc[:, 'Weight']
     energy = means['E_num'] / means['Weight']
-    energy_err = energy*numpy.sqrt((err['E_num']/means['E_num'])**2.0 +
-                                   (err['Weight']/means['Weight'])**2.0)
-                                   # 2*covs[['E_num','Weight']]/(means['E_num']*means['Weight']))
+    energy_err = abs(energy)*((err['E_num']/means['E_num'])**2.0 +
+                                   (err['Weight']/means['Weight'])**2.0 -
+                                   2*covs/(means['E_num']*means['Weight']))**0.5
     tau = m['qmc_options']['dt']
     results = pd.DataFrame({'E': energy, 'E_error': energy_err}).reset_index()
     results['iteration'] = results['iteration'] * tau
