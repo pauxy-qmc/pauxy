@@ -14,9 +14,9 @@ Parameters
 walker : :class:`Walker`
     Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
     updated the weight appropriately. Updates inplace.
-bk2 : numpy.ndarray
+bk2 : :class:`numpy.ndarray`
     Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
-trial : numpy.ndarray
+trial : :class:`numpy.ndarray`
     Trial wavefunction
 '''
     walker.phi[0] = bt2.dot(walker.phi[0])
@@ -41,11 +41,11 @@ Parameters
 walker : :class:`Walker`
     Walker object to be updated. On output we have acted on |phi_i> by B_V and
     updated the weight appropriately. Updates inplace.
-auxf : numpy.ndarray
+auxf : :class:`numpy.ndarray`
     Possible values of the exponential discrete auxilliary fields.
 nbasis : int
     Number of single-particle basis functions (2M for spin).
-trial : numpy.ndarray
+trial : :class:`numpy.ndarray`
     Trial wavefunction.
 '''
     # Construct random auxilliary field.
@@ -88,7 +88,7 @@ Parameters
 walker : :class:`Walker`
     Walker object to be updated. On output we have acted on |phi_i> by
     B_V(x-x')/2 and updated the weight appropriately. Updates inplace.
-U : numpy.ndarray
+U : :class:`numpy.ndarray`
     Matrix containing eigenvectors of gamma (times :math:`\sqrt{-\lambda}`.
 trial : numpy.ndarray
     Trial wavefunction.
@@ -111,7 +111,7 @@ nmax_exp : int
     walker.inverse_overlap(trial)
     walker.greens_function(trial)
     # Perform importance sampling, phaseless and real local energy approximation and update
-    E_L = estimators.local_energy(system, walker).real
+    E_L = estimators.local_energy(system, walker.G).real
     ot_new = walker.calc_otrial(trial)
     dtheta = phase(ot_new/walker.ot)
     walker.weight = walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))

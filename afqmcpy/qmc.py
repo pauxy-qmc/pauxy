@@ -10,7 +10,7 @@ def do_qmc(state, interactive=False):
 
     est = []
     psi = [walker.Walker(1, state.system, state.psi_trial) for w in range(0, state.nwalkers)]
-    E_T = estimators.local_energy(state.system, psi[0])
+    E_T = estimators.local_energy(state.system, psi[0].G)
     estimators.header()
     elocal = 0
     total_weight = 0
@@ -24,7 +24,7 @@ def do_qmc(state, interactive=False):
             if w.weight > 0:
                 propagators.kinetic_direct(w, state.projectors.bt2, state.psi_trial)
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
-            elocal += w.weight * estimators.local_energy(state.system, w)
+            elocal += w.weight * estimators.local_energy(state.system, w.G)
             total_weight += w.weight
             if step%state.nmeasure == 0:
                 w.reortho()
