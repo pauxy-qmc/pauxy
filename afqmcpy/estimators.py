@@ -1,10 +1,12 @@
 import numpy as np
 
+
 def header():
     '''Print out header for estimators'''
 
     print ("%9s %14s %15s %14s %5s"%('iteration', 'Weight', 'E_num',
            'exp(delta)', 'time'))
+
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
