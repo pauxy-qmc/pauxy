@@ -3,6 +3,8 @@
 import random
 import numpy
 import afqmcpy.utils as utils
+from math import exp, phase
+
 
 def kinetic_direct(walker, bt2, trial):
     '''Propagate by the kinetic term by direct matrix multiplication.
@@ -74,3 +76,45 @@ trial : numpy.ndarray
                                             vtdown)
         walker.greens_function(trial)
 
+
+def generic_continuous(walker, U, trial, nmax_exp=4):
+    '''Continuous HS transformation
+
+    This form assumes nothing about the form of the two-body Hamiltonian and
+    is thus quite slow, particularly if the matrix is M^2xM^2.
+
+Parameters
+----------
+walker : :class:`Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by
+    B_V(x-x')/2 and updated the weight appropriately. Updates inplace.
+U : numpy.ndarray
+    Matrix containing eigenvectors of gamma (times :math:`\sqrt{-\lambda}`.
+trial : numpy.ndarray
+    Trial wavefunction.
+nmax_exp : int
+    Maximum expansion order of matrix exponential.
+'''
+
+    # iterate over spins
+    for i in range(0, 2):
+        # Generate ~M^2 normally distributed auxiliary fields.
+        sigma = numpy.random.normal(0.0, 1.0, len(U))
+        # Construct HS potential, V_HS = sigma dot U
+        V_HS = numpy.einsum('ij,j->i', sigma, U)
+        # Reshape so we can apply to MxN Slater determinant.
+        V_HS = numpy.reshape(V_HS, (M,M))
+        for n in range(1, nmax_exp+1):
+            walker.phi[i] += numpy.factorial(n) * np.dot(V_HS, phi)
+
+    # Update inverse and green's function
+    walker.inverse_overlap(trial)
+    walker.greens_function(trial)
+    # Perform importance sampling, phaseless and real local energy approximation and update
+    E_L = estimators.local_energy(system, walker).real
+    ot_new = walker.calc_otrial(trial)
+    dtheta = phase(ot_new/walker.ot)
+    walker.weight = walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
+                                  * max(0, dtheta)
+    walker.E_L = E_L
+    walker.ot_new = ot_new

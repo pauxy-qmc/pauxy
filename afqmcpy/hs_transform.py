@@ -30,13 +30,3 @@ U : numpy.ndarray
 
         return U
 
-def generic_continuous(, nmax_exp=4):
-
-    # Generate ~M^2 normally distributed auxiliary fields.
-    sigma = numpy.random.normal(0.0, 1.0, len(U))
-    # Construct HS potential, V_HS = sigma dot U
-    V_HS = numpy.einsum('ij,j->i', sigma, U)
-    # Reshape so we can apply to MxN Slater determinant.
-    V_HS = numpy.reshape(V_HS, (M,M))
-    for n in range(1, nmax_exp+1):
-        phi += numpy.factorial(n) * np.dot(V_HS, phi)
