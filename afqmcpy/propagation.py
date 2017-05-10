@@ -2,38 +2,12 @@
 
 import random
 import numpy
+import scipy.linalg
 import afqmcpy.utils as utils
-from math import exp, phase
+from cmath import exp, phase
 
 
-def kinetic_direct(walker, bt2, trial):
-    '''Propagate by the kinetic term by direct matrix multiplication.
-
-Parameters
-----------
-walker : :class:`Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
-    updated the weight appropriately. Updates inplace.
-bk2 : :class:`numpy.ndarray`
-    Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
-trial : :class:`numpy.ndarray`
-    Trial wavefunction
-'''
-    walker.phi[0] = bt2.dot(walker.phi[0])
-    walker.phi[1] = bt2.dot(walker.phi[1])
-    # Update inverse overlap
-    walker.inverse_overlap(trial)
-    # Update walker weight
-    ot_new = walker.calc_otrial(trial)
-    walker.greens_function(trial)
-    if ot_new/walker.ot > 1e-16:
-        walker.weight = walker.weight * (ot_new/walker.ot)
-        walker.ot = ot_new
-    else:
-        walker.weight = 0.0
-
-
-def discrete_hubbard(walker, auxf, nbasis, trial):
+def discrete_hubbard(walker, state):
     '''Propagate by potential term using discrete HS transform.
 
 Parameters
@@ -77,7 +51,7 @@ trial : :class:`numpy.ndarray`
         walker.greens_function(trial)
 
 
-def generic_continuous(walker, U, trial, nmax_exp=4):
+def generic_continuous(walker, state):
     '''Continuous HS transformation
 
     This form assumes nothing about the form of the two-body Hamiltonian and
@@ -114,7 +88,53 @@ nmax_exp : int
     E_L = estimators.local_energy(system, walker.G).real
     ot_new = walker.calc_otrial(trial)
     dtheta = phase(ot_new/walker.ot)
-    walker.weight = walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
-                                  * max(0, dtheta)
+    walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
+                                  * max(0, dtheta))
     walker.E_L = E_L
     walker.ot_new = ot_new
+
+
+def kinetic_direct(walker, state):
+    '''Propagate by the kinetic term by direct matrix multiplication.
+
+Parameters
+----------
+walker : :class:`Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
+    updated the weight appropriately. Updates inplace.
+bk2 : :class:`numpy.ndarray`
+    Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
+trial : :class:`numpy.ndarray`
+    Trial wavefunction
+'''
+    walker.phi[0] = bt2.dot(walker.phi[0])
+    walker.phi[1] = bt2.dot(walker.phi[1])
+    # Update inverse overlap
+    walker.inverse_overlap(trial)
+    # Update walker weight
+    ot_new = walker.calc_otrial(trial)
+    walker.greens_function(trial)
+    if ot_new/walker.ot > 1e-16:
+        walker.weight = walker.weight * (ot_new/walker.ot)
+        walker.ot = ot_new
+    else:
+        walker.weight = 0.0
+
+
+_function_dict = {
+    'kinetic': kinetic_direct,
+    'potential': {
+        'Hubbard': {
+            'discrete': discrete_hubbard,
+            'continuous': generic_continuous,
+        }
+    }
+}
+
+class Projectors:
+    '''Base projector class'''
+
+    def __init__(self, model, hs_type, dt, T):
+        self.bt2 = scipy.linalg.expm(-0.5*dt*T)
+        self.kinetic = _function_dict['kinetic']
+        self.potential = _function_dict['potential'][model][hs_type]

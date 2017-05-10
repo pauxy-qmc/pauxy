@@ -8,6 +8,7 @@ import json
 import numpy
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
+import afqmcpy.propagation
 
 class State:
 
@@ -29,9 +30,11 @@ class State:
             # self.auxf = self.auxf * np.exp(-0.5*dt*self.system.U*self.system.ne)
             # Constant energy factor emerging from HS transformation.
             self.cfac = 0.5*self.system.U*self.system.ne
-            if self.method ==  'CPMC':
-                self.projectors = hubbard.Projectors(self.system, self.dt)
 
+        self.test = afqmcpy.propagation.kinetic_direct
+        self.projectors = afqmcpy.propagation.Projectors(model['name'],
+                                                         qmc_opts['hubbard_stratonovich'],
+                                                         self.dt, self.system.T)
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)
         random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.

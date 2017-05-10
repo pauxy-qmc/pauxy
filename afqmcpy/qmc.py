@@ -4,7 +4,6 @@ import time
 import afqmcpy.walker as walker
 import afqmcpy.estimators as estimators
 import afqmcpy.pop_control as pop_control
-import afqmcpy.propagators as propagators
 
 def do_qmc(state, interactive=False):
 
@@ -18,11 +17,11 @@ def do_qmc(state, interactive=False):
     for step in range(0, state.nsteps):
         for w in psi:
             if w.weight > 0:
-                propagators.kinetic_direct(w, state.projectors.bt2, state.psi_trial)
+                state.projectors.kinetic(w, state)
             if w.weight > 0:
-                propagators.discrete_hubbard(w, state.auxf, state.system.nbasis, state.psi_trial)
+                state.projectors.potential(w, state)
             if w.weight > 0:
-                propagators.kinetic_direct(w, state.projectors.bt2, state.psi_trial)
+                state.projectors.kinetic(w, state)
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
             elocal += w.weight * estimators.local_energy(state.system, w.G)
             total_weight += w.weight
