@@ -4,7 +4,8 @@ import random
 import numpy
 import scipy.linalg
 import afqmcpy.utils as utils
-from cmath import exp, phase
+import afqmcpy.estimators as estimators
+from cmath import exp, phase, sqrt
 
 
 def discrete_hubbard(walker, state):
@@ -31,6 +32,7 @@ trial : :class:`numpy.ndarray`
         norm = sum(probs)
         walker.weight = walker.weight * norm
         r = random.random()
+        # Is this necessary?
         if walker.weight > 0:
             if r < probs[0]/norm:
                 vtup = walker.phi[0][i,:] * delta[0, 0]
@@ -51,6 +53,45 @@ trial : :class:`numpy.ndarray`
                                                     state.psi_trial[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.psi_trial)
+
+
+def continuous_hubbard(walker, state):
+    '''Continuous Hubbard-Statonovich transformation for Hubbard model.
+
+    Only requires M auxiliary fields.
+
+Parameters
+----------
+walker : :class:`walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    updated the weight appropriately. Updates inplace.
+state : :class:`state.State`
+    Simulation state.
+'''
+    for i in range(0, state.system.nbasis):
+        # For convenience..
+        x_i = sqrt((-2.0*state.system.U*state.dt)) * numpy.random.normal(0.0, 1.0)
+        delta = exp(x_i) - 1
+        # Check speed here with numpy
+        if walker.weight > 0:
+            vtup = walker.phi[0][i,:] * delta
+            vtdown = walker.phi[1][i,:] * delta
+            walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+            walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+            walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+                                                        state.psi_trial[0].T[:,i],
+                                                        vtup)
+            walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+                                                        state.psi_trial[1].T[:,i],
+                                                        vtdown)
+            walker.greens_function(state.psi_trial)
+            E_L = estimators.local_energy(state.system, walker.G).real
+            ot_new = walker.calc_otrial(state.psi_trial)
+            dtheta = phase(ot_new/walker.ot)
+            walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
+                                           * max(0, dtheta))
+            walker.E_L = E_L
+            walker.ot = ot_new
 
 
 def generic_continuous(walker, state):
@@ -75,9 +116,9 @@ nmax_exp : int
     # iterate over spins
     for i in range(0, 2):
         # Generate ~M^2 normally distributed auxiliary fields.
-        sigma = numpy.random.normal(0.0, 1.0, len(U))
+        sigma = state.dt**0.5 * numpy.random.normal(0.0, 1.0, len(state.U))
         # Construct HS potential, V_HS = sigma dot U
-        V_HS = numpy.einsum('ij,j->i', sigma, U)
+        V_HS = numpy.einsum('ij,j->i', sigma, state.U)
         # Reshape so we can apply to MxN Slater determinant.
         V_HS = numpy.reshape(V_HS, (M,M))
         for n in range(1, nmax_exp+1):
@@ -93,7 +134,7 @@ nmax_exp : int
     walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
                                   * max(0, dtheta))
     walker.E_L = E_L
-    walker.ot_new = ot_new
+    walker.ot = ot_new
 
 
 def kinetic_direct(walker, state):
@@ -129,6 +170,7 @@ _function_dict = {
         'Hubbard': {
             'discrete': discrete_hubbard,
             'continuous': generic_continuous,
+            'opt_continuous': continuous_hubbard,
         }
     }
 }
