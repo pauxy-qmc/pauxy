@@ -23,8 +23,8 @@ trial : :class:`numpy.ndarray`
     Trial wavefunction.
 '''
     # Construct random auxilliary field.
-    delta = auxf - 1
-    for i in range(0, nbasis):
+    delta = state.auxf - 1
+    for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
                                 (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
@@ -44,11 +44,13 @@ trial : :class:`numpy.ndarray`
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
-        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0], trial[0].T[:,i],
-                                            vtup)
-        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1], trial[1].T[:,i],
-                                            vtdown)
-        walker.greens_function(trial)
+        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+                                                    state.psi_trial[0].T[:,i],
+                                                    vtup)
+        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+                                                    state.psi_trial[1].T[:,i],
+                                                    vtdown)
+        walker.greens_function(state.psi_trial)
 
 
 def generic_continuous(walker, state):
@@ -107,13 +109,13 @@ bk2 : :class:`numpy.ndarray`
 trial : :class:`numpy.ndarray`
     Trial wavefunction
 '''
-    walker.phi[0] = bt2.dot(walker.phi[0])
-    walker.phi[1] = bt2.dot(walker.phi[1])
+    walker.phi[0] = state.projectors.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.projectors.bt2.dot(walker.phi[1])
     # Update inverse overlap
-    walker.inverse_overlap(trial)
+    walker.inverse_overlap(state.psi_trial)
     # Update walker weight
-    ot_new = walker.calc_otrial(trial)
-    walker.greens_function(trial)
+    ot_new = walker.calc_otrial(state.psi_trial)
+    walker.greens_function(state.psi_trial)
     if ot_new/walker.ot > 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot)
         walker.ot = ot_new
