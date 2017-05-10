@@ -16,6 +16,7 @@ TODO:
 - [X] python3
 - [ ] tests/benchmarks
 - [X] extraction script
+- [ ] move propagators out of walker type
 
 === T>0 ===
 
