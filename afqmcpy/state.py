@@ -9,6 +9,7 @@ import numpy
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
 import afqmcpy.propagation
+import afqmcpy.hs_transform
 
 class State:
 
@@ -30,6 +31,8 @@ class State:
             # self.auxf = self.auxf * np.exp(-0.5*dt*self.system.U*self.system.ne)
             # Constant energy factor emerging from HS transformation.
             self.cfac = 0.5*self.system.U*self.system.ne
+            if qmc_opts['hubbard_stratonovich'] == 'continuous':
+                self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
         self.test = afqmcpy.propagation.kinetic_direct
         self.projectors = afqmcpy.propagation.Projectors(model['name'],
@@ -45,16 +48,20 @@ class State:
     def write_json(self):
 
         # Combine some metadata in dicts so it can be easily printed/read.
-        calc_info =  {'sha1': get_git_revision_hash(),
-                      'Run time': time.asctime()}
+        calc_info =  {
+            'sha1': get_git_revision_hash(),
+            'Run time': time.asctime()
+        }
         derived = {'sp_eigv': self.sp_eigs.round(6).tolist()}
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
         encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        info = {'calculation': calc_info,
-                'model': self.model,
-                'qmc_options': self.qmc_opts,
-                'derived': derived}
+        info = {
+            'calculation': calc_info,
+            'model': self.model,
+            'qmc_options': self.qmc_opts,
+            'derived': derived
+        }
         # Note that we require python 3.6 to print dict in ordered fashion.
         print ("# Input options: ")
         print (json.dumps(info, sort_keys=False, indent=4))
