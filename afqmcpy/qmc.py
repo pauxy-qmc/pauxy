@@ -6,10 +6,12 @@ import afqmcpy.estimators as estimators
 import afqmcpy.pop_control as pop_control
 
 def do_qmc(state, interactive=False):
+    '''
+'''
 
     est = []
     psi = [walker.Walker(1, state.system, state.psi_trial) for w in range(0, state.nwalkers)]
-    E_T = estimators.local_energy(state.system, psi[0].G)
+    E_T = estimators.local_energy(state.system, psi[0].G)[0]
     estimators.header()
     elocal = 0
     total_weight = 0
@@ -18,7 +20,7 @@ def do_qmc(state, interactive=False):
         for w in psi:
             state.propagators.propagate_walker(w, state)
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
-            elocal += w.weight * estimators.local_energy(state.system, w.G)
+            elocal += w.weight * estimators.local_energy(state.system, w.G)[0]
             total_weight += w.weight
             if step%state.nmeasure == 0:
                 w.reortho()

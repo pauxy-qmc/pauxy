@@ -14,7 +14,7 @@ class Walker:
         self.G = [0, 0]
         self.greens_function(trial)
         self.ot = 1.0
-        self.E_L = afqmcpy.estimators.local_energy(system, self.G)
+        (self.E_L, self.vbar) = afqmcpy.estimators.local_energy(system, self.G)
 
     def inverse_overlap(self, trial):
         self.inv_ovlp[0] = scipy.linalg.inv(trial[0].T.dot(self.phi[0]))

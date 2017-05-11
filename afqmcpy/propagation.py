@@ -5,8 +5,8 @@ import numpy
 import scipy.linalg
 import afqmcpy.utils as utils
 import afqmcpy.estimators as estimators
-from cmath import exp, phase, sqrt
-from math import cos
+import math
+import cmath
 
 
 def propagate_walker_discrete(walker, state):
@@ -54,11 +54,11 @@ state : :class:`state.State`
     # Phaseless approximation
     walker.inverse_overlap(state.psi_trial)
     walker.greens_function(state.psi_trial)
-    E_L = estimators.local_energy(state.system, walker.G).real
+    (E_L, walker.vbar) = estimators.local_energy(state.system, walker.G)
     ot_new = walker.calc_otrial(state.psi_trial)
-    dtheta = phase(ot_new/walker.ot)
-    walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
-                                   * max(0, cos(dtheta)))
+    dtheta = cmath.phase(ot_new/walker.ot)
+    walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L-E_L))
+                                   * max(0, math.cos(dtheta)))
     walker.E_L = E_L
     walker.ot = ot_new
 
@@ -127,8 +127,9 @@ state : :class:`state.State`
     for i in range(0, state.system.nbasis):
         # For convenience..
         # Need shift here
-        x_i = sqrt((-2.0*state.system.U*state.dt)) * numpy.random.normal(0.0, 1.0)
-        delta = exp(x_i) - 1
+        x_i = cmath.sqrt((-2.0*state.system.U*state.dt)) * (
+                numpy.random.normal(0.0, 1.0) - state.dt**0.5*walker.vbar)
+        delta = cmath.exp(x_i) - 1
         # Check speed here with numpy (restructure array)
         vtup = walker.phi[0][i,:] * delta
         vtdown = walker.phi[1][i,:] * delta
@@ -172,7 +173,7 @@ nmax_exp : int
     # Perform importance sampling, phaseless and real local energy approximation and update
     E_L = estimators.local_energy(system, walker.G).real
     ot_new = walker.calc_otrial(trial)
-    dtheta = phase(ot_new/walker.ot)
+    dtheta = cmath.phase(ot_new/walker.ot)
     walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
                                   * max(0, cos(dtheta)))
     walker.E_L = E_L

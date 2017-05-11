@@ -25,7 +25,7 @@ E_L(phi) : float
     Local energy of given walker phi.
 '''
 
-    ke = np.sum(system.T * (G[0] + G[1]))
-    pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
+    ke = np.sum(system.T * (G[0] + G[1])).real
+    pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis)).real
 
-    return ke + pe
+    return (ke + pe, pe)
