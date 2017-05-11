@@ -164,8 +164,31 @@ trial : :class:`numpy.ndarray`
         walker.weight = 0.0
 
 
+def kinetic_continuous(walker, state):
+    '''Propagate by the kinetic term by direct matrix multiplication.
+
+    For use with the continuous algorithm.
+
+Parameters
+----------
+walker : :class:`Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
+    updated the weight appropriately. Updates inplace.
+bk2 : :class:`numpy.ndarray`
+    Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
+trial : :class:`numpy.ndarray`
+    Trial wavefunction
+'''
+    walker.phi[0] = state.projectors.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.projectors.bt2.dot(walker.phi[1])
+
+
 _function_dict = {
-    'kinetic': kinetic_direct,
+    'kinetic': {
+        'discrete_hubbard': kinetic_direct,
+        'continuous': kinetic_continuous,
+        'opt_continuous': kinetic_continuous,
+    },
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
@@ -180,5 +203,5 @@ class Projectors:
 
     def __init__(self, model, hs_type, dt, T):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
-        self.kinetic = _function_dict['kinetic']
+        self.kinetic = _function_dict['kinetic'][hs_type]
         self.potential = _function_dict['potential'][model][hs_type]
