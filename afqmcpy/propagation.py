@@ -5,7 +5,7 @@ import numpy
 import scipy.linalg
 import afqmcpy.utils as utils
 import afqmcpy.estimators as estimators
-from cmath import exp, phase, sqrt
+from cmath import exp, phase, sqrt, cos
 
 
 def discrete_hubbard(walker, state):
@@ -68,30 +68,32 @@ walker : :class:`walker.Walker`
 state : :class:`state.State`
     Simulation state.
 '''
+
+    kinetic_direct(walker, state)
+
     for i in range(0, state.system.nbasis):
         # For convenience..
+        # Need shift here
         x_i = sqrt((-2.0*state.system.U*state.dt)) * numpy.random.normal(0.0, 1.0)
         delta = exp(x_i) - 1
-        # Check speed here with numpy
-        if walker.weight > 0:
+        # Check speed here with numpy (restructure array)
+        if walker.weight.real > 0:
             vtup = walker.phi[0][i,:] * delta
             vtdown = walker.phi[1][i,:] * delta
             walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
             walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-            walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
-                                                        state.psi_trial[0].T[:,i],
-                                                        vtup)
-            walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
-                                                        state.psi_trial[1].T[:,i],
-                                                        vtdown)
-            walker.greens_function(state.psi_trial)
-            E_L = estimators.local_energy(state.system, walker.G).real
-            ot_new = walker.calc_otrial(state.psi_trial)
-            dtheta = phase(ot_new/walker.ot)
-            walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
-                                           * max(0, dtheta))
-            walker.E_L = E_L
-            walker.ot = ot_new
+
+    kinetic_direct(walker, state)
+
+    walker.inverse_overlap(trial)
+    walker.greens_function(state.psi_trial)
+    E_L = estimators.local_energy(state.system, walker.G).real
+    ot_new = walker.calc_otrial(state.psi_trial)
+    dtheta = phase(ot_new/walker.ot)
+    walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
+                                   * max(0, cos(dtheta)))
+    walker.E_L = E_L
+    walker.ot = ot_new
 
 
 def generic_continuous(walker, state):
@@ -132,7 +134,7 @@ nmax_exp : int
     ot_new = walker.calc_otrial(trial)
     dtheta = phase(ot_new/walker.ot)
     walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
-                                  * max(0, dtheta))
+                                  * max(0, cos(dtheta)))
     walker.E_L = E_L
     walker.ot = ot_new
 
@@ -157,7 +159,8 @@ trial : :class:`numpy.ndarray`
     # Update walker weight
     ot_new = walker.calc_otrial(state.psi_trial)
     walker.greens_function(state.psi_trial)
-    if ot_new/walker.ot > 1e-16:
+    ratio = ot_new / walker.ot
+    if ratio.real > 1e-16 and abs(ratio.imag) < 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot)
         walker.ot = ot_new
     else:
