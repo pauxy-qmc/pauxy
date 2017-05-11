@@ -34,7 +34,7 @@ class State:
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
-        self.projectors = afqmcpy.propagation.Projectors(model['name'],
+        self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                          qmc_opts['hubbard_stratonovich'],
                                                          self.dt, self.system.T)
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)

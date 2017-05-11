@@ -5,7 +5,62 @@ import numpy
 import scipy.linalg
 import afqmcpy.utils as utils
 import afqmcpy.estimators as estimators
-from cmath import exp, phase, sqrt, cos
+from cmath import exp, phase, sqrt
+from math import cos
+
+
+def propagate_walker_discrete(walker, state):
+    '''Wrapper function for propagation using discrete transformation
+
+    The discrete transformation allows us to split the application of the
+    projector up a bit more, which allows up to make use of fast matrix update
+    routines since only a row might change.
+
+    Todo: This about this for continuous transformation.
+
+Parameters
+----------
+walker : :class:`walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    updated the weight appropriately. Updates inplace.
+state : :class:`state.State`
+    Simulation state.
+'''
+
+    if walker.weight.real > 0:
+        state.propagators.kinetic(walker, state)
+    if walker.weight.real > 0:
+        state.propagators.potential(walker, state)
+    if walker.weight.real > 0:
+        state.propagators.kinetic(walker, state)
+
+
+def propagate_walker_continuous(walker, state):
+    '''Wrapper function for propagation using continuous transformation
+
+Parameters
+----------
+walker : :class:`walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    updated the weight appropriately. Updates inplace.
+state : :class:`state.State`
+    Simulation state.
+'''
+
+    state.propagators.kinetic(walker, state)
+    state.propagators.potential(walker, state)
+    state.propagators.kinetic(walker, state)
+
+    # Phaseless approximation
+    walker.inverse_overlap(state.psi_trial)
+    walker.greens_function(state.psi_trial)
+    E_L = estimators.local_energy(state.system, walker.G).real
+    ot_new = walker.calc_otrial(state.psi_trial)
+    dtheta = phase(ot_new/walker.ot)
+    walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
+                                   * max(0, cos(dtheta)))
+    walker.E_L = E_L
+    walker.ot = ot_new
 
 
 def discrete_hubbard(walker, state):
@@ -69,31 +124,16 @@ state : :class:`state.State`
     Simulation state.
 '''
 
-    kinetic_direct(walker, state)
-
     for i in range(0, state.system.nbasis):
         # For convenience..
         # Need shift here
         x_i = sqrt((-2.0*state.system.U*state.dt)) * numpy.random.normal(0.0, 1.0)
         delta = exp(x_i) - 1
         # Check speed here with numpy (restructure array)
-        if walker.weight.real > 0:
-            vtup = walker.phi[0][i,:] * delta
-            vtdown = walker.phi[1][i,:] * delta
-            walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-            walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-
-    kinetic_direct(walker, state)
-
-    walker.inverse_overlap(trial)
-    walker.greens_function(state.psi_trial)
-    E_L = estimators.local_energy(state.system, walker.G).real
-    ot_new = walker.calc_otrial(state.psi_trial)
-    dtheta = phase(ot_new/walker.ot)
-    walker.weight = (walker.weight * exp(-0.5*state.dt*(walker.E_L-E_L))
-                                   * max(0, cos(dtheta)))
-    walker.E_L = E_L
-    walker.ot = ot_new
+        vtup = walker.phi[0][i,:] * delta
+        vtdown = walker.phi[1][i,:] * delta
+        walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+        walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
 
 
 def generic_continuous(walker, state):
@@ -152,8 +192,8 @@ bk2 : :class:`numpy.ndarray`
 trial : :class:`numpy.ndarray`
     Trial wavefunction
 '''
-    walker.phi[0] = state.projectors.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.projectors.bt2.dot(walker.phi[1])
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     # Update inverse overlap
     walker.inverse_overlap(state.psi_trial)
     # Update walker weight
@@ -182,13 +222,13 @@ bk2 : :class:`numpy.ndarray`
 trial : :class:`numpy.ndarray`
     Trial wavefunction
 '''
-    walker.phi[0] = state.projectors.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.projectors.bt2.dot(walker.phi[1])
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
 
 
-_function_dict = {
+_projectors = {
     'kinetic': {
-        'discrete_hubbard': kinetic_direct,
+        'discrete': kinetic_direct,
         'continuous': kinetic_continuous,
         'opt_continuous': kinetic_continuous,
     },
@@ -201,10 +241,19 @@ _function_dict = {
     }
 }
 
+_propagators = {
+    'discrete': propagate_walker_discrete,
+    'continuous': propagate_walker_continuous,
+}
+
 class Projectors:
-    '''Base projector class'''
+    '''Base propagator class'''
 
     def __init__(self, model, hs_type, dt, T):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
-        self.kinetic = _function_dict['kinetic'][hs_type]
-        self.potential = _function_dict['potential'][model][hs_type]
+        if 'continuous' in hs_type:
+            self.propagate_walker = _propagators['continuous']
+        else:
+            self.propagate_walker = _propagators['discrete']
+        self.kinetic = _projectors['kinetic'][hs_type]
+        self.potential = _projectors['potential'][model][hs_type]
