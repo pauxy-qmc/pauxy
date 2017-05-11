@@ -137,6 +137,31 @@ state : :class:`state.State`
         walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
 
 
+def dumb_hubbard(walker, state):
+    '''Continuous Hubbard-Statonovich transformation for Hubbard model.
+
+    Only requires M auxiliary fields.
+
+Parameters
+----------
+walker : :class:`walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    updated the weight appropriately. Updates inplace.
+state : :class:`state.State`
+    Simulation state.
+'''
+
+    # For convenience..
+    # Need shift here
+    x_i = numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    gterm = numpy.diag(walker.G[0]) + numpy.diag(walker.G[1])
+    print gterm
+    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt**0.5*state.system.U)*gterm)
+    E_VHS = numpy.exp(xmxb)
+    walker.phi[0] = numpy.einsum('ij,i->ij', walker.phi[0], E_VHS)
+    walker.phi[1] = numpy.einsum('ij,i->ij', walker.phi[1], E_VHS)
+
+
 def generic_continuous(walker, state):
     '''Continuous HS transformation
 
@@ -232,12 +257,14 @@ _projectors = {
         'discrete': kinetic_direct,
         'continuous': kinetic_continuous,
         'opt_continuous': kinetic_continuous,
+        'dumb_continuous': kinetic_continuous,
     },
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
             'continuous': generic_continuous,
             'opt_continuous': continuous_hubbard,
+            'dumb_continuous': dumb_hubbard,
         }
     }
 }
