@@ -7,6 +7,7 @@ def free_electron(system):
     idx = eigs.argsort()
     eigs = eigs[idx]
     eigv = eigv[:,idx]
-    psi_trial = numpy.array([eigv[:,:system.nup], eigv[:,:system.ndown]])
+    psi_trial = numpy.array([eigv[:,:system.nup], eigv[:,:system.ndown]],
+                            dtype=complex)
 
     return (psi_trial, eigs)

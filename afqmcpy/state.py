@@ -34,7 +34,6 @@ class State:
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
-        self.test = afqmcpy.propagation.kinetic_direct
         self.projectors = afqmcpy.propagation.Projectors(model['name'],
                                                          qmc_opts['hubbard_stratonovich'],
                                                          self.dt, self.system.T)
@@ -52,7 +51,9 @@ class State:
             'sha1': get_git_revision_hash(),
             'Run time': time.asctime()
         }
-        derived = {'sp_eigv': self.sp_eigs.round(6).tolist()}
+        derived = {
+                'sp_eigv': self.sp_eigs.round(6).tolist()
+        }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
         encoder.FLOAT_REPR = lambda o: format(o, '.6f')

@@ -17,7 +17,7 @@ def comb(psi, nw):
         for (iw, w) in enumerate(cprobs):
             if c < w:
                 new_psi[ic] = copy.copy(psi[iw].phi)
-                new_ovlps[ic] = psi[iw].ot
+                new_ovlps[ic] = psi[iw].ot.real
                 break
 
     # Copy back new information
