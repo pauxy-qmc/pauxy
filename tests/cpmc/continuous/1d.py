@@ -10,10 +10,10 @@ model = {
     'name': 'Hubbard',
     't': 1.0,
     'U': 4,
-    'nx': 8,
+    'nx': 4,
     'ny': 1,
-    'nup': 3,
-    'ndown': 3,
+    'nup': 1,
+    'ndown': 1,
 }
 qmc_options = {
     'method': 'CPMC',
@@ -23,7 +23,7 @@ qmc_options = {
     'nwalkers': 100,
     'rng_seed': 7,
     'temperature': 0.0,
-    'hubbard_stratonovich': 'continuous',
+    'hubbard_stratonovich': 'discrete',
 }
 # Set up the calculation state, i.e., model + method + common options
 state = afqmcpy.state.State(model, qmc_options)

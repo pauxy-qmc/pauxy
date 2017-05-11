@@ -23,14 +23,13 @@ qmc_options = {
     'nwalkers': 100,
     'rng_seed': 7,
     'temperature': 0.0,
-    'hubbard_stratonovich': 'opt_continuous',
+    'hubbard_stratonovich': 'dumb_continuous',
 }
 # Set up the calculation state, i.e., model + method + common options
 state = afqmcpy.state.State(model, qmc_options)
 # Print out calculation information for posterity
 state.write_json()
 # Run QMC calculation printing to stdout
-print state.propagators.kinetic.__doc__
 afqmcpy.qmc.do_qmc(state)
 # Compare to S. Zhang et.al (PRB 55, 7464 (1997))'s value of -6.6632 +/- 0.056
 # and exact value of -6.672
