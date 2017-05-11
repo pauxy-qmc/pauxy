@@ -18,7 +18,8 @@ def do_qmc(state, interactive=False):
     init_time = time.time()
     for step in range(0, state.nsteps):
         for w in psi:
-            state.propagators.propagate_walker(w, state)
+            if w.weight > 1e-16:
+                state.propagators.propagate_walker(w, state)
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
             elocal += w.weight * estimators.local_energy(state.system, w.G)[0]
             total_weight += w.weight
