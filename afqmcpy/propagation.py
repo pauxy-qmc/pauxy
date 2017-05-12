@@ -35,6 +35,37 @@ state : :class:`state.State`
         state.propagators.kinetic(walker, state)
 
 
+def propagate_walker_free(walker, state):
+    '''Free projection without importance sampling.
+
+'''
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    delta = state.auxf - 1
+    for i in range(0, state.system.nbasis):
+        # Is this necessary?
+        if walker.weight > 0:
+            r = random.random()
+            if r > 0.5:
+                vtup = walker.phi[0][i,:] * delta[0, 0]
+                vtdown = walker.phi[1][i,:] * delta[0, 1]
+                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                walker.ot = 2 * walker.ot * probs[0]
+            else:
+                vtup = walker.phi[0][i,:] * delta[1, 0]
+                vtdown = walker.phi[1][i,:] * delta[1, 1]
+                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                walker.ot = 2 * walker.ot * probs[1]
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    walker.inverse_overlap(state.psi_trial)
+    # Update walker weight
+    walker.ot = walker.calc_otrial(state.psi_trial)
+    walker.greens_function(state.psi_trial)
+
+
 def propagate_walker_continuous(walker, state):
     '''Wrapper function for propagation using continuous transformation
 
@@ -270,18 +301,23 @@ _projectors = {
 }
 
 _propagators = {
-    'discrete': propagate_walker_discrete,
+    'discrete': {
+        'free': propagate_walker_free,
+        'constrained': propagate_walker_discrete,
+    },
     'continuous': propagate_walker_continuous,
 }
 
 class Projectors:
     '''Base propagator class'''
 
-    def __init__(self, model, hs_type, dt, T):
+    def __init__(self, model, hs_type, dt, T, importance_sampling):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
         if 'continuous' in hs_type:
             self.propagate_walker = _propagators['continuous']
+        elif importance_sampling:
+            self.propagate_walker = _propagators['discrete']['constrained']
         else:
-            self.propagate_walker = _propagators['discrete']
+            self.propagate_walker = _propagators['discrete']['free']
         self.kinetic = _projectors['kinetic'][hs_type]
         self.potential = _projectors['potential'][model][hs_type]
