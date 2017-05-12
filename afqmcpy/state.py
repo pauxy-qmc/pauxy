@@ -22,6 +22,7 @@ class State:
         self.nsteps = qmc_opts['nsteps']
         self.nmeasure = qmc_opts['nmeasure']
         self.temp = qmc_opts['temperature']
+        self.importance_sampling = qmc_opts['importance_sampling']
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
@@ -36,7 +37,8 @@ class State:
 
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                          qmc_opts['hubbard_stratonovich'],
-                                                         self.dt, self.system.T)
+                                                         self.dt, self.system.T,
+                                                         self.importance_sampling)
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)
         random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.

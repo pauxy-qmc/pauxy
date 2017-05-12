@@ -32,6 +32,14 @@ class Walker:
                          for p in self.phi])]
         self.ot = self.ot / (scipy.linalg.det(R[0])*scipy.linalg.det(R[1]))
 
+    def reortho_free(self):
+        (self.phi, R) = [list(t)
+                         for t in zip(*[scipy.linalg.qr(p, mode='economic')
+                         for p in self.phi])]
+        detR = (scipy.linalg.det(R[0])*scipy.linalg.det(R[1]))
+        self.ot = self.ot / detR
+        self.weight = self.weight * detR
+
     def greens_function(self, trial):
         self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), np.transpose(trial[0]))
         self.G[1] = np.dot(np.dot(self.phi[1], self.inv_ovlp[1]), np.transpose(trial[1]))
