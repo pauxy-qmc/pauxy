@@ -4,6 +4,7 @@ import numpy
 import scipy.linalg
 import random
 
+
 def construct_generic_one_body(gamma, method='eigen'):
     '''Construct one-body operators from super matrix Gamma
 
@@ -29,4 +30,3 @@ U : numpy.ndarray
         U = numpy.einsum('ij,j->ij', eigv, numpy.sqrt(-eigs))
 
         return U
-
