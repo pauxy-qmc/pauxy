@@ -24,7 +24,7 @@ def do_qmc(state, interactive=False):
             elocal += w.weight * estimators.local_energy(state.system, w.G)[0]
             total_weight += w.weight
             if step%state.nmeasure == 0:
-                if state.importance_sampling == 'true':
+                if state.importance_sampling:
                     w.reortho()
                 else:
                     w.reortho_free()
