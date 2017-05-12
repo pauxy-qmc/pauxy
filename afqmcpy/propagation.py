@@ -51,13 +51,11 @@ def propagate_walker_free(walker, state):
                 vtdown = walker.phi[1][i,:] * delta[0, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-                walker.ot = 2 * walker.ot * probs[0]
             else:
                 vtup = walker.phi[0][i,:] * delta[1, 0]
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-                walker.ot = 2 * walker.ot * probs[1]
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     walker.inverse_overlap(state.psi_trial)
@@ -186,7 +184,7 @@ state : :class:`state.State`
     # Need shift here
     x_i = numpy.random.normal(0.0, 1.0, state.system.nbasis)
     gterm = numpy.diag(walker.G[0]) + numpy.diag(walker.G[1])
-    print gterm
+    # print gterm
     xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt**0.5*state.system.U)*gterm)
     E_VHS = numpy.exp(xmxb)
     walker.phi[0] = numpy.einsum('ij,i->ij', walker.phi[0], E_VHS)
