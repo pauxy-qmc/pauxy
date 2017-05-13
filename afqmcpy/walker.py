@@ -30,13 +30,17 @@ class Walker:
         (self.phi, R) = [list(t)
                          for t in zip(*[scipy.linalg.qr(p, mode='economic')
                          for p in self.phi])]
-        self.ot = self.ot / (scipy.linalg.det(R[0])*scipy.linalg.det(R[1]))
+        self.phi[0] = self.phi[0].dot(np.diag(np.sign(np.diag(R[0]))))
+        self.phi[1] = self.phi[1].dot(np.diag(np.sign(np.diag(R[1]))))
+        self.ot = self.ot / np.abs((scipy.linalg.det(R[0])*scipy.linalg.det(R[1])))
 
     def reortho_free(self):
         (self.phi, R) = [list(t)
                          for t in zip(*[scipy.linalg.qr(p, mode='economic')
                          for p in self.phi])]
-        detR = (scipy.linalg.det(R[0])*scipy.linalg.det(R[1]))
+        self.phi[0] = self.phi[0].dot(np.diag(np.sign(np.diag(R[0]))))
+        self.phi[1] = self.phi[1].dot(np.diag(np.sign(np.diag(R[1]))))
+        detR = np.abs((scipy.linalg.det(R[0])*scipy.linalg.det(R[1])))
         self.ot = self.ot / detR
         self.weight = self.weight * detR
 
