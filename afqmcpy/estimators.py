@@ -1,12 +1,40 @@
 import numpy as np
+import time
 
 
-def header():
-    '''Print out header for estimators'''
 
-    print ("%9s %14s %15s %14s %5s"%('iteration', 'Weight', 'E_num',
-           'exp(delta)', 'time'))
 
+class Estimators():
+
+    def __init__(self):
+        self.energy_denom = 0.0
+        self.total_weight = 0.0
+        self.denom = 0.0
+        self.step = 0
+        self.init_time = time.time()
+
+    def print_header(self):
+        '''Print out header for estimators'''
+        print ("%9s %14s %15s %14s %5s"%('iteration', 'Weight', 'E_num',
+               'exp(delta)', 'time'))
+
+
+    def print_step(self, state):
+        print (("%9d %10.8e %10.8e %10.8e %.3f")%(self.step, self.total_weight/state.nmeasure,
+                self.energy_denom/state.nmeasure, self.denom/state.nmeasure,
+                time.time()-self.init_time))
+        self.__init__()
+
+    def update(self, w, state, step):
+        self.step = step
+        if state.importance_sampling:
+            self.energy_denom += w.weight * local_energy(state.system, w.G)[0]
+            self.total_weight += w.weight
+            self.denom += w.weight
+        else:
+            self.energy_denom += w.weight * local_energy(state.system, w.G)[0] * w.ot
+            self.total_weight += w.weight
+            self.denom += w.weight * w.ot
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
