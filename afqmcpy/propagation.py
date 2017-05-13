@@ -117,7 +117,7 @@ trial : :class:`numpy.ndarray`
         walker.weight = walker.weight * norm
         r = random.random()
         # Is this necessary?
-        if walker.weight > 0:
+        if norm > 0:
             if r < probs[0]/norm:
                 vtup = walker.phi[0][i,:] * delta[0, 0]
                 vtdown = walker.phi[1][i,:] * delta[0, 1]
