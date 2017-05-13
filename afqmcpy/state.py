@@ -23,6 +23,7 @@ class State:
         self.nmeasure = qmc_opts['nmeasure']
         self.temp = qmc_opts['temperature']
         self.importance_sampling = qmc_opts['importance_sampling']
+        self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
@@ -36,10 +37,12 @@ class State:
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                         qmc_opts['hubbard_stratonovich'],
+                                                         self.hubbard_stratonovich,
                                                          self.dt, self.system.T,
                                                          self.importance_sampling)
-        (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system)
+        cplx = 'continuous' in self.hubbard_stratonovich
+        (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system,
+                                                                           cplx)
         random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
