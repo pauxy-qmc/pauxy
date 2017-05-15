@@ -4,6 +4,8 @@ import scipy.linalg
 import copy
 import afqmcpy.estimators
 
+# Worthwhile overloading / having real and complex walker classes (Hermitian
+# conjugate)?
 class Walker:
 
     def __init__(self, nw, system, trial):
@@ -17,8 +19,8 @@ class Walker:
         (self.E_L, self.vbar) = afqmcpy.estimators.local_energy(system, self.G)
 
     def inverse_overlap(self, trial):
-        self.inv_ovlp[0] = scipy.linalg.inv(trial[0].T.dot(self.phi[0]))
-        self.inv_ovlp[1] = scipy.linalg.inv(trial[1].T.dot(self.phi[1]))
+        self.inv_ovlp[0] = scipy.linalg.inv((trial[0].conj()).T.dot(self.phi[0]))
+        self.inv_ovlp[1] = scipy.linalg.inv((trial[1].conj()).T.dot(self.phi[1]))
 
     def calc_otrial(self, trial):
         # The importance function, i.e. <phi_T|phi>. We do 1 over this because
@@ -45,5 +47,5 @@ class Walker:
         self.weight = self.weight * detR
 
     def greens_function(self, trial):
-        self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), np.transpose(trial[0]))
-        self.G[1] = np.dot(np.dot(self.phi[1], self.inv_ovlp[1]), np.transpose(trial[1]))
+        self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), (trial[0].conj()).T)
+        self.G[1] = np.dot(np.dot(self.phi[1], self.inv_ovlp[1]), (trial[1].conj()).T)
