@@ -64,6 +64,34 @@ def propagate_walker_free(walker, state):
     walker.greens_function(state.psi_trial)
 
 
+def propagate_walker_free_continuous(walker, state):
+    '''Free projection without importance sampling.
+
+'''
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    delta = state.auxf - 1
+    for i in range(0, state.system.nbasis):
+        # Is this necessary?
+        for i in range(0, state.system.nbasis):
+            # For convenience..
+            # Need shift here
+            x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0)
+            delta = cmath.exp(x_i) - 1
+            # Check speed here with numpy (restructure array)
+            vtup = walker.phi[0][i,:] * delta
+            vtdown = walker.phi[1][i,:] * delta
+            walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+            walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
+    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    walker.inverse_overlap(state.psi_trial)
+    # Update walker weight
+    walker.ot = walker.calc_otrial(state.psi_trial)
+    # print (walker.ot)
+    walker.greens_function(state.psi_trial)
+
+
 def propagate_walker_continuous(walker, state):
     '''Wrapper function for propagation using continuous transformation
 
@@ -303,7 +331,10 @@ _propagators = {
         'free': propagate_walker_free,
         'constrained': propagate_walker_discrete,
     },
-    'continuous': propagate_walker_continuous,
+    'continuous': {
+        'free': propagate_walker_free_continuous,
+        'constrained': propagate_walker_continuous,
+    }
 }
 
 class Projectors:
@@ -312,7 +343,10 @@ class Projectors:
     def __init__(self, model, hs_type, dt, T, importance_sampling):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
         if 'continuous' in hs_type:
-            self.propagate_walker = _propagators['continuous']
+            if importance_sampling:
+                self.propagate_walker = _propagators['continuous']['constrained']
+            else:
+                self.propagate_walker = _propagators['continuous']['free']
         elif importance_sampling:
             self.propagate_walker = _propagators['discrete']['constrained']
         else:
