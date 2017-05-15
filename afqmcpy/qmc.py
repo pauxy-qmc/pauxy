@@ -17,6 +17,7 @@ def do_qmc(state, interactive=False):
         for w in psi:
             if w.weight > 1e-16:
                 state.propagators.propagate_walker(w, state)
+            # Constant factors
             w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
             estimates.update(w, state, step)
             if step%state.nmeasure == 0:
