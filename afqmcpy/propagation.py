@@ -1,6 +1,5 @@
 '''Routines for performing propagation of a walker'''
 
-import random
 import numpy
 import scipy.linalg
 import afqmcpy.utils as utils
@@ -45,7 +44,7 @@ def propagate_walker_free(walker, state):
     for i in range(0, state.system.nbasis):
         # Is this necessary?
         if walker.weight > 0:
-            r = random.random()
+            r = numpy.random.random()
             if r > 0.5:
                 vtup = walker.phi[0][i,:] * delta[0, 0]
                 vtdown = walker.phi[1][i,:] * delta[0, 1]
@@ -70,19 +69,23 @@ def propagate_walker_free_continuous(walker, state):
 '''
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
-    delta = state.auxf - 1
-    for i in range(0, state.system.nbasis):
-        # Is this necessary?
-        for i in range(0, state.system.nbasis):
-            # For convenience..
-            # Need shift here
-            x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0)
-            delta = cmath.exp(x_i) - 1
-            # Check speed here with numpy (restructure array)
-            vtup = walker.phi[0][i,:] * delta
-            vtdown = walker.phi[1][i,:] * delta
-            walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-            walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+    x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    bv = numpy.diag(numpy.exp(x_i))
+    walker.phi[0] = bv.dot(walker.phi[0])
+    walker.phi[1] = bv.dot(walker.phi[1])
+    # delta = state.auxf - 1
+    # for i in range(0, state.system.nbasis):
+        # # Is this necessary?
+        # for i in range(0, state.system.nbasis):
+            # # For convenience..
+            # # Need shift here
+            # x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0)
+            # delta = cmath.exp(x_i) - 1
+            # # Check speed here with numpy (restructure array)
+            # vtup = walker.phi[0][i,:] * delta
+            # vtdown = walker.phi[1][i,:] * delta
+            # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+            # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     walker.inverse_overlap(state.psi_trial)
@@ -114,7 +117,13 @@ state : :class:`state.State`
     (E_L, walker.vbar) = estimators.local_energy(state.system, walker.G)
     ot_new = walker.calc_otrial(state.psi_trial)
     dtheta = cmath.phase(ot_new/walker.ot)
-    walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L-E_L))
+    # print (dtheta/(math.pi))
+    print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
+            math.exp(-0.5*state.dt*(walker.E_L+E_L)), dtheta/math.pi, max(0, math.cos(dtheta)))
+    # if (math.cos(dtheta) < 1e-8):
+        # print (E_L, walker.vbar, ot_new, walker.ot, dtheta, max(0, math.cos(dtheta)))
+        # print (abs(dtheta)/math.pi)
+    walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L+E_L))
                                    * max(0, math.cos(dtheta)))
     walker.E_L = E_L
     walker.ot = ot_new
@@ -143,7 +152,7 @@ trial : :class:`numpy.ndarray`
                                 (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
         norm = sum(probs)
         walker.weight = walker.weight * norm
-        r = random.random()
+        r = numpy.random.random()
         # Is this necessary?
         if norm > 0:
             if r < probs[0]/norm:
@@ -181,17 +190,21 @@ state : :class:`state.State`
     Simulation state.
 '''
 
-    for i in range(0, state.system.nbasis):
-        # For convenience..
-        # Need shift here
-        x_i = cmath.sqrt((-2.0*state.system.U*state.dt)) * (
-                numpy.random.normal(0.0, 1.0) - state.dt**0.5*walker.vbar)
-        delta = cmath.exp(x_i) - 1
-        # Check speed here with numpy (restructure array)
-        vtup = walker.phi[0][i,:] * delta
-        vtdown = walker.phi[1][i,:] * delta
-        walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-        walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+    x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0, state.system.nbasis) + state.dt**0.5*walker.vbar
+    bv = numpy.diag(numpy.exp(x_i))
+    walker.phi[0] = bv.dot(walker.phi[0])
+    walker.phi[1] = bv.dot(walker.phi[1])
+    # for i in range(0, state.system.nbasis):
+        # # For convenience..
+        # # Need shift here
+        # x_i = cmath.sqrt((-2.0*state.system.U*state.dt)) * (
+                # numpy.random.normal(0.0, 1.0) - state.dt**0.5*walker.vbar)
+        # delta = cmath.exp(x_i) - 1
+        # # Check speed here with numpy (restructure array)
+        # vtup = walker.phi[0][i,:] * delta
+        # vtdown = walker.phi[1][i,:] * delta
+        # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+        # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
 
 
 def dumb_hubbard(walker, state):
@@ -213,10 +226,15 @@ state : :class:`state.State`
     x_i = numpy.random.normal(0.0, 1.0, state.system.nbasis)
     gterm = numpy.diag(walker.G[0]) + numpy.diag(walker.G[1])
     # print gterm
-    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt**0.5*state.system.U)*gterm)
-    E_VHS = numpy.exp(xmxb)
-    walker.phi[0] = numpy.einsum('ij,i->ij', walker.phi[0], E_VHS)
-    walker.phi[1] = numpy.einsum('ij,i->ij', walker.phi[1], E_VHS)
+    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt*state.system.U)**0.5*gterm)
+    EXP_VHS = numpy.exp(xmxb)
+    # walker.phi[0] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0])
+    # walker.phi[1] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[1])
+    bv = numpy.diag(numpy.exp(xmxb))
+    # print (bv.dot(walker.phi[0]))
+    # print (numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0]))
+    walker.phi[0] = bv.dot(walker.phi[0])
+    walker.phi[1] = bv.dot(walker.phi[1])
 
 
 def generic_continuous(walker, state):
