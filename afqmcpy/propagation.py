@@ -115,6 +115,13 @@ state : :class:`state.State`
     walker.inverse_overlap(state.psi_trial)
     walker.greens_function(state.psi_trial)
     (E_L, walker.vbar) = estimators.local_energy(state.system, walker.G)
+    av = -3.481
+    if (E_L >= av + state.local_energy_bound):
+        E_L = av + state.local_energy_bound
+    elif (E_L <= av - state.local_energy_bound):
+        E_L <= av - state.local_energy_bound
+    else:
+        E_L = E_L
     ot_new = walker.calc_otrial(state.psi_trial)
     dtheta = cmath.phase(ot_new/walker.ot)
     # print (dtheta/(math.pi))
