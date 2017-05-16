@@ -231,6 +231,8 @@ state : :class:`state.State`
     # For convenience..
     # Need shift here
     x_i = numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    gterm = (1j)*(state.dt*state.system.U)**0.5*(numpy.diag(walker.G[0])+numpy.diag(walker.G[1]))
+    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+gterm)
     gterm = numpy.diag(walker.G[0]) + numpy.diag(walker.G[1])
     # print gterm
     xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt*state.system.U)**0.5*gterm)
