@@ -28,8 +28,10 @@ class Estimators():
     def update(self, w, state, step):
         self.step = step
         if state.importance_sampling:
-            if self.complex:
+            if state.cplx:
                 self.energy_denom += w.weight * w.E_L
+            else:
+                self.energy_denom += w.weight * local_energy(state.system, w.G)[0]
             self.total_weight += w.weight
             self.denom += w.weight
         else:
