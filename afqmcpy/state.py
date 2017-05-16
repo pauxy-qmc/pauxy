@@ -40,9 +40,9 @@ class State:
                                                          self.hubbard_stratonovich,
                                                          self.dt, self.system.T,
                                                          self.importance_sampling)
-        cplx = 'continuous' in self.hubbard_stratonovich
+        self.cplx = 'continuous' in self.hubbard_stratonovich
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system,
-                                                                           cplx)
+                                                                           self.cplx)
         numpy.random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
