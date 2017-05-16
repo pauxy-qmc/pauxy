@@ -30,9 +30,8 @@ class State:
             self.gamma = numpy.arccosh(numpy.exp(0.5*self.dt*self.system.U))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                   [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-            # self.auxf = self.auxf * np.exp(-0.5*dt*self.system.U*self.system.ne)
+            self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
             # Constant energy factor emerging from HS transformation.
-            self.cfac = 0.5*self.system.U*self.system.ne
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
