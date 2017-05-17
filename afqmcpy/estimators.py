@@ -2,8 +2,6 @@ import numpy as np
 import time
 
 
-
-
 class Estimators():
 
     def __init__(self):
@@ -29,7 +27,7 @@ class Estimators():
         self.step = step
         if state.importance_sampling:
             if state.cplx:
-                self.energy_denom += w.weight * w.E_L
+                self.energy_denom += w.weight * w.E_L.real
             else:
                 self.energy_denom += w.weight * local_energy(state.system, w.G)[0]
             self.total_weight += w.weight
@@ -56,7 +54,7 @@ E_L(phi) : float
     Local energy of given walker phi.
 '''
 
-    ke = np.sum(system.T * (G[0] + G[1])).real
-    pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis)).real
+    ke = np.sum(system.T * (G[0] + G[1]))
+    pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
     return (ke + pe, pe)
