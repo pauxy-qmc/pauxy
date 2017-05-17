@@ -69,11 +69,10 @@ def propagate_walker_free_continuous(walker, state):
 '''
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
-    x_i =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
-    s_xin = state.mf_shift*sum(x_i)
-    ifac = 1j*numpy.sqrt((state.system.U*state.dt))
-    const = 0.5 * state.system.nbasis * state.mf_shift**2.0
-    bv = numpy.diag(numpy.exp(ifac*(x_i-s_xin)+0.5*state.dt*state.system.U*(const+(1-2*state.mf_shift))))
+    xfields =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    sxf = sum(xfields)
+    c_xf = cmath.exp(state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
+    bv = c_xf * numpy.diag(numpy.exp(state.iut_fac*xfields+state.ut_fac*(1-2*state.mf_shift)))
     walker.phi[0] = bv.dot(walker.phi[0])
     walker.phi[1] = bv.dot(walker.phi[1])
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])

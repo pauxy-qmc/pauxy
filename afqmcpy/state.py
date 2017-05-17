@@ -40,7 +40,11 @@ class State:
                                                          self.dt, self.system.T,
                                                          self.importance_sampling)
         self.cplx = 'continuous' in self.hubbard_stratonovich
-        self.mf_shift = (self.system.nup + self.system.ndown) / self.system.nbasis
+        if self.cplx:
+            self.mf_shift = (self.system.nup + self.system.ndown) / self.system.nbasis
+            self.iut_fac = 1j*numpy.sqrt((self.system.U*self.dt))
+            self.ut_fac = 0.5*self.dt*self.system.U
+            self.mf_nsq = 0.5 * self.system.nbasis * self.mf_shift**2.0
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system,
                                                                            self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
