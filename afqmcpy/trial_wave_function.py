@@ -1,17 +1,17 @@
 import numpy
+import scipy.optimize
+import scipy.linalg
 import math
 import cmath
 import time
 import copy
 import sys
-import scipy.optimize
-import scipy.linalg
-import afqmcpy.hubbard
-import afqmcpy.estimators
 import afqmcpy.utils
+import afqmcpy.estimators
+import afqmcpy.hubbard
 
 
-class Free_Electron:
+class FreeElectron:
 
     def __init__(self, system, cplx, trial):
         init_time = time.time()
@@ -134,3 +134,50 @@ class UHF:
 
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
+
+class MultiDeterminant:
+
+    def __init__(self, system, cplx, trial, expansion_type='read'):
+        init_time = time.time()
+        (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
+        if cplx:
+            self.trial_type = complex
+        else:
+            self.trial_type = float
+        if expansion_type == 'free_electron':
+            self.free_electron(system)
+        self.initialisation_time = time.time() - init_time
+
+    def free_electron(self, system):
+        # assume nup = ndown
+        deg_e = self.eigs[system.nup]
+        # "core" orbitals, i.e., those filled states where there aren't any
+        # unoccupied states of the same energy.
+        core = [i for i, e in enumerate(self.eigs[:system.nup]) if abs(e-deg_e) > 1e-8]
+        icore = core[-1]
+        ecore = self.eigs[icore]
+        # indices of degenerate orbitals
+        nactive_elec = system.nup - len(core)
+        active = [i for i, e in enumerate(eigs) if abs(e-deg_e) < 1e-8]
+        combs = [list(c) for c in itertools.combinations(active, nactive_elec)]
+        # Assuming nup = ndown, then there are len(combs)**2.0 combinations, we
+        # need to take the sqrt of this for the normalisation of the trial
+        # function.
+        coeff = 1.0 / len(combs)
+        # We need to find all ways of occupying the up and down spins amongst
+        # the degenerate orbitals. Note this can be done independently, hence
+        # we use itertools.product rather than itertools.combinations.
+        spin_comb = list(itertools.product(combs, combs))
+        # This is stored as [ndets, nspin(=2), M, nsigma]
+        psi_trial = numpy.zeros((len(spin_comb), 2, system.nbasis, system.nup),
+                                dtype=trial_type)
+        for (ic, cup) in enumerate(spin_comb):
+            occ_orbs_up = core + cup[0]
+            occ_orbs_down = core + cup[1]
+            # select appropriate columns of the unitary matrix which
+            # diagonalises H_1
+            self.psi_trial[ic, 0, :, :] = eigv[:, occ_orbs_up]
+            self.psi_trial[ic, 1, :, :] = eigv[:, occ_orbs_down]
+            self.coeff[ic] = coeff
+
+        self.combinations = spin_comb
