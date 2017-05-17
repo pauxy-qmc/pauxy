@@ -69,29 +69,17 @@ def propagate_walker_free_continuous(walker, state):
 '''
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
-    x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0, state.system.nbasis)
-    bv = numpy.diag(numpy.exp(x_i))
+    x_i =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    s_xin = state.mf_shift*sum(x_i)
+    ifac = 1j*numpy.sqrt((state.system.U*state.dt))
+    const = 0.5 * state.system.nbasis * state.mf_shift**2.0
+    bv = numpy.diag(numpy.exp(ifac*(x_i-s_xin)+0.5*state.dt*state.system.U*(const+(1-2*state.mf_shift))))
     walker.phi[0] = bv.dot(walker.phi[0])
     walker.phi[1] = bv.dot(walker.phi[1])
-    # delta = state.auxf - 1
-    # for i in range(0, state.system.nbasis):
-        # # Is this necessary?
-        # for i in range(0, state.system.nbasis):
-            # # For convenience..
-            # # Need shift here
-            # x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0)
-            # delta = cmath.exp(x_i) - 1
-            # # Check speed here with numpy (restructure array)
-            # vtup = walker.phi[0][i,:] * delta
-            # vtdown = walker.phi[1][i,:] * delta
-            # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-            # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     walker.inverse_overlap(state.psi_trial)
-    # Update walker weight
     walker.ot = walker.calc_otrial(state.psi_trial)
-    # print (walker.ot)
     walker.greens_function(state.psi_trial)
 
 

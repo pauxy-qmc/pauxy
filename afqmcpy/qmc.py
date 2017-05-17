@@ -31,7 +31,7 @@ def do_qmc(state, psi, interactive=False):
             # if interactive:
                 # # est.append(elocal/(state.nmeasure*total_weight))
             # else:
-            E_T = estimates.energy_denom / estimates.total_weight
+            E_T = estimates.energy_denom / estimates.denom
             estimates.print_step(state)
 
     if interactive:
