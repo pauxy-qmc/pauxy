@@ -20,7 +20,7 @@ class State:
         self.dt = qmc_opts['dt']
         self.nsteps = qmc_opts['nsteps']
         self.nmeasure = qmc_opts['nmeasure']
-        self.npop_control = qmc_opts['npop_control']
+        self.npop_control = qmc_opts.get('npop_control')
         self.temp = qmc_opts['temperature']
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')

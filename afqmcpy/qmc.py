@@ -14,7 +14,8 @@ def do_qmc(state, psi, interactive=False):
     estimates.print_header()
     for step in range(0, state.nsteps):
         for w in psi:
-            if w.weight > 1e-16:
+            # Hack
+            if w.weight > 1e-8:
                 state.propagators.propagate_walker(w, state)
             # Constant factors
             w.weight = w.weight * np.exp(state.dt*E_T)
@@ -24,8 +25,8 @@ def do_qmc(state, psi, interactive=False):
                     w.reortho()
                 else:
                     w.reortho_free()
-        # if step%state.npop_control == 0:
-            # pop_control.comb(psi, state.nwalkers)
+        if step%state.npop_control == 0:
+            pop_control.comb(psi, state.nwalkers)
         if step%state.nmeasure == 0:
             # if interactive:
                 # # est.append(elocal/(state.nmeasure*total_weight))
