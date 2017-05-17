@@ -57,4 +57,4 @@ E_L(phi) : float
     ke = np.sum(system.T * (G[0] + G[1]))
     pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
-    return (ke + pe, pe)
+    return (ke + pe, pe, ke)

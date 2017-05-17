@@ -9,12 +9,15 @@ def do_qmc(state, psi, interactive=False):
 '''
 
     est = []
-    E_T = estimators.local_energy(state.system, psi[0].G)[0]
+    (E_T, pe, ke) = estimators.local_energy(state.system, psi[0].G)
+    print (E_T, pe, ke)
     estimates = estimators.Estimators()
     estimates.print_header()
     for step in range(0, state.nsteps):
         for w in psi:
             # Hack
+            if (w.ot < 1e-8):
+                print (w.weight, w.ot)
             if w.weight > 1e-8:
                 state.propagators.propagate_walker(w, state)
             # Constant factors
