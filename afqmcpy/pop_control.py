@@ -3,6 +3,7 @@ import copy
 
 def comb(psi, nw):
     new_psi = nw*[0]
+    new_index = nw*[0]
     new_ovlps = numpy.zeros(nw, dtype=type(psi[0].ot))
     weights = [w.weight for w in psi]
     total_weight = sum(weights)
@@ -17,6 +18,7 @@ def comb(psi, nw):
             if c < w:
                 new_psi[ic] = copy.copy(psi[iw].phi)
                 new_ovlps[ic] = psi[iw].ot
+                new_index[ic] = psi[iw].index
                 break
 
     # Copy back new information
@@ -24,3 +26,4 @@ def comb(psi, nw):
         psi[i].phi = new_psi[i]
         psi[i].ot = new_ovlps[i]
         psi[i].weight = 1.0
+        psi[i].index = new_index[i]

@@ -8,7 +8,7 @@ import afqmcpy.estimators
 # conjugate)?
 class Walker:
 
-    def __init__(self, nw, system, trial):
+    def __init__(self, nw, system, trial, index):
         self.weight = nw
         self.phi = copy.deepcopy(trial)
         self.inv_ovlp = [0, 0]
@@ -17,6 +17,7 @@ class Walker:
         self.greens_function(trial)
         self.ot = 1.0
         (self.E_L, self.vbar) = afqmcpy.estimators.local_energy(system, self.G)
+        self.index = index
 
     def inverse_overlap(self, trial):
         self.inv_ovlp[0] = scipy.linalg.inv((trial[0].conj()).T.dot(self.phi[0]))
