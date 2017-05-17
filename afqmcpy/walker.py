@@ -53,5 +53,5 @@ class Walker:
         self.weight = self.weight * detR
 
     def greens_function(self, trial):
-        self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), (trial[0].conj()).T)
-        self.G[1] = np.dot(np.dot(self.phi[1], self.inv_ovlp[1]), (trial[1].conj()).T)
+        self.G[0] = np.dot(np.dot(self.phi[0], self.inv_ovlp[0]), (trial[0].conj()).T).T
+        self.G[1] = np.dot(np.dot(self.phi[1], self.inv_ovlp[1]), (trial[1].conj()).T).T
