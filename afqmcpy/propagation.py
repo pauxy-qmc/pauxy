@@ -71,8 +71,8 @@ def propagate_walker_free_continuous(walker, state):
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     xfields =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
     sxf = sum(xfields)
-    c_xf = cmath.exp(state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
-    bv = c_xf * numpy.diag(numpy.exp(state.iut_fac*xfields+state.ut_fac*(1-2*state.mf_shift)))
+    c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
+    bv = numpy.diag(numpy.exp(state.iut_fac*xfields+0.5*state.ut_fac*(1-2*state.mf_shift)))
     walker.phi[0] = bv.dot(walker.phi[0])
     walker.phi[1] = bv.dot(walker.phi[1])
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
@@ -80,6 +80,7 @@ def propagate_walker_free_continuous(walker, state):
     walker.inverse_overlap(state.psi_trial)
     walker.ot = walker.calc_otrial(state.psi_trial)
     walker.greens_function(state.psi_trial)
+    walker.weight = walker.weight * c_xf
 
 
 def propagate_walker_continuous(walker, state):
