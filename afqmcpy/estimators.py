@@ -13,13 +13,14 @@ class Estimators():
 
     def print_header(self):
         '''Print out header for estimators'''
-        print ("%9s %14s %15s %14s %5s"%('iteration', 'Weight', 'E_num',
-               'E_denom', 'time'))
+        print ("%9s %14s %15s %14s %14s %5s"%('iteration', 'Weight', 'E_num',
+               'E_denom', 'E', 'time'))
 
 
     def print_step(self, state):
-        print (("%9d %10.8e %10.8e %10.8e %.3f")%(self.step, self.total_weight/state.nmeasure,
-                self.energy_denom/state.nmeasure, self.denom/state.nmeasure,
+        print (("%9d %10.8e %10.8e %10.8e %10.8e %.3f")%(self.step, self.total_weight.real/state.nmeasure,
+                self.energy_denom.real/state.nmeasure, self.denom.real/state.nmeasure,
+                (self.energy_denom/self.denom).real,
                 time.time()-self.init_time))
         self.__init__()
 
