@@ -45,6 +45,7 @@ class State:
             self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
             self.iut_fac = 1j*numpy.sqrt((self.system.U*self.dt))
             self.ut_fac = self.dt*self.system.U
+            # Include factor of M! bad name
             self.mf_nsq = self.system.nbasis * self.mf_shift**2.0
         (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system,
                                                                            self.cplx)
