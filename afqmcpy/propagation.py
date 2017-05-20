@@ -96,25 +96,25 @@ state : :class:`state.State`
 '''
 
     state.propagators.kinetic(walker, state)
-    state.propagators.potential(walker, state)
+    cxf = state.propagators.potential(walker, state)
     state.propagators.kinetic(walker, state)
 
-    # Phaseless approximation
+    # Apply phaseless, real local energy approximation
     walker.inverse_overlap(state.psi_trial)
     walker.greens_function(state.psi_trial)
-    (E_L, walker.vbar) = estimators.local_energy(state.system, walker.G)
-    av = -3.481
-    if (E_L >= av + state.local_energy_bound):
-        E_L = av + state.local_energy_bound
-    elif (E_L <= av - state.local_energy_bound):
-        E_L <= av - state.local_energy_bound
-    else:
-        E_L = E_L
+    E_L = estimators.local_energy(state.system, walker.G)[0].real
+    # av = -3.481
+    # if (E_L >= av + state.local_energy_bound):
+        # E_L = av + state.local_energy_bound
+    # elif (E_L <= av - state.local_energy_bound):
+        # E_L <= av - state.local_energy_bound
+    # else:
+        # E_L = E_L
     ot_new = walker.calc_otrial(state.psi_trial)
-    dtheta = cmath.phase(ot_new/walker.ot)
-    # print (dtheta/(math.pi))
-    print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
-            math.exp(-0.5*state.dt*(walker.E_L+E_L)), dtheta/math.pi, max(0, math.cos(dtheta)))
+    dtheta = cmath.phase(cxf*ot_new/walker.ot)
+    print (math.cos((dtheta/(math.pi))))
+    # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
+            # math.exp(-0.5*state.dt*(walker.E_L+E_L)), dtheta/math.pi, max(0, math.cos(dtheta)))
     # if (math.cos(dtheta) < 1e-8):
         # print (E_L, walker.vbar, ot_new, walker.ot, dtheta, max(0, math.cos(dtheta)))
         # print (abs(dtheta)/math.pi)
@@ -216,22 +216,18 @@ state : :class:`state.State`
     Simulation state.
 '''
 
-    # For convenience..
-    # Need shift here
-    x_i = numpy.random.normal(0.0, 1.0, state.system.nbasis)
-    gterm = (1j)*(state.dt*state.system.U)**0.5*(numpy.diag(walker.G[0])+numpy.diag(walker.G[1]))
-    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+gterm)
-    gterm = numpy.diag(walker.G[0]) + numpy.diag(walker.G[1])
-    # print gterm
-    xmxb = (1j)*(state.dt*state.system.U)**0.5 * (x_i+(1j)*(state.dt*state.system.U)**0.5*gterm)
-    EXP_VHS = numpy.exp(xmxb)
-    # walker.phi[0] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0])
-    # walker.phi[1] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[1])
-    bv = numpy.diag(numpy.exp(xmxb))
-    # print (bv.dot(walker.phi[0]))
-    # print (numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0]))
-    walker.phi[0] = bv.dot(walker.phi[0])
-    walker.phi[1] = bv.dot(walker.phi[1])
+    # Normally distrubted auxiliary fields.
+    xi = numpy.random.normal(0.0, 1.0, state.system.nbasis)
+    # Optimal field shift for real local energy approximation.
+    xi_opt = -state.iut_fac*(numpy.diag(walker.G[0])+numpy.diag(walker.G[1])-state.mf_shift)
+    sxf = sum(xi-xi_opt)
+    # Propagator for potential term with mean field and auxilary field shift.
+    c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
+    # print ((xi-xi_opt)*state.iut_fac)
+    EXP_VHS = numpy.exp(0.5*state.ut_fac*(1-2.0*state.mf_shift)+state.iut_fac*(xi-xi_opt))
+    walker.phi[0] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0])
+    walker.phi[1] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[1])
+    return c_xf
 
 
 def generic_continuous(walker, state):
@@ -352,6 +348,8 @@ _propagators = {
     }
 }
 
+# This shouldn't exist, just rename in state at the beginning and rename module
+# functions
 class Projectors:
     '''Base propagator class'''
 
