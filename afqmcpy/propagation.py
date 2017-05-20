@@ -26,11 +26,11 @@ state : :class:`state.State`
     Simulation state.
 '''
 
-    if walker.weight.real > 0:
+    if abs(walker.weight) > 0:
         state.propagators.kinetic(walker, state)
-    if walker.weight.real > 0:
+    if abs(walker.weight) > 0:
         state.propagators.potential(walker, state)
-    if walker.weight.real > 0:
+    if abs(walker.weight.real) > 0:
         state.propagators.kinetic(walker, state)
 
 
@@ -43,7 +43,7 @@ def propagate_walker_free(walker, state):
     delta = state.auxf - 1
     for i in range(0, state.system.nbasis):
         # Is this necessary?
-        if walker.weight > 0:
+        if abs(walker.weight) > 0:
             r = numpy.random.random()
             if r > 0.5:
                 vtup = walker.phi[0][i,:] * delta[0, 0]

@@ -19,7 +19,7 @@ def do_qmc(state, psi, interactive=False):
     for step in range(0, state.nsteps):
         for w in psi:
             # Hack
-            if w.weight > 1e-8:
+            if abs(w.weight) > 1e-8:
                 state.propagators.propagate_walker(w, state)
             # Constant factors
             w.weight = w.weight * np.exp(state.dt*E_T)
