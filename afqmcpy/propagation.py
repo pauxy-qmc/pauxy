@@ -258,7 +258,7 @@ nmax_exp : int
         # Reshape so we can apply to MxN Slater determinant.
         V_HS = numpy.reshape(V_HS, (M,M))
         for n in range(1, nmax_exp+1):
-            walker.phi[i] += numpy.factorial(n) * np.dot(V_HS, phi)
+            walker.phi[i] = walker.phi[i] + numpy.factorial(n) * np.dot(V_HS, phi)
 
     # Update inverse and green's function
     walker.inverse_overlap(trial)
