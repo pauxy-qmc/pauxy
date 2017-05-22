@@ -24,6 +24,7 @@ class State:
         self.temp = qmc_opts['temperature']
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
+        numpy.random.seed(qmc_opts['rng_seed'])
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
@@ -47,10 +48,16 @@ class State:
             self.ut_fac = self.dt*self.system.U
             # Include factor of M! bad name
             self.mf_nsq = self.system.nbasis * self.mf_shift**2.0
-        (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system,
+        if qmc_opts['trial_wavefunction'] == 'free_electron':
+            (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system, self.cplx)
+        elif qmc_opts['trial_wavefunction'] == 'UHF':
+            (self.psi_trial, self.sp_eigs) = trial_wave_function.uhf_new(self.system,
+                                                                         self.cplx, 0.4,
+                                                                         1000)
+        elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
+            (self.psi_trial, self.sp_eigs) = trial_wave_function.multi_det(self.system,
                                                                            self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
-        numpy.random.seed(qmc_opts['rng_seed'])
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
         self.qmc_opts = qmc_opts
