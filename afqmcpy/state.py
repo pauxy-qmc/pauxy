@@ -99,13 +99,13 @@ sha1 : string
     git hash with -dirty appended if uncommitted changes.
 '''
 
-    src = [s for s in sys.path if 'afqmcpy' in s][0]
+    src = [s for s in sys.path if 'afqmcpy' in s][-1]
 
     sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                    cwd=src).strip()
     suffix = subprocess.check_output(['git', 'status',
                                      '--porcelain',
-                                     '.'],
+                                     './afqmcpy'],
                                      cwd=src).strip()
     if suffix:
         return sha1.decode('utf-8') + '-dirty'
