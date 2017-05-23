@@ -51,9 +51,9 @@ class State:
         if qmc_opts['trial_wavefunction'] == 'free_electron':
             (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system, self.cplx)
         elif qmc_opts['trial_wavefunction'] == 'UHF':
-            (self.psi_trial, self.sp_eigs) = trial_wave_function.uhf_new(self.system,
-                                                                         self.cplx, 0.4,
-                                                                         1000)
+            (self.psi_trial, self.sp_eigs) = trial_wave_function.uhf(self.system,
+                                                                     self.cplx, 0.4,
+                                                                     1000)
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
             (self.psi_trial, self.sp_eigs) = trial_wave_function.multi_det(self.system,
                                                                            self.cplx)
