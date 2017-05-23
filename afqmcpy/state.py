@@ -49,15 +49,12 @@ class State:
             # Include factor of M! bad name
             self.mf_nsq = self.system.nbasis * self.mf_shift**2.0
         if qmc_opts['trial_wavefunction'] == 'free_electron':
-            (self.psi_trial, self.sp_eigs) = trial_wave_function.free_electron(self.system, self.cplx)
+            self.trial = trial_wave_function.Free_Electron(self.system, self.cplx)
         elif qmc_opts['trial_wavefunction'] == 'UHF':
-            (self.psi_trial, self.sp_eigs) = trial_wave_function.uhf(self.system,
-                                                                     self.cplx, 0.4,
-                                                                     ninit=100,
-                                                                     nit_max=1000)
+            self.trial = trial_wave_function.UHF(self.system, self.cplx, 0.4,
+                                                 ninit=100, nit_max=1000)
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
-            (self.psi_trial, self.sp_eigs) = trial_wave_function.multi_det(self.system,
-                                                                           self.cplx)
+            self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
@@ -72,7 +69,8 @@ class State:
             'Run time': time.asctime()
         }
         derived = {
-                'sp_eigv': self.sp_eigs.round(6).tolist()
+                'sp_eigv': self.trial.eigs.round(6).tolist(),
+                'trial_initialisation_time': self.trial.initialisation_time,
         }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh

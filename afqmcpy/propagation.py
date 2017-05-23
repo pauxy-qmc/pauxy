@@ -57,10 +57,10 @@ def propagate_walker_free(walker, state):
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
-    walker.inverse_overlap(state.psi_trial)
+    walker.inverse_overlap(state.trial.psi)
     # Update walker weight
-    walker.ot = walker.calc_otrial(state.psi_trial)
-    walker.greens_function(state.psi_trial)
+    walker.ot = walker.calc_otrial(state.trial.psi)
+    walker.greens_function(state.trial.psi)
 
 
 def propagate_walker_free_continuous(walker, state):
@@ -77,9 +77,9 @@ def propagate_walker_free_continuous(walker, state):
     walker.phi[1] = bv.dot(walker.phi[1])
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
-    walker.inverse_overlap(state.psi_trial)
-    walker.ot = walker.calc_otrial(state.psi_trial)
-    walker.greens_function(state.psi_trial)
+    walker.inverse_overlap(state.trial.psi)
+    walker.ot = walker.calc_otrial(state.trial.psi)
+    walker.greens_function(state.trial.psi)
     walker.weight = walker.weight * c_xf
 
 
@@ -100,8 +100,8 @@ state : :class:`state.State`
     state.propagators.kinetic(walker, state)
 
     # Apply phaseless, real local energy approximation
-    walker.inverse_overlap(state.psi_trial)
-    walker.greens_function(state.psi_trial)
+    walker.inverse_overlap(state.trial.psi)
+    walker.greens_function(state.trial.psi)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
     # av = -3.481
     # if (E_L >= av + state.local_energy_bound):
@@ -110,7 +110,7 @@ state : :class:`state.State`
         # E_L <= av - state.local_energy_bound
     # else:
         # E_L = E_L
-    ot_new = walker.calc_otrial(state.psi_trial)
+    ot_new = walker.calc_otrial(state.trial.psi)
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
     print (math.cos((dtheta/(math.pi))))
     # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
@@ -163,12 +163,12 @@ trial : :class:`numpy.ndarray`
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
         walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
-                                                    state.psi_trial[0].T[:,i],
+                                                    state.trial.psi[0].T[:,i],
                                                     vtup)
         walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
-                                                    state.psi_trial[1].T[:,i],
+                                                    state.trial.psi[1].T[:,i],
                                                     vtdown)
-        walker.greens_function(state.psi_trial)
+        walker.greens_function(state.trial.psi)
 
 
 def continuous_hubbard(walker, state):
@@ -289,10 +289,10 @@ trial : :class:`numpy.ndarray`
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     # Update inverse overlap
-    walker.inverse_overlap(state.psi_trial)
+    walker.inverse_overlap(state.trial.psi)
     # Update walker weight
-    ot_new = walker.calc_otrial(state.psi_trial)
-    walker.greens_function(state.psi_trial)
+    ot_new = walker.calc_otrial(state.trial.psi)
+    walker.greens_function(state.trial.psi)
     ratio = ot_new / walker.ot
     if ratio.real > 1e-16 and abs(ratio.imag) < 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot)
