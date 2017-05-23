@@ -68,9 +68,10 @@ class State:
             'sha1': get_git_revision_hash(),
             'Run time': time.asctime()
         }
-        derived = {
-                'sp_eigv': self.trial.eigs.round(6).tolist(),
-                'trial_initialisation_time': self.trial.initialisation_time,
+        trial_wavefunction = {
+            'name': self.trial.__class__.__name__,
+            'sp_eigv': self.trial.eigs.round(6).tolist(),
+            'initialisation_time': round(self.trial.initialisation_time, 5),
         }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
@@ -79,7 +80,7 @@ class State:
             'calculation': calc_info,
             'model': self.model,
             'qmc_options': self.qmc_opts,
-            'derived': derived
+            'trial_wavefunction': trial_wavefunction,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
         print ("# Input options: ")
