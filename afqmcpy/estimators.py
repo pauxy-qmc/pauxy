@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import scipy.linalg
 
 
 class Estimators():
@@ -59,3 +60,8 @@ E_L(phi) : float
     pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
     return (ke + pe, pe, ke)
+
+def gab(a, b):
+    inv_o = scipy.linalg.inv((a.conj().T).dot(b))
+    gab = a.dot(inv_o.dot(b.conj().T)).T
+    return gab
