@@ -54,7 +54,7 @@ class State:
             (self.psi_trial, self.sp_eigs) = trial_wave_function.uhf(self.system,
                                                                      self.cplx, 0.4,
                                                                      ninit=100,
-                                                                     nit_max=100)
+                                                                     nit_max=1000)
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
             (self.psi_trial, self.sp_eigs) = trial_wave_function.multi_det(self.system,
                                                                            self.cplx)
