@@ -32,9 +32,6 @@ def do_qmc(state, psi, interactive=False):
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
         if step%state.nmeasure == 0:
-            # if interactive:
-                # # est.append(elocal/(state.nmeasure*total_weight))
-            # else:
             E_T = estimates.energy_denom / estimates.denom
             estimates.print_step(state)
 
