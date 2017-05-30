@@ -20,6 +20,7 @@ def initialise(input_file):
     else:
         options = None
     options = comm.bcast(options)
+    options['qmc_options']['rng_seed'] = options['qmc_options']['rng_seed'] + rank
     state = afqmcpy.state.State(options['model'], options['qmc_options'])
     state.rank = rank
     state.nprocs = nprocs
