@@ -21,9 +21,11 @@ class Estimators():
 
 
     def print_step(self, state, comm, step):
-        local_estimates = numpy.array([step*state.nmeasure/state.nprocs, self.total_weight.real, self.energy_denom.real,
+        local_estimates = numpy.array([step*state.nmeasure/state.nprocs,
+                                       self.total_weight.real,
+                                       self.energy_denom.real,
                                        self.denom.real,
-                                       (self.energy_denom/self.denom).real,
+                                       (state.nmeasure*self.energy_denom/(state.nprocs*self.denom)).real,
                                        time.time()-self.init_time])
         global_estimates = numpy.zeros(len(local_estimates))
         comm.Reduce(local_estimates, global_estimates, op=MPI.SUM)
