@@ -1,6 +1,7 @@
 '''Description
 '''
 
+import afqmcpy.initialise
 import afqmcpy.qmc
 import afqmcpy.state
 import afqmcpy.walker
