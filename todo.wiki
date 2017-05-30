@@ -23,6 +23,7 @@ TODO:
 - [X] Rectangular grid bcs issues
 - [X] python3
 - [ ] tests/benchmarks
+- [ ] documentation
 - [X] extraction script
 
 === T>0 ===
