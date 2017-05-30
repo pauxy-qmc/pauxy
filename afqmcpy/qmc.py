@@ -4,17 +4,18 @@ import afqmcpy.walker as walker
 import afqmcpy.estimators as estimators
 import afqmcpy.pop_control as pop_control
 
-def do_qmc(state, psi, interactive=False):
+def do_qmc(state, psi, comm, interactive=False):
     '''
 '''
 
     est = []
     (E_T, pe, ke) = estimators.local_energy(state.system, psi[0].G)
     estimates = estimators.Estimators()
-    estimates.print_header()
+    if state.root:
+        estimates.print_header()
     for w in psi:
         estimates.update(w, state, 0)
-    estimates.print_step(state)
+    estimates.print_step(state, comm)
 
     for step in range(0, state.nsteps):
         for w in psi:
@@ -33,7 +34,7 @@ def do_qmc(state, psi, interactive=False):
             pop_control.comb(psi, state.nwalkers)
         if step%state.nmeasure == 0:
             E_T = estimates.energy_denom / estimates.denom
-            estimates.print_step(state)
+            estimates.print_step(state, comm)
 
     if interactive:
         return psi

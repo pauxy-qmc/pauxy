@@ -1,6 +1,8 @@
-import numpy as np
+import numpy
+from mpi4py import MPI
 import time
 import scipy.linalg
+import afqmcpy.utils
 
 
 class Estimators():
@@ -14,15 +16,21 @@ class Estimators():
 
     def print_header(self):
         '''Print out header for estimators'''
-        print ("%9s %14s %15s %14s %14s %5s"%('iteration', 'Weight', 'E_num',
-               'E_denom', 'E', 'time'))
+        headers = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        print (' '.join('{:>17}'.format(h) for h in headers))
 
 
-    def print_step(self, state):
-        print (("%9d %10.8e %10.8e %10.8e %10.8e %.3f")%(self.step, self.total_weight.real/state.nmeasure,
-                self.energy_denom.real/state.nmeasure, self.denom.real/state.nmeasure,
-                (self.energy_denom/self.denom).real,
-                time.time()-self.init_time))
+    def print_step(self, state, comm):
+        local_estimates = numpy.array([self.step, self.total_weight.real, self.energy_denom.real,
+                                       self.denom.real,
+                                       (self.energy_denom/self.denom).real,
+                                       time.time()-self.init_time])
+        global_estimates = numpy.zeros(len(local_estimates))
+        comm.Reduce(local_estimates, global_estimates, op=MPI.SUM)
+        # print (local_estimates)
+        # print (global_estimates)
+        if state.root:
+            print (' '.join('{: .10e}'.format(v) for v in global_estimates))
         self.__init__()
 
     def update(self, w, state, step):
@@ -56,7 +64,7 @@ E_L(phi) : float
     Local energy of given walker phi.
 '''
 
-    ke = np.sum(system.T * (G[0] + G[1]))
+    ke = numpy.sum(system.T * (G[0] + G[1]))
     pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
     return (ke + pe, pe, ke)

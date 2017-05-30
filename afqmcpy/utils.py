@@ -51,5 +51,3 @@ eigv :  :class:`numpy.array`
     eigv = eigv[:,idx]
 
     return (eigs, eigv)
-
-
