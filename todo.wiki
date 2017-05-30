@@ -3,7 +3,9 @@ TODO:
 === T=0 ===
 
 - [ ] Twisted boundaries
-- [ ] Parallelisation
+- [o] Parallelisation
+    - [X] simple algorithm
+    - [ ] reconfiguration
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
