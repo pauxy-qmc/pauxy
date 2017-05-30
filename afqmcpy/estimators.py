@@ -11,30 +11,27 @@ class Estimators():
         self.energy_denom = 0.0
         self.total_weight = 0.0
         self.denom = 0.0
-        self.step = 0
         self.init_time = time.time()
 
-    def print_header(self):
+    def print_header(self, root):
         '''Print out header for estimators'''
         headers = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
-        print (' '.join('{:>17}'.format(h) for h in headers))
+        if root:
+            print (' '.join('{:>17}'.format(h) for h in headers))
 
 
-    def print_step(self, state, comm):
-        local_estimates = numpy.array([self.step, self.total_weight.real, self.energy_denom.real,
+    def print_step(self, state, comm, step):
+        local_estimates = numpy.array([step*state.nmeasure/state.nprocs, self.total_weight.real, self.energy_denom.real,
                                        self.denom.real,
                                        (self.energy_denom/self.denom).real,
                                        time.time()-self.init_time])
         global_estimates = numpy.zeros(len(local_estimates))
         comm.Reduce(local_estimates, global_estimates, op=MPI.SUM)
-        # print (local_estimates)
-        # print (global_estimates)
         if state.root:
-            print (' '.join('{: .10e}'.format(v) for v in global_estimates))
+            print (' '.join('{: .10e}'.format(v/(state.nmeasure)) for v in global_estimates))
         self.__init__()
 
-    def update(self, w, state, step):
-        self.step = step
+    def update(self, w, state):
         if state.importance_sampling:
             if state.cplx:
                 self.energy_denom += w.weight * w.E_L.real

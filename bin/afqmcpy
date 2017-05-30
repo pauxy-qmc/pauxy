@@ -2,10 +2,12 @@
 
 import sys
 import afqmcpy.initialise
+import time
 
 def main(input_file):
-    afqmcpy.initialise.initialise(input_file)
-    afqmcpy.initialise.finalise()
+    init_time = time.time()
+    state = afqmcpy.initialise.initialise(input_file)
+    afqmcpy.initialise.finalise(state, init_time)
 
 if __name__ == '__main__':
     main(sys.argv[1])

@@ -17,6 +17,9 @@ def initialise(input_file):
         print('# Initialising AFQMCPY simulation from %s'%input_file)
         # sometimes python is beautiful
         print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
+    else:
+        options = None
+    options = comm.bcast(options)
     state = afqmcpy.state.State(options['model'], options['qmc_options'])
     state.rank = rank
     state.nprocs = nprocs
@@ -26,8 +29,11 @@ def initialise(input_file):
     state.nwalkers = int(state.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w) for w in
             range(state.nwalkers)]
-    afqmcpy.qmc.do_qmc(state, psi0, comm)
+    (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
+    return state
 
-def finalise():
+def finalise(state, init_time):
 
-    print ("# End Time: %s"%time.asctime())
+    if state.root:
+        print ("# End Time: %s"%time.asctime())
+        print ("# Running time : %.6f seconds"%(time.time()-init_time))
