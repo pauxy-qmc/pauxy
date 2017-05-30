@@ -83,9 +83,9 @@ class State:
             'trial_wavefunction': trial_wavefunction,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
-        print ("# Input options: ")
+        print ("# Input options:")
         print (json.dumps(info, sort_keys=False, indent=4))
-        print ("# End of input options ")
+        print ("# End of input options")
 
 
 def get_git_revision_hash():
