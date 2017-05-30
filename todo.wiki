@@ -10,15 +10,17 @@ TODO:
     - [X] timing per iteration
     - [ ] unit profiling
 - [ ] Imaginary time green's functions
-- [ ] estimators
+- [ ] back propagation / forward walking
+    - [ ] energy estimators
+    - [ ] greens function
 - [ ] continuous HS transormation
+    - [ ] free projection
 - [X] error estimation
-- [ ] UHF trial wfn
+- [X] UHF trial wfn
 - [X] Rectangular grid bcs issues
 - [X] python3
 - [ ] tests/benchmarks
 - [X] extraction script
-- [ ] move propagators out of walker type
 
 === T>0 ===
 
