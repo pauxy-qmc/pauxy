@@ -45,6 +45,8 @@ start_iteration : int
                         default=False, help='Increase verbosity of output.')
     parser.add_argument('-l', '--loops', dest='loops', action='store_true',
                         default=False, help='Average over independent simulations.')
+    parser.add_argument('-t', '--tail', dest='tail', action='store_true',
+                        default=False, help='Short output.')
     parser.add_argument('filenames', nargs=argparse.REMAINDER,
                         help='Space-separated list of files to analyse.')
 
@@ -75,7 +77,10 @@ None.
     options = parse_args(args)
     if options.loops:
         data = analysis.blocking.average_tau(options.filenames)
-        print (data.to_string(index=False))
+        if options.tail:
+            print (data.tail(1).to_string(index=False))
+        else:
+            print (data.to_string(index=False))
     else:
         (reblock, summary) = analysis.blocking.run_blocking_analysis(options.filenames, options.start_iteration)
         if options.verbose:

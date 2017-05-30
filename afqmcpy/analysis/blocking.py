@@ -53,6 +53,6 @@ def average_tau(filenames):
     tau = m['qmc_options']['dt']
     nsites = m['model']['nx']*m['model']['ny']
     results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites}).reset_index()
-    results['iteration'] = results['iteration'] * tau
+    results['tau'] = results['iteration'] * tau
 
-    return results
+    return analysis.extraction.pretty_table_loop(results, m['model'])
