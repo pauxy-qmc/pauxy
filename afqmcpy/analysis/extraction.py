@@ -33,7 +33,7 @@ Stolen from HANDE source code.
 
     found_json = True
     if find_start:
-        for line in fhandle:
+        for (sl, line) in enumerate(fhandle):
             if 'Input options' in line:
                 break
             elif max_end is not None and max_end in line:
@@ -47,7 +47,7 @@ Stolen from HANDE source code.
             else:
                 json_text += line
     if json_text:
-        return (json.loads(json_text), ln)
+        return (json.loads(json_text), sl+ln+1)
     else:
         return ({}, 0)
 
@@ -63,7 +63,7 @@ def extract_data(filename):
 
     with open(filename) as f:
         (metadata, skip) = _extract_json(f, True)
-    data = pd.read_csv(filename, skiprows=skip+2, sep=r'\s+', comment='#')
+    data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
 
     return (metadata, data)
 
