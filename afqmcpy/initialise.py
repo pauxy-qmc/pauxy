@@ -1,6 +1,7 @@
 import sys
 import json
 import time
+import random
 from mpi4py import MPI
 import afqmcpy.state
 import afqmcpy.qmc
@@ -20,7 +21,7 @@ def initialise(input_file):
     else:
         options = None
     options = comm.bcast(options)
-    options['qmc_options']['rng_seed'] = options['qmc_options']['rng_seed'] + rank
+    options['qmc_options']['rng_seed'] = options.get('rng_seed', random.randint(0, 1e8)) + rank
     state = afqmcpy.state.State(options['model'], options['qmc_options'])
     state.rank = rank
     state.nprocs = nprocs

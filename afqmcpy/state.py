@@ -24,7 +24,6 @@ class State:
         self.temp = qmc_opts['temperature']
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
-        numpy.random.seed(qmc_opts['rng_seed'])
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
