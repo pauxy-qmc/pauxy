@@ -99,17 +99,12 @@ state : :class:`state.State`
     cxf = state.propagators.potential(walker, state)
     state.propagators.kinetic(walker, state)
 
-    # Apply phaseless, real local energy approximation
+    # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi)
     walker.greens_function(state.trial.psi)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
-    # Try to prevent rare large population fluctuations.
-    if (E_L >= state.mean_local_energy + state.local_energy_bound):
-        E_L = state.mean_local_energy + state.local_energy_bound
-    elif (E_L <= state.mean_local_energy -  state.local_energy_bound):
-        E_L <= state.mean_local_energy - state.local_energy_bound
-    else:
-        E_L = E_L
+    # Check for large population fluctuations
+    E_L = local_energy_bound(E_L, state.mean_local_energy, state.local_energy_bound)
     ot_new = walker.calc_otrial(state.trial.psi)
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
     # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
@@ -122,6 +117,33 @@ state : :class:`state.State`
     walker.E_L = E_L
     walker.ot = ot_new
 
+
+def local_energy_bound(local_energy, mean, threshold):
+    '''Try to suppress rare population events by imposing local energy bound.
+
+    See: Purwanto et al., Phys. Rev. B 80, 214116 (2009).
+
+Parameters
+----------
+local_energy : float
+    Local energy of current walker
+mean : float
+    Mean value of local energy about which we impose the threshold / bound.
+threshold : float
+    Amount of lee-way for energy fluctuations about the mean.
+'''
+
+    maximum = mean + threshold
+    minimum = mean - threshold
+
+    if (local_energy >= maximum):
+        local_energy = maximum
+    elif (local_energy < minimum):
+        local_energy = minimum
+    else:
+        local_energy = local_energy
+
+    return local_energy
 
 def discrete_hubbard(walker, state):
     '''Propagate by potential term using discrete HS transform.
