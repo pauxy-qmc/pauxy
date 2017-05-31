@@ -71,7 +71,7 @@ class UHF:
                 niup = alpha*numpy.diag(trial[0].dot((trial[0].conj()).T)) + (1-alpha)*niup_old
                 nidown = alpha*numpy.diag(trial[1].dot((trial[1].conj()).T)) + (1-alpha)*nidown_old
                 if self.self_consistant(enew, eold, niup, niup_old, nidown, nidown_old):
-                    if enew < emin:
+                    if enew-emin < -1e-8:
                         emin = enew
                         psi_accept = copy.deepcopy(trial)
                         e_accept = numpy.append(e_up, e_down)
@@ -87,7 +87,7 @@ class UHF:
     def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old):
         '''Check if system parameters are converged'''
 
-        e_cond= enew - eold < 1e-8
+        e_cond= abs(enew-eold) < 1e-8
         nup_cond = sum(abs(niup-niup_old)) < 1e-8
         ndown_cond = sum(abs(nidown-nidown_old)) < 1e-8
 
