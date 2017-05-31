@@ -73,7 +73,7 @@ def pretty_table(summary, metadata):
     model = metadata['model']
     table = pd.DataFrame({'model': model['name'],
                           'lattice': r'%sX%s'%(model['nx'],model['ny']),
-                          'filling': (model['nup'], model['ndown']),
+                          'filling': r'(%s,%s)'%(model['nup'], model['ndown']),
                           'U': model['U'],
                           'E': vals['mean'],
                           'E_error': vals['standard error'],
@@ -91,7 +91,7 @@ def pretty_table_loop(results, model):
                           'E_error': results['E_error'],
                           'model': model['name'],
                           'lattice': r'%sX%s'%(model['nx'],model['ny']),
-                          'filling': r'(%s, %s)'%(model['nup'], model['ndown']),
+                          'filling': r'(%s,%s)'%(model['nup'], model['ndown']),
                           'U': model['U']}, columns=columns)
 
     return table
