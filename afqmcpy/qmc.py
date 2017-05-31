@@ -34,5 +34,6 @@ def do_qmc(state, psi, comm, interactive=False):
         if step%state.nmeasure == 0:
             E_T = estimates.energy_denom / estimates.denom
             estimates.print_step(state, comm, step)
+            state.mean_local_energy = E_T
 
     return (state, psi)

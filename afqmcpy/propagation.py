@@ -103,13 +103,13 @@ state : :class:`state.State`
     walker.inverse_overlap(state.trial.psi)
     walker.greens_function(state.trial.psi)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
-    # av = -3.481
-    # if (E_L >= av + state.local_energy_bound):
-        # E_L = av + state.local_energy_bound
-    # elif (E_L <= av - state.local_energy_bound):
-        # E_L <= av - state.local_energy_bound
-    # else:
-        # E_L = E_L
+    # Try to prevent rare large population fluctuations.
+    if (E_L >= state.mean_local_energy + state.local_energy_bound):
+        E_L = state.mean_local_energy + state.local_energy_bound
+    elif (E_L <= state.mean_local_energy -  state.local_energy_bound):
+        E_L <= state.mean_local_energy - state.local_energy_bound
+    else:
+        E_L = E_L
     ot_new = walker.calc_otrial(state.trial.psi)
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
     # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
@@ -299,7 +299,7 @@ _projectors = {
         'Hubbard': {
             'discrete': discrete_hubbard,
             'continuous': generic_continuous,
-            'opt_continuous': continuous_hubbard,
+            'opt_continuous': dumb_hubbard,
             'dumb_continuous': dumb_hubbard,
         }
     }

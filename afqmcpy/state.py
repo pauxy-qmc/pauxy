@@ -22,6 +22,8 @@ class State:
         self.nmeasure = qmc_opts['nmeasure']
         self.npop_control = qmc_opts.get('npop_control')
         self.temp = qmc_opts['temperature']
+        # number of steps to equilibrate simulation, default to tau = 1.
+        self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
         if model['name'] == 'Hubbard':
@@ -55,6 +57,7 @@ class State:
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
+        self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
         self.qmc_opts = qmc_opts
