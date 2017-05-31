@@ -1,46 +1,38 @@
 import numpy as np
 import scipy.linalg
-import time
 import afqmcpy.walker as walker
 import afqmcpy.estimators as estimators
 import afqmcpy.pop_control as pop_control
 
-def do_qmc(state, interactive=False):
+def do_qmc(state, psi, comm, interactive=False):
+    '''
+'''
 
     est = []
-    psi = [walker.Walker(1, state.system, state.psi_trial) for w in range(0, state.nwalkers)]
-    E_T = estimators.local_energy(state.system, psi[0])
-    estimators.header()
-    elocal = 0
-    total_weight = 0
-    init_time = time.time()
+    (E_T, pe, ke) = estimators.local_energy(state.system, psi[0].G)
+    estimates = estimators.Estimators()
+    estimates.print_header(state.root)
+    for w in psi:
+        estimates.update(w, state)
+    estimates.print_step(state, comm, 0)
+
     for step in range(0, state.nsteps):
         for w in psi:
-            if w.weight > 0:
-                w.prop_t2(state.projectors.bt2, state.psi_trial)
-            if w.weight > 0:
-                w.prop_v(state.auxf, state.system.nbasis, state.psi_trial)
-            if w.weight > 0:
-                w.prop_t2(state.projectors.bt2, state.psi_trial)
-            w.weight = w.weight * np.exp(state.dt*(E_T-state.cfac))
-            elocal += w.weight * estimators.local_energy(state.system, w)
-            total_weight += w.weight
-            if step%state.nmeasure == 0:
-                w.reortho()
-        if step%state.nmeasure == 0:
-            end_time = time.time()
-            if interactive:
-                est.append(elocal/(state.nmeasure*total_weight))
-            else:
-                print (("%9d %10.8e %10.8e %10.8e %.3f")%(step, total_weight/state.nmeasure,
-                        elocal/state.nmeasure,np.exp(state.dt*(E_T-state.cfac)),
-                        end_time-init_time))
+            # Hack
+            if abs(w.weight) > 1e-8:
+                state.propagators.propagate_walker(w, state)
+            # Constant factors
+            w.weight = w.weight * np.exp(state.dt*E_T)
+            estimates.update(w, state)
+            if step%state.nmeasure == 0 and step != 0:
+                if state.importance_sampling:
+                    w.reortho()
+                else:
+                    w.reortho_free()
+        if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
-            E_T = elocal / total_weight
-            init_time = end_time
-            elocal = 0.0
-            total_weight = 0.0
+        if step%state.nmeasure == 0:
+            E_T = estimates.energy_denom / estimates.denom
+            estimates.print_step(state, comm, step)
 
-    if interactive:
-        return est
-
+    return (state, psi)

@@ -6,7 +6,6 @@ import pandas as pd
 import pyblock
 import analysis.extraction
 import numpy
-import matplotlib.pyplot as pl
 
 
 def run_blocking_analysis(filename, start_iter):
@@ -43,16 +42,15 @@ def average_tau(filenames):
     data_len = frames.size()
     means = frames.mean()
     err = numpy.sqrt(frames.var())
-    covs = frames.cov().loc[:,'E_num'].loc[:, 'Weight']
-    energy = means['E_num'] / means['Weight']
+    covs = frames.cov().loc[:,'E_num'].loc[:, 'E_denom']
+    energy = means['E_num'] / means['E_denom']
     energy_err = abs(energy/numpy.sqrt(data_len))*((err['E_num']/means['E_num'])**2.0 +
-                                   (err['Weight']/means['Weight'])**2.0 -
-                                   2*covs/(means['E_num']*means['Weight']))**0.5
+                                   (err['E_denom']/means['E_denom'])**2.0 -
+                                   2*covs/(means['E_num']*means['E_denom']))**0.5
 
-    pl.show()
     tau = m['qmc_options']['dt']
     nsites = m['model']['nx']*m['model']['ny']
     results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites}).reset_index()
-    results['iteration'] = results['iteration'] * tau
+    results['tau'] = results['iteration'] * tau
 
-    return results
+    return analysis.extraction.pretty_table_loop(results, m['model'])

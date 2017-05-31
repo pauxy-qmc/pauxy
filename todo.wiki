@@ -3,19 +3,30 @@ TODO:
 === T=0 ===
 
 - [ ] Twisted boundaries
-- [ ] Parallelisation
+- [.] Parallelisation
+    - [X] simple algorithm
+    - [ ] reconfiguration
+    - [ ] load balancing
+- [ ] population control
+    - [ ] try simple algorithm
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
 - [ ] Imaginary time green's functions
-- [ ] estimators
-- [ ] continuous HS transormation
+- [ ] back propagation / forward walking
+    - [ ] energy estimators
+    - [ ] greens function
+- [ ] continuous HS transformation
+    - [ ] free projection
 - [X] error estimation
-- [ ] UHF trial wfn
+- [X] UHF trial wfn
 - [X] Rectangular grid bcs issues
 - [X] python3
 - [ ] tests/benchmarks
-- [X] extraction script
+- [ ] documentation
+- [o] extraction script
+    - [X] extract input file
+    - [ ] consistent analysis
 
 === T>0 ===
 

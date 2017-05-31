@@ -3,7 +3,7 @@
 import sys
 import os
 import time
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 import afqmcpy
 
 model = {
@@ -23,6 +23,7 @@ qmc_options = {
     'nwalkers': 100,
     'rng_seed': 7,
     'temperature': 0.0,
+    'hubbard_stratonovich': 'discrete',
 }
 # Set up the calculation state, i.e., model + method + common options
 state = afqmcpy.state.State(model, qmc_options)

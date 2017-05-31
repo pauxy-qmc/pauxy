@@ -18,11 +18,7 @@ class Hubbard:
         else:
             self.nbasis = self.nx
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
-
-class Projectors:
-
-    def __init__(self, hubb, dt):
-        self.bt2 = scipy.linalg.expm(-0.5*dt*hubb.T)
+        self.gamma = _super_matrix(self.U, self.nbasis)
 
 
 def kinetic(t, nbasis, nx, ny):
@@ -47,3 +43,6 @@ def kinetic(t, nbasis, nx, ny):
 
 def decode_basis(nx, ny, i):
     return np.array([i%nx, i//nx])
+
+def _super_matrix(U, nbasis):
+    '''Construct super-matrix from v_{ijkl}'''
