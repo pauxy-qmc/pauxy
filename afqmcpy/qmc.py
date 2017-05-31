@@ -32,7 +32,7 @@ def do_qmc(state, psi, comm, interactive=False):
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
         if step%state.nmeasure == 0:
-            E_T = estimates.energy_denom / estimates.denom
+            E_T = (estimates.energy_denom/estimates.denom).real
             estimates.print_step(state, comm, step)
             state.mean_local_energy = E_T
 
