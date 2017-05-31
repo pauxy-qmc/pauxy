@@ -16,7 +16,7 @@ TODO:
 - [ ] back propagation / forward walking
     - [ ] energy estimators
     - [ ] greens function
-- [ ] continuous HS transormation
+- [ ] continuous HS transformation
     - [ ] free projection
 - [X] error estimation
 - [X] UHF trial wfn
@@ -24,7 +24,9 @@ TODO:
 - [X] python3
 - [ ] tests/benchmarks
 - [ ] documentation
-- [X] extraction script
+- [ ] extraction script
+    - [ ] extract input file
+    - [ ] consistent analysis
 
 === T>0 ===
 
