@@ -6,7 +6,6 @@ import pandas as pd
 import pyblock
 import analysis.extraction
 import numpy
-import matplotlib.pyplot as pl
 
 
 def run_blocking_analysis(filename, start_iter):
@@ -49,7 +48,6 @@ def average_tau(filenames):
                                    (err['E_denom']/means['E_denom'])**2.0 -
                                    2*covs/(means['E_num']*means['E_denom']))**0.5
 
-    pl.show()
     tau = m['qmc_options']['dt']
     nsites = m['model']['nx']*m['model']['ny']
     results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites}).reset_index()

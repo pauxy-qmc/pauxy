@@ -24,8 +24,8 @@ TODO:
 - [X] python3
 - [ ] tests/benchmarks
 - [ ] documentation
-- [ ] extraction script
-    - [ ] extract input file
+- [o] extraction script
+    - [X] extract input file
     - [ ] consistent analysis
 
 === T>0 ===
