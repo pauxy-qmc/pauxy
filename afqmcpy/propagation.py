@@ -112,7 +112,6 @@ state : :class:`state.State`
         # E_L = E_L
     ot_new = walker.calc_otrial(state.trial.psi)
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
-    print (math.cos((dtheta/(math.pi))))
     # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
             # math.exp(-0.5*state.dt*(walker.E_L+E_L)), dtheta/math.pi, max(0, math.cos(dtheta)))
     # if (math.cos(dtheta) < 1e-8):
