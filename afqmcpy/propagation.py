@@ -170,37 +170,6 @@ trial : :class:`numpy.ndarray`
         walker.greens_function(state.trial.psi)
 
 
-def continuous_hubbard(walker, state):
-    '''Continuous Hubbard-Statonovich transformation for Hubbard model.
-
-    Only requires M auxiliary fields.
-
-Parameters
-----------
-walker : :class:`walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`state.State`
-    Simulation state.
-'''
-
-    x_i = cmath.sqrt((-state.system.U*state.dt))*numpy.random.normal(0.0, 1.0, state.system.nbasis) + state.dt**0.5*walker.vbar
-    bv = numpy.diag(numpy.exp(x_i))
-    walker.phi[0] = bv.dot(walker.phi[0])
-    walker.phi[1] = bv.dot(walker.phi[1])
-    # for i in range(0, state.system.nbasis):
-        # # For convenience..
-        # # Need shift here
-        # x_i = cmath.sqrt((-2.0*state.system.U*state.dt)) * (
-                # numpy.random.normal(0.0, 1.0) - state.dt**0.5*walker.vbar)
-        # delta = cmath.exp(x_i) - 1
-        # # Check speed here with numpy (restructure array)
-        # vtup = walker.phi[0][i,:] * delta
-        # vtdown = walker.phi[1][i,:] * delta
-        # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-        # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-
-
 def dumb_hubbard(walker, state):
     '''Continuous Hubbard-Statonovich transformation for Hubbard model.
 
