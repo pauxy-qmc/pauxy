@@ -1,3 +1,4 @@
+"""Routines and classes for estimation of observables."""
 import numpy
 import time
 from enum import Enum
@@ -7,6 +8,21 @@ import afqmcpy.utils
 
 
 class Estimators():
+    """Container for qmc estimates of observables
+
+    Attributes
+    ----------
+    energy_num : float
+        Numerator of local energy estimator for the whole collection of walkers.
+    total_weight : float
+        Total weight of all the walkers in the simulation
+    denom : float
+        Denominator for energy estimates, usually the same as total_weight (see
+        Estimators.update)
+    init_time : float
+        CPU time zero for estimating time taken to complete one step of the
+        algorithm (not currently a per core quantity).
+    """
 
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
@@ -58,7 +74,19 @@ class Estimators():
         self.zero()
 
     def update(self, w, state):
+        """Update estimates for walker w.
+
+        Parameters
+        ----------
+        w : :class:`afqmcpy.walker.Walkder`
+            current walker
+        state : :class:`afqmcpy.state.State`
+            system parameters as well as current 'state' of the simulation.
+        """
         if state.importance_sampling:
+            # When using importance sampling we only need to know the current
+            # walkers weight as well as the local energy, the walker's overlap
+            # with the trial wavefunction is not needed.
             if state.cplx:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
@@ -160,6 +188,9 @@ def gab(A, B):
     :math:`|\psi_{A,B}\rangle`.
 
     For example, usually A would represent (an element of) the trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
 
     Parameters
     ----------
