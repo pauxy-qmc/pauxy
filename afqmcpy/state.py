@@ -26,6 +26,8 @@ class State:
         self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
+        self.back_propagation = qmc_opts.get('back_propagation', False)
+        self.nback_prop = qmc_opts.get('nback_prop', self.nmeasure)
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)

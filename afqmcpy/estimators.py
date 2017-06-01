@@ -68,6 +68,11 @@ E_L(phi) : float
 
     return (ke + pe, pe, ke)
 
+def update_back_propagated_observables(self, state, a, b):
+
+    (self.evar, self.ke, self.pe) = sum(back_propagated_energy(w, a, b) for (w, a, b) in
+                                        zip(psi.weights, psit.phi, psib.phi))
+
 def gab(a, b):
     inv_o = scipy.linalg.inv((a.conj().T).dot(b))
     gab = a.dot(inv_o.dot(b.conj().T)).T

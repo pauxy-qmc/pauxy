@@ -177,12 +177,14 @@ trial : :class:`numpy.ndarray`
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[0]
+                walker.bp_auxf[self.bp_counter, i] = 0
             else:
                 vtup = walker.phi[0][i,:] * delta[1, 0]
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
+                walker.bp_auxf[self.bp_counter, i] = 1
         walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
                                                     state.trial.psi[0].T[:,i],
                                                     vtup)
@@ -190,6 +192,7 @@ trial : :class:`numpy.ndarray`
                                                     state.trial.psi[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.trial.psi)
+        walker.bp_counter = walker.bp_counter + 1
 
 
 def dumb_hubbard(walker, state):
@@ -291,7 +294,7 @@ trial : :class:`numpy.ndarray`
         walker.weight = 0.0
 
 
-def kinetic_continuous(walker, state):
+def kinetic_continuous(phi, state):
     '''Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuous algorithm.
@@ -306,8 +309,29 @@ bk2 : :class:`numpy.ndarray`
 trial : :class:`numpy.ndarray`
     Trial wavefunction
 '''
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    phi[0] = state.propagators.bt2.dot(phi[0])
+    phi[1] = state.propagators.bt2.dot(phi[1])
+
+
+def propagate_potential_auxf(phi, state, field_config):
+
+    bv_up = numpy.array([state.auxf[0, xi] for xi in field_config])
+    bv_down = numpy.array([state.auxf[1, xi] for xi in field_config])
+    phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
+    phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[0])
+
+
+
+def back_propagate(state, psi, psit, psi_bp):
+
+    for (iw, w) in enumerate(psi):
+        for (step, field_config) in reversed(list(enumerate(w.bp_auxf))):
+            kinetic_continuous(psi_bi[iw].phi, state)
+            propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
+            kinetic_continuous(psi_bp[iw].phi, state)
+            weights[iw] = numpy.conj(((w.weight/w.bp_weight)*w.bp_ot))
+
+        afqmcpy.estimates.back_propagated_observables(state, w, psi[iw])
 
 
 _projectors = {

@@ -34,6 +34,8 @@ def do_qmc(state, psi, comm, interactive=False):
         if step%state.nmeasure == 0:
             E_T = (estimates.energy_denom/estimates.denom).real
             estimates.print_step(state, comm, step)
+        if step%nback_prop == 0 and step > 0:
+            afqmcpy.propagation.back_propagate(psi)
         if step < state.nequilibrate:
             state.mean_local_energy = E_T
 

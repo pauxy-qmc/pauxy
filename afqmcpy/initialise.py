@@ -33,8 +33,8 @@ def initialise(input_file):
     if state.root:
         state.write_json()
     state.nwalkers = int(state.nwalkers/nprocs)
-    psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w) for w in
-            range(state.nwalkers)]
+    psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop)
+            for w in range(state.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     return state
 
