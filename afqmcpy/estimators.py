@@ -8,7 +8,7 @@ import afqmcpy.utils
 
 
 class Estimators():
-    """Container for qmc estimates of observables
+    """Container for qmc estimates of observables.
 
     Attributes
     ----------
