@@ -42,6 +42,8 @@ class State:
                                                          self.dt, self.system.T,
                                                          self.importance_sampling)
         self.cplx = 'continuous' in self.hubbard_stratonovich
+        # effective hubbard U for UHF trial wavefunction.
+        self.ueff = qmc_opts.get('ueff', 0.4)
         if self.cplx:
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
@@ -52,7 +54,7 @@ class State:
         if qmc_opts['trial_wavefunction'] == 'free_electron':
             self.trial = trial_wave_function.Free_Electron(self.system, self.cplx)
         elif qmc_opts['trial_wavefunction'] == 'UHF':
-            self.trial = trial_wave_function.UHF(self.system, self.cplx, 0.4,
+            self.trial = trial_wave_function.UHF(self.system, self.cplx, self.ueff,
                                                  ninit=100, nit_max=1000)
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
