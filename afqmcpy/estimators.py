@@ -12,13 +12,13 @@ class Estimators():
         self.total_weight = 0.0
         self.denom = 0.0
         self.init_time = time.time()
+        self.funit = open('back_propagated_estimates.out', 'a')
 
     def print_header(self, root):
         '''Print out header for estimators'''
         headers = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         if root:
-            print (' '.join('{:>17}'.format(h) for h in headers))
-
+            print(afqmcpy.utils.format_fixed_width_strings(headers))
 
     def print_step(self, state, comm, step):
         local_estimates = numpy.array([step*state.nmeasure/state.nprocs,
@@ -30,7 +30,7 @@ class Estimators():
         global_estimates = numpy.zeros(len(local_estimates))
         comm.Reduce(local_estimates, global_estimates, op=MPI.SUM)
         if state.root:
-            print (' '.join('{: .10e}'.format(v/(state.nmeasure)) for v in global_estimates))
+            print(afqmcpy.utils.format_fixed_width_floats(global_estimates/state.nmeasure))
         self.__init__()
 
     def update(self, w, state):
@@ -64,6 +64,7 @@ class Estimators():
         """
 
         energy_estimates = back_propagated_energy(system, psi, psit, psib)
+        self.funit.write(afqmcpy.utils.format_fixed_width_floats(energy_estimates)+'\n')
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
