@@ -46,7 +46,7 @@ class Estimators():
             self.total_weight += w.weight
             self.denom += w.weight * w.ot
 
-    def update_back_propagated_observables(self, state, psi, psit, psib):
+    def update_back_propagated_observables(self, system, psi, psit, psib):
         """"Update estimates using back propagated wavefunctions.
 
         Parameters
@@ -63,7 +63,7 @@ class Estimators():
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
 
-        energy_estimates = back_propagated_energy(psi, psit, psib)
+        energy_estimates = back_propagated_energy(system, psi, psit, psib)
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
@@ -103,10 +103,11 @@ def back_propagated_energy(system, psi, psit, psib):
     """
     denominator = sum(w.weight for w in psi)
     estimates = numpy.zeros(3)
+    GTB = [0, 0]
     for (w, wt, wb) in zip(psi, psit, psib):
         GTB[0] = gab(wt.phi[0], wb.phi[0])
         GTB[1] = gab(wt.phi[1], wb.phi[1])
-        estimates = estimates + psi.weight*numpy.array(list(local_energy(system, GTB))) 
+        estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
     return estimates / denominator
 
 

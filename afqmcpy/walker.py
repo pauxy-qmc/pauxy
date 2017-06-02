@@ -21,7 +21,7 @@ class Walker:
         # walkers weight at time tau before backpropagation occurs
         self.weight_bp = nw
         # walkers auxiliary field configuration in back propagation interval
-        self.bp_auxf = numpy.zeros(shape=(nback_prop, system.nbasis))
+        self.bp_auxf = np.zeros(shape=(system.nbasis, nback_prop), dtype=int)
         self.bp_counter = 0
         self.index = index
 

@@ -2,10 +2,11 @@
 
 import numpy
 import scipy.linalg
-import afqmcpy.utils as utils
-import afqmcpy.estimators as estimators
 import math
 import cmath
+import copy
+import afqmcpy.utils as utils
+import afqmcpy.estimators as estimators
 
 
 def propagate_walker_discrete(walker, state):
@@ -95,9 +96,9 @@ state : :class:`state.State`
     Simulation state.
 '''
 
-    state.propagators.kinetic(walker, state)
+    state.propagators.kinetic(walker.phi, state)
     cxf = state.propagators.potential(walker, state)
-    state.propagators.kinetic(walker, state)
+    state.propagators.kinetic(walker.phi, state)
 
     # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi)
@@ -177,14 +178,14 @@ trial : :class:`numpy.ndarray`
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[0]
-                walker.bp_auxf[self.bp_counter, i] = 0
+                walker.bp_auxf[i, walker.bp_counter] = 0
             else:
                 vtup = walker.phi[0][i,:] * delta[1, 0]
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
-                walker.bp_auxf[self.bp_counter, i] = 1
+                walker.bp_auxf[i, walker.bp_counter] = 1
         walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
                                                     state.trial.psi[0].T[:,i],
                                                     vtup)
@@ -192,7 +193,7 @@ trial : :class:`numpy.ndarray`
                                                     state.trial.psi[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.trial.psi)
-        walker.bp_counter = walker.bp_counter + 1
+    walker.bp_counter = walker.bp_counter + 1
 
 
 def dumb_hubbard(walker, state):
@@ -322,8 +323,8 @@ def propagate_potential_auxf(phi, state, field_config):
 
 
 
-def back_propagate(state, psi, psi_t, psi_bp):
-    """Perform backpropagation.
+def back_propagate(state, psi, psi_t, psi_bp, estimates):
+    r"""Perform backpropagation.
 
     explanation...
 
@@ -342,13 +343,15 @@ def back_propagate(state, psi, psi_t, psi_bp):
 
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
-        for (step, field_config) in reversed(list(enumerate(w.bp_auxf))):
+        # propagators should be applied in reversed order
+        w.bp_counter = 0
+        for (step, field_config) in reversed(list(enumerate(w.bp_auxf.T))):
             kinetic_continuous(psi_bp[iw].phi, state)
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
-            psibp.weight = numpy.conj(((w.weight/psi_t[iw].weight)*w.bp_ot))
 
-    estimates.update_back_propagated_obsrvables(state, psi, psit, psib)
+    estimates.update_back_propagated_observables(state.system, psi, psi_t, psi_bp)
+    psit = copy.deepcopy(psi)
 
 
 _projectors = {
