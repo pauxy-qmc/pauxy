@@ -68,7 +68,7 @@ class State:
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self):
+    def write_json(self, print_function=print, eol=''):
 
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
@@ -91,9 +91,9 @@ class State:
             'trial_wavefunction': trial_wavefunction,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
-        print ("# Input options:")
-        print (json.dumps(info, sort_keys=False, indent=4))
-        print ("# End of input options")
+        print_function("# Input options:"+eol)
+        print_function(json.dumps(info, sort_keys=False, indent=4))
+        print_function(eol+"# End of input options"+eol)
 
 
 def get_git_revision_hash():

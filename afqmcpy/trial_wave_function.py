@@ -1,12 +1,12 @@
-import scipy.linalg
 import numpy
 import math
 import cmath
-import scipy.optimize
-import afqmcpy.hubbard
-import copy
-import afqmcpy.estimators
 import time
+import copy
+import scipy.optimize
+import scipy.linalg
+import afqmcpy.hubbard
+import afqmcpy.estimators
 import afqmcpy.utils
 
 

@@ -16,8 +16,10 @@ def do_qmc(state, psi, comm, interactive=False):
     psit = copy.deepcopy(psi)
     # psibp only stores the auxiliary fields in the interval of tbp.
     psi_bp = copy.deepcopy(psi)
-    estimates = estimators.Estimators()
-    estimates.print_header(state.root)
+    estimates = estimators.Estimators(state)
+    estimates.print_header(state.root, estimates.header)
+    estimates.print_header(state.root, estimates.back_propagated_header,
+                           print_function=estimates.funit.write, eol='\n')
     for w in psi:
         estimates.update(w, state)
     estimates.print_step(state, comm, 0)
@@ -40,7 +42,7 @@ def do_qmc(state, psi, comm, interactive=False):
         if step%state.nback_prop == 0:
             afqmcpy.propagation.back_propagate(state, psi, psit, psi_bp, estimates)
         if step%state.nmeasure == 0:
-            E_T = (estimates.energy_denom/estimates.denom).real
+            E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
         if step < state.nequilibrate:
             state.mean_local_energy = E_T
