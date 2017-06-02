@@ -5,6 +5,7 @@ import sys
 import time
 import json
 import numpy
+import uuid as uuid
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
 import afqmcpy.propagation
@@ -28,6 +29,7 @@ class State:
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', self.nmeasure)
+        self.uuid = str(uuid.uuid1())
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
@@ -35,7 +37,6 @@ class State:
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                   [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
-            # Constant energy factor emerging from HS transformation.
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
@@ -72,7 +73,8 @@ class State:
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
             'sha1': get_git_revision_hash(),
-            'Run time': time.asctime()
+            'Run time': time.asctime(),
+            'uuid': self.uuid
         }
         trial_wavefunction = {
             'name': self.trial.__class__.__name__,
