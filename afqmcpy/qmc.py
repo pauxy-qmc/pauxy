@@ -31,11 +31,11 @@ def do_qmc(state, psi, comm, interactive=False):
                     w.reortho_free()
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
+        if step%nback_prop == 0 and step > 0:
+            afqmcpy.propagation.back_propagate(state, psi, psit, psib, estimates)
         if step%state.nmeasure == 0:
             E_T = (estimates.energy_denom/estimates.denom).real
             estimates.print_step(state, comm, step)
-        if step%nback_prop == 0 and step > 0:
-            afqmcpy.propagation.back_propagate(psi)
         if step < state.nequilibrate:
             state.mean_local_energy = E_T
 

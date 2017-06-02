@@ -46,6 +46,25 @@ class Estimators():
             self.total_weight += w.weight
             self.denom += w.weight * w.ot
 
+    def update_back_propagated_observables(self, state, psi, psit, psib):
+        """"Update estimates using back propagated wavefunctions.
+
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State`
+            state object
+        psi : list of :class:`afqmcpy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+        psit : list of :class:`afqmcpy.walker.Walker` objects
+            previous distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau`.
+        psib : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers at time :math:`\tau_{bp}`.
+        """
+
+        energy_estimates = back_propagated_energy(psi, psit, psib)
+
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
 
@@ -68,10 +87,28 @@ E_L(phi) : float
 
     return (ke + pe, pe, ke)
 
-def update_back_propagated_observables(self, state, a, b):
 
-    (self.evar, self.ke, self.pe) = sum(back_propagated_energy(w, a, b) for (w, a, b) in
-                                        zip(psi.weights, psit.phi, psib.phi))
+def back_propagated_energy(system, psi, psit, psib):
+    """
+    Parameters
+    ----------
+        psi : list of :class:`afqmcpy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+        psit : list of :class:`afqmcpy.walker.Walker` objects
+            previous distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau`.
+        psib : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers at time :math:`\tau_{bp}`.
+    """
+    denominator = sum(w.weight for w in psi)
+    estimates = numpy.zeros(3)
+    for (w, wt, wb) in zip(psi, psit, psib):
+        GTB[0] = gab(wt.phi[0], wb.phi[0])
+        GTB[1] = gab(wt.phi[1], wb.phi[1])
+        estimates = estimates + psi.weight*numpy.array(list(local_energy(system, GTB))) 
+    return estimates / denominator
+
 
 def gab(a, b):
     inv_o = scipy.linalg.inv((a.conj().T).dot(b))

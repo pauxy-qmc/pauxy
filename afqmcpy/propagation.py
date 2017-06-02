@@ -318,20 +318,37 @@ def propagate_potential_auxf(phi, state, field_config):
     bv_up = numpy.array([state.auxf[0, xi] for xi in field_config])
     bv_down = numpy.array([state.auxf[1, xi] for xi in field_config])
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
-    phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[0])
+    phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
 
 
-def back_propagate(state, psi, psit, psi_bp):
+def back_propagate(state, psi, psi_t, psi_bp):
+    """Perform backpropagation.
 
+    explanation...
+
+    Parameters
+    ---------
+    state : :class:`afqmcpy.state.State`
+        state object
+    psi : list of :class:`afqmcpy.walker.Walker` objects
+        current distribution of walkers, i.e., at the current iteration in the
+        simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+    psi_t : list of :class:`afqmcpy.walker.Walker` objects
+        previous distribution of walkers, i.e., :math:`\tau'-\tau_{bp}`.
+    psi_bp : list of :class:`afqmcpy.walker.Walker` objects
+        backpropagated walkers at time :math:`\tau_{bp}`.
+    """
+
+    # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
         for (step, field_config) in reversed(list(enumerate(w.bp_auxf))):
-            kinetic_continuous(psi_bi[iw].phi, state)
+            kinetic_continuous(psi_bp[iw].phi, state)
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
-            weights[iw] = numpy.conj(((w.weight/w.bp_weight)*w.bp_ot))
+            psibp.weight = numpy.conj(((w.weight/psi_t[iw].weight)*w.bp_ot))
 
-        afqmcpy.estimates.back_propagated_observables(state, w, psi[iw])
+    estimates.update_back_propagated_obsrvables(state, psi, psit, psib)
 
 
 _projectors = {
