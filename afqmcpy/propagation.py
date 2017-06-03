@@ -7,6 +7,7 @@ import cmath
 import copy
 import afqmcpy.utils as utils
 import afqmcpy.estimators as estimators
+import afqmcpy.walker as walker
 
 
 def propagate_walker_discrete(walker, state):
@@ -166,7 +167,7 @@ trial : :class:`numpy.ndarray`
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
-                                (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
+                                   (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
         norm = sum(probs)
         walker.weight = walker.weight * norm
         r = numpy.random.random()
@@ -316,11 +317,10 @@ trial : :class:`numpy.ndarray`
 
 def propagate_potential_auxf(phi, state, field_config):
 
-    bv_up = numpy.array([state.auxf[0, xi] for xi in field_config])
-    bv_down = numpy.array([state.auxf[1, xi] for xi in field_config])
+    bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
+    bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
-
 
 
 def back_propagate(state, psi, psi_t, psi_bp, estimates):
@@ -341,6 +341,8 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
         backpropagated walkers at time :math:`\tau_{bp}`.
     """
 
+    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop) for w
+            in range(state.nwalkers)]
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reversed order
@@ -349,6 +351,7 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
             kinetic_continuous(psi_bp[iw].phi, state)
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
+            # psi_bp[iw].reortho()
 
     estimates.update_back_propagated_observables(state.system, psi, psi_t, psi_bp)
     psit = copy.deepcopy(psi)
