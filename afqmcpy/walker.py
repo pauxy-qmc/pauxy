@@ -1,5 +1,4 @@
 import numpy as np
-import random
 import scipy.linalg
 import copy
 import afqmcpy.estimators
