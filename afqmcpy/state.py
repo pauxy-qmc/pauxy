@@ -5,6 +5,7 @@ import sys
 import time
 import json
 import numpy
+import uuid as uuid
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
 import afqmcpy.propagation
@@ -26,14 +27,17 @@ class State:
         self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
+        self.back_propagation = qmc_opts.get('back_propagation', False)
+        self.nback_prop = qmc_opts.get('nback_prop', self.nmeasure)
+        self.uuid = str(uuid.uuid1())
+        self.seed = qmc_opts['rng_seed']
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
             self.gamma = numpy.arccosh(numpy.exp(0.5*self.dt*self.system.U))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                  [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
-            # Constant energy factor emerging from HS transformation.
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
@@ -65,12 +69,24 @@ class State:
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self):
+    def write_json(self, print_function=print, eol='', verbose=True):
+        r"""Print out state object information.
+
+        Parameters
+        ----------
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        verbose : bool, optional
+            How much information to print. Default : True.
+        """
 
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
             'sha1': get_git_revision_hash(),
-            'Run time': time.asctime()
+            'Run time': time.asctime(),
+            'uuid': self.uuid
         }
         trial_wavefunction = {
             'name': self.trial.__class__.__name__,
@@ -80,16 +96,19 @@ class State:
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
         encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        info = {
-            'calculation': calc_info,
-            'model': self.model,
-            'qmc_options': self.qmc_opts,
-            'trial_wavefunction': trial_wavefunction,
-        }
+        if verbose:
+            info = {
+                'calculation': calc_info,
+                'model': self.model,
+                'qmc_options': self.qmc_opts,
+                'trial_wavefunction': trial_wavefunction,
+            }
+        else:
+            info = {'calculation': calc_info,}
         # Note that we require python 3.6 to print dict in ordered fashion.
-        print ("# Input options:")
-        print (json.dumps(info, sort_keys=False, indent=4))
-        print ("# End of input options")
+        print_function("# Input options:"+eol)
+        print_function(json.dumps(info, sort_keys=False, indent=4))
+        print_function(eol+"# End of input options"+eol)
 
 
 def get_git_revision_hash():

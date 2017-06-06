@@ -9,15 +9,18 @@ TODO:
     - [ ] load balancing
 - [ ] population control
     - [ ] try simple algorithm
+    - [ ] back propagation parents
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
 - [ ] Imaginary time green's functions
-- [ ] back propagation / forward walking
-    - [ ] energy estimators
+- [.] back propagation / forward walking
+    - [X] energy estimators
+    - [ ] analysis / convergence
     - [ ] greens function
-- [ ] continuous HS transformation
-    - [ ] free projection
+- [o] continuous HS transformation
+    - [X] free projection
+    - [ ] generic v_{ijkl}
 - [X] error estimation
 - [X] UHF trial wfn
 - [X] Rectangular grid bcs issues
@@ -26,7 +29,7 @@ TODO:
 - [ ] documentation
 - [o] extraction script
     - [X] extract input file
-    - [ ] consistent analysis
+    - [ ] consistent analysis (numerator/denominator etc.)
 
 === T>0 ===
 

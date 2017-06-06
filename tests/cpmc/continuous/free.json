@@ -1,0 +1,24 @@
+{
+    "model": {
+        "name": "Hubbard",
+        "t": 1.0,
+        "U": 4,
+        "nx": 4,
+        "ny": 4,
+        "nup": 5,
+        "ndown": 5
+    },
+    "qmc_options": {
+        "method": "CPMC",
+        "dt": 0.05,
+        "nsteps": 200,
+        "nmeasure": 10,
+        "nwalkers": 100,
+        "npop_control": 10000,
+        "temperature": 0.0,
+        "hubbard_stratonovich": "discrete",
+        "importance_sampling": true,
+        "rng_seed": 7,
+        "trial_wavefunction": "free_electron"
+    }
+}
