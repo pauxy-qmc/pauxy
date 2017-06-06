@@ -189,7 +189,8 @@ trial : :class:`numpy.ndarray`
                                                     state.trial.psi[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.trial.psi)
-    walker.bp_counter = walker.bp_counter + 1
+    if state.back_propagation:
+        walker.bp_counter = walker.bp_counter + 1
 
 
 def dumb_hubbard(walker, state):
