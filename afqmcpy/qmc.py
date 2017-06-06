@@ -18,7 +18,8 @@ def do_qmc(state, psi, comm, interactive=False):
     psi_bp = copy.deepcopy(psi)
     estimates = estimators.Estimators(state)
     estimates.print_header(state.root, estimates.header)
-    estimates.print_header(state.root, estimates.back_propagated_header,
+    if state.back_propagation:
+        estimates.print_header(state.root, estimates.back_propagated_header,
                            print_function=estimates.funit.write, eol='\n')
     for w in psi:
         estimates.update(w, state)

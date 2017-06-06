@@ -14,8 +14,9 @@ class Estimators():
             self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
             self.back_propagated_header = ['tau_bp', 'E_var', 'T', 'V']
             state.write_json(print_function=self.funit.write, eol='\n')
-            self.names = Enum('names', self.header + self.back_propagated_header)
-        self.nestimators = len(self.header+self.back_propagated_header)
+            self.nestimators = len(self.header+self.back_propagated_header)
+        else:
+            self.nestimators = len(self.header)
         self.names = EstimatorEnum()
         self.estimates = numpy.zeros(self.nestimators)
 
@@ -37,8 +38,6 @@ class Estimators():
         """
         es = self.estimates
         ns = self.names
-        es[ns.iteration] = step*state.nmeasure / state.nprocs
-        es[ns.tau_bp] = state.dt*(step-state.nback_prop)*state.nmeasure / state.nprocs
         es[ns.eproj] = (state.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = time.time()-es[ns.time]
@@ -46,8 +45,10 @@ class Estimators():
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates = global_estimates / state.nmeasure
         if state.root:
+            global_estimates[ns.iteration] = step
             print(afqmcpy.utils.format_fixed_width_floats(global_estimates[:ns.evar-1]))
         if state.back_propagation:
+            global_estimates[ns.tau_bp] = state.dt*(step-state.nback_prop)
             self.funit.write(afqmcpy.utils.format_fixed_width_floats(global_estimates[ns.tau_bp:])+'\n')
         self.zero()
 
