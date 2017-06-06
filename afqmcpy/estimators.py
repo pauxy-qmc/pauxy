@@ -129,14 +129,14 @@ def back_propagated_energy(system, psi, psit, psib):
     """
     Parameters
     ----------
-        psi : list of :class:`afqmcpy.walker.Walker` objects
-            current distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        psit : list of :class:`afqmcpy.walker.Walker` objects
-            previous distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau`.
-        psib : list of :class:`afqmcpy.walker.Walker` objects
-            backpropagated walkers at time :math:`\tau_{bp}`.
+    psi : list of :class:`afqmcpy.walker.Walker` objects
+        current distribution of walkers, i.e., at the current iteration in the
+        simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+    psit : list of :class:`afqmcpy.walker.Walker` objects
+        previous distribution of walkers, i.e., at the current iteration in the
+        simulation corresponding to :math:`\tau`.
+    psib : list of :class:`afqmcpy.walker.Walker` objects
+        backpropagated walkers at time :math:`\tau_{bp}`.
     """
     denominator = sum(w.weight for w in psi)
     estimates = numpy.zeros(3)
