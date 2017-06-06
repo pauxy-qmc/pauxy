@@ -111,7 +111,7 @@ system : :class:`Hubbard`
     System information for the Hubbard model.
 G : :class:`numpy.ndarray`
     Greens function for given walker phi, i.e.,
-    :math:`G=\langle \phi_T| c_j^{\dagger}c_i | \phi\rangle`.
+    :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
 
 Returns
 -------
@@ -126,7 +126,8 @@ E_L(phi) : float
 
 
 def back_propagated_energy(system, psi, psit, psib):
-    """
+    """Calculate back-propagated "local" energy for given walker/determinant.
+
     Parameters
     ----------
     psi : list of :class:`afqmcpy.walker.Walker` objects
@@ -142,14 +143,37 @@ def back_propagated_energy(system, psi, psit, psib):
     estimates = numpy.zeros(3)
     GTB = [0, 0]
     for (w, wt, wb) in zip(psi, psit, psib):
-        GTB[0] = gab(wt.phi[0], wb.phi[0])
-        GTB[1] = gab(wt.phi[1], wb.phi[1])
+        GTB[0] = gab(wb.phi[0], wt.phi[0])
+        GTB[1] = gab(wb.phi[1], wt.phi[1])
         estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
-        # print (w.weight, local_energy(system, GTB)[0])
+        # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
     return estimates / denominator
 
 
-def gab(a, b):
-    inv_o = scipy.linalg.inv((a.conj().T).dot(b))
-    gab = a.dot(inv_o.dot(b.conj().T)).T
-    return gab
+def gab(A, B):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+    .. math::
+        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    For example, usually A would represent (an element of) the trial wavefunction.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the bra used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    inv_O = scipy.linalg.inv((A.conj().T).dot(B))
+    GAB = B.dot(inv_O.dot(A.conj().T)).T
+    return GAB
