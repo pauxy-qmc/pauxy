@@ -353,10 +353,10 @@ trial : :class:`numpy.ndarray`
     phi[1] = state.propagators.bt2.dot(phi[1])
 
 
-def propagate_potential_auxf(phi, state, bv_up, bv_down):
+def propagate_potential_auxf(phi, state, field_config):
 
-    # bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
-    # bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
+    bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
+    bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
