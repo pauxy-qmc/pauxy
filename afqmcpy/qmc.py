@@ -39,7 +39,6 @@ def do_qmc(state, psi, comm, interactive=False):
                     w.reortho()
                 else:
                     w.reortho_free()
-            w.bp_counter = 0
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
         # if step%state.nback_prop == 0:

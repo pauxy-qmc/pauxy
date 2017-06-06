@@ -31,8 +31,7 @@ state : :class:`state.State`
     if abs(walker.weight) > 0:
         state.propagators.kinetic(walker, state)
     if abs(walker.weight) > 0:
-        # state.propagators.potential(walker, state)
-        check_auxf(walker, state)
+        state.propagators.potential(walker, state)
     if abs(walker.weight.real) > 0:
         state.propagators.kinetic(walker, state)
 
@@ -110,11 +109,6 @@ state : :class:`state.State`
     E_L = local_energy_bound(E_L, state.mean_local_energy, state.local_energy_bound)
     ot_new = walker.calc_otrial(state.trial.psi)
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
-    # print (E_L, walker.weight, walker.vbar, ot_new, walker.ot,
-            # math.exp(-0.5*state.dt*(walker.E_L+E_L)), dtheta/math.pi, max(0, math.cos(dtheta)))
-    # if (math.cos(dtheta) < 1e-8):
-        # print (E_L, walker.vbar, ot_new, walker.ot, dtheta, max(0, math.cos(dtheta)))
-        # print (abs(dtheta)/math.pi)
     walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L+E_L))
                                    * max(0, math.cos(dtheta)))
     walker.E_L = E_L
@@ -263,7 +257,6 @@ state : :class:`state.State`
     sxf = sum(xi-xi_opt)
     # Propagator for potential term with mean field and auxilary field shift.
     c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
-    # print ((xi-xi_opt)*state.iut_fac)
     EXP_VHS = numpy.exp(0.5*state.ut_fac*(1-2.0*state.mf_shift)+state.iut_fac*(xi-xi_opt))
     walker.phi[0] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0])
     walker.phi[1] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[1])
