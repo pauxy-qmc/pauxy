@@ -21,7 +21,7 @@ def do_qmc(state, psi, comm, interactive=False):
     estimates.print_header(state.root, estimates.header)
     if state.back_propagation:
         estimates.print_header(state.root, estimates.back_propagated_header,
-                           print_function=estimates.funit.write, eol='\n')
+                               print_function=estimates.funit.write, eol='\n')
     for w in psi:
         estimates.update(w, state)
     estimates.print_step(state, comm, 0)

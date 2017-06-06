@@ -12,8 +12,8 @@ class Estimators():
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         if state.back_propagation:
             self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
-            self.back_propagated_header = ['iteration', 'E_var', 'T', 'V']
-            state.write_json(print_function=self.funit.write, eol='\n')
+            self.back_propagated_header = ['iteration', 'E', 'T', 'V']
+            state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
             self.names = EstimatorEnum(self.nestimators)

@@ -69,7 +69,18 @@ class State:
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self, print_function=print, eol=''):
+    def write_json(self, print_function=print, eol='', verbose=True):
+        r"""Print out state object information.
+
+        Parameters
+        ----------
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        verbose : bool, optional
+            How much information to print. Default : True.
+        """
 
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
@@ -85,12 +96,15 @@ class State:
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
         encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        info = {
-            'calculation': calc_info,
-            'model': self.model,
-            'qmc_options': self.qmc_opts,
-            'trial_wavefunction': trial_wavefunction,
-        }
+        if verbose:
+            info = {
+                'calculation': calc_info,
+                'model': self.model,
+                'qmc_options': self.qmc_opts,
+                'trial_wavefunction': trial_wavefunction,
+            }
+        else:
+            info = {'calculation': calc_info,}
         # Note that we require python 3.6 to print dict in ordered fashion.
         print_function("# Input options:"+eol)
         print_function(json.dumps(info, sort_keys=False, indent=4))
