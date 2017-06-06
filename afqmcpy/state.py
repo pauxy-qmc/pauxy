@@ -30,12 +30,13 @@ class State:
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', self.nmeasure)
         self.uuid = str(uuid.uuid1())
+        self.seed = qmc_opts['rng_seed']
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model)
             self.gamma = numpy.arccosh(numpy.exp(0.5*self.dt*self.system.U))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                  [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
             if qmc_opts['hubbard_stratonovich'] == 'continuous':
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)

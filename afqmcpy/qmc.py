@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.linalg
 import copy
+import random
 import afqmcpy.walker as walker
 import afqmcpy.estimators as estimators
 import afqmcpy.pop_control as pop_control
@@ -38,10 +39,11 @@ def do_qmc(state, psi, comm, interactive=False):
                     w.reortho()
                 else:
                     w.reortho_free()
+            w.bp_counter = 0
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
-        if step%state.nback_prop == 0:
-            afqmcpy.propagation.back_propagate(state, psi, psit, psi_bp, estimates)
+        # if step%state.nback_prop == 0:
+            # afqmcpy.propagation.back_propagate(state, psi, psit, psi_bp, estimates)
         if step%state.nmeasure == 0:
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)

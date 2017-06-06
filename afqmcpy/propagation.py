@@ -31,7 +31,8 @@ state : :class:`state.State`
     if abs(walker.weight) > 0:
         state.propagators.kinetic(walker, state)
     if abs(walker.weight) > 0:
-        state.propagators.potential(walker, state)
+        # state.propagators.potential(walker, state)
+        check_auxf(walker, state)
     if abs(walker.weight.real) > 0:
         state.propagators.kinetic(walker, state)
 
@@ -196,6 +197,50 @@ trial : :class:`numpy.ndarray`
         walker.greens_function(state.trial.psi)
     walker.bp_counter = walker.bp_counter + 1
 
+def check_auxf(walker, state):
+    delta = state.auxf - 1
+    for i in range(0, state.system.nbasis):
+        # Ratio of determinants for the two choices of auxilliary fields
+        probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
+                                   (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
+        norm = sum(probs)
+        walker.weight = walker.weight * norm
+        r = numpy.random.random()
+        # Is this necessary?
+        if norm > 0:
+            if r < probs[0]/norm:
+                vtup = walker.phi[0][i,:] * delta[0, 0]
+                vtdown = walker.phi[1][i,:] * delta[0, 1]
+                # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+                # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                walker.ot = 2 * walker.ot * probs[0]
+                bv_up = numpy.ones(state.system.nbasis)
+                bv_down = numpy.ones(state.system.nbasis)
+                bv_up[i] = state.auxf[0, 0]
+                bv_down[i] = state.auxf[0, 1]
+                walker.bp_auxf[i, walker.bp_counter] = 0
+                propagate_potential_auxf(walker.phi, state, bv_up, bv_down)
+            else:
+                vtup = walker.phi[0][i,:] * delta[1, 0]
+                vtdown = walker.phi[1][i,:] * delta[1, 1]
+                # walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
+                # walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                walker.ot = 2 * walker.ot * probs[1]
+                walker.bp_auxf[i, walker.bp_counter] = 1
+                bv_up = numpy.ones(state.system.nbasis)
+                bv_down = numpy.ones(state.system.nbasis)
+                bv_up[i] = state.auxf[1, 0]
+                bv_down[i] = state.auxf[1, 1]
+                propagate_potential_auxf(walker.phi, state, bv_up, bv_down)
+        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+                                                    state.trial.psi[0].T[:,i],
+                                                    vtup)
+        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+                                                    state.trial.psi[1].T[:,i],
+                                                    vtdown)
+        walker.greens_function(state.trial.psi)
+    walker.bp_counter = walker.bp_counter + 1
+
 
 def dumb_hubbard(walker, state):
     '''Continuous Hubbard-Statonovich transformation for Hubbard model.
@@ -315,10 +360,10 @@ trial : :class:`numpy.ndarray`
     phi[1] = state.propagators.bt2.dot(phi[1])
 
 
-def propagate_potential_auxf(phi, state, field_config):
+def propagate_potential_auxf(phi, state, bv_up, bv_down):
 
-    bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
-    bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
+    # bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
+    # bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
@@ -341,15 +386,15 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
         backpropagated walkers at time :math:`\tau_{bp}`.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop) for w
-            in range(state.nwalkers)]
+    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop)
+              for w in range(state.nwalkers)]
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
-        # propagators should be applied in reversed order
+        # propagators should be applied in reverse order
         w.bp_counter = 0
         for (step, field_config) in reversed(list(enumerate(w.bp_auxf.T))):
             kinetic_continuous(psi_bp[iw].phi, state)
-            propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
+            # propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
             # psi_bp[iw].reortho()
 
