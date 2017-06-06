@@ -2,7 +2,6 @@
 
 import numpy
 import scipy.linalg
-import random
 
 
 def construct_generic_one_body(gamma, method='eigen'):
