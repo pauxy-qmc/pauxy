@@ -43,7 +43,7 @@ class Estimators():
         es[ns.time] = time.time()-es[ns.time]
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
-        global_estimates = global_estimates / state.nmeasure
+        global_estimates[:ns.time] = global_estimates[:ns.time] / state.nmeasure
         if state.root:
             global_estimates[ns.iteration] = step
             print(afqmcpy.utils.format_fixed_width_floats(global_estimates[:ns.evar-1]))
