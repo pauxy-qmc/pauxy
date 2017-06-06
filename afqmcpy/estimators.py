@@ -12,13 +12,16 @@ class Estimators():
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         if state.back_propagation:
             self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
-            self.back_propagated_header = ['tau_bp', 'E_var', 'T', 'V']
+            self.back_propagated_header = ['iteration', 'E_var', 'T', 'V']
             state.write_json(print_function=self.funit.write, eol='\n')
-            self.nestimators = len(self.header+self.back_propagated_header)
+            # don't communicate the estimators header
+            self.nestimators = len(self.header+self.back_propagated_header) - 2
+            self.names = EstimatorEnum(self.nestimators)
         else:
             self.nestimators = len(self.header)
-        self.names = EstimatorEnum()
+            self.names = EstimatorEnum(self.nestimators+3)
         self.estimates = numpy.zeros(self.nestimators)
+        self.zero()
 
 
     def zero(self):
@@ -40,16 +43,17 @@ class Estimators():
         ns = self.names
         es[ns.eproj] = (state.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
-        es[ns.time] = time.time()-es[ns.time]
+        es[ns.time] = (time.time()-es[ns.time])/state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = global_estimates[:ns.time] / state.nmeasure
         if state.root:
-            global_estimates[ns.iteration] = step
-            print(afqmcpy.utils.format_fixed_width_floats(global_estimates[:ns.evar-1]))
+            print(afqmcpy.utils.format_fixed_width_floats([step]+
+                                                          list(global_estimates[:ns.evar])))
         if state.back_propagation:
-            global_estimates[ns.tau_bp] = state.dt*(step-state.nback_prop)
-            self.funit.write(afqmcpy.utils.format_fixed_width_floats(global_estimates[ns.tau_bp:])+'\n')
+            ff = afqmcpy.utils.format_fixed_width_floats([step]+
+                                                         list(global_estimates[ns.evar:]))
+            self.funit.write(ff+'\n')
         self.zero()
 
     def update(self, w, state):
@@ -90,16 +94,10 @@ class EstimatorEnum:
 
     python's support for enums doesn't help as it indexes from 1.
     """
-    iteration = 0
-    weight = 1
-    enumer = 2
-    edenom = 3
-    eproj = 4
-    time = 5
-    tau_bp = 6
-    evar = 7
-    kin = 8
-    pot = 9
+
+    def __init__(self, nestimators):
+        (self.weight, self.enumer, self.edenom, self.eproj,
+         self.time, self.evar, self.kin, self.pot) = range(nestimators)
 
 
 def local_energy(system, G):
