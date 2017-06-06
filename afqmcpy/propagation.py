@@ -344,9 +344,12 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
             kinetic_continuous(psi_bp[iw].phi, state)
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
+            psi_bp[iw].reortho()
+        w.bp_counter = 0
 
     estimates.update_back_propagated_observables(state.system, psi, psi_t, psi_bp)
-    psit = copy.deepcopy(psi)
+    psi_t = copy.deepcopy(psi)
+    return psi_t
 
 
 _projectors = {

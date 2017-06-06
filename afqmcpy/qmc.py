@@ -41,8 +41,8 @@ def do_qmc(state, psi, comm, interactive=False):
                     w.reortho_free()
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
-        # if step%state.nback_prop == 0:
-            # afqmcpy.propagation.back_propagate(state, psi, psit, psi_bp, estimates)
+        if state.back_propagation and step%state.nback_prop == 0:
+            psit = afqmcpy.propagation.back_propagate(state, psi, psit, psi_bp, estimates)
         if step%state.nmeasure == 0:
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
