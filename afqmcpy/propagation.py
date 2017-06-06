@@ -254,7 +254,7 @@ nmax_exp : int
     walker.inverse_overlap(trial)
     walker.greens_function(trial)
     # Perform importance sampling, phaseless and real local energy approximation and update
-    E_L = estimators.local_energy(system, walker.G).real
+    E_L = estimators.local_energy(system, walker.G)[0].real
     ot_new = walker.calc_otrial(trial)
     dtheta = cmath.phase(ot_new/walker.ot)
     walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))

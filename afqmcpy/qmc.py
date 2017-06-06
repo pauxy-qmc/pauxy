@@ -12,7 +12,7 @@ def do_qmc(state, psi, comm, interactive=False):
 '''
 
     est = []
-    (E_T, pe, ke) = estimators.local_energy(state.system, psi[0].G)
+    (E_T, ke, pe) = estimators.local_energy(state.system, psi[0].G)
     # initialise back propagated wavefunctions
     psit = copy.deepcopy(psi)
     # psibp only stores the auxiliary fields in the interval of tbp.
