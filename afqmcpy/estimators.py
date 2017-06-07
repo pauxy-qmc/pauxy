@@ -29,7 +29,8 @@ class Estimators():
 
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
-        self.print_key()
+        if state.root:
+            self.print_key()
         if state.back_propagation:
             if state.root:
                 self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
