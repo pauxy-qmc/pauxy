@@ -4,6 +4,38 @@ import numpy as np
 import scipy.linalg
 
 class Hubbard:
+    """Hubbard model system class.
+
+    Only consider 1 and 2 case with nearest neighbour hopping.
+
+    Parameters
+    ----------
+    inputs : dict
+        dictionary of system input options.
+
+    Attributes
+    ----------
+    nup : int
+        Number of up electrons.
+    ndown : int
+        Number of down electrons.
+    ne : int
+        Number of electrons.
+    t : float
+        Hopping parameter.
+    U : float
+        Hubbard U interaction strength.
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+    nbasis : int
+        Number of single-particle basis functions.
+    T : numpy.array
+        Hopping matrix
+    gamma : numpy.array
+        Super matrix (not currently implemented).
+    """
 
     def __init__(self, inputs):
         self.nup = inputs['nup']
@@ -22,9 +54,24 @@ class Hubbard:
 
 
 def kinetic(t, nbasis, nx, ny):
-    '''Kinetic part of the Hamiltonian
+    """Kinetic part of the Hamiltonian in our one-electron basis.
 
-'''
+    Parameters
+    ----------
+    t : float
+        Hopping parameter
+    nbasis : int
+        Number of one-electron basis functions.
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+
+    Returns
+    -------
+    T : numpy.array
+        Hopping Hamiltonian matrix.
+    """
 
     T = np.zeros((nbasis, nbasis))
 
@@ -42,6 +89,17 @@ def kinetic(t, nbasis, nx, ny):
     return T + T.T
 
 def decode_basis(nx, ny, i):
+    """Return cartesian lattice coordinates from basis index.
+
+    Parameters
+    ----------
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+    i : int
+        Basis index (same for up and down spins).
+    """
     return np.array([i%nx, i//nx])
 
 def _super_matrix(U, nbasis):
