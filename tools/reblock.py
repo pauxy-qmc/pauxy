@@ -46,6 +46,8 @@ start_iteration : int
                         default=False, help='Short output.')
     parser.add_argument('-i', '--input', dest='input', action='store_true',
                         default=False, help='Extract input file.')
+    parser.add_argument('-bp', '--back_prop', dest='input', action='store_true',
+                        default=False, help='Analyse back propagated estimates.')
     parser.add_argument('filenames', nargs=argparse.REMAINDER,
                         help='Space-separated list of files to analyse.')
 
