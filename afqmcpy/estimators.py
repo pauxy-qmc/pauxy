@@ -12,16 +12,19 @@ class Estimators():
 
     Attributes
     ----------
-    energy_num : float
-        Numerator of local energy estimator for the whole collection of walkers.
-    total_weight : float
-        Total weight of all the walkers in the simulation
-    denom : float
-        Denominator for energy estimates, usually the same as total_weight (see
-        Estimators.update)
-    init_time : float
-        CPU time zero for estimating time taken to complete one step of the
-        algorithm (not currently a per core quantity).
+    header : list of strings
+        Default estimates and simulation information.
+    funit : file unit
+        File to write back-propagated estimates to.
+    back_propagated_header : list of strings
+        Back-propagated estimates.
+    nestimators : int
+        Number of estimators.
+    names : :class:`afqmcpy.estimators.EstimatorEnum`
+        Enum type object to allow for clearer (maybe) indexing.
+    estimates : :class:`numpy.ndarray`
+        Array containing accumulated estimates.
+        See afqmcpy.estimators.Estimates.print_key for description.
     """
 
     def __init__(self, state):
