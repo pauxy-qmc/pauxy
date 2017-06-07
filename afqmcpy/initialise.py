@@ -7,7 +7,20 @@ import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
 
+# TODO: change module name
 def initialise(input_file):
+    """Wrapper routine for initialising simulation
+
+    Parameters
+    ----------
+    input_file : json file.
+        Simulation input file.
+
+    Returns
+    -------
+    state : :class:afqmcpy.state.State`
+        Simulation state.
+    """
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -32,10 +45,12 @@ def initialise(input_file):
     state.root = state.rank == 0
     if state.root:
         state.write_json()
+    # TODO: Do this more gracefully.
     state.nwalkers = int(state.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop)
             for w in range(state.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
+    # TODO: Return state and psi and run from another routine.
     return state
 
 def finalise(state, init_time):
