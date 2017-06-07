@@ -1,3 +1,4 @@
+"""Routines and classes for estimation of observables."""
 import numpy
 import time
 from enum import Enum
@@ -7,13 +8,34 @@ import afqmcpy.utils
 
 
 class Estimators():
+    """Container for qmc estimates of observables.
+
+    Attributes
+    ----------
+    header : list of strings
+        Default estimates and simulation information.
+    funit : file unit
+        File to write back-propagated estimates to.
+    back_propagated_header : list of strings
+        Back-propagated estimates.
+    nestimators : int
+        Number of estimators.
+    names : :class:`afqmcpy.estimators.EstimatorEnum`
+        Enum type object to allow for clearer (maybe) indexing.
+    estimates : :class:`numpy.ndarray`
+        Array containing accumulated estimates.
+        See afqmcpy.estimators.Estimates.print_key for description.
+    """
 
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        self.print_key()
         if state.back_propagation:
             if state.root:
                 self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
                 state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
+                self.print_key(state.back_propagation, self.funit.write,
+                               eol='\n')
             self.back_propagated_header = ['iteration', 'E', 'T', 'V']
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
@@ -26,19 +48,74 @@ class Estimators():
 
 
     def zero(self):
+        """Zero estimates.
+
+        On return self.estimates is zerod and the timers are reset.
+
+        """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
 
+    def print_key(self, back_propagation=False, print_function=print, eol=''):
+        """Print out information about what the estimates are.
+
+        Parameters
+        ----------
+        back_propagation : bool, optional
+            True if doing back propagation. Default : False.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        """
+        if back_propagation:
+            explanation = {
+                'iteration': "Simulation iteration when back-propagation "
+                             "measurement occured.",
+                'E_var': "BP estimate for internal energy.",
+                'T': "BP estimate for kinetic energy.",
+                'V': "BP estimate for potential energy."
+            }
+        else:
+            explanation = {
+                'iteration': "Simulation iteration. iteration*dt = tau.",
+                'Weight': "Total walker weight.",
+                'E_num': "Numerator for projected energy estimator.",
+                'E_denom': "Denominator for projected energy estimator.",
+                'E': "Projected energy estimator.",
+                'time': "Time per-processor to complete one iteration.",
+            }
+        print_function('# Explanation of output column headers:'+eol)
+        print_function('# -------------------------------------'+eol)
+        for (k, v) in explanation.items():
+            print_function('# %s : %s'%(k, v)+eol)
+
     def print_header(self, root, header, print_function=print, eol=''):
-        '''Print out header for estimators'''
+        """Print out header for estimators
+
+        Parameters
+        ----------
+        back_propagation : bool, optional
+            True if doing back propagation. Default : False.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        """
         if root:
             print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
 
     def print_step(self, state, comm, step):
-        """Print QMC estimates
+        """Print QMC estimates.
 
-        Note that the back-propagated estimates correspond to step-dt_bp.
-
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State`
+            Simulation state.
+        comm :
+            MPI communicator.
+        step : int
+            Current iteration number.
         """
         es = self.estimates
         ns = self.names
@@ -58,7 +135,19 @@ class Estimators():
         self.zero()
 
     def update(self, w, state):
+        """Update estimates for walker w.
+
+        Parameters
+        ----------
+        w : :class:`afqmcpy.walker.Walker`
+            current walker
+        state : :class:`afqmcpy.state.State`
+            system parameters as well as current 'state' of the simulation.
+        """
         if state.importance_sampling:
+            # When using importance sampling we only need to know the current
+            # walkers weight as well as the local energy, the walker's overlap
+            # with the trial wavefunction is not needed.
             if state.cplx:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
@@ -160,6 +249,9 @@ def gab(A, B):
     :math:`|\psi_{A,B}\rangle`.
 
     For example, usually A would represent (an element of) the trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
 
     Parameters
     ----------
