@@ -11,9 +11,10 @@ class Estimators():
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         if state.back_propagation:
-            self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
+            if state.root:
+                self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
+                state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
             self.back_propagated_header = ['iteration', 'E', 'T', 'V']
-            state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
             self.names = EstimatorEnum(self.nestimators)
@@ -50,10 +51,10 @@ class Estimators():
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                                           list(global_estimates[:ns.evar])))
-        if state.back_propagation:
-            ff = afqmcpy.utils.format_fixed_width_floats([step]+
-                                                         list(global_estimates[ns.evar:]))
-            self.funit.write(ff+'\n')
+            if state.back_propagation:
+                ff = afqmcpy.utils.format_fixed_width_floats([step]+
+                                                             list(global_estimates[ns.evar:]))
+                self.funit.write(ff+'\n')
         self.zero()
 
     def update(self, w, state):
