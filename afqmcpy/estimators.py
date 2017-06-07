@@ -48,6 +48,11 @@ class Estimators():
 
 
     def zero(self):
+        """Zero estimates.
+
+        On return self.estimates is zerod and the timers are reset.
+
+        """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
 
@@ -86,15 +91,31 @@ class Estimators():
             print_function('# %s : %s'%(k, v)+eol)
 
     def print_header(self, root, header, print_function=print, eol=''):
-        '''Print out header for estimators'''
+        """Print out header for estimators
+
+        Parameters
+        ----------
+        back_propagation : bool, optional
+            True if doing back propagation. Default : False.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        """
         if root:
             print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
 
     def print_step(self, state, comm, step):
-        """Print QMC estimates
+        """Print QMC estimates.
 
-        Note that the back-propagated estimates correspond to step-dt_bp.
-
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State`
+            Simulation state.
+        comm :
+            MPI communicator.
+        step : int
+            Current iteration number.
         """
         es = self.estimates
         ns = self.names
@@ -118,7 +139,7 @@ class Estimators():
 
         Parameters
         ----------
-        w : :class:`afqmcpy.walker.Walkder`
+        w : :class:`afqmcpy.walker.Walker`
             current walker
         state : :class:`afqmcpy.state.State`
             system parameters as well as current 'state' of the simulation.
