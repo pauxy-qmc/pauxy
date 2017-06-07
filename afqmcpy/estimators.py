@@ -131,7 +131,7 @@ class Estimators():
                                                           list(global_estimates[:ns.evar])))
             if state.back_propagation:
                 ff = afqmcpy.utils.format_fixed_width_floats([step]+
-                                                             list(global_estimates[ns.evar:]/nprocs))
+                                                             list(global_estimates[ns.evar:]/state.nprocs))
                 self.funit.write(ff+'\n')
         self.zero()
 
