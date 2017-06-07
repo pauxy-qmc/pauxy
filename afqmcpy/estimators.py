@@ -29,10 +29,13 @@ class Estimators():
 
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        self.print_key()
         if state.back_propagation:
             if state.root:
                 self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
                 state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
+                self.print_key(state.back_propagation, self.funit.write,
+                               eol='\n')
             self.back_propagated_header = ['iteration', 'E', 'T', 'V']
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
@@ -47,6 +50,40 @@ class Estimators():
     def zero(self):
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
+
+    def print_key(self, back_propagation=False, print_function=print, eol=''):
+        """Print out information about what the estimates are.
+
+        Parameters
+        ----------
+        back_propagation : bool, optional
+            True if doing back propagation. Default : False.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        """
+        if back_propagation:
+            explanation = {
+                'iteration': "Simulation iteration when back-propagation "
+                             "measurement occured.",
+                'E_var': "BP estimate for internal energy.",
+                'T': "BP estimate for kinetic energy.",
+                'V': "BP estimate for potential energy."
+            }
+        else:
+            explanation = {
+                'iteration': "Simulation iteration. iteration*dt = tau.",
+                'Weight': "Total walker weight.",
+                'E_num': "Numerator for projected energy estimator.",
+                'E_denom': "Denominator for projected energy estimator.",
+                'E': "Projected energy estimator.",
+                'time': "Time per-processor to complete one iteration.",
+            }
+        print_function('# Explanation of output column headers:'+eol)
+        print_function('# -------------------------------------'+eol)
+        for (k, v) in explanation.items():
+            print_function('# %s : %s'%(k, v)+eol)
 
     def print_header(self, root, header, print_function=print, eol=''):
         '''Print out header for estimators'''
