@@ -4,8 +4,9 @@ HANDE'''
 
 import pandas as pd
 import pyblock
-import analysis.extraction
 import numpy
+import scipy.stats
+import analysis.extraction
 
 
 def run_blocking_analysis(filename, start_iter):
@@ -54,3 +55,22 @@ def average_tau(filenames):
     results['tau'] = results['iteration'] * tau
 
     return analysis.extraction.pretty_table_loop(results, m['model'])
+
+def average_back_propagated(filenames, start_iteration=0):
+
+    data = analysis.extraction.extract_data_sets(filenames)
+    frames = []
+
+    # I'm pretty sure there's a faster way of doing this.
+    for (m,d) in data:
+        d['nbp'] = m['qmc_options']['nback_prop']
+        frames.append(d.loc[:,'E':][start_iteration:])
+
+    frames = pd.concat(frames).groupby('nbp')
+    data_len = frames.size()
+    means = frames.mean().reset_index()
+    # calculate standard error of the mean for grouped objects. ddof does
+    # default to 1 for scipy but it's different elsewhere, so let's be careful.
+    errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
+    full = pd.merge(means, errs, on='nbp', suffixes=('','_error'))
+    return full
