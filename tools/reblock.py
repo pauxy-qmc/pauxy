@@ -78,7 +78,8 @@ None.
     options = parse_args(args)
     if options.loops:
         if options.back_propagation:
-            data = analysis.blocking.average_back_propagated(options.filenames)
+            data = analysis.blocking.average_back_propagated(options.filenames,
+                                                             options.start_iteration)
         else:
             data = analysis.blocking.average_tau(options.filenames)
         if options.tail:
