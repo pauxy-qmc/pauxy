@@ -34,7 +34,8 @@ class Estimators():
         if state.back_propagation:
             if state.root:
                 self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
-                state.write_json(print_function=self.funit.write, eol='\n', verbose=False)
+                state.write_json(print_function=self.funit.write, eol='\n',
+                                 verbose=True)
                 self.print_key(state.back_propagation, self.funit.write,
                                eol='\n')
             self.back_propagated_header = ['iteration', 'E', 'T', 'V']
