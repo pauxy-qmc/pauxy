@@ -85,7 +85,7 @@ class Estimators():
                 'E_num': "Numerator for projected energy estimator.",
                 'E_denom': "Denominator for projected energy estimator.",
                 'E': "Projected energy estimator.",
-                'time': "Time per-processor to complete one iteration.",
+                'time': "Time per processor to complete one iteration.",
             }
         print_function('# Explanation of output column headers:'+eol)
         print_function('# -------------------------------------'+eol)
