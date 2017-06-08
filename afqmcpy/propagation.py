@@ -1,4 +1,4 @@
-'''Routines for performing propagation of a walker'''
+"""Routines for performing propagation of a walker"""
 
 import numpy
 import scipy.linalg
@@ -11,22 +11,20 @@ import afqmcpy.walker as walker
 
 
 def propagate_walker_discrete(walker, state):
-    '''Wrapper function for propagation using discrete transformation
+    """Wrapper function for propagation using discrete transformation
 
     The discrete transformation allows us to split the application of the
     projector up a bit more, which allows up to make use of fast matrix update
     routines since only a row might change.
 
-    Todo: This about this for continuous transformation.
-
 Parameters
 ----------
 walker : :class:`walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    Walker object to be updated. On output we have acted on |phi_i> by B(x) and
     updated the weight appropriately. Updates inplace.
 state : :class:`state.State`
     Simulation state.
-'''
+"""
 
     if abs(walker.weight) > 0:
         state.propagators.kinetic(walker, state)
@@ -37,14 +35,21 @@ state : :class:`state.State`
 
 
 def propagate_walker_free(walker, state):
-    '''Free projection without importance sampling.
+    """Propagate walker without imposing constraint.
 
-'''
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    Uses single-site updates for potential term.
+
+    Parameters
+    ----------
+    walker : :class:`walker.Walker`
+        Walker object to be updated. On output we have acted on |phi_i> by B(x) and
+        updated the weight appropriately. Updates inplace.
+    state : :class:`state.State`
+        Simulation state.
+"""
+    kinetic_direct(walker.phi, state)
     delta = state.auxf - 1
     for i in range(0, state.system.nbasis):
-        # Is this necessary?
         if abs(walker.weight) > 0:
             r = numpy.random.random()
             if r > 0.5:
@@ -57,8 +62,7 @@ def propagate_walker_free(walker, state):
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    kinetic_direct(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
     # Update walker weight
     walker.ot = walker.calc_otrial(state.trial.psi)
@@ -66,27 +70,44 @@ def propagate_walker_free(walker, state):
 
 
 def propagate_walker_free_continuous(walker, state):
-    '''Free projection without importance sampling.
+    """Free projection for continuous HS transformation.
 
-'''
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    TODO: update if ever adapted to other model types.
+
+    Parameters
+    ----------
+    walker : :class:`walker.Walker`
+        Walker object to be updated. On output we have acted on |phi_i> by B(x) and
+        updated the weight appropriately. Updates inplace.
+    state : :class:`state.State`
+        Simulation state.
+"""
+    # 1. Apply kinetic projector.
+    kinetic_direct(walker.phi, state)
+    # Normally distributed random numbers.
     xfields =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
     sxf = sum(xfields)
+    # Constant, field dependent term emerging when subtracting mean-field.
     c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
+    # Potential propagator.
     bv = numpy.diag(numpy.exp(state.iut_fac*xfields+0.5*state.ut_fac*(1-2*state.mf_shift)))
+    # 2. Apply potential projector.
     walker.phi[0] = bv.dot(walker.phi[0])
     walker.phi[1] = bv.dot(walker.phi[1])
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    # 3. Apply kinetic projector.
+    kinetic_direct(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
     walker.ot = walker.calc_otrial(state.trial.psi)
     walker.greens_function(state.trial.psi)
+    # Constant terms are included in the walker's weight.
     walker.weight = walker.weight * c_xf
 
 
 def propagate_walker_continuous(walker, state):
-    '''Wrapper function for propagation using continuous transformation
+    """Wrapper function for propagation using continuous transformation.
+
+    This applied the phaseless, local energy approximation and uses importance
+    sampling.
 
 Parameters
 ----------
@@ -95,10 +116,13 @@ walker : :class:`walker.Walker`
     updated the weight appropriately. Updates inplace.
 state : :class:`state.State`
     Simulation state.
-'''
+"""
 
+    # 1. Apply kinetic projector.
     state.propagators.kinetic(walker.phi, state)
+    # 2. Apply potential projector.
     cxf = state.propagators.potential(walker, state)
+    # 3. Apply kinetic projector.
     state.propagators.kinetic(walker.phi, state)
 
     # Now apply phaseless, real local energy approximation
@@ -108,6 +132,7 @@ state : :class:`state.State`
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.mean_local_energy, state.local_energy_bound)
     ot_new = walker.calc_otrial(state.trial.psi)
+    # Walker's phase.
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
     walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L+E_L))
                                    * max(0, math.cos(dtheta)))
@@ -116,7 +141,7 @@ state : :class:`state.State`
 
 
 def local_energy_bound(local_energy, mean, threshold):
-    '''Try to suppress rare population events by imposing local energy bound.
+    """Try to suppress rare population events by imposing local energy bound.
 
     See: Purwanto et al., Phys. Rev. B 80, 214116 (2009).
 
@@ -128,7 +153,7 @@ mean : float
     Mean value of local energy about which we impose the threshold / bound.
 threshold : float
     Amount of lee-way for energy fluctuations about the mean.
-'''
+"""
 
     maximum = mean + threshold
     minimum = mean - threshold
@@ -263,7 +288,7 @@ nmax_exp : int
     walker.ot = ot_new
 
 
-def kinetic_direct(walker, state):
+def kinetic_importance_sampling(walker, state):
     '''Propagate by the kinetic term by direct matrix multiplication.
 
 Parameters
@@ -291,20 +316,18 @@ trial : :class:`numpy.ndarray`
         walker.weight = 0.0
 
 
-def kinetic_continuous(phi, state):
+def kinetic_direct(phi, state):
     '''Propagate by the kinetic term by direct matrix multiplication.
 
-    For use with the continuous algorithm.
+    For use with the continuus algorithm and free propagation.
 
 Parameters
 ----------
-walker : :class:`Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
-    updated the weight appropriately. Updates inplace.
-bk2 : :class:`numpy.ndarray`
-    Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
-trial : :class:`numpy.ndarray`
-    Trial wavefunction
+phi : :class:`Walker`
+    Walker Slater determinant to be updated. On output we have acted on |phi_i>
+    by B_K/2 and. Updates inplace.
+state : :class:`state.State`
+    Simulation state.
 '''
     phi[0] = state.propagators.bt2.dot(phi[0])
     phi[1] = state.propagators.bt2.dot(phi[1])
@@ -406,10 +429,10 @@ def propagate_single(state, psi, B):
 
 _projectors = {
     'kinetic': {
-        'discrete': kinetic_direct,
-        'continuous': kinetic_continuous,
-        'opt_continuous': kinetic_continuous,
-        'dumb_continuous': kinetic_continuous,
+        'discrete': kinetic_importance_sampling,
+        'continuous': kinetic_direct,
+        'opt_continuous': kinetic_direct,
+        'dumb_continuous': kinetic_direct,
     },
     'potential': {
         'Hubbard': {
