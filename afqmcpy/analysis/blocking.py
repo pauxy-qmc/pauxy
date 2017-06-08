@@ -61,9 +61,12 @@ def average_back_propagated(filenames):
     frames = []
 
     for (m,d) in data:
-        print (m)
         d['nbp'] = m['qmc_options']['nback_prop']
-        frames.append(d)
+        frames.append(d.loc[:,'E':])
 
-    frames = pd.concat(frames)
-    print (frames)
+    frames = pd.concat(frames).groupby('nbp')
+    data_len = frames.size()
+    means = frames.mean().reset_index()
+    errs = (frames.std()).reset_index()
+    full = pd.merge(means, errs, on='nbp', suffixes=('','_error'))
+    return full
