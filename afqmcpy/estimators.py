@@ -107,7 +107,7 @@ class Estimators():
         if root:
             print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
 
-    def print_step(self, state, comm, step):
+    def print_step(self, state, comm, step, print_bp=True):
         """Print QMC estimates.
 
         Parameters
@@ -130,7 +130,7 @@ class Estimators():
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                                           list(global_estimates[:ns.evar])))
-            if state.back_propagation:
+            if state.back_propagation and print_bp:
                 ff = afqmcpy.utils.format_fixed_width_floats([step]+
                                                              list(global_estimates[ns.evar:]/state.nprocs))
                 self.funit.write(ff+'\n')
