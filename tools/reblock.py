@@ -46,7 +46,7 @@ start_iteration : int
                         default=False, help='Short output.')
     parser.add_argument('-i', '--input', dest='input', action='store_true',
                         default=False, help='Extract input file.')
-    parser.add_argument('-bp', '--back_prop', dest='input', action='store_true',
+    parser.add_argument('-b', '--back-prop', dest='back_propagation', action='store_true',
                         default=False, help='Analyse back propagated estimates.')
     parser.add_argument('filenames', nargs=argparse.REMAINDER,
                         help='Space-separated list of files to analyse.')
@@ -77,7 +77,10 @@ None.
 
     options = parse_args(args)
     if options.loops:
-        data = analysis.blocking.average_tau(options.filenames)
+        if options.back_propagation:
+            data = analysis.blocking.average_back_propagated(options.filenames)
+        else:
+            data = analysis.blocking.average_tau(options.filenames)
         if options.tail:
             print (data.tail(1).to_string(index=False))
         else:

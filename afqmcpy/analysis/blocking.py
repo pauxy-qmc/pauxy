@@ -54,3 +54,16 @@ def average_tau(filenames):
     results['tau'] = results['iteration'] * tau
 
     return analysis.extraction.pretty_table_loop(results, m['model'])
+
+def average_back_propagated(filenames):
+
+    data = analysis.extraction.extract_data_sets(filenames)
+    frames = []
+
+    for (m,d) in data:
+        print (m)
+        d['nbp'] = m['qmc_options']['nback_prop']
+        frames.append(d)
+
+    frames = pd.concat(frames)
+    print (frames)
