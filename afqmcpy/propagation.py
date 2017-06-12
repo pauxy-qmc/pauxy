@@ -1,5 +1,7 @@
 """Routines for performing propagation of a walker"""
 
+# TODO: refactor to avoid code repetition between similar routines.
+
 import numpy
 import scipy.linalg
 import math
@@ -52,6 +54,7 @@ def propagate_walker_free(walker, state):
     for i in range(0, state.system.nbasis):
         if abs(walker.weight) > 0:
             r = numpy.random.random()
+            # TODO: remove code repition.
             if r > 0.5:
                 vtup = walker.phi[0][i,:] * delta[0, 0]
                 vtdown = walker.phi[1][i,:] * delta[0, 1]
@@ -168,20 +171,16 @@ threshold : float
     return local_energy
 
 def discrete_hubbard(walker, state):
-    '''Propagate by potential term using discrete HS transform.
+    """Propagate by potential term using discrete HS transform.
 
 Parameters
 ----------
-walker : :class:`Walker`
+walker : :class:`afqmcpy.walker.Walker`
     Walker object to be updated. On output we have acted on |phi_i> by B_V and
     updated the weight appropriately. Updates inplace.
-auxf : :class:`numpy.ndarray`
-    Possible values of the exponential discrete auxilliary fields.
-nbasis : int
-    Number of single-particle basis functions (2M for spin).
-trial : :class:`numpy.ndarray`
-    Trial wavefunction.
-'''
+state : :class:`afqmcpy.state.State`
+    Simulation state.
+"""
     # Construct random auxilliary field.
     delta = state.auxf - 1
     for i in range(0, state.system.nbasis):
@@ -189,10 +188,10 @@ trial : :class:`numpy.ndarray`
         probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
                                    (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
         norm = sum(probs)
-        walker.weight = walker.weight * norm
         r = numpy.random.random()
         # Is this necessary?
         if norm > 0:
+            walker.weight = walker.weight * norm
             if r < probs[0]/norm:
                 vtup = walker.phi[0][i,:] * delta[0, 0]
                 vtdown = walker.phi[1][i,:] * delta[0, 1]
@@ -207,30 +206,32 @@ trial : :class:`numpy.ndarray`
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.bp_auxf[i, walker.bp_counter] = 1
-        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
-                                                    state.trial.psi[0].T[:,i],
-                                                    vtup)
-        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
-                                                    state.trial.psi[1].T[:,i],
-                                                    vtdown)
-        walker.greens_function(state.trial.psi)
-    if state.back_propagation:
-        walker.bp_counter = walker.bp_counter + 1
+            walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+                                                        state.trial.psi[0].T[:,i],
+                                                        vtup)
+            walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+                                                        state.trial.psi[1].T[:,i],
+                                                        vtdown)
+            walker.greens_function(state.trial.psi)
+            if state.back_propagation:
+                walker.bp_counter = walker.bp_counter + 1
+        else:
+            walker.weight = 0
 
 
 def dumb_hubbard(walker, state):
-    '''Continuous Hubbard-Statonovich transformation for Hubbard model.
+    """Continuous Hubbard-Statonovich transformation for Hubbard model.
 
     Only requires M auxiliary fields.
 
 Parameters
 ----------
-walker : :class:`walker.Walker`
+walker : :class:`afqmcpy.walker.Walker`
     Walker object to be updated. On output we have acted on |phi_i> by B_V and
     updated the weight appropriately. Updates inplace.
-state : :class:`state.State`
+state : :class:`afqmcpy.state.State`
     Simulation state.
-'''
+"""
 
     # Normally distrubted auxiliary fields.
     xi = numpy.random.normal(0.0, 1.0, state.system.nbasis)
@@ -246,23 +247,19 @@ state : :class:`state.State`
 
 
 def generic_continuous(walker, state):
-    '''Continuous HS transformation
+    """Continuous HS transformation
 
     This form assumes nothing about the form of the two-body Hamiltonian and
     is thus quite slow, particularly if the matrix is M^2xM^2.
 
 Parameters
 ----------
-walker : :class:`Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by
-    B_V(x-x')/2 and updated the weight appropriately. Updates inplace.
-U : :class:`numpy.ndarray`
-    Matrix containing eigenvectors of gamma (times :math:`\sqrt{-\lambda}`.
-trial : numpy.ndarray
-    Trial wavefunction.
-nmax_exp : int
-    Maximum expansion order of matrix exponential.
-'''
+walker : :class:`afqmcpy.walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
+    updated the weight appropriately. Updates inplace.
+state : :class:`afqmcpy.state.State`
+    Simulation state.
+"""
 
     # iterate over spins
     for i in range(0, 2):
@@ -289,18 +286,16 @@ nmax_exp : int
 
 
 def kinetic_importance_sampling(walker, state):
-    '''Propagate by the kinetic term by direct matrix multiplication.
+    """Propagate by the kinetic term by direct matrix multiplication.
 
 Parameters
 ----------
-walker : :class:`Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_K/2 and
+walker : :class:`afqmcpy.walker.Walker`
+    Walker object to be updated. On output we have acted on |phi_i> by B_V and
     updated the weight appropriately. Updates inplace.
-bk2 : :class:`numpy.ndarray`
-    Exponential of the kinetic propagator :math:`e^{-\Delta\tau/2 \hat{K}}`
-trial : :class:`numpy.ndarray`
-    Trial wavefunction
-'''
+state : :class:`afqmcpy.state.State`
+    Simulation state.
+"""
     walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
     walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
     # Update inverse overlap
@@ -317,23 +312,36 @@ trial : :class:`numpy.ndarray`
 
 
 def kinetic_direct(phi, state):
-    '''Propagate by the kinetic term by direct matrix multiplication.
+    """Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuus algorithm and free propagation.
 
-Parameters
-----------
-phi : :class:`Walker`
-    Walker Slater determinant to be updated. On output we have acted on |phi_i>
-    by B_K/2 and. Updates inplace.
-state : :class:`state.State`
-    Simulation state.
-'''
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        Walker object to be updated. On output we have acted on |phi_i> by B_V and
+        updated the weight appropriately. Updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
     phi[0] = state.propagators.bt2.dot(phi[0])
     phi[1] = state.propagators.bt2.dot(phi[1])
 
 
 def propagate_potential_auxf(phi, state, field_config):
+    """Propagate walker given a fixed set of auxiliary fields.
+
+    Useful for debugging.
+
+    Parameters
+    ----------
+    phi : :class:`numpy.ndarray`
+        Walker's slater determinant to be updated.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    field_config : numpy array
+        Auxiliary field configurations to apply to walker.
+    """
 
     bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
     bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
@@ -367,7 +375,7 @@ def construct_propagator_matrix(state, config, conjt=False):
 def back_propagate(state, psi, step):
     r"""Perform backpropagation.
 
-    explanation...
+    TODO: explanation and disentangle measurement from act.
 
     Parameters
     ---------
