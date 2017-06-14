@@ -239,6 +239,35 @@ def back_propagated_energy(system, psi, psit, psib):
         # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
     return estimates / denominator
 
+def single_particle_greens_function(state, psi, psi_bp, psi_n, w_nm, B):
+    """Calculate single-particle green's function from current list of walkers
+
+    Adapted from:
+
+    """
+
+    GBP = [0, 0]
+    G = [0, 0]
+    estimates = numpy.zeros(state.itcf_nmax)
+    denominator = sum(w.weight for w in psi)
+    # Loop over imaginary time
+    for (ic, config) in enumerate(field_configs):
+        # Loop over walkers
+        for (w, wt, wb) in zip(psi, psi_n, psi_bp):
+            # Construct back propagated green's function.
+            GBP[0] = gab(wb.phi[0], wt.phi[0])
+            GBP[1] = gab(wb.phi[1], wt.phi[1])
+            # Be simple for the moment. To go further in imaginary time we just
+            # need to update the propagation matrix to include more terms of the
+            # left.
+            # Could optimise this to avoid additional multiplication by GBP.
+            B = afqmcpy.propagation.construct_propagation_matrix(config).dot(B)
+            G[0] = B.dot(GBP[0])
+            G[1] = B.dot(GBP[1])
+            estimates[ic] = estimates[ic] + w*G[0][0,0]
+
+    return estimates
+
 
 def gab(A, B):
     r"""One-particle Green's function.
