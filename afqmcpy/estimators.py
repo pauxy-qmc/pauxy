@@ -221,6 +221,45 @@ class Estimators():
 
         self.estimates[self.names.evar:] = back_propagated_energy(system, psi, psit, psib)
 
+    def update_itcf(self, system, psi, psit, psib):
+        """Update estimate for single-particle Green's function.
+
+        Explanation...
+
+        Parameters
+        ----------
+        system: :class:`afqmcpy.state.System`
+            System object.
+        psi : list of :class:`afqmcpy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+        psit : list of :class:`afqmcpy.walker.Walker` objects
+            previous distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau`.
+        psib : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers at time :math:`\tau_{bp}`.
+        """
+        GBP = [0, 0]
+        # I think we need to store the future walker weights when using MPI to
+        # average over walkers correctly.
+        denominator = sum(w.weight for w in psi)
+        # Loop over imaginary time
+        for (ic, config) in enumerate(field_configs.T):
+            # Loop over walkers
+            for (w, wt, wb) in zip(psi, psi_n, psi_bp):
+                # Construct back propagated green's function.
+                GBP[0] = gab(wb.phi[0], wt.phi[0])
+                GBP[1] = gab(wb.phi[1], wt.phi[1])
+                # Be simple for the moment. To go further in imaginary time we just
+                # need to update the propagation matrix to include more terms of the
+                # left.
+                # Could optimise this to avoid additional multiplication by GBP.
+                B = afqmcpy.propagation.construct_propagation_matrix(config).dot(B)
+                G[0] = B.dot(GBP[0])
+                G[1] = B.dot(GBP[1])
+                # Only keep up component for the moment.
+                estimates.spgf[ic] = estimates.spgf[ic] + w*G[0]
+
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
@@ -279,35 +318,6 @@ def back_propagated_energy(system, psi, psit, psib):
         estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
         # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
     return estimates / denominator
-
-def single_particle_greens_function(state, psi, psi_bp, psi_n, w_nm, B):
-    """Calculate single-particle green's function from current list of walkers
-
-    Adapted from:
-
-    """
-
-    GBP = [0, 0]
-    G = [0, 0]
-    estimates = numpy.zeros(state.itcf_nmax)
-    denominator = sum(w.weight for w in psi)
-    # Loop over imaginary time
-    for (ic, config) in enumerate(field_configs):
-        # Loop over walkers
-        for (w, wt, wb) in zip(psi, psi_n, psi_bp):
-            # Construct back propagated green's function.
-            GBP[0] = gab(wb.phi[0], wt.phi[0])
-            GBP[1] = gab(wb.phi[1], wt.phi[1])
-            # Be simple for the moment. To go further in imaginary time we just
-            # need to update the propagation matrix to include more terms of the
-            # left.
-            # Could optimise this to avoid additional multiplication by GBP.
-            B = afqmcpy.propagation.construct_propagation_matrix(config).dot(B)
-            G[0] = B.dot(GBP[0])
-            G[1] = B.dot(GBP[1])
-            estimates[ic] = estimates[ic] + w*G[0][0,0]
-
-    return estimates
 
 
 def gab(A, B):
