@@ -362,7 +362,7 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (step, field_config) in reversed(list(enumerate(w.bp_auxf.T))):
+        for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,:w.nback_prop].T))):
             kinetic_continuous(psi_bp[iw].phi, state)
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
