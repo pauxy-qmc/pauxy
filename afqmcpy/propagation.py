@@ -357,7 +357,8 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
         backpropagated walkers at time :math:`\tau_{bp}`.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop)
+    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w,
+                            state.nback_prop, state.itcf_nmax)
               for w in range(state.nwalkers)]
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):

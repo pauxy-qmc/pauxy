@@ -28,7 +28,8 @@ class State:
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
         self.back_propagation = qmc_opts.get('back_propagation', False)
-        self.single_particle_gf = qmc_opts.get('single_particle_gf', False)
+        self.nback_prop = qmc_opts.get('nback_prop', self.nequilibrate)
+        self.itcf = qmc_opts.get('single_particle_gf', False)
         self.itcf_tmax = qmc_opts.get('itcf_tmax', 1.0)
         self.itcf_nmax = int(self.itcf_tmax/self.dt)
         self.uuid = str(uuid.uuid1())

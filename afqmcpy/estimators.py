@@ -41,14 +41,12 @@ class Estimators():
             self.back_propagated_header = ['iteration', 'E', 'T', 'V']
             if state.itcf:
                 if state.root:
-                    self.itcf_unit = open('spgf_%s.out'%state.uuid[:8], 'a')
+                    self.itcf_unit = open('spgf_%s.out'%state.uuid[:8], 'ab')
                     state.write_json(print_function=self.funit.write, eol='\n',
                                      verbose=True)
                     self.print_key(state.back_propagation, self.funit.write,
                                    eol='\n')
                 self.ifcf_header = ['tau', 'g00']
-                # don't communicate the estimators header
-                self.names = EstimatorEnum(self.nestimators)
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
             self.names = EstimatorEnum(self.nestimators)
@@ -56,12 +54,13 @@ class Estimators():
             self.nestimators = len(self.header)
             self.names = EstimatorEnum(self.nestimators+3)
         # only store up component for the moment.
-        self.spgf = numpy.zeros(state.itcf_nmax, state.system.nbasis, state.system.nbasis)
+        self.spgf = numpy.zeros(shape=(state.itcf_nmax, state.system.nbasis,
+                                       state.system.nbasis))
         self.estimates = numpy.zeros(self.nestimators+len(self.spgf.flatten()))
-        self.zero()
+        self.zero(state)
 
 
-    def zero(self):
+    def zero(self, state):
         """Zero estimates.
 
         On return self.estimates is zerod and the timers are reset.
@@ -69,7 +68,8 @@ class Estimators():
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
-        self.spgf = numpy.zeros(state.itcf_nmax, state.system.nbasis, state.system.nbasis)
+        self.spgf = numpy.zeros(shape=(state.itcf_nmax, state.system.nbasis,
+                                       state.system.nbasis))
 
     def print_key(self, back_propagation=False, print_function=print, eol=''):
         """Print out information about what the estimates are.
@@ -120,7 +120,7 @@ class Estimators():
         if root:
             print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
 
-    def print_step(self, state, comm, step, print_bp=True):
+    def print_step(self, state, comm, step, print_bp=True, print_itcf=True):
         """Print QMC estimates.
 
         Parameters
@@ -137,7 +137,7 @@ class Estimators():
         es[ns.eproj] = (state.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
-        es[ns.pot:] = self.spgf.flatten()
+        es[ns.pot+1:] = self.spgf.flatten()
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = global_estimates[:ns.time] / state.nmeasure
@@ -146,14 +146,14 @@ class Estimators():
                                                           list(global_estimates[:ns.evar])))
             if state.back_propagation and print_bp:
                 ff = afqmcpy.utils.format_fixed_width_floats([step]+
-                                                             list(global_estimates[ns.evar:]/state.nprocs))
+                                                             list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
                 self.funit.write(ff+'\n')
-            if state.single_particle_gf and print_spfg:
-                self.print_itcf(self.estimates[:ns.pot], state.dt,
+            if state.itcf and print_itcf:
+                self.print_itcf(self.estimates[ns.pot+1:], state.dt,
                                 numpy.shape(self.spgf), self.itcf_unit)
-        self.zero()
+        self.zero(state)
 
-    def print_itcf(itcf, dt, gf_shape, funit):
+    def print_itcf(self, itcf, dt, gf_shape, funit):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -173,9 +173,9 @@ class Estimators():
         """
         gf = itcf.reshape(gf_shape)
         for (ic, g) in enumerate(gf):
-            funit.write('# tau = %4.2f'%(ic*dt))
+            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
-            numpy.savetext(funit, g, fmt='%.10e')
+            numpy.savetxt(funit, g)
 
     def update(self, w, state):
         """Update estimates for walker w.
@@ -219,7 +219,7 @@ class Estimators():
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
 
-        self.estimates[self.names.evar:] = back_propagated_energy(system, psi, psit, psib)
+        self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
     def update_itcf(self, system, psi, psit, psib):
         """Update estimate for single-particle Green's function.
