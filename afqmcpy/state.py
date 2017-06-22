@@ -58,8 +58,7 @@ class State:
         if qmc_opts['trial_wavefunction'] == 'free_electron':
             self.trial = trial_wave_function.Free_Electron(self.system, self.cplx)
         elif qmc_opts['trial_wavefunction'] == 'UHF':
-            self.trial = trial_wave_function.UHF(self.system, self.cplx, self.ueff,
-                                                 ninit=100, nit_max=1000)
+            self.trial = trial_wave_function.UHF(self.system, self.cplx, self.ueff)
         elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
@@ -92,6 +91,7 @@ class State:
             'name': self.trial.__class__.__name__,
             'sp_eigv': self.trial.eigs.round(6).tolist(),
             'initialisation_time': round(self.trial.initialisation_time, 5),
+            'trial_energy': self.trial.emin,
         }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh

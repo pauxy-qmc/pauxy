@@ -44,7 +44,7 @@ class Estimators():
             self.names = EstimatorEnum(self.nestimators)
         else:
             self.nestimators = len(self.header)
-            self.names = EstimatorEnum(self.nestimators+3)
+            self.names = EstimatorEnum(self.nestimators+2)
         self.estimates = numpy.zeros(self.nestimators)
         self.zero()
 

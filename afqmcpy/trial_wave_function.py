@@ -3,6 +3,7 @@ import math
 import cmath
 import time
 import copy
+import sys
 import scipy.optimize
 import scipy.linalg
 import afqmcpy.hubbard
@@ -26,19 +27,21 @@ class Free_Electron:
 
 class UHF:
 
-    def __init__(self, system, cplx, ueff, ninit=100, nit_max=1000, alpha=0.5):
+    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.5):
         init_time = time.time()
         if cplx:
             self.trial_type = complex
         else:
             self.trial_type = float
-        (self.psi, self.eigs) = self.find_uhf_wfn(system, cplx, ueff, ninit, nit_max, alpha)
+        (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx, ueff, ninit, nit_max, alpha)
         self.initialisation_time = time.time() - init_time
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit=100, nit_max=1000, alpha=0.5):
+    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha=0.5,
+                     deps=1e-8):
         emin = 0
         uold = system.U
         system.U = ueff
+        minima= [0]
         for attempt in range(0, ninit):
             random = numpy.random.random((system.nbasis, system.nbasis))
             random = 0.5*(random + random.T)
@@ -70,9 +73,10 @@ class UHF:
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
                 niup = alpha*numpy.diag(trial[0].dot((trial[0].conj()).T)) + (1-alpha)*niup_old
                 nidown = alpha*numpy.diag(trial[1].dot((trial[1].conj()).T)) + (1-alpha)*nidown_old
-                if self.self_consistant(enew, eold, niup, niup_old, nidown, nidown_old):
-                    if enew-emin < -1e-8:
-                        emin = enew
+                if self.self_consistant(enew, eold, niup, niup_old, nidown,
+                                        nidown_old, it, deps):
+                    if all(abs(numpy.array(minima))-abs(enew) < -deps):
+                        minima.append(enew)
                         psi_accept = copy.deepcopy(trial)
                         e_accept = numpy.append(e_up, e_down)
                     break
@@ -82,13 +86,20 @@ class UHF:
                     nidown_old = nidown
 
         system.U = uold
-        return (psi_accept, e_accept)
+        try:
+            return (psi_accept, e_accept, min(minima))
+        except UnboundLocalError:
+            print ("Warning: No UHF wavefunction found.")
+            print ("%f"%(enew-emin))
+            sys.exit()
 
-    def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old):
+
+    def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
+                        it, deps=1e-8):
         '''Check if system parameters are converged'''
 
-        e_cond= abs(enew-eold) < 1e-8
-        nup_cond = sum(abs(niup-niup_old)) < 1e-8
-        ndown_cond = sum(abs(nidown-nidown_old)) < 1e-8
+        e_cond= abs(enew-eold) < deps
+        nup_cond = sum(abs(niup-niup_old)) < deps
+        ndown_cond = sum(abs(nidown-nidown_old)) < deps
 
         return e_cond and nup_cond and ndown_cond
