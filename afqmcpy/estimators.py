@@ -255,7 +255,7 @@ class Estimators():
                 G[1] = B.dot(GBP[1])
                 # Only keep up component for the moment.
                 # Shouldnt really store these twice, just print them out here.
-                estimates.spgf[ic] = estimates.spgf[ic] + w*G[0]
+                estimates.spgf[ic] = estimates.spgf[ic] + w.weight*G[0]
 
 
 class EstimatorEnum:
