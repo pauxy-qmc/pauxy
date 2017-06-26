@@ -339,7 +339,7 @@ def construct_propagator_matrix(config):
 
     return B
 
-def back_propagate(state, psi, psi_t, psi_bp, estimates):
+def back_propagate(state, psi, psi_t):
     r"""Perform backpropagation.
 
     explanation...
@@ -368,12 +368,7 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
             psi_bp[iw].reortho()
-        w.bp_counter = 0
-
-    estimates.update_back_propagated_observables(state.system, psi, psi_t, psi_bp)
-    psi_t = copy.deepcopy(psi)
-    return psi_t
-
+    return psi_bp
 
 _projectors = {
     'kinetic': {
