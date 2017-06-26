@@ -169,9 +169,9 @@ class Estimators():
             Output file for ITCF.
         """
         for (ic, g) in enumerate(self.spgf):
-            self.funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
+            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
-            numpy.savetxt(self.funit, g)
+            numpy.savetxt(funit, g)
 
     def update(self, w, state):
         """Update estimates for walker w.
@@ -217,7 +217,7 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
-    def calculate_itcf(self, system, psi, psi_nm, psi_n, psi_bp):
+    def calculate_itcf(self, state, psi, psi_nm, psi_n, psi_bp):
         """Update estimate for single-particle Green's function.
 
         Explanation...
@@ -236,26 +236,29 @@ class Estimators():
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
         GBP = [0, 0]
+        G = [0, 0]
         # I think we need to store the future walker weights when using MPI to
         # average over walkers correctly.
         denominator = sum(w.weight for w in psi)
-        # Loop over imaginary time
-        for (ic, config) in enumerate(field_configs.T):
+        for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
             # Loop over walkers
-            for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
-                # Construct back propagated green's function.
-                GBP[0] = gab(wb.phi[0], wt.phi[0])
-                GBP[1] = gab(wb.phi[1], wt.phi[1])
+            # Construct back propagated green's function.
+            GBP[0] = gab(wb.phi[0], wt.phi[0])
+            GBP[1] = gab(wb.phi[1], wt.phi[1])
+            B = [numpy.identity(state.system.nbasis),
+                    numpy.identity(state.system.nbasis)]
+            for (ic, config) in enumerate(w.bp_auxf[:,state.nback_prop:].T):
                 # Be simple for the moment. To go further in imaginary time we just
                 # need to update the propagation matrix to include more terms of the
                 # left.
                 # Could optimise this to avoid additional multiplication by GBP.
-                B = afqmcpy.propagation.construct_propagator_matrix(config).dot(B)
-                G[0] = B.dot(GBP[0])
-                G[1] = B.dot(GBP[1])
+                Bi = afqmcpy.propagation.construct_propagator_matrix(state, config)
+                B = [Bi[0].dot(B[0]), Bi[1].dot(B[1])]
+                G[0] = B[0].dot(GBP[0])
+                G[1] = B[1].dot(GBP[1])
                 # Only keep up component for the moment.
                 # Shouldnt really store these twice, just print them out here.
-                estimates.spgf[ic] = estimates.spgf[ic] + wnm.weight*G[0]
+                self.spgf[ic] = self.spgf[ic] + wnm.weight*G[0]
                 w.bp_counter = 0
 
 

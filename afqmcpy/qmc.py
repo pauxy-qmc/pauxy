@@ -46,16 +46,16 @@ def do_qmc(state, psi, comm, interactive=False):
         if state.back_propagation and step%state.nback_prop == 0:
             psi_left = afqmcpy.propagation.back_propagate(state, psi, psit)
             estimates.update_back_propagated_observables(state.system, psi, psit, psi_bp)
-            if state.itcf and step%state.nprop_tot == 1:
+            if state.itcf and step%state.nprop_tot == state.nback_prop:
                 # save these for calculating the itcf
                 psi_right = copy.deepcopy(psit)
                 psi_left = copy.deepcopy(psi_bp)
                 psi_nm = copy.deepcopy(psi)
             psit = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
-            estimates.calculate_itcf(system, psi, psi_nm, psi_left, psi_right)
+            estimates.calculate_itcf(state, psi, psi_nm, psi_left, psi_right)
             if state.root:
-                estimates.print_itcf(state.dt)
+                estimates.print_itcf(state.dt, estimates.itcf_unit)
         if step%state.nmeasure == 0:
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)

@@ -317,7 +317,7 @@ def propagate_potential_auxf(phi, state, field_config):
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
-def construct_propagator_matrix(config):
+def construct_propagator_matrix(state, config):
     """Construct the full projector from a configuration of auxiliary fields.
 
     Parameters
