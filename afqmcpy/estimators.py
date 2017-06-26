@@ -148,12 +148,9 @@ class Estimators():
                 ff = afqmcpy.utils.format_fixed_width_floats([step]+
                                                              list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
                 self.funit.write(ff+'\n')
-            if state.itcf and print_itcf:
-                self.print_itcf(self.estimates[ns.pot+1:], state.dt,
-                                numpy.shape(self.spgf), self.itcf_unit)
         self.zero(state)
 
-    def print_itcf(self, itcf, dt, gf_shape, funit):
+    def print_itcf(self, dt, funit):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -171,11 +168,10 @@ class Estimators():
         funit : file
             Output file for ITCF.
         """
-        gf = itcf.reshape(gf_shape)
-        for (ic, g) in enumerate(gf):
-            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
+        for (ic, g) in enumerate(self.spgf):
+            self.funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
-            numpy.savetxt(funit, g)
+            numpy.savetxt(self.funit, g)
 
     def update(self, w, state):
         """Update estimates for walker w.
@@ -221,7 +217,7 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
-    def update_itcf(self, system, psi, psit, psib):
+    def calculate_itcf(self, system, psi, psit, psib):
         """Update estimate for single-particle Green's function.
 
         Explanation...
@@ -254,10 +250,11 @@ class Estimators():
                 # need to update the propagation matrix to include more terms of the
                 # left.
                 # Could optimise this to avoid additional multiplication by GBP.
-                B = afqmcpy.propagation.construct_propagation_matrix(config).dot(B)
+                B = afqmcpy.propagation.construct_propagator_matrix(config).dot(B)
                 G[0] = B.dot(GBP[0])
                 G[1] = B.dot(GBP[1])
                 # Only keep up component for the moment.
+                # Shouldnt really store these twice, just print them out here.
                 estimates.spgf[ic] = estimates.spgf[ic] + w*G[0]
 
 
