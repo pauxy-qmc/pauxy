@@ -54,7 +54,7 @@ class Estimators():
             self.nestimators = len(self.header)
             self.names = EstimatorEnum(self.nestimators+3)
         # only store up component for the moment.
-        self.spgf = numpy.zeros(shape=(state.itcf_nmax, state.system.nbasis,
+        self.spgf = numpy.zeros(shape=(state.itcf_nmax+1, state.system.nbasis,
                                        state.system.nbasis))
         self.estimates = numpy.zeros(self.nestimators+len(self.spgf.flatten()))
         self.zero(state)
@@ -68,7 +68,7 @@ class Estimators():
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
-        self.spgf = numpy.zeros(shape=(state.itcf_nmax, state.system.nbasis,
+        self.spgf = numpy.zeros(shape=(state.itcf_nmax+1, state.system.nbasis,
                                        state.system.nbasis))
 
     def print_key(self, back_propagation=False, print_function=print, eol=''):
