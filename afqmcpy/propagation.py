@@ -368,6 +368,8 @@ def back_propagate(state, psi, psi_t):
             propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
             kinetic_continuous(psi_bp[iw].phi, state)
             psi_bp[iw].reortho()
+        if not state.itcf:
+            w.bp_counter = 0
     return psi_bp
 
 _projectors = {

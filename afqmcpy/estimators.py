@@ -217,7 +217,7 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
-    def calculate_itcf(self, system, psi, psit, psib):
+    def calculate_itcf(self, system, psi, psi_nm, psi_n, psi_bp):
         """Update estimate for single-particle Green's function.
 
         Explanation...
@@ -242,7 +242,7 @@ class Estimators():
         # Loop over imaginary time
         for (ic, config) in enumerate(field_configs.T):
             # Loop over walkers
-            for (w, wt, wb) in zip(psi, psi_n, psi_bp):
+            for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
                 # Construct back propagated green's function.
                 GBP[0] = gab(wb.phi[0], wt.phi[0])
                 GBP[1] = gab(wb.phi[1], wt.phi[1])
@@ -255,7 +255,8 @@ class Estimators():
                 G[1] = B.dot(GBP[1])
                 # Only keep up component for the moment.
                 # Shouldnt really store these twice, just print them out here.
-                estimates.spgf[ic] = estimates.spgf[ic] + w.weight*G[0]
+                estimates.spgf[ic] = estimates.spgf[ic] + wnm.weight*G[0]
+                w.bp_counter = 0
 
 
 class EstimatorEnum:

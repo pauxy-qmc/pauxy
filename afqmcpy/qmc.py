@@ -53,7 +53,7 @@ def do_qmc(state, psi, comm, interactive=False):
                 psi_nm = copy.deepcopy(psi)
             psit = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
-            estimates.calculate_itcf(system, psi_nm, psi_left, psi_right)
+            estimates.calculate_itcf(system, psi, psi_nm, psi_left, psi_right)
             if state.root:
                 estimates.print_itcf(state.dt)
         if step%state.nmeasure == 0:
