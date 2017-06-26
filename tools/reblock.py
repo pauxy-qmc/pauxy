@@ -51,7 +51,9 @@ start_iteration : int
                         default=False, help='Analyse back propagated estimates.')
     parser.add_argument('-p', '--plot', dest='plot', action='store_true',
                         default=False, help='Make plots.')
-    parser.add_argument('filenames', nargs=argparse.REMAINDER,
+    parser.add_argument('-c', '--correlation', dest='itcf', nargs='+', type=int,
+                        default=None, help='Imaginary time correlation function.')
+    parser.add_argument('-f', nargs='+', dest='filenames',
                         help='Space-separated list of files to analyse.')
 
     options = parser.parse_args(args)
@@ -93,6 +95,10 @@ None.
                 ax[1].set_ylabel('V')
                 plt.savefig('conv_bp.pdf', fmt='pdf')
                 plt.show()
+        elif options.itcf is not None:
+            data = analysis.blocking.average_itcf(options.filenames,
+                    options.itcf)
+            print (data.to_string(index=False))
         else:
             data = analysis.blocking.average_tau(options.filenames)
         if options.tail:

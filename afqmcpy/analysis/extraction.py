@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy
 import json
 
 def _extract_json(fhandle, find_start=False, max_end=None):
@@ -52,18 +53,20 @@ Stolen from HANDE source code.
         return ({}, 0)
 
 
-def extract_data_sets(files):
+def extract_data_sets(files, itcf=False):
 
-    data =  [extract_data(f) for f in files]
+    data =  [extract_data(f, itcf) for f in files]
 
     return data
 
-
-def extract_data(filename):
+def extract_data(filename, itcf=False):
 
     with open(filename) as f:
         (metadata, skip) = _extract_json(f, True)
-    data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
+    if itcf:
+        data = numpy.loadtxt(filename, skiprows=skip)
+    else:
+        data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
 
     return (metadata, data)
 

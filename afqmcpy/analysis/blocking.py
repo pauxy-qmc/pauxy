@@ -56,6 +56,14 @@ def average_tau(filenames):
 
     return analysis.extraction.pretty_table_loop(results, m['model'])
 
+
+def average_itcf(filenames, element, start_iteration=0):
+
+    data = analysis.extraction.extract_data_sets(filenames, itcf=True)
+    frames = []
+    # I'm pretty sure there's a faster way of doing this.
+
+
 def average_back_propagated(filenames, start_iteration=0):
 
     data = analysis.extraction.extract_data_sets(filenames)
