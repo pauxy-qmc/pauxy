@@ -261,7 +261,7 @@ class Estimators():
                 self.spgf[ic] = self.spgf[ic] + wnm.weight*G[0]
                 w.bp_counter = 0
         for (ic, config) in enumerate(w.bp_auxf[:,state.nback_prop:].T):
-            self.spgf[ic] = self.spgf.ic / denominator
+            self.spgf[ic] = self.spgf[ic] / denominator
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
