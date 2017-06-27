@@ -1,30 +1,33 @@
 from math import cos, pi
 import numpy
 
-def kpoints(nx, ny):
+def kpoints(t, nx, ny):
     kp = []
+    eigs = []
     if ny == 1:
         kfac = numpy.array([2.0*pi/nx])
-        for n in range(-nx//2, nx//2):
-            kp.append(nx)
+        for n in range(-int(nx/2), int(nx/2)+1):
+            kp.append(n)
+            eigs.append(ek(t, n, kfac, ny))
     else:
         kfac = numpy.array([2.0*pi/nx, 2.0*pi/ny])
-        for n in range(-nx//2, nx//2):
-            for m in range(-ny//2, ny//2):
-                kp.append(numpy.array([nx, ny]))
+        for n in range(-int(nx)/2, int(nx/2)+1):
+            for m in range(-int(ny/2), int(ny/2)):
+                k = numpy.array([n, m])
+                kp.append(k)
+                eigs.append(ek(t, k, kfac, ny))
 
-    return (kp, kfac)
+    eigs = numpy.array(eigs)
+    kp = numpy.array(kp)
+    idx = eigs.argsort()
+    eigs = eigs[idx]
+    kp = kp[idx]
+    return (kp, kfac, eigs)
 
-def single_particle_eigs(t, kpoints, kc, ny):
-    ek = []
+def ek(t, k, kc, ny):
     if ny == 1:
-        for k in kpoints:
-            print (k, kc)
-            e = -2.0*t*cos(kc*k)
-            ek.append(e)
+        e = -2.0*t*cos(kc*k)
     else:
-        for k in kpoints:
-            e = -2.0*t*(cos(kc[0]*k[0])+cos(kc[1]*k[1]))
-            ek.append(e)
+        e = -2.0*t*(cos(kc[0]*k[0])+cos(kc[1]*k[1]))
 
-    return ek
+    return e

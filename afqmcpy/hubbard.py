@@ -50,8 +50,7 @@ class Hubbard:
             self.nbasis = self.nx*self.ny
         else:
             self.nbasis = self.nx
-        (self.kpoints, self.kc) = afqmcpy.kpoints.kpoints(self.nx, self.ny)
-        self.ek = afqmcpy.kpoints.single_particle_eigs(self.t, self.kpoints, self.kc, self.ny)
+        (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
         self.gamma = _super_matrix(self.U, self.nbasis)
 
