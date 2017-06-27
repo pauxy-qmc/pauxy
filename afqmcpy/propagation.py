@@ -364,9 +364,9 @@ def back_propagate(state, psi, psi_t):
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,:w.nback_prop].T))):
-            kinetic_continuous(psi_bp[iw].phi, state)
-            propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
-            kinetic_continuous(psi_bp[iw].phi, state)
+            B = construct_propagator_matrix(state, field_config)
+            psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
+            psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
             psi_bp[iw].reortho()
         if not state.itcf:
             w.bp_counter = 0
