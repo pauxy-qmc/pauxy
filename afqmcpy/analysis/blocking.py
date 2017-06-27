@@ -58,11 +58,44 @@ def average_tau(filenames):
 
 
 def average_itcf(filenames, element, start_iteration=0):
+    """Compute mean and standard error of itcf.
+
+    Parameters
+    ----------
+    filenames : list
+        Files to be extracted which contain itcfs.
+    element : list
+        Which elements of correlation function to average.
+    start_iteration : int, optional
+        Discard first start_iteration estimates.
+
+    Returns
+    -------
+    results : :class:`pandas.DataFrame`
+        Tabulated itcf.
+    """
 
     data = analysis.extraction.extract_data_sets(filenames, itcf=True)
-    frames = []
+    md = data[0][0]['qmc_options']
+    nits = int(md['itcf_tmax']/md['dt']) + 1
     # I'm pretty sure there's a faster way of doing this.
-
+    itcf = []
+    for (m, d) in data:
+        itcf.append(d)
+    big = numpy.concatenate(itcf)
+    gijs = big[:,element[0], element[1]]
+    nsim = len(gijs) / nits
+    gijs = gijs.reshape((nsim, nits))
+    means = gijs.mean(axis=0)
+    errs = scipy.stats.sem(gijs, axis=0)
+    tau_range = numpy.linspace(0, md['itcf_tmax'], nits)
+    gstring = 'G_%s%s'%tuple(element)
+    header = ['tau', gstring, gstring+'_error']
+    results = pd.DataFrame({'tau': tau_range,
+                            gstring: means,
+                            gstring+'_error': errs},
+                           columns=header)
+    return results
 
 def average_back_propagated(filenames, start_iteration=0):
 
