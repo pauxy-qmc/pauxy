@@ -235,34 +235,31 @@ class Estimators():
         psib : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
-        GBP = [0, 0]
         G = [0, 0]
         I = numpy.identity(state.system.nbasis)
         # I think we need to store the future walker weights when using MPI to
         # average over walkers correctly.
-        denominator = sum(w.weight for w in psi)
+        denominator = sum(w.weight for w in psi_nm)
         for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
             # Loop over walkers
             # Construct back propagated green's function.
-            GBP[0] = I - gab(wb.phi[0], wt.phi[0])
-            GBP[1] = I - gab(wb.phi[1], wt.phi[1])
-            self.spgf[0] = self.spgf[0] + wnm.weight*GBP[0]
+            G[0] = I - gab(wb.phi[0], wt.phi[0])
+            G[1] = I - gab(wb.phi[1], wt.phi[1])
+            self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
             B = [I, I]
-            for (ic, config) in enumerate(w.bp_auxf[:,state.nback_prop:].T):
+            for (ic, config) in reversed(list(enumerate(w.bp_auxf[:,state.nback_prop:].T))):
                 # Be simple for the moment. To go further in imaginary time we just
                 # need to update the propagation matrix to include more terms of the
                 # left.
                 # Could optimise this to avoid additional multiplication by GBP.
                 Bi = afqmcpy.propagation.construct_propagator_matrix(state, config)
-                B = [Bi[0].dot(B[0]), Bi[1].dot(B[1])]
-                G[0] = B[0].dot(GBP[0])
-                G[1] = B[1].dot(GBP[1])
+                # B = [Bi[0].dot(B[0]), Bi[1].dot(B[1])]
+                G[0] = Bi[0].dot(G[0])
+                G[1] = Bi[1].dot(G[1])
                 # Only keep up component for the moment.
                 # Shouldnt really store these twice, just print them out here.
-                self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]
+                self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]/denominator
                 w.bp_counter = 0
-        for (ic, config) in enumerate(w.bp_auxf[:,state.nback_prop:].T):
-            self.spgf[ic] = self.spgf[ic] / denominator
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
