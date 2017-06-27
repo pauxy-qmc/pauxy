@@ -42,8 +42,8 @@ class Estimators():
             if state.itcf:
                 if state.root:
                     self.itcf_unit = open('spgf_%s.out'%state.uuid[:8], 'ab')
-                    state.write_json(print_function=self.funit.write, eol='\n',
-                                     verbose=True)
+                    state.write_json(print_function=self.itcf_unit.write, eol='\n',
+                                     verbose=True, encode=True)
                     self.print_key(state.back_propagation, self.funit.write,
                                    eol='\n')
                 self.ifcf_header = ['tau', 'g00']

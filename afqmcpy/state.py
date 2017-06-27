@@ -72,7 +72,8 @@ class State:
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self, print_function=print, eol='', verbose=True):
+    def write_json(self, print_function=print, eol='', verbose=True,
+                   encode=False):
         r"""Print out state object information.
 
         Parameters
@@ -110,9 +111,13 @@ class State:
         else:
             info = {'calculation': calc_info,}
         # Note that we require python 3.6 to print dict in ordered fashion.
-        print_function("# Input options:"+eol)
-        print_function(json.dumps(info, sort_keys=False, indent=4))
-        print_function(eol+"# End of input options"+eol)
+        first = '# Input options:' + eol
+        last = eol + '# End of input options' + eol
+        md = json.dumps(info, sort_keys=False, indent=4)
+        output_string = first + md + last
+        if encode == True:
+            output_string = output_string.encode('utf-8')
+        print_function(output_string)
 
 
 def get_git_revision_hash():
