@@ -64,11 +64,17 @@ def extract_data(filename, itcf=False):
     with open(filename) as f:
         (metadata, skip) = _extract_json(f, True)
     if itcf:
+        model = metadata['model']
+        dimg = int(model['nx']*model['ny'])
+        opts = metadata['qmc_options']
+        nitcf = int(opts['itcf_tmax']/opts['dt']) + 1 
         data = numpy.loadtxt(filename, skiprows=skip)
+        nav = int(len(data.flatten())/(dimg**2*nitcf))
+        data = data.reshape((nav*nitcf, dimg, dimg)) 
+        return (metadata, data, nitcf)
     else:
         data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
-
-    return (metadata, data)
+        return (metadata, data)
 
 def pretty_table(summary, metadata):
 
