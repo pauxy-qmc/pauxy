@@ -247,7 +247,7 @@ class Estimators():
             G[1] = I - gab(wb.phi[1], wt.phi[1])
             self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
             B = [I, I]
-            for (ic, config) in reversed(list(enumerate(w.bp_auxf[:,state.nback_prop:].T))):
+            for (ic, config) in enumerate(w.bp_auxf[:,state.nback_prop:].T):
                 # Be simple for the moment. To go further in imaginary time we just
                 # need to update the propagation matrix to include more terms of the
                 # left.
