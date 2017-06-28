@@ -11,7 +11,7 @@ def kpoints(t, nx, ny):
             eigs.append(ek(t, n, kfac, ny))
     else:
         kfac = numpy.array([2.0*pi/nx, 2.0*pi/ny])
-        for n in range(-int(nx)/2, int(nx/2)+1):
+        for n in range(-int(nx/2), int(nx/2)+1):
             for m in range(-int(ny/2), int(ny/2)):
                 k = numpy.array([n, m])
                 kp.append(k)
