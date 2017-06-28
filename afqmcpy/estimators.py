@@ -236,6 +236,7 @@ class Estimators():
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
         G = [0, 0]
+        GBP = [0, 0]
         I = numpy.identity(state.system.nbasis)
         # I think we need to store the future walker weights when using MPI to
         # average over walkers correctly.
@@ -243,8 +244,8 @@ class Estimators():
         for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
             # Loop over walkers
             # Construct back propagated green's function.
-            G[0] = I - gab(wb.phi[0], wt.phi[0])
-            G[1] = I - gab(wb.phi[1], wt.phi[1])
+            GBP[0] = I - gab(wb.phi[0], wt.phi[0])
+            GBP[1] = I - gab(wb.phi[1], wt.phi[1])
             self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
             B = [I, I]
             for (ic, config) in enumerate(w.bp_auxf[:,:state.itcf_nmax].T):
@@ -252,8 +253,10 @@ class Estimators():
                 # need to update the propagation matrix to include more terms of the
                 # left.
                 Bi = afqmcpy.propagation.construct_propagator_matrix(state, config)
-                G[0] = Bi[0].dot(G[0])
-                G[1] = Bi[1].dot(G[1])
+                B[0] = Bi[0].dot(B[0])
+                B[1] = Bi[1].dot(B[1])
+                G[0] = B[0].dot(G[0])
+                G[1] = B[1].dot(G[1])
                 # Only keep up component for the moment.
                 # Shouldnt really store these twice, just print them out here.
                 self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]/denominator
