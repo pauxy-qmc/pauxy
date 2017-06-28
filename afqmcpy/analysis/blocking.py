@@ -81,7 +81,7 @@ def average_itcf(filenames, element, start_iteration=0):
     # I'm pretty sure there's a faster way of doing this.
     itcf = []
     for (m, d) in data:
-        itcf.append(d)
+        itcf.append(d[nits*start_iteration:])
     big = numpy.concatenate(itcf)
     gijs = big[:,element[0], element[1]]
     nsim = len(gijs) / nits
