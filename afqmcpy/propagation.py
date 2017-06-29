@@ -317,8 +317,31 @@ def propagate_potential_auxf(phi, state, field_config):
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
+def construct_propagator_matrix(state, config, conjt=False):
+    """Construct the full projector from a configuration of auxiliary fields.
 
-def back_propagate(state, psi, psi_t, psi_bp, estimates):
+    Parameters
+    ----------
+    config : numpy array
+        Auxiliary field configuration.
+
+    Returns
+    -------
+    B : :class:`numpy.ndarray`
+        Full projector matrix.
+    """
+    BK2 = state.propagators.bt2
+    bv_up = numpy.diag(numpy.array([state.auxf[xi, 0] for xi in config]))
+    bv_down = numpy.diag(numpy.array([state.auxf[xi, 1] for xi in config]))
+    Bup = BK2.dot(bv_up).dot(BK2)
+    Bdown = BK2.dot(bv_down).dot(BK2)
+
+    if conjt:
+        return [Bup.conj().T, Bdown.conj().T]
+    else:
+        return [Bup, Bdown]
+
+def back_propagate(state, psi, psi_t):
     r"""Perform backpropagation.
 
     explanation...
@@ -336,22 +359,40 @@ def back_propagate(state, psi, psi_t, psi_bp, estimates):
         backpropagated walkers at time :math:`\tau_{bp}`.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w, state.nback_prop)
+    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w,
+                            state.nback_prop, state.itcf_nmax)
               for w in range(state.nwalkers)]
     # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (step, field_config) in reversed(list(enumerate(w.bp_auxf.T))):
-            kinetic_continuous(psi_bp[iw].phi, state)
-            propagate_potential_auxf(psi_bp[iw].phi, state, field_config)
-            kinetic_continuous(psi_bp[iw].phi, state)
+        for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,:w.nback_prop].T))):
+            B = construct_propagator_matrix(state, field_config)
+            psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
+            psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
             psi_bp[iw].reortho()
-        w.bp_counter = 0
+        if not state.itcf:
+            w.bp_counter = 0
+    return psi_bp
 
-    estimates.update_back_propagated_observables(state.system, psi, psi_t, psi_bp)
-    psi_t = copy.deepcopy(psi)
-    return psi_t
 
+def propagate_single(state, psi, B):
+    r"""Perform backpropagation for single configuration.
+
+    explanation...
+
+    Parameters
+    ---------
+    state : :class:`afqmcpy.state.State`
+        state object
+    psi : list of :class:`afqmcpy.walker.Walker` objects
+        Initial states to back propagate.
+    config : numpy array
+        Auxiliary field configuration.
+    """
+    psi.phi[0] = B[0].dot(psi.phi[0])
+    psi.phi[1] = B[1].dot(psi.phi[1])
+    # Todo: check frequency / remove from here.
+    psi.reortho()
 
 _projectors = {
     'kinetic': {

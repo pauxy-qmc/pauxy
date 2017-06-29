@@ -10,14 +10,19 @@ TODO:
 - [ ] population control
     - [ ] try simple algorithm
     - [ ] back propagation parents
+    - [ ] ITCF
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
-- [ ] Imaginary time green's functions
-- [.] back propagation / forward walking
+- [o] Imaginary time green's functions
+    - [X] Benchmarking
+    - [X] error estimation
+    - [ ] stabilised algorithm
+    - [ ] targeted algorithm
+    - [ ] optimisation
+- [o] back propagation / forward walking
     - [X] energy estimators
-    - [ ] analysis / convergence
-    - [ ] greens function
+    - [X] analysis / convergence
 - [o] continuous HS transformation
     - [X] free projection
     - [ ] generic v_{ijkl}

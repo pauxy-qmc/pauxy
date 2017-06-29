@@ -2,6 +2,7 @@
 
 import numpy as np
 import scipy.linalg
+import afqmcpy.kpoints
 
 class Hubbard:
     """Hubbard model system class.
@@ -49,6 +50,7 @@ class Hubbard:
             self.nbasis = self.nx*self.ny
         else:
             self.nbasis = self.nx
+        (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
         self.gamma = _super_matrix(self.U, self.nbasis)
 

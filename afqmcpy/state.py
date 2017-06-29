@@ -28,7 +28,11 @@ class State:
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
         self.back_propagation = qmc_opts.get('back_propagation', False)
-        self.nback_prop = qmc_opts.get('nback_prop', self.nmeasure)
+        self.nback_prop = qmc_opts.get('nback_prop', self.nequilibrate)
+        self.itcf = qmc_opts.get('single_particle_gf', False)
+        self.itcf_tmax = qmc_opts.get('itcf_tmax', 1.0)
+        self.itcf_nmax = int(self.itcf_tmax/self.dt)
+        self.nprop_tot = self.itcf_nmax + self.nback_prop
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
         if model['name'] == 'Hubbard':
@@ -65,10 +69,12 @@ class State:
         self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
+        qmc_opts['itcf_tmax'] = self.itcf_tmax
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self, print_function=print, eol='', verbose=True):
+    def write_json(self, print_function=print, eol='', verbose=True,
+                   encode=False):
         r"""Print out state object information.
 
         Parameters
@@ -106,9 +112,13 @@ class State:
         else:
             info = {'calculation': calc_info,}
         # Note that we require python 3.6 to print dict in ordered fashion.
-        print_function("# Input options:"+eol)
-        print_function(json.dumps(info, sort_keys=False, indent=4))
-        print_function(eol+"# End of input options"+eol)
+        first = '# Input options:' + eol
+        last = eol + '# End of input options' + eol
+        md = json.dumps(info, sort_keys=False, indent=4)
+        output_string = first + md + last
+        if encode == True:
+            output_string = output_string.encode('utf-8')
+        print_function(output_string)
 
 
 def get_git_revision_hash():
