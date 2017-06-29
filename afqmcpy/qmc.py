@@ -52,9 +52,8 @@ def do_qmc(state, psi, comm, interactive=False):
             psit = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
             estimates.calculate_itcf(state, psi, psi_right, psi_left)
-            if state.root:
-                estimates.print_itcf(state.dt, estimates.itcf_unit)
         if step%state.nmeasure == 0:
+            # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
         if step < state.nequilibrate:
