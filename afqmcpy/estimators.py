@@ -217,76 +217,33 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
-    def calculate_itcf_2(self, state, psi, psi_n, psi_r):
+    def calculate_itcf(self, state, psi, psi_right, psi_left):
         """Alternative method of calculating green's function.
         """
 
         I = numpy.identity(state.system.nbasis)
         G = [I, I]
-        for (w, wn, wr) in zip(psi psi_n, psi_r):
+        denominator = sum(w.weight for w in psi)
+        for (w, wl, wr) in zip(psi, psi_right, psi_left):
             # 1. Construct psi_L for first step in algorithm
-            configs = reversed(list(enumerate(w.bp_auxf[:,:state.nitcf_tmax])))
+            configs = reversed(list(enumerate(w.bp_auxf[:,:state.itcf_nmax].T)))
             for (ic, c) in configs:
                 # assuming correspondence between walker distributions
                 # propagators should be applied in reverse order
-                B = construct_propagator_matrix(state, config).conj().T
+                B = afqmcpy.propagation.construct_propagator_matrix(state, c,
+                                                                    conjt=True)
                 afqmcpy.propagation.propagate_single(state, wr, B)
             # 2. Calculate G(n,n)
-            G[0] = I - gab(wr.phi[0], wn.phi[0])
-            G[1] = I - gab(wr.phi[1], wn.phi[1])
-            self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
-            configs = enumerate(w.bp_auxf[:,:state.nitcf_tmax])
+            G[0] = I - gab(wl.phi[0], wr.phi[0])
+            G[1] = I - gab(wl.phi[1], wr.phi[1])
+            self.spgf[0] = self.spgf[0] + w.weight*G[0] / denominator
+            configs = enumerate(w.bp_auxf[:,:state.itcf_nmax].T)
             # 3. Construct ITCF.
             for (ic, c) in configs:
-                B = construct_propagator_matrix(state, config)
+                B = afqmcpy.propagation.construct_propagator_matrix(state, c)
                 G[0] = B[0].dot(G[0])
                 G[1] = B[1].dot(G[1])
-                self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]/denominator
-                w.bp_counter = 0
-
-    def calculate_itcf(self, state, psi, psi_nm, psi_n, psi_bp):
-        """Update estimate for single-particle Green's function.
-
-        Explanation...
-
-        Parameters
-        ----------
-        system: :class:`afqmcpy.state.System`
-            System object.
-        psi : list of :class:`afqmcpy.walker.Walker` objects
-            current distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        psit : list of :class:`afqmcpy.walker.Walker` objects
-            previous distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau`.
-        psib : list of :class:`afqmcpy.walker.Walker` objects
-            backpropagated walkers at time :math:`\tau_{bp}`.
-        """
-        G = [0, 0]
-        GBP = [0, 0]
-        I = numpy.identity(state.system.nbasis)
-        # I think we need to store the future walker weights when using MPI to
-        # average over walkers correctly.
-        denominator = sum(w.weight for w in psi_nm)
-        for (w, wnm, wt, wb) in zip(psi, psi_nm, psi_n, psi_bp):
-            # Loop over walkers
-            # Construct back propagated green's function.
-            GBP[0] = I - gab(wb.phi[0], wt.phi[0])
-            GBP[1] = I - gab(wb.phi[1], wt.phi[1])
-            self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
-            B = [I, I]
-            for (ic, config) in enumerate(w.bp_auxf[:,:state.itcf_nmax].T):
-                # Be simple for the moment. To go further in imaginary time we just
-                # need to update the propagation matrix to include more terms of the
-                # left.
-                Bi = afqmcpy.propagation.construct_propagator_matrix(state, config)
-                B[0] = Bi[0].dot(B[0])
-                B[1] = Bi[1].dot(B[1])
-                G[0] = B[0].dot(G[0])
-                G[1] = B[1].dot(G[1])
-                # Only keep up component for the moment.
-                # Shouldnt really store these twice, just print them out here.
-                self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]/denominator
+                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]/denominator
                 w.bp_counter = 0
 
 class EstimatorEnum:

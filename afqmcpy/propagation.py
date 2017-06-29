@@ -317,7 +317,7 @@ def propagate_potential_auxf(phi, state, field_config):
     phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
     phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
 
-def construct_propagator_matrix(state, config):
+def construct_propagator_matrix(state, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
     Parameters
@@ -330,14 +330,16 @@ def construct_propagator_matrix(state, config):
     B : :class:`numpy.ndarray`
         Full projector matrix.
     """
-    B = [0, 0]
     BK2 = state.propagators.bt2
     bv_up = numpy.diag(numpy.array([state.auxf[xi, 0] for xi in config]))
     bv_down = numpy.diag(numpy.array([state.auxf[xi, 1] for xi in config]))
-    B[0] = BK2.dot(bv_up).dot(BK2)
-    B[1] = BK2.dot(bv_down).dot(BK2)
+    Bup = BK2.dot(bv_up).dot(BK2)
+    Bdown = BK2.dot(bv_down).dot(BK2)
 
-    return B
+    if conjt:
+        return [Bup.conj().T, Bdown.conj().T]
+    else:
+        return [Bup, Bdown]
 
 def back_propagate(state, psi, psi_t):
     r"""Perform backpropagation.
