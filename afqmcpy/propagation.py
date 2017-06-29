@@ -372,6 +372,26 @@ def back_propagate(state, psi, psi_t):
             w.bp_counter = 0
     return psi_bp
 
+
+def propagate_single(state, psi, B):
+    r"""Perform backpropagation for single configuration.
+
+    explanation...
+
+    Parameters
+    ---------
+    state : :class:`afqmcpy.state.State`
+        state object
+    psi : list of :class:`afqmcpy.walker.Walker` objects
+        Initial states to back propagate.
+    config : numpy array
+        Auxiliary field configuration.
+    """
+    psi.phi[0] = B[0].dot(psi.phi[0])
+    psi.phi[1] = B[1].dot(psi.phi[1])
+    # Todo: check frequency / remove from here.
+    psi.reortho()
+
 _projectors = {
     'kinetic': {
         'discrete': kinetic_direct,
