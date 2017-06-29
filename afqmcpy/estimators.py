@@ -148,9 +148,14 @@ class Estimators():
                 ff = afqmcpy.utils.format_fixed_width_floats([step]+
                                                              list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
                 self.funit.write(ff+'\n')
+
+        if state.root and step%state.nprop_tot == 0:
+            global_estimates[ns.pot+1:] = global_estimates[ns.pot+1:]/global_estimates[ns.edenom]
+            self.print_itcf(global_estimates[ns.pot+1:], state.dt,
+                            self.itcf_unit)
         self.zero(state)
 
-    def print_itcf(self, dt, funit):
+    def print_itcf(self, spgf, dt, funit):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -168,7 +173,8 @@ class Estimators():
         funit : file
             Output file for ITCF.
         """
-        for (ic, g) in enumerate(self.spgf):
+        spgf = spgf.reshape(self.spgf.shape)
+        for (ic, g) in enumerate(spgf):
             funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
             numpy.savetxt(funit, g)
@@ -223,7 +229,6 @@ class Estimators():
 
         I = numpy.identity(state.system.nbasis)
         G = [I, I]
-        denominator = sum(w.weight for w in psi)
         for (w, wl, wr) in zip(psi, psi_right, psi_left):
             # 1. Construct psi_L for first step in algorithm
             configs = reversed(list(enumerate(w.bp_auxf[:,:state.itcf_nmax].T)))
@@ -236,14 +241,14 @@ class Estimators():
             # 2. Calculate G(n,n)
             G[0] = I - gab(wl.phi[0], wr.phi[0])
             G[1] = I - gab(wl.phi[1], wr.phi[1])
-            self.spgf[0] = self.spgf[0] + w.weight*G[0] / denominator
+            self.spgf[0] = self.spgf[0] + w.weight*G[0]
             configs = enumerate(w.bp_auxf[:,:state.itcf_nmax].T)
             # 3. Construct ITCF.
             for (ic, c) in configs:
                 B = afqmcpy.propagation.construct_propagator_matrix(state, c)
                 G[0] = B[0].dot(G[0])
                 G[1] = B[1].dot(G[1])
-                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]/denominator
+                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
                 w.bp_counter = 0
 
 class EstimatorEnum:
