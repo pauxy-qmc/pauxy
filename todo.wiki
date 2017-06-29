@@ -10,12 +10,15 @@ TODO:
 - [ ] population control
     - [ ] try simple algorithm
     - [ ] back propagation parents
+    - [ ] ITCF
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
-- [ ] Imaginary time green's functions
-    - [ ] Benchmarking
-    - [ ] error estimation
+- [o] Imaginary time green's functions
+    - [X] Benchmarking
+    - [X] error estimation
+    - [ ] stabilised algorithm
+    - [ ] targeted algorithm
     - [ ] optimisation
 - [o] back propagation / forward walking
     - [X] energy estimators
