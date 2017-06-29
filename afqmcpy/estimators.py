@@ -217,6 +217,33 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
+    def calculate_itcf_2(self, state, psi, psi_n, psi_r):
+        """Alternative method of calculating green's function.
+        """
+
+        I = numpy.identity(state.system.nbasis)
+        G = [I, I]
+        for (w, wn, wr) in zip(psi psi_n, psi_r):
+            # 1. Construct psi_L for first step in algorithm
+            configs = reversed(list(enumerate(w.bp_auxf[:,:state.nitcf_tmax])))
+            for (ic, c) in configs:
+                # assuming correspondence between walker distributions
+                # propagators should be applied in reverse order
+                B = construct_propagator_matrix(state, config).conj().T
+                afqmcpy.propagation.propagate_single(state, wr, B)
+            # 2. Calculate G(n,n)
+            G[0] = I - gab(wr.phi[0], wn.phi[0])
+            G[1] = I - gab(wr.phi[1], wn.phi[1])
+            self.spgf[0] = self.spgf[0] + wnm.weight*G[0] / denominator
+            configs = enumerate(w.bp_auxf[:,:state.nitcf_tmax])
+            # 3. Construct ITCF.
+            for (ic, c) in configs:
+                B = construct_propagator_matrix(state, config)
+                G[0] = B[0].dot(G[0])
+                G[1] = B[1].dot(G[1])
+                self.spgf[ic+1] = self.spgf[ic+1] + wnm.weight*G[0]/denominator
+                w.bp_counter = 0
+
     def calculate_itcf(self, state, psi, psi_nm, psi_n, psi_bp):
         """Update estimate for single-particle Green's function.
 
