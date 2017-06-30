@@ -328,15 +328,17 @@ def gab(A, B):
     Parameters
     ----------
     A : :class:`numpy.ndarray`
-        Matrix representation of the ket used to construct G.
-    B : :class:`numpy.ndarray`
         Matrix representation of the bra used to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
 
     Returns
     -------
     GAB : :class:`numpy.ndarray`
         (One minus) the green's function.
     """
+    # Todo: check energy evaluation at later point, i.e., if this needs to be
+    # transposed. Shouldn't matter for Hubbard model.
     inv_O = scipy.linalg.inv((A.conj().T).dot(B))
-    GAB = B.dot(inv_O.dot(A.conj().T)).T
+    GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
