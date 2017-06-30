@@ -229,7 +229,7 @@ class Estimators():
 
         I = numpy.identity(state.system.nbasis)
         G = [I, I]
-        for (w, wl, wr) in zip(psi, psi_right, psi_left):
+        for (w, wr, wl) in zip(psi, psi_right, psi_left):
             # 1. Construct psi_L for first step in algorithm
             configs = reversed(list(enumerate(w.bp_auxf[:,:state.itcf_nmax].T)))
             for (ic, c) in configs:
@@ -237,7 +237,7 @@ class Estimators():
                 # propagators should be applied in reverse order
                 B = afqmcpy.propagation.construct_propagator_matrix(state, c,
                                                                     conjt=True)
-                afqmcpy.propagation.propagate_single(state, wr, B)
+                afqmcpy.propagation.propagate_single(state, wl, B)
             # 2. Calculate G(n,n)
             G[0] = I - gab(wl.phi[0], wr.phi[0])
             G[1] = I - gab(wl.phi[1], wr.phi[1])
