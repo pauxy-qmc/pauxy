@@ -252,6 +252,8 @@ def generic_continuous(walker, state):
     This form assumes nothing about the form of the two-body Hamiltonian and
     is thus quite slow, particularly if the matrix is M^2xM^2.
 
+    Todo: check if this actually works.
+
 Parameters
 ----------
 walker : :class:`afqmcpy.walker.Walker`
