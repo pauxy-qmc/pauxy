@@ -97,7 +97,7 @@ None.
                 plt.show()
         elif options.itcf is not None:
             data = analysis.blocking.average_itcf(options.filenames,
-                    options.itcf)
+                    options.itcf, options.start_iteration)
         else:
             data = analysis.blocking.average_tau(options.filenames)
         if options.tail:
