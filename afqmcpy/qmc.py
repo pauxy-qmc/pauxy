@@ -26,7 +26,7 @@ def do_qmc(state, psi, comm, interactive=False):
         estimates.update(w, state)
     # We can't have possibly performed back propagation yet so don't print out
     # zero which would mess up the averages.
-    estimates.print_step(state, comm, 0, print_bp=False)
+    estimates.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
     for step in range(1, state.nsteps):
         for w in psi:

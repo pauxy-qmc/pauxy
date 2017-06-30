@@ -149,7 +149,7 @@ class Estimators():
                                                              list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
                 self.funit.write(ff+'\n')
 
-        if state.root and step%state.nprop_tot == 0:
+        if state.root and step%state.nprop_tot == 0 and print_itcf:
             global_estimates[ns.pot+1:] = global_estimates[ns.pot+1:]/global_estimates[ns.edenom]
             self.print_itcf(global_estimates[ns.pot+1:], state.dt,
                             self.itcf_unit)
