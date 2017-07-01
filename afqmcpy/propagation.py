@@ -374,7 +374,6 @@ def back_propagate(state, psi, psi_t):
             w.bp_counter = 0
     return psi_bp
 
-
 def propagate_single(state, psi, B):
     r"""Perform backpropagation for single configuration.
 
