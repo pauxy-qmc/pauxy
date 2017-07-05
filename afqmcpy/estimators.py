@@ -243,34 +243,36 @@ class Estimators():
                                                                         conjt=True)
                     afqmcpy.propagation.propagate_single(state, wl, B)
                 # 2. Calculate G(n,n)
-                Gnn[0] = I - gab(wl.phi[0], wr.phi[0])
-                Gnn[1] = I - gab(wl.phi[1], wr.phi[1])
+                G[0] = I - gab(wl.phi[0], wr.phi[0])
+                G[1] = I - gab(wl.phi[1], wr.phi[1])
                 self.spgf[0] = self.spgf[0] + w.weight*G[0]
                 # moving forwards in imaginary time.
                 configs = enumerate(w.bp_auxf[:,:state.itcf_nmax].T)
-                print (ic, scipy.linalg.det((wl.phi[1].conj().T).dot(wr.phi[1])))
+                # print (ic, scipy.linalg.det((wl.phi[1].conj().T).dot(wr.phi[1])))
                 # 3. Construct ITCF.
                 for (ic, c) in configs:
                     # B takes the state from time n to time n+1.
                     B = afqmcpy.propagation.construct_propagator_matrix(state, c)
                     # G is the cumulative product of stabilised short-time ITCFs.
                     # The first term in brackets is the G(n+1,n).
-                    G[0] = (B[0].dot(Gnn[0])).dot(G[0])
-                    G[1] = (B[1].dot(Gnn[1])).dot(G[1])
+                    # G[0] = (B[0].dot(Gnn[0])).dot(G[0])
+                    G[0] = (B[0]).dot(G[0])
+                    G[1] = (B[1]).dot(G[1])
+                    # G[1] = (B[1].dot(Gnn[1])).dot(G[1])
                     self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
                     # Construct equal-time green's function shifted forwards along
                     # the imaginary time interval. We need to update |psi_L> =
                     # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_L>, where c
                     # is the current configution in this loop.
-                    Brev[0] = scipy.linalg.inv(B[0].conj().T)
-                    Brev[1] = scipy.linalg.inv(B[1].conj().T)
-                    afqmcpy.propagation.propagate_single(state, wl, Brev)
-                    afqmcpy.propagation.propagate_single(state, wr, B)
-                    print (ic, scipy.linalg.det((wl.phi[1].conj().T).dot(wr.phi[1])))
+                    # Brev[0] = scipy.linalg.inv(B[0].conj().T)
+                    # Brev[1] = scipy.linalg.inv(B[1].conj().T)
+                    # afqmcpy.propagation.propagate_single(state, wl, Brev)
+                    # afqmcpy.propagation.propagate_single(state, wr, B)
+                    # print (ic, scipy.linalg.det((wl.phi[1].conj().T).dot(wr.phi[1])))
                     # Equal-time GF at updated time n+1 for use in the next
                     # short-time ITCF.
-                    Gnn[0] = I - gab(wl.phi[0], wr.phi[0])
-                    Gnn[1] = I - gab(wl.phi[1], wr.phi[1])
+                    # Gnn[0] = I - gab(wl.phi[0], wr.phi[0])
+                    # Gnn[1] = I - gab(wl.phi[1], wr.phi[1])
                 # zero the counter to start accumulating fields again in the
                 # following iteration.
             w.bp_counter = 0
