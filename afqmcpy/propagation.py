@@ -341,7 +341,7 @@ def construct_propagator_matrix(state, config, conjt=False):
     else:
         return [Bup, Bdown]
 
-def back_propagate(state, psi, psi_t):
+def back_propagate(state, psi_n, step):
     r"""Perform backpropagation.
 
     explanation...
@@ -350,22 +350,31 @@ def back_propagate(state, psi, psi_t):
     ---------
     state : :class:`afqmcpy.state.State`
         state object
-    psi : list of :class:`afqmcpy.walker.Walker` objects
-        current distribution of walkers, i.e., at the current iteration in the
-        simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-    psi_t : list of :class:`afqmcpy.walker.Walker` objects
+    psi_n : list of :class:`afqmcpy.walker.Walker` objects
         previous distribution of walkers, i.e., :math:`\tau'-\tau_{bp}`.
+    step : int
+        Simulation step (modulo total number of fields to save). This is
+        necessary when estimating an ITCF for imaginary times >> back
+        propagation time.
+
+    Returns
+    -------
     psi_bp : list of :class:`afqmcpy.walker.Walker` objects
-        backpropagated walkers at time :math:`\tau_{bp}`.
+        Back propagated list of walkers.
     """
 
     psi_bp = [walker.Walker(1, state.system, state.trial.psi, w,
                             state.nback_prop, state.itcf_nmax)
               for w in range(state.nwalkers)]
+    # start and end points for selecting field configurations.  step is in the
+    # set from (nback_prop-1),2*nback_prop-1,....,state.nprop_tot-1 need to add
+    # one back to ensure the lower bound is correct.
+    s = step - psi_bp[0].nback_prop + 1
+    e = step
     # assuming correspondence between walker distributions
-    for (iw, w) in enumerate(psi):
+    for (iw, w) in enumerate(psi_n):
         # propagators should be applied in reverse order
-        for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,:w.nback_prop].T))):
+        for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,s:e].T))):
             B = construct_propagator_matrix(state, field_config)
             psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
             psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
@@ -385,8 +394,8 @@ def propagate_single(state, psi, B):
         state object
     psi : list of :class:`afqmcpy.walker.Walker` objects
         Initial states to back propagate.
-    config : numpy array
-        Auxiliary field configuration.
+    B : numpy array
+        Propagation matrix.
     """
     psi.phi[0] = B[0].dot(psi.phi[0])
     psi.phi[1] = B[1].dot(psi.phi[1])
