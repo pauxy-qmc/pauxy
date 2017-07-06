@@ -223,8 +223,63 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
 
+    def calculate_itcf_unstable(self, state, psi, psi_right, psi_left):
+        """Calculate imaginary time single-particle green's function.
+
+        This uses the naive unstable algorithm.
+
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State`
+            state object
+        psi : list of :class:`afqmcpy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau_r'=\tau_n+\tau+\tau_{bp}`.
+        psi_right : list of :class:`afqmcpy.walker.Walker` objects
+            previous distribution of walkers, i.e., at :math:`\tau_n`.
+        psi_left : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers projected to :math:`\tau_{bp}`.
+
+        On return the spgf estimator array will have been updated.
+        """
+
+        I = numpy.identity(state.system.nbasis)
+        for (w, wr, wl) in zip(psi, psi_right, psi_left):
+            # Initialise time-displaced GF for current walker.
+            G = [I, I]
+            # 1. Construct psi_left for first step in algorithm by back
+            # propagating the input back propagated left hand wfn.
+            # Note we use the first itcf_nmax fields for estimating the ITCF.
+            configs = w.bp_auxf[:,:state.itcf_nmax].T
+            for (ic, c) in reversed(list(enumerate(configs))):
+                # Todo: population control
+                # propagators should be applied in reverse order
+                B = afqmcpy.propagation.construct_propagator_matrix(state, c,
+                                                                    conjt=True)
+                afqmcpy.propagation.propagate_single(state, wl, B)
+            # 2. Calculate G(n,n). This is the equal time Green's function at
+            # the step where we began saving auxilary fields (constructed with
+            # psi_left back propagated along this path.)
+            G[0] = I - gab(wl.phi[0], wr.phi[0])
+            G[1] = I - gab(wl.phi[1], wr.phi[1])
+            self.spgf[0] = self.spgf[0] + w.weight*G[0]
+            # 3. Construct ITCF by moving forwards in imaginary time from time
+            # slice n along our auxiliary field path.
+            for (ic, c) in enumerate(configs):
+                # B takes the state from time n to time n+1.
+                B = afqmcpy.propagation.construct_propagator_matrix(state, c)
+                G[0] = B[0].dot(G[0])
+                G[1] = B[1].dot(G[1])
+                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
+            # zero the counter to start accumulating fields again in the
+            # following iteration.
+            w.bp_counter = 0
+
     def calculate_itcf(self, state, psi, psi_right, psi_left):
-        """Alternative method of calculating green's function.
+        """Calculate imaginary time single-particle green's function.
+
+        This uses the stable algorithm as outlined in: Feldbacher and Assad,
+        Phys. Rev. B 63, 073105.
 
         Parameters
         ----------
@@ -344,8 +399,8 @@ def back_propagated_energy(system, psi, psit, psib):
     estimates = numpy.zeros(3)
     GTB = [0, 0]
     for (w, wt, wb) in zip(psi, psit, psib):
-        GTB[0] = gab(wb.phi[0], wt.phi[0])
-        GTB[1] = gab(wb.phi[1], wt.phi[1])
+        GTB[0] = gab(wb.phi[0], wt.phi[0]).T
+        GTB[1] = gab(wb.phi[1], wt.phi[1]).T
         estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
         # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
     return estimates / denominator

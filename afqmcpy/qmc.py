@@ -49,14 +49,17 @@ def do_qmc(state, psi, comm, interactive=False):
             # Headache re one-indexing the steps and using modular arithmetic for
             # indexing the zero-indexed auxiliary field arrays.
             bp_step = (step-1)%state.nprop_tot
-            psi_left = afqmcpy.propagation.back_propagate(state, psi, bp_step)
+            psi_left = afqmcpy.propagation.back_propagate(state, psi_n, bp_step)
             estimates.update_back_propagated_observables(state.system, psi,
-                                                         psi_n, psi_bp)
+                                                         psi_n, psi_left)
             # set (n+m)th (i.e. the current step's) wfn to be nth wfn for
             # next back propagation step.
             psi_n = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
-            estimates.calculate_itcf(state, psi, psi_right, psi_left)
+            if state.itcf_stable:
+                estimates.calculate_itcf(state, psi, psi_right, psi_left)
+            else:
+                estimates.calculate_itcf_unstable(state, psi, psi_right, psi_left)
             # New nth right-hand wfn for next estimate of ITCF.
             psi_right = copy.deepcopy(psi)
         if step%state.nmeasure == 0:
