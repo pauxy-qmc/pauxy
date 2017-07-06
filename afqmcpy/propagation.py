@@ -341,7 +341,7 @@ def construct_propagator_matrix(state, config, conjt=False):
     else:
         return [Bup, Bdown]
 
-def back_propagate(state, psi_n, step):
+def back_propagate(state, psi, step):
     r"""Perform backpropagation.
 
     explanation...
@@ -351,7 +351,9 @@ def back_propagate(state, psi_n, step):
     state : :class:`afqmcpy.state.State`
         state object
     psi_n : list of :class:`afqmcpy.walker.Walker` objects
-        previous distribution of walkers, i.e., :math:`\tau'-\tau_{bp}`.
+        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. On
+        output the walker's auxiliary field counter will be set to zero if we
+        are not also calculating an ITCF.
     step : int
         Simulation step (modulo total number of fields to save). This is
         necessary when estimating an ITCF for imaginary times >> back
@@ -372,7 +374,7 @@ def back_propagate(state, psi_n, step):
     s = step - psi_bp[0].nback_prop + 1
     e = step
     # assuming correspondence between walker distributions
-    for (iw, w) in enumerate(psi_n):
+    for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,s:e].T))):
             B = construct_propagator_matrix(state, field_config)
