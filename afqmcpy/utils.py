@@ -57,3 +57,25 @@ def format_fixed_width_strings(strings):
 
 def format_fixed_width_floats(floats):
     return ' '.join('{: .10e}'.format(f) for f in floats)
+
+def regularise_matrix_inverse(A, cutoff=1e-10):
+    """Perform inverse of singular matrix.
+
+    First compute SVD of input matrix then add a tuneable cutoff which washes
+    out elements whose singular values are close to zero.
+
+    Parameters
+    ----------
+    A : class:`numpy.array`
+        Input matrix.
+    cutoff : float
+        Cutoff parameter.
+
+    Returns
+    -------
+    B : class:`numpy.array`
+        Regularised matrix inverse (pseudo-inverse).
+    """
+        (U,D,V) = scipy.linalg.svd(A)
+        D = D / (cutoff**2.0+D**2.0)
+        return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
