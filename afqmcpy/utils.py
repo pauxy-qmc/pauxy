@@ -76,6 +76,6 @@ def regularise_matrix_inverse(A, cutoff=1e-10):
     B : class:`numpy.array`
         Regularised matrix inverse (pseudo-inverse).
     """
-        (U,D,V) = scipy.linalg.svd(A)
-        D = D / (cutoff**2.0+D**2.0)
-        return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
+    (U,D,V) = scipy.linalg.svd(A)
+    D = D / (cutoff**2.0+D**2.0)
+    return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
