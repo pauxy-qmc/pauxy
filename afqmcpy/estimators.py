@@ -398,9 +398,9 @@ def back_propagated_energy(system, psi, psit, psib):
     denominator = sum(w.weight for w in psi)
     estimates = numpy.zeros(3)
     GTB = [0, 0]
-    for (w, wt, wb) in zip(psi, psit, psib):
-        GTB[0] = gab(wb.phi[0], wt.phi[0]).T
-        GTB[1] = gab(wb.phi[1], wt.phi[1]).T
+    for (w, wb) in zip(psi, psib):
+        GTB[0] = gab(wb.phi[0], psit[wb.parent].phi[0]).T
+        GTB[1] = gab(wb.phi[1], psit[wb.parent].phi[1]).T
         estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
         # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
     return estimates / denominator

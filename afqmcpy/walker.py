@@ -22,9 +22,10 @@ class Walker:
         self.weight_bp = nw
         # walkers auxiliary field configuration in back propagation interval
         self.bp_auxf = np.zeros(shape=(system.nbasis, nback_prop+nitcf_prop), dtype=int)
+        # Parent index along back propagation path.
+        self.parent = index
         self.bp_counter = 0
         self.nback_prop = nback_prop
-        self.index = index
 
     def inverse_overlap(self, trial):
         self.inv_ovlp[0] = scipy.linalg.inv((trial[0].conj()).T.dot(self.phi[0]))

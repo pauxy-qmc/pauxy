@@ -57,15 +57,14 @@ def do_qmc(state, psi, comm):
                     w.reortho()
                 else:
                     w.reortho_free()
-        if step%state.npop_control == 0:
-            pop_control.comb(psi, state.nwalkers)
         if state.back_propagation and step%state.nback_prop == 0:
             # Headache re one-indexing the steps and using modular arithmetic for
             # indexing the zero-indexed auxiliary field arrays.
             bp_step = (step-1)%state.nprop_tot
             psi_left = afqmcpy.propagation.back_propagate(state, psi, bp_step)
             estimates.update_back_propagated_observables(state.system, psi,
-                                                         psi_n, psi_left)
+                                                         psi_n, psi_left,
+                                                         bp_step)
             # set (n+m)th (i.e. the current step's) wfn to be nth wfn for
             # next back propagation step.
             psi_n = copy.deepcopy(psi)
@@ -80,6 +79,8 @@ def do_qmc(state, psi, comm):
             # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
+        if step%state.npop_control == 0:
+            pop_control.comb(psi, state.nwalkers)
         if step < state.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
