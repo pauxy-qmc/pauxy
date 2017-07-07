@@ -30,7 +30,8 @@ class State:
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', self.nequilibrate)
         self.itcf = qmc_opts.get('single_particle_gf', False)
-        self.itcf_tmax = qmc_opts.get('itcf_tmax', 1.0)
+        self.itcf_stable = qmc_opts.get('itcf_stable', True)
+        self.itcf_tmax = qmc_opts.get('itcf_tmax', 0.0)
         self.itcf_nmax = int(self.itcf_tmax/self.dt)
         self.nprop_tot = self.itcf_nmax + self.nback_prop
         self.uuid = str(uuid.uuid1())

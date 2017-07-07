@@ -14,7 +14,9 @@ def do_qmc(state, psi, comm, interactive=False):
     est = []
     (E_T, ke, pe) = estimators.local_energy(state.system, psi[0].G)
     # initialise back propagated wavefunctions
-    psit = copy.deepcopy(psi)
+    psi_n = copy.deepcopy(psi)
+    # initialise wavefunction for ITCF
+    psi_right = copy.deepcopy(psi)
     # psibp only stores the auxiliary fields in the interval of tbp.
     psi_bp = copy.deepcopy(psi)
     estimates = estimators.Estimators(state)
@@ -26,7 +28,7 @@ def do_qmc(state, psi, comm, interactive=False):
         estimates.update(w, state)
     # We can't have possibly performed back propagation yet so don't print out
     # zero which would mess up the averages.
-    estimates.print_step(state, comm, 0, print_bp=False)
+    estimates.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
     for step in range(1, state.nsteps):
         for w in psi:
@@ -44,14 +46,22 @@ def do_qmc(state, psi, comm, interactive=False):
         if step%state.npop_control == 0:
             pop_control.comb(psi, state.nwalkers)
         if state.back_propagation and step%state.nback_prop == 0:
-            psi_left = afqmcpy.propagation.back_propagate(state, psi, psit)
-            estimates.update_back_propagated_observables(state.system, psi, psit, psi_bp)
-            if state.itcf and step%state.nprop_tot == state.nback_prop:
-                # save this for calculating the itcf
-                psi_right = copy.deepcopy(psit)
-            psit = copy.deepcopy(psi)
+            # Headache re one-indexing the steps and using modular arithmetic for
+            # indexing the zero-indexed auxiliary field arrays.
+            bp_step = (step-1)%state.nprop_tot
+            psi_left = afqmcpy.propagation.back_propagate(state, psi, bp_step)
+            estimates.update_back_propagated_observables(state.system, psi,
+                                                         psi_n, psi_left)
+            # set (n+m)th (i.e. the current step's) wfn to be nth wfn for
+            # next back propagation step.
+            psi_n = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
-            estimates.calculate_itcf(state, psi, psi_right, psi_left)
+            if state.itcf_stable:
+                estimates.calculate_itcf(state, psi, psi_right, psi_left)
+            else:
+                estimates.calculate_itcf_unstable(state, psi, psi_right, psi_left)
+            # New nth right-hand wfn for next estimate of ITCF.
+            psi_right = copy.deepcopy(psi)
         if step%state.nmeasure == 0:
             # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
