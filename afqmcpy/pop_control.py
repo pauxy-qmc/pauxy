@@ -1,7 +1,7 @@
 import numpy
 import copy
 
-def comb(psi, nw, step):
+def comb(psi, nw):
     new_psi = copy.deepcopy(psi)
     weights = [w.weight for w in psi]
     parent = numpy.arange(len(psi))

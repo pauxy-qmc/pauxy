@@ -63,8 +63,7 @@ def do_qmc(state, psi, comm):
             bp_step = (step-1)%state.nprop_tot
             psi_left = afqmcpy.propagation.back_propagate(state, psi, bp_step)
             estimates.update_back_propagated_observables(state.system, psi,
-                                                         psi_n, psi_left,
-                                                         bp_step)
+                                                         psi_n, psi_left)
             # set (n+m)th (i.e. the current step's) wfn to be nth wfn for
             # next back propagation step.
             psi_n = copy.deepcopy(psi)
