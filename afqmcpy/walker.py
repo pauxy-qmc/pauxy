@@ -7,7 +7,7 @@ import afqmcpy.estimators
 # conjugate)?
 class Walker:
 
-    def __init__(self, nw, system, trial, index, nback_prop, nitcf_prop):
+    def __init__(self, nw, system, trial, index):
         self.weight = nw
         self.phi = copy.deepcopy(trial)
         self.inv_ovlp = [0, 0]
@@ -21,11 +21,7 @@ class Walker:
         # walkers weight at time tau before backpropagation occurs
         self.weight_bp = nw
         # walkers auxiliary field configuration in back propagation interval
-        self.bp_auxf = np.zeros(shape=(system.nbasis, nback_prop+nitcf_prop), dtype=int)
-        # Parent index along back propagation path.
-        self.parent = index
-        self.bp_counter = 0
-        self.nback_prop = nback_prop
+        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial):
         self.inv_ovlp[0] = scipy.linalg.inv((trial[0].conj()).T.dot(self.phi[0]))
