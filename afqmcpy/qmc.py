@@ -57,6 +57,8 @@ def do_qmc(state, psi, comm):
                     w.reortho()
                 else:
                     w.reortho_free()
+        if step%state.npop_control == 0:
+            pop_control.comb(psi, state.nwalkers)
         if state.back_propagation and step%state.nback_prop == 0:
             # Headache re one-indexing the steps and using modular arithmetic for
             # indexing the zero-indexed auxiliary field arrays.
@@ -78,8 +80,6 @@ def do_qmc(state, psi, comm):
             # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
-        if step%state.npop_control == 0:
-            pop_control.comb(psi, state.nwalkers)
         if step < state.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T

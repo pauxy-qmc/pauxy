@@ -4,7 +4,8 @@ import copy
 def comb(psi, nw):
     new_psi = copy.deepcopy(psi)
     weights = [w.weight for w in psi]
-    parent = numpy.arange(len(psi))
+    parent_ix = numpy.arange(len(psi))
+    parent_link = numpy.arange(len(psi))
     total_weight = sum(weights)
     cprobs = numpy.cumsum(weights)
 
@@ -15,11 +16,12 @@ def comb(psi, nw):
     for (ic, c) in enumerate(comb):
         for (iw, w) in enumerate(cprobs):
             if c < w:
-                parent[ic] = iw
+                parent_ix[ic] = iw
+                parent_link[ic] = psi[iw].parent
                 break
 
     # Copy back new information
-    for (i,p) in enumerate(parent):
+    for (i,p) in enumerate(parent_ix):
         psi[i] = copy.deepcopy(new_psi[p])
         psi[i].weight = 1.0
-        psi[i].parent = p
+        psi[i].parent = parent_link[i]
