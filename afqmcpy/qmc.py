@@ -78,7 +78,7 @@ def do_qmc(state, psi, comm):
             if state.itcf_stable:
                 estimates.calculate_itcf(state, psi_hist, psi_left)
             else:
-                estimates.calculate_itcf_unstable(state, psi, psi_right, psi_left)
+                estimates.calculate_itcf_unstable(state, psi_hist, psi_left)
             # New nth right-hand wfn for next estimate of ITCF.
             psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.nmeasure == 0:

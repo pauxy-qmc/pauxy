@@ -223,7 +223,7 @@ class Estimators():
 
         self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi_nm, psi_n, psi_bp)
 
-    def calculate_itcf_unstable(self, state, psi, psi_right, psi_left):
+    def calculate_itcf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
@@ -244,17 +244,16 @@ class Estimators():
         """
 
         I = numpy.identity(state.system.nbasis)
-        for (w, wr, wl) in zip(psi, psi_right, psi_left):
+        for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            configs = w.bp_auxf[:,:state.itcf_nmax].T
-            for (ic, c) in reversed(list(enumerate(configs))):
-                # Todo: population control
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
                 # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c,
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -265,9 +264,10 @@ class Estimators():
             self.spgf[0] = self.spgf[0] + w.weight*G[0]
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(configs):
+            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c)
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config)
                 G[0] = B[0].dot(G[0])
                 G[1] = B[1].dot(G[1])
                 self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
@@ -308,13 +308,13 @@ class Estimators():
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax]))):
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
                 # propagators should be applied in reverse order
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
-                psi_Ls.append(wl)
+                psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
@@ -323,7 +323,7 @@ class Estimators():
             self.spgf[0] = self.spgf[0] + w.weight*Gnn[0]
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax]):
+            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config)
