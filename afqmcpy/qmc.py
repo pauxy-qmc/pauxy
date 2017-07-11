@@ -70,8 +70,8 @@ def do_qmc(state, psi, comm):
                                                              psi_hist[:,e],
                                                              psi_hist[:,s],
                                                              psi_left)
-            if not state.itcf:
-                psi_hist[:,0] = copy.deepcopy(psi)
+                if not state.itcf:
+                    psi_hist[:,0] = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
             if state.itcf_stable:
                 estimates.calculate_itcf(state, psi_hist, psi_left)
