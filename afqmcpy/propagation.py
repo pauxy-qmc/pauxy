@@ -423,6 +423,16 @@ def propagate_single(state, psi, B):
     psi.phi[0] = B[0].dot(psi.phi[0])
     psi.phi[1] = B[1].dot(psi.phi[1])
 
+
+def propagate_kinetic_fft2d(state, psi):
+
+    for s in range(0,2):
+        for i in range(0,state.system.nup):
+            psi_k[:,i]= numpy.fft.fft2d(psi.phi[s][:,i].reshape(M,M))
+        psi_k = state.system.BT2_K.dot(psi_k)
+        psi.phi[s] = numpy.fft.ifft2(psi_k)
+
+
 _projectors = {
     'kinetic': {
         'discrete': kinetic_importance_sampling,
