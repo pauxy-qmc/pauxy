@@ -1,6 +1,7 @@
 """Routines and classes for estimation of observables."""
 import numpy
 import time
+import copy
 from enum import Enum
 from mpi4py import MPI
 import scipy.linalg
