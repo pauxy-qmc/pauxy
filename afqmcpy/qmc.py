@@ -58,6 +58,8 @@ def do_qmc(state, psi, comm):
                 else:
                     w.reortho_free()
         bp_step = (step-1)%state.nprop_tot
+        if step%state.npop_control == 0:
+            pop_control.comb(psi, state.nwalkers, psi_hist)
         if state.back_propagation:
             psi_hist[:,bp_step+1] = copy.deepcopy(psi)
             if step%state.nback_prop == 0:
@@ -86,7 +88,5 @@ def do_qmc(state, psi, comm):
         if step < state.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
-        if step%state.npop_control == 0:
-            pop_control.comb(psi, state.nwalkers, psi_hist)
 
     return (state, psi)
