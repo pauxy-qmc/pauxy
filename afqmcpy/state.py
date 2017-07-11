@@ -32,7 +32,7 @@ class State:
         self.itcf = qmc_opts.get('single_particle_gf', False)
         self.itcf_stable = qmc_opts.get('itcf_stable', True)
         self.itcf_tmax = qmc_opts.get('itcf_tmax', 0.0)
-        self.itcf_nmax = int(self.itcf_tmax/self.dt) + 1
+        self.itcf_nmax = int(self.itcf_tmax/self.dt)
         self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']

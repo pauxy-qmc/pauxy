@@ -22,7 +22,7 @@ def do_qmc(state, psi, comm):
     if state.back_propagation:
         # Easier to just keep a histroy of all walkers for population control
         # purposes if a bit memory inefficient.
-        psi_hist = numpy.empty(shape=(state.nwalkers, state.nprop_tot),
+        psi_hist = numpy.empty(shape=(state.nwalkers, state.nprop_tot+1),
                                dtype=object)
         psi_hist[:,0] = copy.deepcopy(psi)
     else:
@@ -58,19 +58,20 @@ def do_qmc(state, psi, comm):
                 else:
                     w.reortho_free()
         bp_step = (step-1)%state.nprop_tot
-        if state.back_propagation and step%state.nback_prop == 0:
-            # start and end points for selecting field configurations.  bp_step
-            # is in the set from (nback_prop-1),2*nback_prop-1,....,nprop_tot-1.
-            # need to add one back to ensure the lower bound is correct.
-            s = bp_step - state.nback_prop + 1
-            e = bp_step
-            psi_left = afqmcpy.propagation.back_propagate(state, psi_hist[:,s+1:e])
-            estimates.update_back_propagated_observables(state.system,
-                                                         psi_hist[:,e],
-                                                         psi_hist[:,s],
-                                                         psi_left)
-        if state.back_propagation and bp_step != 0:
-            psi_hist[:,bp_step] = copy.deepcopy(psi)
+        if state.back_propagation:
+            psi_hist[:,bp_step+1] = copy.deepcopy(psi)
+            if step%state.nback_prop == 0:
+                # start and end points for selecting field configurations.
+                s = bp_step - state.nback_prop + 1
+                e = bp_step
+                psi_left = afqmcpy.propagation.back_propagate(state,
+                                                              psi_hist[:,s+1:e+1])
+                estimates.update_back_propagated_observables(state.system,
+                                                             psi_hist[:,e],
+                                                             psi_hist[:,s],
+                                                             psi_left)
+            if not state.itcf:
+                psi_hist[:,0] = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
             if state.itcf_stable:
                 estimates.calculate_itcf(state, psi_hist, psi_left)
