@@ -67,7 +67,7 @@ def do_qmc(state, psi, comm):
                 psi_left = afqmcpy.propagation.back_propagate(state,
                                                               psi_hist[:,s+1:e+1])
                 estimates.update_back_propagated_observables(state.system,
-                                                             psi_hist[:,e],
+                                                             psi_hist[:,e+1],
                                                              psi_hist[:,s],
                                                              psi_left)
                 if not state.itcf:

@@ -3,6 +3,9 @@ import copy
 
 def comb(psi, nw, psi_history=None):
     new_psi = copy.deepcopy(psi)
+    if psi_history is not None:
+        # ugh
+        new_history = copy.deepcopy(psi_history)
     weights = [w.weight for w in psi]
     parent_ix = numpy.arange(len(psi))
     parent_link = numpy.arange(len(psi))
@@ -24,4 +27,4 @@ def comb(psi, nw, psi_history=None):
         psi[i] = copy.deepcopy(new_psi[p])
         psi[i].weight = 1.0
         if psi_history is not None:
-            psi_history[i,:] = copy.deepcopy(psi_history[p,:])
+            psi_history[i,:] = copy.deepcopy(new_history[p,:])
