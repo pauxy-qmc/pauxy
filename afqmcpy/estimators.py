@@ -315,6 +315,8 @@ class Estimators():
                                                                     c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
+                if ic % state.nmeasure == 0:
+                    wl.reortho()
                 psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
@@ -342,6 +344,8 @@ class Estimators():
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
                 afqmcpy.propagation.propagate_single(state, wr, B)
+                if ic % state.nmeasure == 0:
+                    wr.reortho()
                 Gnn[0] = I - gab(L.phi[0], wr.phi[0])
                 Gnn[1] = I - gab(L.phi[1], wr.phi[1])
 

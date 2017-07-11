@@ -398,11 +398,12 @@ def back_propagate(state, psi):
               for w in range(state.nwalkers)]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for ws in reversed(list(w)):
+        for (i, ws) in enumerate(reversed(list(w))):
             B = construct_propagator_matrix(state, ws.field_config)
             psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
             psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
-            psi_bp[iw].reortho()
+            if i % state.nmeasure == 0:
+                psi_bp[iw].reortho()
     return psi_bp
 
 def propagate_single(state, psi, B):
@@ -421,8 +422,6 @@ def propagate_single(state, psi, B):
     """
     psi.phi[0] = B[0].dot(psi.phi[0])
     psi.phi[1] = B[1].dot(psi.phi[1])
-    # Todo: check frequency / remove from here.
-    psi.reortho()
 
 _projectors = {
     'kinetic': {
