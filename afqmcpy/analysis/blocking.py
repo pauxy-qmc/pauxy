@@ -100,7 +100,7 @@ def average_itcf(filenames, element, start_iteration=0):
                             gstring: means,
                             gstring+'_error': errs},
                            columns=header)
-    return (results, gijs)
+    return results
 
 def average_back_propagated(filenames, start_iteration=0):
 
