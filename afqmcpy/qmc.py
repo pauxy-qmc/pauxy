@@ -58,22 +58,28 @@ def do_qmc(state, psi, comm):
                 else:
                     w.reortho_free()
         bp_step = (step-1)%state.nprop_tot
-        if step%state.npop_control == 0:
-            pop_control.comb(psi, state.nwalkers, psi_hist)
         if state.back_propagation:
             psi_hist[:,bp_step+1] = copy.deepcopy(psi)
             if step%state.nback_prop == 0:
                 # start and end points for selecting field configurations.
                 s = bp_step - state.nback_prop + 1
-                e = bp_step
+                e = bp_step + 1
+                # the first entry in psi_hist (with index 0) contains the
+                # wavefunction at the step where we start to accumulate the
+                # auxiliary field path.  Since the propagated wavefunction,
+                # i.e., the (n+1) st wfn, contains the fields which propagate
+                # Psi_n to Psi_{n+1} we want to select the next entry in the
+                # array, i.e., s+1. Slicing excludes the endpoint which we need
+                # so also add one to e.
                 psi_left = afqmcpy.propagation.back_propagate(state,
                                                               psi_hist[:,s+1:e+1])
                 estimates.update_back_propagated_observables(state.system,
-                                                             psi_hist[:,e+1],
+                                                             psi_hist[:,e],
                                                              psi_hist[:,s],
                                                              psi_left)
-                if not state.itcf:
-                    psi_hist[:,0] = copy.deepcopy(psi)
+            if not state.itcf:
+                # New nth right-hand wfn for next estimate of ITCF.
+                psi_hist[:,0] = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
             if state.itcf_stable:
                 estimates.calculate_itcf(state, psi_hist, psi_left)
@@ -88,5 +94,7 @@ def do_qmc(state, psi, comm):
         if step < state.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
+        if step%state.npop_control == 0:
+            psi_hist = pop_control.comb(psi, state.nwalkers, psi_hist)
 
     return (state, psi)
