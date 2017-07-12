@@ -426,12 +426,14 @@ def propagate_single(state, psi, B):
 
 def propagate_kinetic_fft2d(state, psi):
 
-    for s in range(0,2):
-        for i in range(0,state.system.nup):
-            psi_k[:,i]= numpy.fft.fft2d(psi.phi[s][:,i].reshape(M,M))
+    nspin = [state.system.nup, state.system.ndown]
+    m = int(state.system.nx+state.system.ny)
+    for s in range(0, 2):
+        psi_k = numpy.zeros(shape=(m, nspin[i]))
+        psi_k = numpy.fft.fft2d(psi.phi[s][:,i].reshape(m,m,nspin[i]),
+                                axes=(0,1)).reshape(m*m, nspin[i])
         psi_k = state.system.BT2_K.dot(psi_k)
         psi.phi[s] = numpy.fft.ifft2(psi_k)
-
 
 _projectors = {
     'kinetic': {
