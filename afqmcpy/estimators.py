@@ -299,6 +299,8 @@ class Estimators():
 
         I = numpy.identity(state.system.nbasis)
         Gnn = [I, I]
+        # Be careful not to modify right hand wavefunctions field
+        # configurations.
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
