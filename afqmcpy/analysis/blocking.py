@@ -7,6 +7,7 @@ import pyblock
 import numpy
 import scipy.stats
 import analysis.extraction
+import matplotlib.pyplot as pl
 
 
 def run_blocking_analysis(filename, start_iter):
@@ -78,7 +79,6 @@ def average_itcf(filenames, element, start_iteration=0):
     data = analysis.extraction.extract_data_sets(filenames, itcf=True)
     md = data[0][0]['qmc_options']
     nits = int(md['itcf_tmax']/md['dt']) + 1
-    # I'm pretty sure there's a faster way of doing this.
     itcf = []
     for (m, d) in data:
         itcf.append(d[nits*start_iteration:])
@@ -86,6 +86,11 @@ def average_itcf(filenames, element, start_iteration=0):
     gijs = big[:,element[0], element[1]]
     nsim = len(gijs) / nits
     gijs = gijs.reshape((nsim, nits))
+    for (i, s) in enumerate(gijs):
+        pl.plot(s, linewidth=0, marker='o', label='%s'%str(i))
+    pl.ylim([0,1])
+    pl.legend()
+    pl.show()
     means = gijs.mean(axis=0)
     errs = scipy.stats.sem(gijs, axis=0)
     tau_range = numpy.linspace(0, md['itcf_tmax'], nits)

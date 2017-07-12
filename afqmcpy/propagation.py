@@ -198,25 +198,21 @@ state : :class:`afqmcpy.state.State`
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[0]
-                walker.bp_auxf[i, walker.bp_counter] = 0
+                walker.field_config[i] = 0
             else:
                 vtup = walker.phi[0][i,:] * delta[1, 0]
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
-                walker.bp_auxf[i, walker.bp_counter] = 1
-            walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
-                                                        state.trial.psi[0].T[:,i],
-                                                        vtup)
-            walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
-                                                        state.trial.psi[1].T[:,i],
-                                                        vtdown)
-            walker.greens_function(state.trial.psi)
-            if state.back_propagation:
-                walker.bp_counter = walker.bp_counter + 1
-        else:
-            walker.weight = 0
+                walker.field_config[i] = 1
+        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+                                                    state.trial.psi[0].T[:,i],
+                                                    vtup)
+        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+                                                    state.trial.psi[1].T[:,i],
+                                                    vtdown)
+        walker.greens_function(state.trial.psi)
 
 
 def dumb_hubbard(walker, state):
@@ -374,7 +370,7 @@ def construct_propagator_matrix(state, config, conjt=False):
     else:
         return [Bup, Bdown]
 
-def back_propagate(state, psi, step):
+def back_propagate(state, psi):
     r"""Perform backpropagation.
 
     TODO: explanation and disentangle measurement from act.
@@ -398,24 +394,16 @@ def back_propagate(state, psi, step):
         Back propagated list of walkers.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w,
-                            state.nback_prop, state.itcf_nmax)
+    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w)
               for w in range(state.nwalkers)]
-    # start and end points for selecting field configurations.  step is in the
-    # set from (nback_prop-1),2*nback_prop-1,....,state.nprop_tot-1 need to add
-    # one back to ensure the lower bound is correct.
-    s = step - psi_bp[0].nback_prop + 1
-    e = step
-    # assuming correspondence between walker distributions
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (step, field_config) in reversed(list(enumerate(w.bp_auxf[:,s:e].T))):
-            B = construct_propagator_matrix(state, field_config)
+        for (i, ws) in enumerate(reversed(list(w))):
+            B = construct_propagator_matrix(state, ws.field_config)
             psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
             psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
-            psi_bp[iw].reortho()
-        if not state.itcf:
-            w.bp_counter = 0
+            if i % state.nmeasure == 0:
+                psi_bp[iw].reortho()
     return psi_bp
 
 def propagate_single(state, psi, B):
@@ -434,8 +422,6 @@ def propagate_single(state, psi, B):
     """
     psi.phi[0] = B[0].dot(psi.phi[0])
     psi.phi[1] = B[1].dot(psi.phi[1])
-    # Todo: check frequency / remove from here.
-    psi.reortho()
 
 _projectors = {
     'kinetic': {

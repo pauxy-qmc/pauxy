@@ -1,6 +1,7 @@
 """Routines and classes for estimation of observables."""
 import numpy
 import time
+import copy
 from enum import Enum
 from mpi4py import MPI
 import scipy.linalg
@@ -204,7 +205,7 @@ class Estimators():
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight * w.ot
 
-    def update_back_propagated_observables(self, system, psi, psit, psib):
+    def update_back_propagated_observables(self, system, psi_nm, psi_n, psi_bp):
         """"Update estimates using back propagated wavefunctions.
 
         Parameters
@@ -221,9 +222,9 @@ class Estimators():
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
 
-        self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi, psit, psib)
+        self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi_nm, psi_n, psi_bp)
 
-    def calculate_itcf_unstable(self, state, psi, psi_right, psi_left):
+    def calculate_itcf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
@@ -244,17 +245,16 @@ class Estimators():
         """
 
         I = numpy.identity(state.system.nbasis)
-        for (w, wr, wl) in zip(psi, psi_right, psi_left):
+        for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            configs = w.bp_auxf[:,:state.itcf_nmax].T
-            for (ic, c) in reversed(list(enumerate(configs))):
-                # Todo: population control
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
                 # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c,
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -265,9 +265,10 @@ class Estimators():
             self.spgf[0] = self.spgf[0] + w.weight*G[0]
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(configs):
+            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c)
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config)
                 G[0] = B[0].dot(G[0])
                 G[1] = B[1].dot(G[1])
                 self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
@@ -275,7 +276,7 @@ class Estimators():
             # following iteration.
             w.bp_counter = 0
 
-    def calculate_itcf(self, state, psi, psi_right, psi_left):
+    def calculate_itcf(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in: Feldbacher and Assad,
@@ -298,24 +299,27 @@ class Estimators():
 
         I = numpy.identity(state.system.nbasis)
         Gnn = [I, I]
-        for (w, wr, wl) in zip(psi, psi_right, psi_left):
+        # Be careful not to modify right hand wavefunctions field
+        # configurations.
+        for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
             # Store for intermediate back propagated left-hand wavefunctions.
-            # This leads to more stable equal time green's functions rather than
+            # This leads to more stable equal time green's functions compared to
             # by multiplying psi_L^n by B^{-1}(x^(n)) factors.
             psi_Ls = []
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            configs = w.bp_auxf[:,:state.itcf_nmax].T
-            for (ic, c) in reversed(list(enumerate(configs))):
-                # Todo: population control
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
                 # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c,
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
-                psi_Ls.append(wl)
+                if ic % state.nmeasure == 0:
+                    wl.reortho()
+                psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
@@ -324,9 +328,10 @@ class Estimators():
             self.spgf[0] = self.spgf[0] + w.weight*Gnn[0]
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(configs):
+            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state, c)
+                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                                                                    c.field_config)
                 # G is the cumulative product of stabilised short-time ITCFs.
                 # The first term in brackets is the G(n+1,n) which should be
                 # well conditioned.
@@ -341,11 +346,10 @@ class Estimators():
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
                 afqmcpy.propagation.propagate_single(state, wr, B)
+                if ic % state.nmeasure == 0:
+                    wr.reortho()
                 Gnn[0] = I - gab(L.phi[0], wr.phi[0])
                 Gnn[1] = I - gab(L.phi[1], wr.phi[1])
-            # zero the counter to start accumulating fields again in the
-            # following iteration.
-            w.bp_counter = 0
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
@@ -381,7 +385,7 @@ E_L(phi) : float
     return (ke + pe, ke, pe)
 
 
-def back_propagated_energy(system, psi, psit, psib):
+def back_propagated_energy(system, psi_nm, psi_n, psi_bp):
     """Calculate back-propagated "local" energy for given walker/determinant.
 
     Parameters
@@ -392,17 +396,16 @@ def back_propagated_energy(system, psi, psit, psib):
     psit : list of :class:`afqmcpy.walker.Walker` objects
         previous distribution of walkers, i.e., at the current iteration in the
         simulation corresponding to :math:`\tau`.
-    psib : list of :class:`afqmcpy.walker.Walker` objects
+    psi_bp : list of :class:`afqmcpy.walker.Walker` objects
         backpropagated walkers at time :math:`\tau_{bp}`.
     """
-    denominator = sum(w.weight for w in psi)
+    denominator = sum(wnm.weight for wnm in psi_nm)
     estimates = numpy.zeros(3)
     GTB = [0, 0]
-    for (w, wt, wb) in zip(psi, psit, psib):
-        GTB[0] = gab(wb.phi[0], wt.phi[0]).T
-        GTB[1] = gab(wb.phi[1], wt.phi[1]).T
-        estimates = estimates + w.weight*numpy.array(list(local_energy(system, GTB)))
-        # print (w.weight, wt.weight, wb.weight, local_energy(system, GTB))
+    for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
+        GTB[0] = gab(wb.phi[0], wn.phi[0]).T
+        GTB[1] = gab(wb.phi[1], wn.phi[1]).T
+        estimates = estimates + wnm.weight*numpy.array(list(local_energy(system, GTB)))
     return estimates / denominator
 
 

@@ -19,16 +19,16 @@ def do_qmc(state, psi, comm):
         Initial wavefunction / distribution of walkers.
     comm : MPI communicator
     """
+    if state.back_propagation:
+        # Easier to just keep a histroy of all walkers for population control
+        # purposes if a bit memory inefficient.
+        psi_hist = numpy.empty(shape=(state.nwalkers, state.nprop_tot+1),
+                               dtype=object)
+        psi_hist[:,0] = copy.deepcopy(psi)
+    else:
+        psi_hist = None
 
-    # Energy of the initial distribution.
     (E_T, ke, pe) = estimators.local_energy(state.system, psi[0].G)
-    # initialise back propagated wavefunctions
-    psi_n = copy.deepcopy(psi)
-    # initialise wavefunction for ITCF
-    psi_right = copy.deepcopy(psi)
-    # psibp only stores the auxiliary fields in the interval of tbp.
-    psi_bp = copy.deepcopy(psi)
-    # Set up estimators.
     estimates = estimators.Estimators(state)
     estimates.print_header(state.root, estimates.header)
     if state.back_propagation and state.root:
@@ -52,30 +52,41 @@ def do_qmc(state, psi, comm):
             w.weight = w.weight * exp(state.dt*E_T)
             # Add current (propagated) walkers contribution to estimates.
             estimates.update(w, state)
-            if step%state.nmeasure == 0 and step != 0:
+            if step%state.nmeasure == 0:
                 if state.importance_sampling:
                     w.reortho()
                 else:
                     w.reortho_free()
-        if step%state.npop_control == 0:
-            pop_control.comb(psi, state.nwalkers)
-        if state.back_propagation and step%state.nback_prop == 0:
-            # Headache re one-indexing the steps and using modular arithmetic for
-            # indexing the zero-indexed auxiliary field arrays.
-            bp_step = (step-1)%state.nprop_tot
-            psi_left = afqmcpy.propagation.back_propagate(state, psi, bp_step)
-            estimates.update_back_propagated_observables(state.system, psi,
-                                                         psi_n, psi_left)
-            # set (n+m)th (i.e. the current step's) wfn to be nth wfn for
-            # next back propagation step.
-            psi_n = copy.deepcopy(psi)
+        bp_step = (step-1)%state.nprop_tot
+        if state.back_propagation:
+            psi_hist[:,bp_step+1] = copy.deepcopy(psi)
+            if step%state.nback_prop == 0:
+                # start and end points for selecting field configurations.
+                s = bp_step - state.nback_prop + 1
+                e = bp_step + 1
+                # the first entry in psi_hist (with index 0) contains the
+                # wavefunction at the step where we start to accumulate the
+                # auxiliary field path.  Since the propagated wavefunction,
+                # i.e., the (n+1) st wfn, contains the fields which propagate
+                # Psi_n to Psi_{n+1} we want to select the next entry in the
+                # array, i.e., s+1. Slicing excludes the endpoint which we need
+                # so also add one to e.
+                psi_left = afqmcpy.propagation.back_propagate(state,
+                                                              psi_hist[:,s+1:e+1])
+                estimates.update_back_propagated_observables(state.system,
+                                                             psi_hist[:,e],
+                                                             psi_hist[:,s],
+                                                             psi_left)
+                if not state.itcf:
+                    # New nth right-hand wfn for next estimate of ITCF.
+                    psi_hist[:,0] = copy.deepcopy(psi)
         if state.itcf and step%state.nprop_tot == 0:
             if state.itcf_stable:
-                estimates.calculate_itcf(state, psi, psi_right, psi_left)
+                estimates.calculate_itcf(state, psi_hist, psi_left)
             else:
-                estimates.calculate_itcf_unstable(state, psi, psi_right, psi_left)
+                estimates.calculate_itcf_unstable(state, psi_hist, psi_left)
             # New nth right-hand wfn for next estimate of ITCF.
-            psi_right = copy.deepcopy(psi)
+            psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.nmeasure == 0:
             # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
@@ -83,5 +94,7 @@ def do_qmc(state, psi, comm):
         if step < state.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
+        if step%state.npop_control == 0:
+            psi_hist = pop_control.comb(psi, state.nwalkers, psi_hist)
 
     return (state, psi)

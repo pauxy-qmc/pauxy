@@ -69,11 +69,11 @@ class UHF:
                 (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
                 trial = numpy.array([ev_up[:,:system.nup], ev_down[:,:system.ndown]],
                                          dtype=trial_type)
-                Gup = afqmcpy.estimators.gab(trial[0], trial[0])
-                Gdown = afqmcpy.estimators.gab(trial[1], trial[1])
+                niup = numpy.diag(trial[0].dot((trial[0].conj()).T))
+                nidown = numpy.diag(trial[1].dot((trial[1].conj()).T))
+                Gup = afqmcpy.estimators.gab(trial[0], trial[0]).T
+                Gdown = afqmcpy.estimators.gab(trial[1], trial[1]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
-                niup = alpha*numpy.diag(trial[0].dot((trial[0].conj()).T)) + (1-alpha)*niup_old
-                nidown = alpha*numpy.diag(trial[1].dot((trial[1].conj()).T)) + (1-alpha)*nidown_old
                 if self.self_consistant(enew, eold, niup, niup_old, nidown,
                                         nidown_old, it, deps):
                     if all(abs(numpy.array(minima))-abs(enew) < -deps):
@@ -82,9 +82,13 @@ class UHF:
                         e_accept = numpy.append(e_up, e_down)
                     break
                 else:
-                    eold = enew
+                    mixup = self.mix_density(niup, niup_old, alpha)
+                    mixdown = self.mix_density(nidown, nidown_old, alpha)
                     niup_old = niup
                     nidown_old = nidown
+                    niup = mixup
+                    nidown = mixdown
+                    eold = enew
 
         system.U = uold
         try:
@@ -100,7 +104,10 @@ class UHF:
         '''Check if system parameters are converged'''
 
         e_cond= abs(enew-eold) < deps
-        nup_cond = sum(abs(niup-niup_old)) < deps
-        ndown_cond = sum(abs(nidown-nidown_old)) < deps
+        nup_cond = sum(abs(niup-niup_old))/len(niup) < deps
+        ndown_cond = sum(abs(nidown-nidown_old))/len(niup) < deps
 
         return e_cond and nup_cond and ndown_cond
+
+    def mix_density(self, new, old, alpha):
+        return alpha*new + (1-alpha)*old
