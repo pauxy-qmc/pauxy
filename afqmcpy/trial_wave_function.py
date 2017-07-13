@@ -105,9 +105,9 @@ class UHF:
 
         e_cond= abs(enew-eold) < deps
         nup_cond = sum(abs(niup-niup_old))/len(niup) < deps
-        ndown_cond = sum(abs(nidown-nidown_old))/len(niup) < deps
+        ndown_cond = sum(abs(nidown-nidown_old))/len(nidown) < deps
 
         return e_cond and nup_cond and ndown_cond
 
     def mix_density(self, new, old, alpha):
-        return alpha*new + (1-alpha)*old
+        return alpha*new + (1.0-alpha)*old
