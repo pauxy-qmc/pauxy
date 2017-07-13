@@ -7,7 +7,7 @@ import scipy.linalg
 import math
 import cmath
 import copy
-import afqmcpy.utils as utils
+import afqmcpy.utils
 import afqmcpy.estimators as estimators
 import afqmcpy.walker as walker
 
@@ -206,10 +206,10 @@ state : :class:`afqmcpy.state.State`
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.field_config[i] = 1
-        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+        walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
                                                     state.trial.psi[0].T[:,i],
                                                     vtup)
-        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+        walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
                                                     state.trial.psi[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.trial.psi)
@@ -424,16 +424,21 @@ def propagate_single(state, psi, B):
     psi.phi[1] = B[1].dot(psi.phi[1])
 
 
-def propagate_kinetic_fft2d(state, psi):
+def kinetic_kspace(state, psi):
+    """Apply the kinetic energy projector in kspace.
 
-    nspin = [state.system.nup, state.system.ndown]
-    m = int(state.system.nx+state.system.ny)
-    for s in range(0, 2):
-        psi_k = numpy.zeros(shape=(m, nspin[i]))
-        psi_k = numpy.fft.fft2d(psi.phi[s][:,i].reshape(m,m,nspin[i]),
-                                axes=(0,1)).reshape(m*m, nspin[i])
-        psi_k = state.system.BT2_K.dot(psi_k)
-        psi.phi[s] = numpy.fft.ifft2(psi_k)
+    May be faster for very large dilute lattices.
+    """
+    s = state.system
+    # Transform psi to kspace by fft-ing its columns.
+    psi[0] = afqmcpy.utils.fft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
+    psi[1] = afqmcpy.utils.fft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
+    # Kinetic enery operator is diagonal in momentum space.
+    psi[0] = (state.propagators.btk*psi[0].T).T
+    psi[1] = (state.propagators.btk*psi[1].T).T
+    # Transform psi to kspace by fft-ing its columns.
+    psi[0] = afqmcpy.utils.ifft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
+    psi[1] = afqmcpy.utils.ifft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
 
 _projectors = {
     'kinetic': {
@@ -468,8 +473,9 @@ _propagators = {
 class Projectors:
     '''Base propagator class'''
 
-    def __init__(self, model, hs_type, dt, T, importance_sampling):
+    def __init__(self, model, hs_type, dt, T, importance_sampling, eks):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
+        self.btk = numpy.exp(-0.5*dt*eks)
         if 'continuous' in hs_type:
             if importance_sampling:
                 self.propagate_walker = _propagators['continuous']['constrained']

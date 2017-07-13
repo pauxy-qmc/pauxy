@@ -79,3 +79,12 @@ def regularise_matrix_inverse(A, cutoff=1e-10):
     (U,D,V) = scipy.linalg.svd(A)
     D = D / (cutoff**2.0+D**2.0)
     return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
+
+
+def fft_wavefunction(psi, nx, ny, ns, sin):
+    return numpy.fft.fft2(psi.reshape(nx,ny,ns),
+                          axes=(0,1)).reshape(sin)
+
+def ifft_wavefunction(psi, nx, ny, ns, sin):
+    return numpy.fft.ifft2(psi.reshape(nx,ny,ns),
+                                 axes=(0,1)).reshape(sin)

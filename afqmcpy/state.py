@@ -49,7 +49,8 @@ class State:
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                          self.hubbard_stratonovich,
                                                          self.dt, self.system.T,
-                                                         self.importance_sampling)
+                                                         self.importance_sampling,
+                                                         self.system.eks)
         self.cplx = 'continuous' in self.hubbard_stratonovich
         # effective hubbard U for UHF trial wavefunction.
         self.ueff = qmc_opts.get('ueff', 0.4)
