@@ -194,7 +194,7 @@ class Estimators():
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
-            if state.cplx:
+            if state.cplx and not state.ffts:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
                 self.estimates[self.names.enumer] += w.weight * local_energy(state.system, w.G)[0]
