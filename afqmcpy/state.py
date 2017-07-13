@@ -53,7 +53,7 @@ class State:
                                                          self.importance_sampling,
                                                          self.system.eks,
                                                          self.ffts)
-        self.cplx = 'continuous' in self.hubbard_stratonovich or self.ffts
+        self.cplx = 'continuous' in self.hubbard_stratonovich
         # effective hubbard U for UHF trial wavefunction.
         self.ueff = qmc_opts.get('ueff', 0.4)
         if self.cplx:

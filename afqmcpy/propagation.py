@@ -430,14 +430,22 @@ def kinetic_kspace(psi, state):
     """
     s = state.system
     # Transform psi to kspace by fft-ing its columns.
-    psi[0] = afqmcpy.utils.fft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
-    psi[1] = afqmcpy.utils.fft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
+    tup = afqmcpy.utils.fft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
+    tdown = afqmcpy.utils.fft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
     # Kinetic enery operator is diagonal in momentum space.
-    psi[0] = (state.propagators.btk*psi[0].T).T
-    psi[1] = (state.propagators.btk*psi[1].T).T
+    # Note that multiplying by diagonal btk in this way is faster than using
+    # einsum and way faster than using dot using an actual diagonal matrix.
+    tup = (state.propagators.btk*tup.T).T
+    tdown = (state.propagators.btk*tdown.T).T
     # Transform psi to kspace by fft-ing its columns.
-    psi[0] = afqmcpy.utils.ifft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
-    psi[1] = afqmcpy.utils.ifft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
+    tup = afqmcpy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
+    tdown = afqmcpy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
+    if not state.cplx:
+        psi[0] = tup.astype(float)
+        psi[1] = tdown.astype(float)
+    else:
+        psi[0] = tup
+        psi[1] = tdown
 
 _projectors = {
     'potential': {
