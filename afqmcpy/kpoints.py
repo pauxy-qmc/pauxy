@@ -6,22 +6,19 @@ def kpoints(t, nx, ny):
     eigs = []
     if ny == 1:
         kfac = numpy.array([2.0*pi/nx])
-        for n in range(-int(nx/2), int(nx/2)+1):
+        for n in range(0, nx+1):
             kp.append(n)
             eigs.append(ek(t, n, kfac, ny))
     else:
         kfac = numpy.array([2.0*pi/nx, 2.0*pi/ny])
-        for n in range(-int(nx/2), int(nx/2)+1):
-            for m in range(-int(ny/2), int(ny/2)):
+        for n in range(0, nx):
+            for m in range(0, ny):
                 k = numpy.array([n, m])
                 kp.append(k)
                 eigs.append(ek(t, k, kfac, ny))
 
     eigs = numpy.array(eigs)
     kp = numpy.array(kp)
-    idx = eigs.argsort()
-    eigs = eigs[idx]
-    kp = kp[idx]
     return (kp, kfac, eigs)
 
 def ek(t, k, kc, ny):
