@@ -7,7 +7,7 @@ import scipy.linalg
 import math
 import cmath
 import copy
-import afqmcpy.utils as utils
+import afqmcpy.utils
 import afqmcpy.estimators as estimators
 import afqmcpy.walker as walker
 
@@ -29,11 +29,11 @@ state : :class:`state.State`
 """
 
     if abs(walker.weight) > 0:
-        state.propagators.kinetic(walker, state)
+        kinetic_importance_sampling(walker, state)
     if abs(walker.weight) > 0:
         state.propagators.potential(walker, state)
     if abs(walker.weight.real) > 0:
-        state.propagators.kinetic(walker, state)
+        kinetic_importance_sampling(walker, state)
 
 
 def propagate_walker_free(walker, state):
@@ -49,7 +49,7 @@ def propagate_walker_free(walker, state):
     state : :class:`state.State`
         Simulation state.
 """
-    kinetic_direct(walker.phi, state)
+    kinetic_real(walker.phi, state)
     delta = state.auxf - 1
     for i in range(0, state.system.nbasis):
         if abs(walker.weight) > 0:
@@ -65,7 +65,7 @@ def propagate_walker_free(walker, state):
                 vtdown = walker.phi[1][i,:] * delta[1, 1]
                 walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
-    kinetic_direct(walker.phi, state)
+    kinetic_real(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
     # Update walker weight
     walker.ot = walker.calc_otrial(state.trial.psi)
@@ -86,7 +86,7 @@ def propagate_walker_free_continuous(walker, state):
         Simulation state.
 """
     # 1. Apply kinetic projector.
-    kinetic_direct(walker.phi, state)
+    kinetic_real(walker.phi, state)
     # Normally distributed random numbers.
     xfields =  numpy.random.normal(0.0, 1.0, state.system.nbasis)
     sxf = sum(xfields)
@@ -98,7 +98,7 @@ def propagate_walker_free_continuous(walker, state):
     walker.phi[0] = bv.dot(walker.phi[0])
     walker.phi[1] = bv.dot(walker.phi[1])
     # 3. Apply kinetic projector.
-    kinetic_direct(walker.phi, state)
+    kinetic_real(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
     walker.ot = walker.calc_otrial(state.trial.psi)
     walker.greens_function(state.trial.psi)
@@ -206,10 +206,10 @@ state : :class:`afqmcpy.state.State`
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.field_config[i] = 1
-        walker.inv_ovlp[0] = utils.sherman_morrison(walker.inv_ovlp[0],
+        walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
                                                     state.trial.psi[0].T[:,i],
                                                     vtup)
-        walker.inv_ovlp[1] = utils.sherman_morrison(walker.inv_ovlp[1],
+        walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
                                                     state.trial.psi[1].T[:,i],
                                                     vtdown)
         walker.greens_function(state.trial.psi)
@@ -294,8 +294,7 @@ walker : :class:`afqmcpy.walker.Walker`
 state : :class:`afqmcpy.state.State`
     Simulation state.
 """
-    walker.phi[0] = state.propagators.bt2.dot(walker.phi[0])
-    walker.phi[1] = state.propagators.bt2.dot(walker.phi[1])
+    state.propagators.kinetic(walker.phi, state)
     # Update inverse overlap
     walker.inverse_overlap(state.trial.psi)
     # Update walker weight
@@ -309,7 +308,7 @@ state : :class:`afqmcpy.state.State`
         walker.weight = 0.0
 
 
-def kinetic_direct(phi, state):
+def kinetic_real(phi, state):
     """Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuus algorithm and free propagation.
@@ -423,13 +422,32 @@ def propagate_single(state, psi, B):
     psi.phi[0] = B[0].dot(psi.phi[0])
     psi.phi[1] = B[1].dot(psi.phi[1])
 
+
+def kinetic_kspace(psi, state):
+    """Apply the kinetic energy projector in kspace.
+
+    May be faster for very large dilute lattices.
+    """
+    s = state.system
+    # Transform psi to kspace by fft-ing its columns.
+    tup = afqmcpy.utils.fft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
+    tdown = afqmcpy.utils.fft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
+    # Kinetic enery operator is diagonal in momentum space.
+    # Note that multiplying by diagonal btk in this way is faster than using
+    # einsum and way faster than using dot using an actual diagonal matrix.
+    tup = (state.propagators.btk*tup.T).T
+    tdown = (state.propagators.btk*tdown.T).T
+    # Transform psi to kspace by fft-ing its columns.
+    tup = afqmcpy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
+    tdown = afqmcpy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
+    if not state.cplx:
+        psi[0] = tup.astype(float)
+        psi[1] = tdown.astype(float)
+    else:
+        psi[0] = tup
+        psi[1] = tdown
+
 _projectors = {
-    'kinetic': {
-        'discrete': kinetic_importance_sampling,
-        'continuous': kinetic_direct,
-        'opt_continuous': kinetic_direct,
-        'dumb_continuous': kinetic_direct,
-    },
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
@@ -456,8 +474,9 @@ _propagators = {
 class Projectors:
     '''Base propagator class'''
 
-    def __init__(self, model, hs_type, dt, T, importance_sampling):
+    def __init__(self, model, hs_type, dt, T, importance_sampling, eks, fft):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
+        self.btk = numpy.exp(-0.5*dt*eks)
         if 'continuous' in hs_type:
             if importance_sampling:
                 self.propagate_walker = _propagators['continuous']['constrained']
@@ -467,5 +486,8 @@ class Projectors:
             self.propagate_walker = _propagators['discrete']['constrained']
         else:
             self.propagate_walker = _propagators['discrete']['free']
-        self.kinetic = _projectors['kinetic'][hs_type]
+        if fft:
+            self.kinetic = kinetic_kspace
+        else:
+            self.kinetic = kinetic_real
         self.potential = _projectors['potential'][model][hs_type]

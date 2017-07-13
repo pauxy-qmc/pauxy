@@ -102,7 +102,7 @@ def decode_basis(nx, ny, i):
     i : int
         Basis index (same for up and down spins).
     """
-    return np.array([i%nx, i//nx])
+    return np.array([i//nx, i%nx])
 
 def _super_matrix(U, nbasis):
     '''Construct super-matrix from v_{ijkl}'''

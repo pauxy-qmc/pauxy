@@ -27,6 +27,7 @@ class State:
         self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = qmc_opts['importance_sampling']
         self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
+        self.ffts = qmc_opts.get('kinetic_kspace', False)
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', 0)
         self.itcf = qmc_opts.get('single_particle_gf', False)
@@ -49,7 +50,9 @@ class State:
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                          self.hubbard_stratonovich,
                                                          self.dt, self.system.T,
-                                                         self.importance_sampling)
+                                                         self.importance_sampling,
+                                                         self.system.eks,
+                                                         self.ffts)
         self.cplx = 'continuous' in self.hubbard_stratonovich
         # effective hubbard U for UHF trial wavefunction.
         self.ueff = qmc_opts.get('ueff', 0.4)
