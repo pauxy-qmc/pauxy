@@ -44,7 +44,7 @@ def initialise(input_file):
     state.nprocs = nprocs
     state.root = state.rank == 0
     if state.root:
-        state.write_json()
+        state.write_json(eol='\n', eoll='')
     # TODO: Do this more gracefully.
     state.nwalkers = int(state.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)

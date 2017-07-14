@@ -77,8 +77,8 @@ class State:
         self.qmc_opts = qmc_opts
 
 
-    def write_json(self, print_function=print, eol='', verbose=True,
-                   encode=False):
+    def write_json(self, print_function=print, eol='', eoll='\n',
+                   verbose=True, encode=False):
         r"""Print out state object information.
 
         Parameters
@@ -117,7 +117,7 @@ class State:
             info = {'calculation': calc_info,}
         # Note that we require python 3.6 to print dict in ordered fashion.
         first = '# Input options:' + eol
-        last = eol + '# End of input options' + eol
+        last = eol + '# End of input options' + eoll
         md = json.dumps(info, sort_keys=False, indent=4)
         output_string = first + md + last
         if encode == True:
