@@ -28,7 +28,8 @@ class Free_Electron:
 
 class UHF:
 
-    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.2):
+    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.5):
+        print ("# Constructing trial wavefunction")
         init_time = time.time()
         if cplx:
             self.trial_type = complex
@@ -89,8 +90,11 @@ class UHF:
                     niup = mixup
                     nidown = mixdown
                     eold = enew
+            print ("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
+                    " energy found is: {: 8f}".format(attempt, it, eold))
 
         system.U = uold
+        print ("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
             return (psi_accept, e_accept, min(minima))
         except UnboundLocalError:
@@ -110,4 +114,4 @@ class UHF:
         return e_cond and nup_cond and ndown_cond
 
     def mix_density(self, new, old, alpha):
-        return alpha*new + (1.0-alpha)*old
+        return (1-alpha)*new + alpha*old
