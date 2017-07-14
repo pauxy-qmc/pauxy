@@ -153,10 +153,10 @@ class Estimators():
         if state.root and step%state.nprop_tot == 0 and state.itcf and print_itcf:
             global_estimates[ns.pot+1:] = global_estimates[ns.pot+1:]/global_estimates[ns.edenom]
             self.print_itcf(global_estimates[ns.pot+1:], state.dt,
-                            self.itcf_unit)
+                            self.itcf_unit, state.itcf_mode)
         self.zero(state)
 
-    def print_itcf(self, spgf, dt, funit):
+    def print_itcf(self, spgf, dt, funit, mode):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -173,12 +173,18 @@ class Estimators():
             Actual shape of ITCF Green's function matrix.
         funit : file
             Output file for ITCF.
+        mode : string or list
+            if mode == 'full' we print the full green's function else we'll
+            print some elements of G.
         """
         spgf = spgf.reshape(self.spgf.shape)
         for (ic, g) in enumerate(spgf):
             funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
-            numpy.savetxt(funit, g)
+            if mode == 'full':
+                numpy.savetxt(funit, g)
+            else:
+                numpy.savetxt(funit, g[mode])
 
     def update(self, w, state):
         """Update estimates for walker w.

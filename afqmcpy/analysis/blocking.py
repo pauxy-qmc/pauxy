@@ -83,7 +83,10 @@ def average_itcf(filenames, element, start_iteration=0):
     for (m, d) in data:
         itcf.append(d[nits*start_iteration:])
     big = numpy.concatenate(itcf)
-    gijs = big[:,element[0], element[1]]
+    if len(element) == 2:
+        gijs = big[:,element[0], element[1]]
+    else:
+        gijs = big[:,element[0]]
     nsim = len(gijs) / nits
     gijs = gijs.reshape((nsim, nits))
     for (i, s) in enumerate(gijs):
@@ -94,7 +97,10 @@ def average_itcf(filenames, element, start_iteration=0):
     means = gijs.mean(axis=0)
     errs = scipy.stats.sem(gijs, axis=0)
     tau_range = numpy.linspace(0, md['itcf_tmax'], nits)
-    gstring = 'G_%s%s'%tuple(element)
+    if len(element) == 2:
+        gstring = 'G_%s%s'%tuple(element)
+    else:
+        gstring = 'G_%s'%tuple(element)
     header = ['tau', gstring, gstring+'_error']
     results = pd.DataFrame({'tau': tau_range,
                             gstring: means,

@@ -30,10 +30,14 @@ class State:
         self.ffts = qmc_opts.get('kinetic_kspace', False)
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', 0)
-        self.itcf = qmc_opts.get('single_particle_gf', False)
-        self.itcf_stable = qmc_opts.get('itcf_stable', True)
-        self.itcf_tmax = qmc_opts.get('itcf_tmax', 0.0)
-        self.itcf_nmax = int(self.itcf_tmax/self.dt)
+        itcf_opts = qmc_opts.get('itcf', None)
+        self.itcf_nmax = 0
+        if itcf_opts is not None:
+            self.itcf = True
+            self.itcf_stable = itcf_opts.get('stable', True)
+            self.itcf_tmax = itcf_opts.get('tmax', 0.0)
+            self.itcf_mode = itcf_opts.get('mode', 'full')
+            self.itcf_nmax = int(self.itcf_tmax/self.dt)
         self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']

@@ -65,12 +65,18 @@ def extract_data(filename, itcf=False):
         (metadata, skip) = _extract_json(f, True)
     if itcf:
         model = metadata['model']
-        dimg = int(model['nx']*model['ny'])
         opts = metadata['qmc_options']
+        if opts['itcf']['mode'] ==  'full':
+            dimg = int(model['nx']*model['ny'])**2
+        else:
+            dimg = len(numpy.array(opts['itcf']['mode'][0]))
         nitcf = int(opts['itcf_tmax']/opts['dt']) + 1
         data = numpy.loadtxt(filename, skiprows=skip)
-        nav = int(len(data.flatten())/(dimg**2*nitcf))
-        data = data.reshape((nav*nitcf, dimg, dimg))
+        nav = int(len(data.flatten())/(dimg*nitcf))
+        if opts['itcf']['mode'] ==  'full':
+            data = data.reshape((nav*nitcf, dimg, dimg))
+        else:
+            data = data.reshape((nav*nitcf, dimg))
     else:
         data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
 
