@@ -77,7 +77,6 @@ class State:
         self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
-        qmc_opts['itcf_tmax'] = self.itcf_tmax
         self.qmc_opts = qmc_opts
 
 
