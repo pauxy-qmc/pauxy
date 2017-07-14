@@ -184,7 +184,8 @@ class Estimators():
             if mode == 'full':
                 numpy.savetxt(funit, g)
             else:
-                numpy.savetxt(funit, g[mode])
+                output = afqmcpy.utils.format_fixed_width_floats(g[mode])
+                funit.write((output+'\n').encode('utf-8'))
 
     def update(self, w, state):
         """Update estimates for walker w.
