@@ -28,7 +28,7 @@ class Free_Electron:
 
 class UHF:
 
-    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.5):
+    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.2):
         init_time = time.time()
         if cplx:
             self.trial_type = complex
@@ -37,7 +37,7 @@ class UHF:
         (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx, ueff, ninit, nit_max, alpha)
         self.initialisation_time = time.time() - init_time
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha=0.5,
+    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha,
                      deps=1e-8):
         emin = 0
         uold = system.U
