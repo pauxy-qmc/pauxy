@@ -39,7 +39,11 @@ def initialise(input_file):
             + rank
     )
     numpy.random.seed(options['qmc_options']['rng_seed'])
-    state = afqmcpy.state.State(options['model'], options['qmc_options'])
+    if rank == 0:
+        state = afqmcpy.state.State(options['model'], options['qmc_options'])
+    else:
+        state = None
+    state = comm.bcast(state)
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
