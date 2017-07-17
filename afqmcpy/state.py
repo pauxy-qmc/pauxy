@@ -21,6 +21,7 @@ class State:
         self.dt = qmc_opts['dt']
         self.nsteps = qmc_opts['nsteps']
         self.nmeasure = qmc_opts['nmeasure']
+        self.nstblz = qmc_opts.get('nstabilise', 10)
         self.npop_control = qmc_opts.get('npop_control')
         self.temp = qmc_opts['temperature']
         # number of steps to equilibrate simulation, default to tau = 1.

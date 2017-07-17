@@ -52,7 +52,7 @@ def do_qmc(state, psi, comm):
             w.weight = w.weight * exp(state.dt*E_T)
             # Add current (propagated) walkers contribution to estimates.
             estimates.update(w, state)
-            if step%state.nmeasure == 0:
+            if step%state.nstblz == 0:
                 if state.importance_sampling:
                     w.reortho()
                 else:

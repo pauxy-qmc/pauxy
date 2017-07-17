@@ -401,7 +401,7 @@ def back_propagate(state, psi):
             B = construct_propagator_matrix(state, ws.field_config)
             psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
             psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
-            if i % state.nmeasure == 0:
+            if i % state.nstblz == 0:
                 psi_bp[iw].reortho()
     return psi_bp
 
