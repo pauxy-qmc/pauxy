@@ -85,7 +85,7 @@ def kinetic(t, nbasis, nx, ny):
             if sum(dij) == 1:
                 T[i, j] = -t
             # Take care of periodic boundary conditions
-            if ((dij==[nx-1,0]).all() or (dij==[0,ny-1]).all()):
+            if ((dij==[0,nx-1]).all() or (dij==[ny-1,0]).all()):
                 T[i, j] += -t
 
     return T + T.T
