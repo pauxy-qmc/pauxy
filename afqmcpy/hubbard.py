@@ -1,6 +1,7 @@
 '''Hubbard model specific classes and methods'''
 
-import numpy as np
+import numpy
+import cmath
 import scipy.linalg
 import afqmcpy.kpoints
 
@@ -51,8 +52,20 @@ class Hubbard:
         else:
             self.nbasis = self.nx
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
+        print (self.kpoints)
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
         self.gamma = _super_matrix(self.U, self.nbasis)
+        self.basis_transform = transform_matrix(self.nbasis, self.kpoints,
+                                                self.kc, self.nx, self.ny)
+
+def transform_matrix(nbasis, kpoints, kc, nx, ny):
+    U = numpy.zeros(shape=(nbasis, nbasis), dtype=complex)
+    for (i, k_i) in enumerate(kpoints):
+        for j in range(0, nbasis):
+            r_j = decode_basis(nx, ny, j)
+            U[i,j] = numpy.exp(1j*numpy.dot(kc*k_i,r_j))
+
+    return U
 
 
 def kinetic(t, nbasis, nx, ny):
@@ -75,7 +88,7 @@ def kinetic(t, nbasis, nx, ny):
         Hopping Hamiltonian matrix.
     """
 
-    T = np.zeros((nbasis, nbasis))
+    T = numpy.zeros((nbasis, nbasis))
 
     for i in range(0, nbasis):
         for j in range(i+1, nbasis):
@@ -85,7 +98,9 @@ def kinetic(t, nbasis, nx, ny):
             if sum(dij) == 1:
                 T[i, j] = -t
             # Take care of periodic boundary conditions
-            if ((dij==[0,nx-1]).all() or (dij==[ny-1,0]).all()):
+            if ny == 1 and dij == [nx-1]:
+                T[i,j] += -t
+            elif ((dij==[nx-1, 0]).all() or (dij==[0,ny-1]).all()):
                 T[i, j] += -t
 
     return T + T.T
@@ -102,7 +117,11 @@ def decode_basis(nx, ny, i):
     i : int
         Basis index (same for up and down spins).
     """
-    return np.array([i//nx, i%nx])
+    if ny == 1:
+        return numpy.array([i%nx])
+    else:
+        return numpy.array([i//nx, i%nx])
 
 def _super_matrix(U, nbasis):
     '''Construct super-matrix from v_{ijkl}'''
+
