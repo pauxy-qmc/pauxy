@@ -52,7 +52,6 @@ class Hubbard:
         else:
             self.nbasis = self.nx
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
-        print (self.kpoints)
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
         self.gamma = _super_matrix(self.U, self.nbasis)
         # Transformation matrix.
