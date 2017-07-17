@@ -45,8 +45,12 @@ class Estimators():
                     self.itcf_unit = open('spgf_%s.out'%state.uuid[:8], 'ab')
                     state.write_json(print_function=self.itcf_unit.write, eol='\n',
                                      verbose=True, encode=True)
-                    self.print_key(state.back_propagation, self.funit.write,
-                                   eol='\n')
+                    if state.itcf_kspace:
+                        self.kspace_itcf_unit = open('kspace_itcf_%s.out'%state.uuid[:8], 'ab')
+                        state.write_json(print_function=self.kspace_itcf_unit.write, eol='\n',
+                                         verbose=True, encode=True)
+                    else:
+                        self.kspace_itcf_unit = None
                 self.ifcf_header = ['tau', 'g00']
             # don't communicate the estimators header
             self.nestimators = len(self.header+self.back_propagated_header) - 2
@@ -152,11 +156,11 @@ class Estimators():
 
         if state.root and step%state.nprop_tot == 0 and state.itcf and print_itcf:
             global_estimates[ns.pot+1:] = global_estimates[ns.pot+1:]/global_estimates[ns.edenom]
-            self.print_itcf(global_estimates[ns.pot+1:], state.dt,
-                            self.itcf_unit, state.itcf_mode)
+            self.print_itcf(global_estimates[ns.pot+1:], state,
+                            self.itcf_unit, self.kspace_itcf_unit)
         self.zero(state)
 
-    def print_itcf(self, spgf, dt, funit, mode):
+    def print_itcf(self, spgf, state, funit, kfunit):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -178,14 +182,25 @@ class Estimators():
             print some elements of G.
         """
         spgf = spgf.reshape(self.spgf.shape)
+        if state.itcf_kspace:
+            M = state.system.nbasis
+            spgf_k = numpy.einsum('ik,pkl,lj->pij', state.system.P,
+                                  spgf, state.system.P.conj().T).real/M
         for (ic, g) in enumerate(spgf):
-            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
+            funit.write(('# tau = %4.2f\n'%(ic*state.dt)).encode('utf-8'))
+            if state.itcf_kspace:
+                kfunit.write(('# tau = %4.2f\n'%(ic*state.dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
-            if mode == 'full':
+            if state.itcf_mode == 'full':
                 numpy.savetxt(funit, g)
+                if state.itcf_kspace:
+                    numpy.savetxt(kfunit, spgf_k[ic])
             else:
-                output = afqmcpy.utils.format_fixed_width_floats(g[mode])
+                output = afqmcpy.utils.format_fixed_width_floats(g[state.itcf_mode])
                 funit.write((output+'\n').encode('utf-8'))
+                if state.itcf_kspace:
+                    output = afqmcpy.utils.format_fixed_width_floats(spgf_k[ic][state.itcf_mode])
+                    kfunit.write((output+'\n').encode('utf-8'))
 
     def update(self, w, state):
         """Update estimates for walker w.

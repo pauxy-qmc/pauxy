@@ -39,6 +39,7 @@ class State:
             self.itcf_tmax = itcf_opts.get('tmax', 0.0)
             self.itcf_mode = itcf_opts.get('mode', 'full')
             self.itcf_nmax = int(self.itcf_tmax/self.dt)
+            self.itcf_kspace = itcf_opts.get('kspace', False)
         self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']

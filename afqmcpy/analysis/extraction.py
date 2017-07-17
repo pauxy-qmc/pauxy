@@ -67,12 +67,12 @@ def extract_data(filename, itcf=False):
         model = metadata['model']
         opts = metadata['qmc_options']
         if opts['itcf']['mode'] ==  'full':
-            dimg = int(model['nx']*model['ny'])**2
+            dimg = int(model['nx']*model['ny'])
         else:
             dimg = len(numpy.array(opts['itcf']['mode'][0]))
-        nitcf = int(opts['itcf_tmax']/opts['dt']) + 1
+        nitcf = int(opts['itcf']['tmax']/opts['dt']) + 1
         data = numpy.loadtxt(filename, skiprows=skip)
-        nav = int(len(data.flatten())/(dimg*nitcf))
+        nav = int(len(data.flatten())/(dimg*dimg*nitcf))
         if opts['itcf']['mode'] ==  'full':
             data = data.reshape((nav*nitcf, dimg, dimg))
         else:
