@@ -78,7 +78,7 @@ def average_itcf(filenames, element, start_iteration=0):
 
     data = analysis.extraction.extract_data_sets(filenames, itcf=True)
     md = data[0][0]['qmc_options']
-    nits = int(md['itcf_tmax']/md['dt']) + 1
+    nits = int(md['itcf']['tmax']/md['dt']) + 1
     itcf = []
     for (m, d) in data:
         itcf.append(d[nits*start_iteration:])
@@ -96,7 +96,7 @@ def average_itcf(filenames, element, start_iteration=0):
     pl.show()
     means = gijs.mean(axis=0)
     errs = scipy.stats.sem(gijs, axis=0)
-    tau_range = numpy.linspace(0, md['itcf_tmax'], nits)
+    tau_range = numpy.linspace(0, md['itcf']['tmax'], nits)
     if len(element) == 2:
         gstring = 'G_%s%s'%tuple(element)
     else:
