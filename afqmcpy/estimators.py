@@ -183,8 +183,9 @@ class Estimators():
         """
         spgf = spgf.reshape(self.spgf.shape)
         if state.itcf_kspace:
-            spgf_k = numpy.einsum('ik,pkl,lj->pij', state.system.basis_transform,
-                                  spgf, state.system.basis_transform.conj().T).real
+            M = state.system.nbasis
+            spgf_k = numpy.einsum('ik,pkl,lj->pij', state.system.P,
+                                  spgf, state.system.P.conj().T).real/M
         for (ic, g) in enumerate(spgf):
             funit.write(('# tau = %4.2f\n'%(ic*state.dt)).encode('utf-8'))
             if state.itcf_kspace:

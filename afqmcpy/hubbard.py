@@ -55,7 +55,8 @@ class Hubbard:
         print (self.kpoints)
         self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
         self.gamma = _super_matrix(self.U, self.nbasis)
-        self.basis_transform = transform_matrix(self.nbasis, self.kpoints,
+        # Transformation matrix.
+        self.P = transform_matrix(self.nbasis, self.kpoints,
                                                 self.kc, self.nx, self.ny)
 
 def transform_matrix(nbasis, kpoints, kc, nx, ny):
