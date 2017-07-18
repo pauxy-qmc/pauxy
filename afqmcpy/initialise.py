@@ -33,17 +33,26 @@ def initialise(input_file):
         print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
     else:
         options = None
-    options = comm.bcast(options)
-    options['qmc_options']['rng_seed'] = (
-            options['qmc_options'].get('rng_seed', numpy.random.randint(0, 1e8))
-            + rank
-    )
-    numpy.random.seed(options['qmc_options']['rng_seed'])
+    options = comm.bcast(options, root=0)
+    seed = options['qmc_options'].get('rng_seed', None)
+    if seed is None:
+        # only set "random" part of seed on parent processor so we can reproduce
+        # results in when running in parallel.
+        if rank == 0:
+            seed = numpy.array([numpy.random.randint(0, 1e8)], dtype='i4')
+            # Can't serialise numpy arrays
+            options['qmc_options']['rng_seed'] = seed[0].item()
+        else:
+            seed = numpy.empty(1, dtype='i4')
+        comm.Bcast(seed, root=0)
+        seed = seed[0]
+    seed = seed + rank
+    numpy.random.seed(seed)
     if rank == 0:
         state = afqmcpy.state.State(options['model'], options['qmc_options'])
     else:
         state = None
-    state = comm.bcast(state)
+    state = comm.bcast(state, root=0)
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
