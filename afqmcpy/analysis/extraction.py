@@ -72,10 +72,11 @@ def extract_data(filename, itcf=False):
             dimg = len(numpy.array(opts['itcf']['mode'][0]))
         nitcf = int(opts['itcf']['tmax']/opts['dt']) + 1
         data = numpy.loadtxt(filename, skiprows=skip)
-        nav = int(len(data.flatten())/(dimg*dimg*nitcf))
         if opts['itcf']['mode'] ==  'full':
+            nav = int(len(data.flatten())/(dimg*dimg*nitcf))
             data = data.reshape((nav*nitcf, dimg, dimg))
         else:
+            nav = int(len(data.flatten())/(dimg*nitcf))
             data = data.reshape((nav*nitcf, dimg))
     else:
         data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
