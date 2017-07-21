@@ -50,9 +50,21 @@ def average_tau(filenames):
                                    (err['E_denom']/means['E_denom'])**2.0 -
                                    2*covs/(means['E_num']*means['E_denom']))**0.5
 
+    eproj = means['E']
+    eproj_err = err['E']/numpy.sqrt(data_len)
+    weight = means['Weight']
+    weight_error = err['Weight']
+    numerator = means['E_num']
+    numerator_error = err['E_num']
     tau = m['qmc_options']['dt']
     nsites = m['model']['nx']*m['model']['ny']
-    results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites}).reset_index()
+    results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites,
+                            'Eproj': eproj/nsites,
+                            'Eproj_error': eproj_err/nsites,
+                            'weight': weight,
+                            'weight_error': weight_error,
+                            'numerator': numerator,
+                            'numerator_error': numerator_error}).reset_index()
     results['tau'] = results['iteration'] * tau
 
     return analysis.extraction.pretty_table_loop(results, m['model'])
