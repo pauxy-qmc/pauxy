@@ -130,7 +130,9 @@ def average_back_propagated(filenames, start_iteration=0):
         d['nbp'] = m['qmc_options']['nback_prop']
         frames.append(d.loc[:,'E':][start_iteration:])
 
-    frames = pd.concat(frames).groupby('nbp')
+    frames = pd.concat(frames)
+    frames.drop(frames[abs(frames.E)<1e-8].index, inplace=True)
+    frames = frames.groupby('nbp')
     data_len = frames.size()
     means = frames.mean().reset_index()
     # calculate standard error of the mean for grouped objects. ddof does
