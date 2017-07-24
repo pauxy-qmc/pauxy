@@ -49,7 +49,7 @@ def do_qmc(state, psi, comm):
             if abs(w.weight) > 1e-8:
                 state.propagators.propagate_walker(w, state)
             # Constant factors
-            w.weight = w.weight * exp(state.dt*E_T)
+            w.weight = w.weight * exp(state.dt*E_T.real)
             # Add current (propagated) walkers contribution to estimates.
             estimates.update(w, state)
             if step%state.nstblz == 0:

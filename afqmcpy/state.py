@@ -54,15 +54,16 @@ class State:
                 self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                         self.hubbard_stratonovich,
-                                                         self.dt, self.system.T,
-                                                         self.importance_sampling,
-                                                         self.system.eks,
-                                                         self.ffts)
-        self.cplx = 'continuous' in self.hubbard_stratonovich
+                                                          self.hubbard_stratonovich,
+                                                          self.dt, self.system.T,
+                                                          self.importance_sampling,
+                                                          self.system.eks,
+                                                          self.ffts)
+        self.cplx = ('continuous' in self.hubbard_stratonovich
+                     or self.system.ktwist.all() != 0)
         # effective hubbard U for UHF trial wavefunction.
         self.ueff = qmc_opts.get('ueff', 0.4)
-        if self.cplx:
+        if self.hubbard_stratonovich == 'continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
             self.iut_fac = 1j*numpy.sqrt((self.system.U*self.dt))

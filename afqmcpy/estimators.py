@@ -216,10 +216,10 @@ class Estimators():
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
-            if state.cplx and not state.ffts:
+            if state.hubbard_stratonovich == 'continuous':
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
-                self.estimates[self.names.enumer] += w.weight * local_energy(state.system, w.G)[0]
+                self.estimates[self.names.enumer] += w.weight*local_energy(state.system, w.G)[0].real
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
@@ -428,7 +428,7 @@ def back_propagated_energy(system, psi_nm, psi_n, psi_bp):
         GTB[0] = gab(wb.phi[0], wn.phi[0]).T
         GTB[1] = gab(wb.phi[1], wn.phi[1]).T
         estimates = estimates + wnm.weight*numpy.array(list(local_energy(system, GTB)))
-    return estimates / denominator
+    return estimates.real / denominator
 
 
 def gab(A, B):

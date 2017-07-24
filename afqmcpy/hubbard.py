@@ -48,7 +48,7 @@ class Hubbard:
         self.U = inputs['U']
         self.nx = inputs['nx']
         self.ny = inputs['ny']
-        self.ktwist = numpy.array(inputs.get('ktwist', [0,0]))
+        self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
         self.T = kinetic(self.t, self.nbasis, self.nx,

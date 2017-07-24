@@ -187,7 +187,7 @@ state : :class:`afqmcpy.state.State`
         # Ratio of determinants for the two choices of auxilliary fields
         probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
                                    (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
-        norm = sum(probs)
+        norm = sum(probs.real)
         r = numpy.random.random()
         # Is this necessary?
         if norm > 0:
@@ -206,13 +206,15 @@ state : :class:`afqmcpy.state.State`
                 walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.field_config[i] = 1
-        walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
-                                                    state.trial.psi[0].T[:,i],
-                                                    vtup)
-        walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
-                                                    state.trial.psi[1].T[:,i],
-                                                    vtdown)
-        walker.greens_function(state.trial.psi)
+            walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
+                                                        state.trial.psi[0].T[:,i],
+                                                        vtup)
+            walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
+                                                        state.trial.psi[1].T[:,i],
+                                                        vtdown)
+            walker.greens_function(state.trial.psi)
+        else:
+            walker.weight = 0
 
 
 def dumb_hubbard(walker, state):
@@ -301,8 +303,8 @@ state : :class:`afqmcpy.state.State`
     ot_new = walker.calc_otrial(state.trial.psi)
     walker.greens_function(state.trial.psi)
     ratio = ot_new / walker.ot
-    if ratio.real > 1e-16 and abs(ratio.imag) < 1e-16:
-        walker.weight = walker.weight * (ot_new/walker.ot)
+    if ratio.real > 1e-16:
+        walker.weight = walker.weight * (ot_new/walker.ot).real
         walker.ot = ot_new
     else:
         walker.weight = 0.0
