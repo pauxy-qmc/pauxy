@@ -2,6 +2,7 @@
 
 import numpy
 import cmath
+import math
 import scipy.linalg
 import afqmcpy.kpoints
 
@@ -47,12 +48,11 @@ class Hubbard:
         self.U = inputs['U']
         self.nx = inputs['nx']
         self.ny = inputs['ny']
-        if self.ny > 1:
-            self.nbasis = self.nx*self.ny
-        else:
-            self.nbasis = self.nx
+        self.ktwist = numpy.array(inputs.get('ktwist', [0,0]))
+        self.nbasis = self.nx * self.ny
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
-        self.T = kinetic(self.t, self.nbasis, self.nx, self.ny)
+        self.T = kinetic(self.t, self.nbasis, self.nx,
+                         self.ny, self.ktwist)
         self.gamma = _super_matrix(self.U, self.nbasis)
         # Transformation matrix.
         self.P = transform_matrix(self.nbasis, self.kpoints,
@@ -68,7 +68,7 @@ def transform_matrix(nbasis, kpoints, kc, nx, ny):
     return U
 
 
-def kinetic(t, nbasis, nx, ny):
+def kinetic(t, nbasis, nx, ny, ks):
     """Kinetic part of the Hamiltonian in our one-electron basis.
 
     Parameters
@@ -88,7 +88,10 @@ def kinetic(t, nbasis, nx, ny):
         Hopping Hamiltonian matrix.
     """
 
-    T = numpy.zeros((nbasis, nbasis))
+    if ks.all() == 0:
+        T = numpy.zeros((nbasis, nbasis), dtype=float)
+    else:
+        T = numpy.zeros((nbasis, nbasis), dtype=complex)
 
     for i in range(0, nbasis):
         for j in range(i+1, nbasis):
@@ -99,11 +102,16 @@ def kinetic(t, nbasis, nx, ny):
                 T[i, j] = -t
             # Take care of periodic boundary conditions
             if ny == 1 and dij == [nx-1]:
-                T[i,j] += -t
-            elif ((dij==[nx-1, 0]).all() or (dij==[0,ny-1]).all()):
-                T[i, j] += -t
+                phase = numpy.dot(cmath.pi*ks,[1])
+                T[i,j] += -t * cmath.exp(1j*phase)
+            elif (dij==[nx-1, 0]).all():
+                phase = numpy.dot(cmath.pi*ks,numpy.array([1,0]))
+                T[i, j] += -t * cmath.exp(1j*phase)
+            elif (dij==[0, ny-1]).all():
+                phase = numpy.dot(cmath.pi*ks,numpy.array([0,1]))
+                T[i, j] += -t * cmath.exp(1j*phase)
 
-    return T + T.T
+    return T + T.conj().T
 
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.
