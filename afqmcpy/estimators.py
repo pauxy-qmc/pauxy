@@ -195,6 +195,10 @@ class Estimators():
                 numpy.savetxt(funit, g)
                 if state.itcf_kspace:
                     numpy.savetxt(kfunit, spgf_k[ic])
+            elif state.itcf_mode == 'diagonal':
+                numpy.savetxt(funit, numpy.diag(g).T)
+                if state.itcf_kspace:
+                    numpy.savetxt(kfunit, numpy.diag(spgf_k[ic]))
             else:
                 output = afqmcpy.utils.format_fixed_width_floats(g[state.itcf_mode])
                 funit.write((output+'\n').encode('utf-8'))
@@ -284,7 +288,7 @@ class Estimators():
             # psi_left back propagated along this path.)
             G[0] = I - gab(wl.phi[0], wr.phi[0])
             G[1] = I - gab(wl.phi[1], wr.phi[1])
-            self.spgf[0] = self.spgf[0] + w.weight*G[0]
+            self.spgf[0] = self.spgf[0] + w.weight*G[0].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
@@ -293,7 +297,7 @@ class Estimators():
                                                                     c.field_config)
                 G[0] = B[0].dot(G[0])
                 G[1] = B[1].dot(G[1])
-                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
+                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0].real
             # zero the counter to start accumulating fields again in the
             # following iteration.
             w.bp_counter = 0
@@ -347,7 +351,7 @@ class Estimators():
             # psi_L back propagated along this path.)
             Gnn[0] = I - gab(wl.phi[0], wr.phi[0])
             Gnn[1] = I - gab(wl.phi[1], wr.phi[1])
-            self.spgf[0] = self.spgf[0] + w.weight*Gnn[0]
+            self.spgf[0] = self.spgf[0] + w.weight*Gnn[0].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
@@ -359,7 +363,7 @@ class Estimators():
                 # well conditioned.
                 G[0] = (B[0].dot(Gnn[0])).dot(G[0])
                 G[1] = (B[1].dot(Gnn[1])).dot(G[1])
-                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0]
+                self.spgf[ic+1] = self.spgf[ic+1] + w.weight*G[0].real
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
                 # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_L>, where c

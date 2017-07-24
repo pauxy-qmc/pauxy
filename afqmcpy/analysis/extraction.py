@@ -68,6 +68,8 @@ def extract_data(filename, itcf=False):
         opts = metadata['qmc_options']
         if opts['itcf']['mode'] ==  'full':
             dimg = int(model['nx']*model['ny'])
+        elif opts['itcf']['mode'] == 'diagonal':
+            dimg = int(model['nx']*model['ny'])
         else:
             dimg = len(numpy.array(opts['itcf']['mode'][0]))
         nitcf = int(opts['itcf']['tmax']/opts['dt']) + 1
