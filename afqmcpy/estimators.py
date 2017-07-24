@@ -195,6 +195,10 @@ class Estimators():
                 numpy.savetxt(funit, g)
                 if state.itcf_kspace:
                     numpy.savetxt(kfunit, spgf_k[ic])
+            elif state.itcf_mode == 'diagonal':
+                numpy.savetxt(funit, numpy.diag(g).T)
+                if state.itcf_kspace:
+                    numpy.savetxt(kfunit, numpy.diag(spgf_k[ic]))
             else:
                 output = afqmcpy.utils.format_fixed_width_floats(g[state.itcf_mode])
                 funit.write((output+'\n').encode('utf-8'))
