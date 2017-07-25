@@ -43,14 +43,14 @@ class Estimators():
                 self.print_key(state.back_propagation, self.funit.write,
                                eol='\n')
             if state.itcf:
-                self.itcf_keys = [['greater', 'lesser'], ['up', 'down']]
+                self.itcf_keys = [['up', 'down'], ['greater', 'lesser']]
                 # I don't like list indexing
                 self.itcf_units = numpy.empty(shape=(2,2), dtype=object)
                 self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
                 if state.root:
                     base = '_greens_function_%s.out'%state.uuid[:8]
-                    for (i, t) in enumerate(self.itcf_keys[0]):
-                        for (j, s) in enumerate(self.itcf_keys[1]):
+                    for (i, s) in enumerate(self.itcf_keys[0]):
+                        for (j, t) in enumerate(self.itcf_keys[1]):
                             name = 'spin_%s_%s'%(s,t) + base
                             self.itcf_units[i,j] = open(name, 'ab')
                             state.write_json(print_function=self.itcf_units[i,j].write,
@@ -149,7 +149,7 @@ class Estimators():
         es[ns.eproj] = (state.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
-        es[ns.pot+1:] = self.spgf.flatten()
+        es[ns.pot+1:] = self.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = global_estimates[:ns.time] / state.nmeasure
@@ -162,12 +162,11 @@ class Estimators():
                 self.funit.write(ff+'\n')
 
         if state.root and step%state.nprop_tot == 0 and state.itcf and print_itcf:
-            spgf = (global_estimates[ns.pot+1:]/global_estimates[ns.edenom])
-            spgf = spgf.reshape(self.spgf.shape)
-            for (i,t) in enumerate(self.itcf_keys[0]):
-                for (j,s) in enumerate(self.itcf_keys[1]):
+            spgf = global_estimates[ns.pot+1:].reshape(self.spgf.shape)
+            for (i,s) in enumerate(self.itcf_keys[0]):
+                for (j,t) in enumerate(self.itcf_keys[1]):
                     self.print_itcf(spgf[:,i,j,:,:], state,
-                                    self.itcf_units[i,j], s, t)
+                                    self.itcf_units[i,j])
             if state.itcf_kspace:
                 M = state.system.nbasis
                 spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
@@ -175,11 +174,11 @@ class Estimators():
                 for (i,t) in enumerate(self.itcf_keys[0]):
                     for (j,s) in enumerate(self.itcf_keys[1]):
                         self.print_itcf(spgf_k[:,i,j,:,:], state,
-                                        self.kspace_units[i,j], s, t)
+                                        self.kspace_units[i,j])
 
         self.zero(state)
 
-    def print_itcf(self, spgf, state, funit, spin, otype):
+    def print_itcf(self, spgf, state, funit):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -278,9 +277,11 @@ class Estimators():
 
         I = numpy.identity(state.system.nbasis)
         nup = state.system.nup
+        denom = sum(w.weight for w in psi_hist[:,-1])
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
-            G = [I, I]
+            Ggr = [I, I]
+            Gls = [I, I]
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
@@ -297,19 +298,34 @@ class Estimators():
             G[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
             self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*G[0].real
             self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*G[1].real
+=======
+            Ggr[0] = I - gab(wl.phi[0], wr.phi[0])
+            Ggr[1] = I - gab(wl.phi[1], wr.phi[1])
+            Gls[0] = I - Ggr[0]
+            Gls[1] = I - Ggr[1]
+            self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Ggr[0].real
+            self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Ggr[1].real
+            self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*Gls[0].real
+            self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
+>>>>>>> 8e0ee17... Fix bugs.
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config)
-                G[0] = B[0].dot(G[0])
-                G[1] = B[1].dot(G[1])
-                self.spgf[ic+1,0,0] = self.spgf[ic+1,0,0] + w.weight*G[0].real
-                self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*G[1].real
+                Ggr[0] = B[0].dot(Ggr[0])
+                Ggr[1] = B[1].dot(Ggr[1])
+                Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
+                Gls[1] = Gls[1].dot(scipy.linalg.inv(B[1]))
+                self.spgf[ic+1,0,0] = self.spgf[ic+1,0,0] + w.weight*Ggr[0].real
+                self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*Ggr[1].real
+                self.spgf[ic+1,0,1] = self.spgf[ic+1,0,1] + w.weight*Gls[0].real
+                self.spgf[ic+1,1,1] = self.spgf[ic+1,1,1] + w.weight*Gls[1].real
             # zero the counter to start accumulating fields again in the
             # following iteration.
             w.bp_counter = 0
+        self.spgf = self.spgf / denom
 
     def calculate_itcf(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
@@ -338,6 +354,7 @@ class Estimators():
         # Be careful not to modify right hand wavefunctions field
         # configurations.
         nup = state.system.nup
+        denom = sum(w.weight for w in psi_hist[:,-1])
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced less and greater GF for current walker.
             Gls = [I, I]
@@ -365,8 +382,8 @@ class Estimators():
             Gnn[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
             self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Gnn[0].real
             self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Gnn[1].real
-            self.spgf[0,0,1] = self.spgf[0,0,1] - w.weight*(I-Gnn[0]).real
-            self.spgf[0,1,1] = self.spgf[0,1,1] - w.weight*(I-Gnn[1]).real
+            self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*(I-Gnn[0]).real
+            self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
@@ -380,8 +397,8 @@ class Estimators():
                 # well conditioned.
                 Ggr[0] = (B[0].dot(Gnn[0])).dot(Ggr[0])
                 Ggr[1] = (B[1].dot(Gnn[1])).dot(Ggr[1])
-                Gls[0] = Gls[0].dot(Bi[0].dot(-(I-Gnn[0])))
-                Gls[1] = Gls[1].dot(Bi[1].dot(-(I-Gnn[1])))
+                Gls[0] = ((I-Gnn[0]).dot(Bi[0])).dot(Gls[0])
+                Gls[1] = ((I-Gnn[1]).dot(Bi[1])).dot(Gls[1])
                 self.spgf[ic+1,0,0] = self.spgf[ic+1,0,0] + w.weight*Ggr[0].real
                 self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*Ggr[1].real
                 self.spgf[ic+1,0,1] = self.spgf[ic+1,0,1] + w.weight*Gls[0].real
@@ -398,6 +415,7 @@ class Estimators():
                     wr.reortho(nup)
                 Gnn[0] = I - gab(L.phi[:,:nup], wr.phi[:,:nup])
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
+        self.spgf = self.spgf / denom
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
