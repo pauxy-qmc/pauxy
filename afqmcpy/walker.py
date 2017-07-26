@@ -11,9 +11,9 @@ class Walker:
         self.weight = nw
         self.phi = copy.deepcopy(trial)
         self.inv_ovlp = [0, 0]
-        self.inverse_overlap(trial)
+        self.inverse_overlap(trial, system.nup)
         self.G = [0, 0]
-        self.greens_function(trial)
+        self.greens_function(trial, system.nup)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
@@ -35,11 +35,11 @@ class Walker:
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
-        (self.phi[:,ndown:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
         signs_up = np.diag(np.sign(np.diag(Rup)))
         signs_down = np.diag(np.sign(np.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        self.phi[:,ndown:] = self.phi[:,nup:].dot(signs_down)
+        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
         self.ot = self.ot / detR
         return detR

@@ -215,7 +215,7 @@ state : :class:`afqmcpy.state.State`
             walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
                                                                 state.trial.psi[:,nup:].T[:,i],
                                                                 vtdown)
-            walker.greens_function(state.trial.psi)
+            walker.greens_function(state.trial.psi, nup)
         else:
             walker.weight = 0
 
@@ -307,10 +307,10 @@ state : :class:`afqmcpy.state.State`
 """
     state.propagators.kinetic(walker.phi, state)
     # Update inverse overlap
-    walker.inverse_overlap(state.trial.psi)
+    walker.inverse_overlap(state.trial.psi, state.system.nup)
     # Update walker weight
     ot_new = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial.psi)
+    walker.greens_function(state.trial.psi, state.system.nup)
     ratio = ot_new / walker.ot
     if ratio.real > 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot).real
@@ -332,6 +332,7 @@ def kinetic_real(phi, state):
     state : :class:`afqmcpy.state.State`
         Simulation state.
     """
+    nup = state.system.nup
     phi[:,:nup] = state.propagators.bt2.dot(phi[:,:nup])
     phi[:,nup:] = state.propagators.bt2.dot(phi[:,nup:])
 
@@ -354,7 +355,7 @@ def propagate_potential_auxf(phi, state, field_config):
     bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
     bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
     phi[:,:nup] = numpy.einsum('i,ij->ij', bv_up, phi[:,:nup])
-    phi[:,nup:] = numpy.einsum('i,ij->ij', bv_down, phi[:,nup:]])
+    phi[:,nup:] = numpy.einsum('i,ij->ij', bv_down, phi[:,nup:])
 
 def construct_propagator_matrix(state, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
@@ -406,6 +407,7 @@ def back_propagate(state, psi):
 
     psi_bp = [walker.Walker(1, state.system, state.trial.psi, w)
               for w in range(state.nwalkers)]
+    nup = state.system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
@@ -413,7 +415,7 @@ def back_propagate(state, psi):
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % state.nstblz == 0:
-                psi_bp[iw].reortho()
+                psi_bp[iw].reortho(nup)
     return psi_bp
 
 def propagate_single(state, psi, B):
@@ -430,6 +432,7 @@ def propagate_single(state, psi, B):
     B : numpy array
         Propagation matrix.
     """
+    nup = state.system.nup
     psi.phi[:,:nup] = B[0].dot(psi.phi[:,:nup])
     psi.phi[:,nup:] = B[1].dot(psi.phi[:,nup:])
 

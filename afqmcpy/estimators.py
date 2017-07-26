@@ -325,6 +325,7 @@ class Estimators():
         Gnn = [I, I]
         # Be careful not to modify right hand wavefunctions field
         # configurations.
+        nup = state.system.nup
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
@@ -342,7 +343,7 @@ class Estimators():
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
                 if ic % state.nstblz == 0:
-                    wl.reortho()
+                    wl.reortho(nup)
                 psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
@@ -371,7 +372,7 @@ class Estimators():
                 L = psi_Ls[len(psi_Ls)-ic-1]
                 afqmcpy.propagation.propagate_single(state, wr, B)
                 if ic % state.nstblz == 0:
-                    wr.reortho()
+                    wr.reortho(nup)
                 Gnn[0] = I - gab(L.phi[:,:nup], wr.phi[:,:nup])
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
 
