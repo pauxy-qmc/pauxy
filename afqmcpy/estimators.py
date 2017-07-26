@@ -17,7 +17,7 @@ class Estimators():
         Default estimates and simulation information.
     funit : file unit
         File to write back-propagated estimates to.
-    back_propagated_header : list of strings
+    bp_header : list of strings
         Back-propagated estimates.
     nestimators : int
         Number of estimators.
@@ -30,6 +30,7 @@ class Estimators():
 
     def __init__(self, state):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        self.bp_header = ['iteration', 'E', 'T', 'V']
         if state.root:
             self.print_key()
         if state.back_propagation:
@@ -39,7 +40,6 @@ class Estimators():
                                  verbose=True)
                 self.print_key(state.back_propagation, self.funit.write,
                                eol='\n')
-            self.back_propagated_header = ['iteration', 'E', 'T', 'V']
             if state.itcf:
                 if state.root:
                     self.itcf_unit = open('spgf_%s.out'%state.uuid[:8], 'ab')
@@ -51,13 +51,8 @@ class Estimators():
                                          verbose=True, encode=True)
                     else:
                         self.kspace_itcf_unit = None
-                self.ifcf_header = ['tau', 'g00']
-            # don't communicate the estimators header
-            self.nestimators = len(self.header+self.back_propagated_header) - 2
-            self.names = EstimatorEnum(self.nestimators)
-        else:
-            self.nestimators = len(self.header)
-            self.names = EstimatorEnum(self.nestimators+3)
+        self.nestimators = len(self.header[1:]) + len(self.bp_header[1:])
+        self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
         self.spgf = numpy.zeros(shape=(state.itcf_nmax+1, state.system.nbasis,
                                        state.system.nbasis))
