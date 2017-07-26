@@ -51,20 +51,21 @@ def propagate_walker_free(walker, state):
 """
     kinetic_real(walker.phi, state)
     delta = state.auxf - 1
+    nup = state.system
     for i in range(0, state.system.nbasis):
         if abs(walker.weight) > 0:
             r = numpy.random.random()
             # TODO: remove code repition.
             if r > 0.5:
-                vtup = walker.phi[0][i,:] * delta[0, 0]
-                vtdown = walker.phi[1][i,:] * delta[0, 1]
-                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                vtup = walker.phi[i,:nup] * delta[0, 0]
+                vtdown = walker.phi[i,nup:] * delta[0, 1]
+                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
+                walker.phi[1][i,nup:] = walker.phi[i,nup:] + vtdown
             else:
-                vtup = walker.phi[0][i,:] * delta[1, 0]
-                vtdown = walker.phi[1][i,:] * delta[1, 1]
-                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                vtup = walker.phi[i,:nup] * delta[1, 0]
+                vtdown = walker.phi[i,nup:] * delta[1, 1]
+                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
+                walker.phi[1][i,nup:] = walker.phi[i,nup:] + vtdown
     kinetic_real(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
     # Update walker weight
@@ -95,8 +96,8 @@ def propagate_walker_free_continuous(walker, state):
     # Potential propagator.
     bv = numpy.diag(numpy.exp(state.iut_fac*xfields+0.5*state.ut_fac*(1-2*state.mf_shift)))
     # 2. Apply potential projector.
-    walker.phi[0] = bv.dot(walker.phi[0])
-    walker.phi[1] = bv.dot(walker.phi[1])
+    walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
+    walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
     # 3. Apply kinetic projector.
     kinetic_real(walker.phi, state)
     walker.inverse_overlap(state.trial.psi)
@@ -183,6 +184,7 @@ state : :class:`afqmcpy.state.State`
 """
     # Construct random auxilliary field.
     delta = state.auxf - 1
+    nup = state.system.nup
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
@@ -193,25 +195,26 @@ state : :class:`afqmcpy.state.State`
         if norm > 0:
             walker.weight = walker.weight * norm
             if r < probs[0]/norm:
-                vtup = walker.phi[0][i,:] * delta[0, 0]
-                vtdown = walker.phi[1][i,:] * delta[0, 1]
-                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                vtup = walker.phi[i,:nup] * delta[0, 0]
+                vtdown = walker.phi[i,nup:] * delta[0, 1]
+                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
+                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
                 walker.ot = 2 * walker.ot * probs[0]
                 walker.field_config[i] = 0
             else:
-                vtup = walker.phi[0][i,:] * delta[1, 0]
-                vtdown = walker.phi[1][i,:] * delta[1, 1]
-                walker.phi[0][i,:] = walker.phi[0][i,:] + vtup
-                walker.phi[1][i,:] = walker.phi[1][i,:] + vtdown
+                vtup = walker.phi[i,:nup] * delta[1, 0]
+                vtdown = walker.phi[i,nup:] * delta[1, 1]
+                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
+                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.field_config[i] = 1
+            # The transposing seems like overkill
             walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
-                                                        state.trial.psi[0].T[:,i],
-                                                        vtup)
+                                                                state.trial.psi[:,:nup].T[:,i],
+                                                                vtup)
             walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
-                                                        state.trial.psi[1].T[:,i],
-                                                        vtdown)
+                                                                state.trial.psi[:,nup:].T[:,i],
+                                                                vtdown)
             walker.greens_function(state.trial.psi)
         else:
             walker.weight = 0
@@ -239,8 +242,9 @@ state : :class:`afqmcpy.state.State`
     # Propagator for potential term with mean field and auxilary field shift.
     c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
     EXP_VHS = numpy.exp(0.5*state.ut_fac*(1-2.0*state.mf_shift)+state.iut_fac*(xi-xi_opt))
-    walker.phi[0] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[0])
-    walker.phi[1] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[1])
+    nup = state.system.nup
+    walker.phi[:,:nup] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,:nup])
+    walker.phi[:,nup:] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,nup:])
     return c_xf
 
 
@@ -328,8 +332,8 @@ def kinetic_real(phi, state):
     state : :class:`afqmcpy.state.State`
         Simulation state.
     """
-    phi[0] = state.propagators.bt2.dot(phi[0])
-    phi[1] = state.propagators.bt2.dot(phi[1])
+    phi[:,:nup] = state.propagators.bt2.dot(phi[:,:nup])
+    phi[:,nup:] = state.propagators.bt2.dot(phi[:,nup:])
 
 
 def propagate_potential_auxf(phi, state, field_config):
@@ -349,8 +353,8 @@ def propagate_potential_auxf(phi, state, field_config):
 
     bv_up = numpy.array([state.auxf[xi, 0] for xi in field_config])
     bv_down = numpy.array([state.auxf[xi, 1] for xi in field_config])
-    phi[0] = numpy.einsum('i,ij->ij', bv_up, phi[0])
-    phi[1] = numpy.einsum('i,ij->ij', bv_down, phi[1])
+    phi[:,:nup] = numpy.einsum('i,ij->ij', bv_up, phi[:,:nup])
+    phi[:,nup:] = numpy.einsum('i,ij->ij', bv_down, phi[:,nup:]])
 
 def construct_propagator_matrix(state, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
@@ -406,8 +410,8 @@ def back_propagate(state, psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
             B = construct_propagator_matrix(state, ws.field_config)
-            psi_bp[iw].phi[0] = B[0].dot(psi_bp[iw].phi[0])
-            psi_bp[iw].phi[1] = B[1].dot(psi_bp[iw].phi[1])
+            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
+            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % state.nstblz == 0:
                 psi_bp[iw].reortho()
     return psi_bp
@@ -426,8 +430,8 @@ def propagate_single(state, psi, B):
     B : numpy array
         Propagation matrix.
     """
-    psi.phi[0] = B[0].dot(psi.phi[0])
-    psi.phi[1] = B[1].dot(psi.phi[1])
+    psi.phi[:,:nup] = B[0].dot(psi.phi[:,:nup])
+    psi.phi[:,nup:] = B[1].dot(psi.phi[:,nup:])
 
 
 def kinetic_kspace(psi, state):
@@ -437,8 +441,8 @@ def kinetic_kspace(psi, state):
     """
     s = state.system
     # Transform psi to kspace by fft-ing its columns.
-    tup = afqmcpy.utils.fft_wavefunction(psi[0], s.nx, s.ny, s.nup, psi[0].shape)
-    tdown = afqmcpy.utils.fft_wavefunction(psi[1], s.nx, s.ny, s.ndown, psi[1].shape)
+    tup = afqmcpy.utils.fft_wavefunction(psi[:,:s.nup], s.nx, s.ny, s.nup, psi[:,:s.nup].shape)
+    tdown = afqmcpy.utils.fft_wavefunction(psi[:,s.nup:], s.nx, s.ny, s.ndown, psi[:,s.nup:].shape)
     # Kinetic enery operator is diagonal in momentum space.
     # Note that multiplying by diagonal btk in this way is faster than using
     # einsum and way faster than using dot using an actual diagonal matrix.
@@ -448,11 +452,11 @@ def kinetic_kspace(psi, state):
     tup = afqmcpy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
     tdown = afqmcpy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
     if not state.cplx:
-        psi[0] = tup.astype(float)
-        psi[1] = tdown.astype(float)
+        psi[:,:s.nup] = tup.astype(float)
+        psi[:,s.nup:] = tdown.astype(float)
     else:
-        psi[0] = tup
-        psi[1] = tdown
+        psi[:,:s.nup] = tup
+        psi[:,s.nup:] = tdown
 
 _projectors = {
     'potential': {

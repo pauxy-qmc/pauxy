@@ -53,10 +53,7 @@ def do_qmc(state, psi, comm):
             # Add current (propagated) walkers contribution to estimates.
             estimates.update(w, state)
             if step%state.nstblz == 0:
-                if state.importance_sampling:
-                    w.reortho()
-                else:
-                    w.reortho_free()
+                detR = w.reortho()
         bp_step = (step-1)%state.nprop_tot
         if state.back_propagation:
             psi_hist[:,bp_step+1] = copy.deepcopy(psi)

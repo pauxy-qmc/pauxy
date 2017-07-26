@@ -20,8 +20,10 @@ class Free_Electron:
             self.trial_type = complex
         else:
             self.trial_type = float
-        self.psi = numpy.array([self.eigv[:,:system.nup], self.eigv[:,:system.ndown]],
-                                dtype=self.trial_type)
+        # I think this is slightly cleaner than using
+        self.psi = numpy.zeros(system,nbasis, system.nup+system.ndown)
+        self.psi[:,:sytem.nup] = self.eigv[:,:system.nup]
+        self.psi[:,sytem.nup:] = self.eigv[:,:system.ndown]
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         self.initialisation_time = time.time() - init_time
 
