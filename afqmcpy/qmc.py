@@ -32,7 +32,7 @@ def do_qmc(state, psi, comm):
     estimates = estimators.Estimators(state)
     estimates.print_header(state.root, estimates.header)
     if state.back_propagation and state.root:
-        estimates.print_header(state.root, estimates.back_propagated_header,
+        estimates.print_header(state.root, estimates.bp_header,
                                print_function=estimates.funit.write, eol='\n')
     # Calculate estimates for initial distribution of walkers.
     for w in psi:

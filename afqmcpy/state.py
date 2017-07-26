@@ -32,6 +32,7 @@ class State:
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', 0)
         itcf_opts = qmc_opts.get('itcf', None)
+        # repackage these options into class/dict
         self.itcf_nmax = 0
         if itcf_opts is not None:
             self.itcf = True
@@ -40,6 +41,8 @@ class State:
             self.itcf_mode = itcf_opts.get('mode', 'full')
             self.itcf_nmax = int(self.itcf_tmax/self.dt)
             self.itcf_kspace = itcf_opts.get('kspace', False)
+        else:
+            self.itcf = False
         self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
