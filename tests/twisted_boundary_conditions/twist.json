@@ -19,7 +19,9 @@
         "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
         "importance_sampling": true,
-        "rng_seed": 7,
-        "trial_wavefunction": "free_electron"
+        "rng_seed": 7
+    },
+    "trial_wavefunction": {
+        "name": "free_electron"
     }
 }

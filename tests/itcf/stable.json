@@ -27,7 +27,9 @@
             "stable": true,
             "tmax": 2,
             "mode": "diagonal"
-        },
-        "trial_wavefunction": "free_electron"
+        }
+    },
+    "trial_wavefunction": {
+        "name": "free_electron"
     }
 }

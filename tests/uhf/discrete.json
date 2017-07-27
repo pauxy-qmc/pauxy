@@ -19,7 +19,11 @@
         "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
         "importance_sampling": true,
-        "rng_seed": 7,
-        "trial_wavefunction": "UHF"
+        "rng_seed": 7
+    },
+    "trial_wavefunction": {
+        "name": "UHF",
+        "ueff": 0.5,
+        "ninitial": 20
     }
 }
