@@ -5,14 +5,15 @@
         "U": 4,
         "nx": 4,
         "ny": 4,
+        "ktwist": [0,0],
         "nup": 5,
         "ndown": 5
     },
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 1000,
-        "nmeasure": 20,
+        "nsteps": 100,
+        "nmeasure": 5,
         "nwalkers": 30,
         "npop_control": 10,
         "temperature": 0.0,
