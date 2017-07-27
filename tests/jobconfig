@@ -1,0 +1,7 @@
+# tests are already neatly arranged into categories by the directory structure...
+[uhf/]
+
+# Form job categories.
+[categories]
+
+_default_ = uhf
