@@ -21,7 +21,8 @@ class Free_Electron:
         else:
             self.trial_type = float
         # I think this is slightly cleaner than using two separate matrices.
-        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown))
+        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                               dtype=self.trial_type)
         self.psi[:,:system.nup] = self.eigv[:,:system.nup]
         self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
@@ -59,20 +60,22 @@ class UHF:
             else:
                 trial_type = float
 
-            trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown))
+            trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                                dtype=trial_type)
             trial[:,:system.nup] = ev_up[:,:system.nup]
             trial[:,system.nup:] = ev_down[:,:system.ndown]
             niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
             nidown = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
             niup_old = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
             nidown_old = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
-            eold = sum(e_up[:system.nup]+e_down[:system.ndown])
+            eold = sum(e_up[:system.nup]) + sum(e_down[:system.ndown])
             for it in range(0, nit_max):
                 HMFU = system.T + numpy.diag(ueff*nidown)
                 HMFD = system.T + numpy.diag(ueff*niup)
                 (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
                 (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
-                trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown))
+                trial = numpy.zeros(shape=(system.nbasis,
+                                    system.nup+system.ndown), dtype=trial_type)
                 trial[:,:system.nup] = ev_up[:,:system.nup]
                 trial[:,system.nup:] = ev_down[:,:system.ndown]
                 niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
