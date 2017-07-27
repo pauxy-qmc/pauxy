@@ -1,0 +1,33 @@
+{
+    "model": {
+        "name": "Hubbard",
+        "t": 1.0,
+        "U": 4,
+        "nx": 5,
+        "ny": 1,
+        "ktwist": [0],
+        "nup": 3,
+        "ndown": 3
+    },
+    "qmc_options": {
+        "method": "CPMC",
+        "dt": 0.05,
+        "nsteps": 1000,
+        "nmeasure": 10,
+        "nwalkers": 100,
+        "npop_control": 10,
+        "temperature": 0.0,
+        "hubbard_stratonovich": "discrete",
+        "importance_sampling": true,
+        "kinetic_kspace": false,
+        "rng_seed": 7,
+        "back_propagation": true,
+        "nback_prop": 10,
+        "itcf": {
+            "stable": true,
+            "tmax": 10,
+            "mode": "diagonal"
+        },
+        "trial_wavefunction": "free_electron"
+    }
+}
