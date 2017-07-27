@@ -118,3 +118,8 @@ def pretty_table_loop(results, model):
                           'U': model['U']}, columns=columns)
 
     return table
+
+def extract_test_data(filename):
+    (md, data) = extract_data(filename)
+    return data
+
