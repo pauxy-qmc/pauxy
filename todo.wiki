@@ -7,17 +7,18 @@ TODO:
     - [X] simple algorithm
     - [ ] reconfiguration
     - [ ] load balancing
-- [ ] population control
-    - [ ] try simple algorithm
-    - [ ] back propagation parents
-    - [ ] ITCF
+- [O] population control
+    - [X] try simple algorithm
+    - [X] back propagation parents
+    - [X] ITCF
+    - [ ] more correct version
 - [o] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
 - [o] Imaginary time green's functions
     - [X] Benchmarking
     - [X] error estimation
-    - [ ] stabilised algorithm
+    - [X] stabilised algorithm
     - [ ] targeted algorithm
     - [ ] optimisation
 - [o] back propagation / forward walking
@@ -30,11 +31,13 @@ TODO:
 - [X] UHF trial wfn
 - [X] Rectangular grid bcs issues
 - [X] python3
-- [ ] tests/benchmarks
+- [o] tests/benchmarks
+    - [X] bulk tests
+    - [ ] unit tests
 - [ ] documentation
-- [o] extraction script
+- [X] extraction script
     - [X] extract input file
-    - [ ] consistent analysis (numerator/denominator etc.)
+    - [X] consistent analysis (numerator/denominator etc.)
 
 === T>0 ===
 
