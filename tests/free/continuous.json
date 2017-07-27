@@ -17,7 +17,7 @@
         "nwalkers": 30,
         "npop_control": 10,
         "temperature": 0.0,
-        "hubbard_stratonovich": "continuous",
+        "hubbard_stratonovich": "opt_continuous",
         "importance_sampling": false,
         "rng_seed": 7,
         "trial_wavefunction": "free_electron"

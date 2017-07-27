@@ -12,9 +12,9 @@
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 1000,
+        "nsteps": 100,
         "nmeasure": 10,
-        "nwalkers": 100,
+        "nwalkers": 20,
         "npop_control": 10,
         "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
@@ -25,7 +25,7 @@
         "nback_prop": 10,
         "itcf": {
             "stable": false,
-            "tmax": 10,
+            "tmax": 2,
             "mode": "diagonal"
         },
         "trial_wavefunction": "free_electron"
