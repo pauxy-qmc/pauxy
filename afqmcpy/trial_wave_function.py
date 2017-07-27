@@ -46,6 +46,7 @@ class UHF:
         uold = system.U
         system.U = ueff
         minima= [0]
+        nup = system.nup
         for attempt in range(0, ninit):
             random = numpy.random.random((system.nbasis, system.nbasis))
             random = 0.5*(random + random.T)
@@ -58,24 +59,26 @@ class UHF:
             else:
                 trial_type = float
 
-            trial = numpy.array([ev_up[:,:system.nup], ev_down[:,:system.ndown]],
-                                    dtype=trial_type)
-            niup = numpy.diag(trial[0].dot((trial[0].conj()).T))
-            nidown = numpy.diag(trial[1].dot((trial[1].conj()).T))
-            niup_old = numpy.diag(trial[0].dot((trial[0].conj()).T))
-            nidown_old = numpy.diag(trial[1].dot((trial[1].conj()).T))
+            trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown))
+            trial[:,:system.nup] = ev_up[:,:system.nup]
+            trial[:,system.nup:] = ev_down[:,:system.ndown]
+            niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
+            nidown = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
+            niup_old = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
+            nidown_old = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
             eold = sum(e_up[:system.nup]+e_down[:system.ndown])
             for it in range(0, nit_max):
                 HMFU = system.T + numpy.diag(ueff*nidown)
                 HMFD = system.T + numpy.diag(ueff*niup)
                 (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
                 (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
-                trial = numpy.array([ev_up[:,:system.nup], ev_down[:,:system.ndown]],
-                                         dtype=trial_type)
-                niup = numpy.diag(trial[0].dot((trial[0].conj()).T))
-                nidown = numpy.diag(trial[1].dot((trial[1].conj()).T))
-                Gup = afqmcpy.estimators.gab(trial[0], trial[0]).T
-                Gdown = afqmcpy.estimators.gab(trial[1], trial[1]).T
+                trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown))
+                trial[:,:system.nup] = ev_up[:,:system.nup]
+                trial[:,system.nup:] = ev_down[:,:system.ndown]
+                niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
+                nidown = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
+                Gup = afqmcpy.estimators.gab(trial[:,:nup], trial[:,:nup]).T
+                Gdown = afqmcpy.estimators.gab(trial[:,nup:], trial[:,nup:]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
                 if self.self_consistant(enew, eold, niup, niup_old, nidown,
                                         nidown_old, it, deps):
