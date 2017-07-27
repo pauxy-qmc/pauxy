@@ -104,7 +104,7 @@ def pretty_table(summary, metadata):
 def pretty_table_loop(results, model):
 
     columns = ['tau', 'E', 'E_error', 'Eproj', 'Eproj_error', 'weight',
-               'numerator', 'model', 'lattice', 'filling', 'U']
+               'numerator', 'model', 'Lx', 'Ly', 'nx', 'ny', 'U']
     table = pd.DataFrame({'tau': results['tau'],
                           'E': results['E'],
                           'E_error': results['E_error'],
@@ -113,8 +113,8 @@ def pretty_table_loop(results, model):
                           'weight': results['weight'],
                           'numerator': results['numerator'],
                           'model': model['name'],
-                          'lattice': r'%sX%s'%(model['nx'],model['ny']),
-                          'filling': r'(%s,%s)'%(model['nup'], model['ndown']),
+                          'Lx': model['nx'], 'Ly': model['ny'],
+                          'nx': model['nup'], 'ny': model['ndown'],
                           'U': model['U']}, columns=columns)
 
     return table
