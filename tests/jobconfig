@@ -9,4 +9,4 @@
 # Form job categories.
 [categories]
 
-_default_ = uhf
+_default_ = uhf continuous discrete free itcf twisted_boundary_conditions

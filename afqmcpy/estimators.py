@@ -268,6 +268,7 @@ class Estimators():
         """
 
         I = numpy.identity(state.system.nbasis)
+        nup = state.system.nup
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
@@ -283,8 +284,8 @@ class Estimators():
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            G[0] = I - gab(wl.phi[0], wr.phi[0])
-            G[1] = I - gab(wl.phi[1], wr.phi[1])
+            G[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
+            G[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
             self.spgf[0] = self.spgf[0] + w.weight*G[0].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
@@ -324,6 +325,7 @@ class Estimators():
         Gnn = [I, I]
         # Be careful not to modify right hand wavefunctions field
         # configurations.
+        nup = state.system.nup
         for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
             # Initialise time-displaced GF for current walker.
             G = [I, I]
@@ -341,13 +343,13 @@ class Estimators():
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
                 if ic % state.nstblz == 0:
-                    wl.reortho()
+                    wl.reortho(nup)
                 psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
-            Gnn[0] = I - gab(wl.phi[0], wr.phi[0])
-            Gnn[1] = I - gab(wl.phi[1], wr.phi[1])
+            Gnn[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
+            Gnn[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
             self.spgf[0] = self.spgf[0] + w.weight*Gnn[0].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
@@ -370,9 +372,9 @@ class Estimators():
                 L = psi_Ls[len(psi_Ls)-ic-1]
                 afqmcpy.propagation.propagate_single(state, wr, B)
                 if ic % state.nstblz == 0:
-                    wr.reortho()
-                Gnn[0] = I - gab(L.phi[0], wr.phi[0])
-                Gnn[1] = I - gab(L.phi[1], wr.phi[1])
+                    wr.reortho(nup)
+                Gnn[0] = I - gab(L.phi[:,:nup], wr.phi[:,:nup])
+                Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
 
 class EstimatorEnum:
     """Enum structure for help with indexing estimators array.
@@ -425,9 +427,10 @@ def back_propagated_energy(system, psi_nm, psi_n, psi_bp):
     denominator = sum(wnm.weight for wnm in psi_nm)
     estimates = numpy.zeros(3)
     GTB = [0, 0]
+    nup = system.nup
     for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
-        GTB[0] = gab(wb.phi[0], wn.phi[0]).T
-        GTB[1] = gab(wb.phi[1], wn.phi[1]).T
+        GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
+        GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
         estimates = estimates + wnm.weight*numpy.array(list(local_energy(system, GTB)))
     return estimates.real / denominator
 
