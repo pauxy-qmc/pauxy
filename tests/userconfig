@@ -1,0 +1,11 @@
+[afqmcpy]
+exe = ../bin/afqmcpy
+inputs_args = ('*.json', '')
+vcs = git
+extract_fn = ../tools/analysis analysis.extraction.extract_test_data
+ignore_fields = iteration time
+
+[user]
+diff = vimdiff
+benchmark = 546be5b
+

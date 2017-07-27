@@ -1,0 +1,209 @@
+# Initialising AFQMCPY simulation from discrete.json
+# Running on 1 core
+# Constructing trial wavefunction
+# SCF cycle:   0. After   34 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   1. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   2. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   3. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   4. After   19 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   5. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   6. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   7. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   8. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:   9. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  10. After   37 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  11. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  12. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  13. After   26 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  14. After   27 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  15. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  16. After   26 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  17. After   19 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  18. After   27 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  19. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  20. After   32 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  21. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  22. After   63 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  23. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  24. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  25. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  26. After   31 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  27. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  28. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  29. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  30. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  31. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  32. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  33. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  34. After   33 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  35. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  36. After   30 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  37. After   18 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  38. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  39. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  40. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  41. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  42. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  43. After   46 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  44. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  45. After   26 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  46. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  47. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  48. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  49. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  50. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  51. After   26 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  52. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  53. After   48 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  54. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  55. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  56. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  57. After   33 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  58. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  59. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  60. After   34 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  61. After   27 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  62. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  63. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  64. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  65. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  66. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  67. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  68. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  69. After   19 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  70. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  71. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  72. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  73. After   26 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  74. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  75. After   23 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  76. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  77. After   25 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  78. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  79. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  80. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  81. After   19 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  82. After   27 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  83. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  84. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  85. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  86. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  87. After   20 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  88. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  89. After   19 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  90. After   29 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  91. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  92. After   28 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  93. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  94. After   24 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  95. After   35 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  96. After   21 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  97. After   22 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  98. After   30 steps the minimum UHF energy found is: -19.625974
+# SCF cycle:  99. After   23 steps the minimum UHF energy found is: -19.625974
+# Minimum energy found: -19.625974
+# Input options:
+{
+    "calculation": {
+        "Run time": "Thu Jul 27 10:12:47 2017", 
+        "sha1": "1a76e27ae1ac3a642c3bfc346172bbec7d8b764d", 
+        "uuid": "cf42cc4a-72ee-11e7-9dbe-9801a79f0295"
+    }, 
+    "model": {
+        "ndown": 4, 
+        "name": "Hubbard", 
+        "nup": 4, 
+        "nx": 4, 
+        "ny": 4, 
+        "ktwist": [
+            0, 
+            0
+        ], 
+        "U": 4, 
+        "t": 1.000000
+    }, 
+    "trial_wavefunction": {
+        "sp_eigv": [
+            -3.900169, 
+            -1.925974, 
+            -1.900169, 
+            -1.900169, 
+            -1.874026, 
+            0.074026, 
+            0.074026, 
+            0.099831, 
+            0.100169, 
+            0.125974, 
+            0.125974, 
+            2.074026, 
+            2.100169, 
+            2.100169, 
+            2.125974, 
+            4.100169, 
+            -3.900169, 
+            -1.925974, 
+            -1.900169, 
+            -1.900169, 
+            -1.874026, 
+            0.074026, 
+            0.074026, 
+            0.099831, 
+            0.100169, 
+            0.125974, 
+            0.125974, 
+            2.074026, 
+            2.100169, 
+            2.100169, 
+            2.125974, 
+            4.100169
+        ], 
+        "name": "UHF", 
+        "initialisation_time": 1.203760, 
+        "trial_energy": -19.625974
+    }, 
+    "qmc_options": {
+        "nsteps": 100, 
+        "temperature": 0.000000, 
+        "hubbard_stratonovich": "discrete", 
+        "nmeasure": 5, 
+        "rng_seed": 7, 
+        "npop_control": 10, 
+        "dt": 0.050000, 
+        "nwalkers": 30, 
+        "trial_wavefunction": "UHF", 
+        "method": "CPMC", 
+        "importance_sampling": true
+    }
+}
+# End of input options
+# Explanation of output column headers:
+# -------------------------------------
+# E : Projected energy estimator.
+# E_num : Numerator for projected energy estimator.
+# Weight : Total walker weight.
+# E_denom : Denominator for projected energy estimator.
+# iteration : Simulation iteration. iteration*dt = tau.
+# time : Time per processor to complete one iteration.
+        iteration            Weight             E_num           E_denom                 E              time
+ 0.0000000000e+00  6.0000000000e+00 -9.7613078380e+01  6.0000000000e+00 -1.6268846397e+01  8.3589553833e-04
+ 5.0000000000e+00  3.2704687682e+01 -5.5706083380e+02  3.2704687682e+01 -1.7033057745e+01  1.8831610680e-01
+ 1.0000000000e+01  3.7434822027e+01 -6.5036270230e+02  3.7434822027e+01 -1.7373201396e+01  1.9484114647e-01
+ 1.5000000000e+01  3.0496789466e+01 -5.3325284144e+02  3.0496789466e+01 -1.7485540307e+01  1.8644905090e-01
+ 2.0000000000e+01  3.0995878466e+01 -5.4118261893e+02  3.0995878466e+01 -1.7459825167e+01  1.8956589699e-01
+ 2.5000000000e+01  3.0315680322e+01 -5.3108620191e+02  3.0315680322e+01 -1.7518531541e+01  1.9199919701e-01
+ 3.0000000000e+01  3.0752562722e+01 -5.3968649212e+02  3.0752562722e+01 -1.7549317661e+01  1.9906806946e-01
+ 3.5000000000e+01  3.0136374390e+01 -5.2967720430e+02  3.0136374390e+01 -1.7576009557e+01  1.9168186188e-01
+ 4.0000000000e+01  3.0153096844e+01 -5.2665917665e+02  3.0153096844e+01 -1.7466172028e+01  1.9840407372e-01
+ 4.5000000000e+01  3.0392627431e+01 -5.3264667139e+02  3.0392627431e+01 -1.7525522352e+01  1.9133591652e-01
+ 5.0000000000e+01  3.0571866921e+01 -5.3420830842e+02  3.0571866921e+01 -1.7473852997e+01  1.9731497765e-01
+ 5.5000000000e+01  3.0048020184e+01 -5.2476335414e+02  3.0048020184e+01 -1.7464157403e+01  1.8844699860e-01
+ 6.0000000000e+01  3.0174212726e+01 -5.2730972527e+02  3.0174212726e+01 -1.7475508974e+01  1.8905305862e-01
+ 6.5000000000e+01  3.0129482783e+01 -5.2615357133e+02  3.0129482783e+01 -1.7463080104e+01  1.9258689880e-01
+ 7.0000000000e+01  2.9907393422e+01 -5.2072193542e+02  2.9907393422e+01 -1.7411144063e+01  1.9313311577e-01
+ 7.5000000000e+01  3.0330666648e+01 -5.2982651163e+02  3.0330666648e+01 -1.7468343765e+01  1.8876099586e-01
+ 8.0000000000e+01  3.0720350916e+01 -5.3714210646e+02  3.0720350916e+01 -1.7484894881e+01  1.8953704834e-01
+ 8.5000000000e+01  2.9988013022e+01 -5.2422864467e+02  2.9988013022e+01 -1.7481273077e+01  1.9111609459e-01
+ 9.0000000000e+01  3.0117125319e+01 -5.2749036818e+02  3.0117125319e+01 -1.7514632044e+01  1.9014501572e-01
+ 9.5000000000e+01  3.0281285516e+01 -5.3109187550e+02  3.0281285516e+01 -1.7538617217e+01  1.9520092010e-01
+# End Time: Thu Jul 27 10:12:51 2017
+# Running time : 5.030860 seconds

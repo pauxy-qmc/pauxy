@@ -5,20 +5,21 @@
         "U": 4,
         "nx": 4,
         "ny": 4,
-        "nup": 5,
-        "ndown": 5
+        "ktwist": [0,0],
+        "nup": 4,
+        "ndown": 4
     },
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 200,
-        "nmeasure": 10,
-        "nwalkers": 100,
-        "npop_control": 10000,
+        "nsteps": 100,
+        "nmeasure": 5,
+        "nwalkers": 30,
+        "npop_control": 10,
         "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
         "importance_sampling": true,
         "rng_seed": 7,
-        "trial_wavefunction": "free_electron"
+        "trial_wavefunction": "UHF"
     }
 }
