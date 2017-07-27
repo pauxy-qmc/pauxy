@@ -7,5 +7,5 @@ ignore_fields = iteration time
 
 [user]
 diff = vimdiff
-benchmark = 1a76e27
+benchmark = 546be5b
 
