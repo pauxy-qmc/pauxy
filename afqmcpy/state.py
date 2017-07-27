@@ -28,7 +28,8 @@ class State:
         # number of steps to equilibrate simulation, default to tau = 1.
         self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = qmc_opts['importance_sampling']
-        self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich')
+        self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich',
+                                                 'discrete')
         self.ffts = qmc_opts.get('kinetic_kspace', False)
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', 0)
@@ -54,8 +55,8 @@ class State:
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
-            if qmc_opts['hubbard_stratonovich'] == 'continuous':
-                self.two_body = hs_transform.construct_generic_one_body(system.Hubbard.gamma)
+            if self.hubbard_stratonovich == 'generic':
+                self.two_body = afqmcpy.hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                           self.hubbard_stratonovich,
@@ -67,7 +68,7 @@ class State:
                      or self.system.ktwist.all() != 0)
         # effective hubbard U for UHF trial wavefunction.
         self.ueff = qmc_opts.get('ueff', 0.4)
-        if self.hubbard_stratonovich == 'continuous':
+        if self.hubbard_stratonovich == 'opt_continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
             self.iut_fac = 1j*numpy.sqrt((self.system.U*self.dt))
