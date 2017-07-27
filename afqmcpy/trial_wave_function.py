@@ -13,7 +13,7 @@ import afqmcpy.utils
 
 class Free_Electron:
 
-    def __init__(self, system, cplx):
+    def __init__(self, system, cplx, trial):
         init_time = time.time()
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
@@ -31,14 +31,25 @@ class Free_Electron:
 
 class UHF:
 
-    def __init__(self, system, cplx, ueff, ninit=100, nit_max=5000, alpha=0.5):
+    def __init__(self, system, cplx, trial):
         print ("# Constructing trial wavefunction")
         init_time = time.time()
         if cplx:
             self.trial_type = complex
         else:
             self.trial_type = float
-        (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx, ueff, ninit, nit_max, alpha)
+        # Unpack input options.
+        self.ninitial = trial.get('ninitial', 100)
+        self.nconv = trial.get('nconv', 5000)
+        self.ueff = trial.get('ueff', 0.4)
+        self.deps = trial.get('deps', 1e-8)
+        self.alpha = trial.get('alpha', 0.5)
+        (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx,
+                                                             self.ueff,
+                                                             self.ninitial,
+                                                             self.nconv,
+                                                             self.alpha,
+                                                             self.deps)
         self.initialisation_time = time.time() - init_time
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha,

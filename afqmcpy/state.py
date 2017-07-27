@@ -14,7 +14,7 @@ import afqmcpy.hs_transform
 
 class State:
 
-    def __init__(self, model, qmc_opts):
+    def __init__(self, model, qmc_opts, trial):
 
         # Generic method option
         self.method = qmc_opts['method']
@@ -67,7 +67,6 @@ class State:
         self.cplx = ('continuous' in self.hubbard_stratonovich
                      or self.system.ktwist.all() != 0)
         # effective hubbard U for UHF trial wavefunction.
-        self.ueff = qmc_opts.get('ueff', 0.4)
         if self.hubbard_stratonovich == 'opt_continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
@@ -75,11 +74,15 @@ class State:
             self.ut_fac = self.dt*self.system.U
             # Include factor of M! bad name
             self.mf_nsq = self.system.nbasis * self.mf_shift**2.0
-        if qmc_opts['trial_wavefunction'] == 'free_electron':
-            self.trial = trial_wave_function.Free_Electron(self.system, self.cplx)
-        elif qmc_opts['trial_wavefunction'] == 'UHF':
-            self.trial = trial_wave_function.UHF(self.system, self.cplx, self.ueff)
-        elif qmc_opts['trial_wavefunction'] == 'multi_determinant':
+        if trial['name'] == 'free_electron':
+            self.trial = trial_wave_function.Free_Electron(self.system,
+                                                           self.cplx,
+                                                           trial)
+        elif trial['name'] == 'UHF':
+            self.trial = trial_wave_function.UHF(self.system,
+                                                 self.cplx,
+                                                 trial)
+        elif trial['name'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         self.local_energy_bound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0

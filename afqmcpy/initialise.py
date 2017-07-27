@@ -49,7 +49,8 @@ def initialise(input_file):
     seed = seed + rank
     numpy.random.seed(seed)
     if rank == 0:
-        state = afqmcpy.state.State(options['model'], options['qmc_options'])
+        state = afqmcpy.state.State(options['model'], options['qmc_options'],
+                                    options['trial_wavefunction'])
     else:
         state = None
     state = comm.bcast(state, root=0)
