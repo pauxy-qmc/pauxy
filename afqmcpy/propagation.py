@@ -51,7 +51,7 @@ def propagate_walker_free(walker, state):
 """
     kinetic_real(walker.phi, state)
     delta = state.auxf - 1
-    nup = state.system
+    nup = state.system.nup
     for i in range(0, state.system.nbasis):
         if abs(walker.weight) > 0:
             r = numpy.random.random()
@@ -60,17 +60,17 @@ def propagate_walker_free(walker, state):
                 vtup = walker.phi[i,:nup] * delta[0, 0]
                 vtdown = walker.phi[i,nup:] * delta[0, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[1][i,nup:] = walker.phi[i,nup:] + vtdown
+                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
             else:
-                vtup = walker.phi[i,:nup] * delta[1, 0]
+                vtup = walker.phi[i,:nup] * delta[1,0]
                 vtdown = walker.phi[i,nup:] * delta[1, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[1][i,nup:] = walker.phi[i,nup:] + vtdown
+                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
     kinetic_real(walker.phi, state)
-    walker.inverse_overlap(state.trial.psi)
+    walker.inverse_overlap(state.trial.psi, nup)
     # Update walker weight
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial.psi)
+    walker.greens_function(state.trial.psi, nup)
 
 
 def propagate_walker_free_continuous(walker, state):
@@ -86,6 +86,7 @@ def propagate_walker_free_continuous(walker, state):
     state : :class:`state.State`
         Simulation state.
 """
+    nup = state.system.nup
     # 1. Apply kinetic projector.
     kinetic_real(walker.phi, state)
     # Normally distributed random numbers.
@@ -100,9 +101,9 @@ def propagate_walker_free_continuous(walker, state):
     walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
     # 3. Apply kinetic projector.
     kinetic_real(walker.phi, state)
-    walker.inverse_overlap(state.trial.psi)
+    walker.inverse_overlap(state.trial.psi, nup)
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial.psi)
+    walker.greens_function(state.trial.psi, nup)
     # Constant terms are included in the walker's weight.
     walker.weight = walker.weight * c_xf
 
@@ -130,8 +131,8 @@ state : :class:`state.State`
     state.propagators.kinetic(walker.phi, state)
 
     # Now apply phaseless, real local energy approximation
-    walker.inverse_overlap(state.trial.psi)
-    walker.greens_function(state.trial.psi)
+    walker.inverse_overlap(state.trial.psi, state.system.nup)
+    walker.greens_function(state.trial.psi, state.system.nup)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.mean_local_energy, state.local_energy_bound)
