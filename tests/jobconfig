@@ -1,5 +1,10 @@
 # tests are already neatly arranged into categories by the directory structure...
 [uhf/]
+[continuous/]
+[discrete/]
+[free/]
+[itcf/]
+[twisted_boundary_conditions/]
 
 # Form job categories.
 [categories]
