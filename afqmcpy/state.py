@@ -1,11 +1,12 @@
-import json
-from json import encoder
+
+from __future__ import print_function
+
 import subprocess
 import sys
 import time
 import json
 import numpy
-import uuid as uuid
+import uuid
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
 import afqmcpy.propagation
@@ -114,7 +115,7 @@ class State:
         }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
-        encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
         if verbose:
             info = {
                 'calculation': calc_info,

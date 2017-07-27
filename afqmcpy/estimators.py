@@ -1,4 +1,7 @@
 """Routines and classes for estimation of observables."""
+
+from __future__ import print_function
+
 import numpy
 import time
 import copy
