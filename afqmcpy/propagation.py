@@ -262,15 +262,20 @@ state : :class:`afqmcpy.state.State`
 """
 
     # iterate over spins
-    for i in range(0, 2):
-        # Generate ~M^2 normally distributed auxiliary fields.
-        sigma = state.dt**0.5 * numpy.random.normal(0.0, 1.0, len(state.U))
-        # Construct HS potential, V_HS = sigma dot U
-        V_HS = numpy.einsum('ij,j->i', sigma, state.U)
-        # Reshape so we can apply to MxN Slater determinant.
-        V_HS = numpy.reshape(V_HS, (M,M))
-        for n in range(1, nmax_exp+1):
-            walker.phi[i] = walker.phi[i] + numpy.factorial(n) * np.dot(V_HS, phi)
+
+    dt = state.dt
+    gamma = state.system.gamma
+    nup = state.system.nup
+    # Generate ~M^2 normally distributed auxiliary fields.
+    sigma = dt**0.5 * numpy.random.normal(0.0, 1.0, len(gamma))
+    # Construct HS potential, V_HS = sigma dot U
+    V_HS = numpy.einsum('ij,j->i', sigma, gamma)
+    # Reshape so we can apply to MxN Slater determinant.
+    V_HS = numpy.reshape(V_HS, (M,M))
+    for n in range(1, nmax_exp+1):
+        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V)/numpy.factorial(n)
+    walker.phi[:nup] = numpy.dot(EXP_V, walker.phi[:nup])
+    walker.phi[nup:] = numpy.dot(EXP_V, walker.phi[:nup])
 
     # Update inverse and green's function
     walker.inverse_overlap(trial)
@@ -453,7 +458,7 @@ _projectors = {
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
-            'continuous': generic_continuous,
+            'generic': generic_continuous,
             'opt_continuous': dumb_hubbard,
             'dumb_continuous': dumb_hubbard,
         }

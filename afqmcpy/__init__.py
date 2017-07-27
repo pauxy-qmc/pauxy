@@ -16,3 +16,4 @@ import afqmcpy.estimators
 import afqmcpy.trial_wave_function
 import afqmcpy.propagation
 import afqmcpy.kpoints
+import afqmcpy.hs_transform
