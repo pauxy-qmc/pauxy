@@ -217,16 +217,16 @@ class Estimators():
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
-            if state.hubbard_stratonovich == 'continuous':
+            if 'continuous' in state.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
                 self.estimates[self.names.enumer] += w.weight*local_energy(state.system, w.G)[0].real
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
-            self.estimates[self.names.enumer] += w.weight * local_energy(state.system, w.G)[0] * w.ot
-            self.estimates[self.names.weight] += w.weight
-            self.estimates[self.names.edenom] += w.weight * w.ot
+            self.estimates[self.names.enumer] += (w.weight*local_energy(state.system, w.G)[0]*w.ot).real
+            self.estimates[self.names.weight] += w.weight.real
+            self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
     def update_back_propagated_observables(self, system, psi_nm, psi_n, psi_bp):
         """"Update estimates using back propagated wavefunctions.
