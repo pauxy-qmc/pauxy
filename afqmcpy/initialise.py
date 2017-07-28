@@ -60,9 +60,9 @@ def initialise(input_file):
     if state.root:
         state.write_json(eol='\n', eoll='')
     # TODO: Do this more gracefully.
-    state.nwalkers = int(state.nwalkers/nprocs)
+    state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)
-            for w in range(state.nwalkers)]
+            for w in range(state.qmc.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     # TODO: Return state and psi and run from another routine.
     return state

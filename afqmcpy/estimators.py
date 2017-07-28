@@ -146,13 +146,13 @@ class Estimators():
         """
         es = self.estimates
         ns = self.names
-        es[ns.eproj] = (state.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
+        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
         es[ns.pot+1:] = self.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
-        global_estimates[:ns.time] = global_estimates[:ns.time] / state.nmeasure
+        global_estimates[:ns.time] = global_estimates[:ns.time] / state.qmc.nmeasure
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                                           list(global_estimates[:ns.evar])))
@@ -221,11 +221,11 @@ class Estimators():
         state : :class:`afqmcpy.state.State`
             system parameters as well as current 'state' of the simulation.
         """
-        if state.importance_sampling:
+        if state.qmc.importance_sampling:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
-            if 'continuous' in state.hubbard_stratonovich:
+            if 'continuous' in state.qmc.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
                 self.estimates[self.names.enumer] += w.weight*local_energy(state.system, w.G)[0].real

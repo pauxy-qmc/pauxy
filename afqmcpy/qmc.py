@@ -41,7 +41,7 @@ def do_qmc(state, psi, comm):
     # zero which would mess up the averages.
     estimates.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
-    for step in range(1, state.nsteps):
+    for step in range(1, state.qmc.nsteps):
         for w in psi:
             # Want to possibly allow for walkers with negative / complex weights
             # when not using a constraint. I'm not so sure about the criteria
@@ -49,10 +49,10 @@ def do_qmc(state, psi, comm):
             if abs(w.weight) > 1e-8:
                 state.propagators.propagate_walker(w, state)
             # Constant factors
-            w.weight = w.weight * exp(state.dt*E_T.real)
+            w.weight = w.weight * exp(state.qmc.dt*E_T.real)
             # Add current (propagated) walkers contribution to estimates.
             estimates.update(w, state)
-            if step%state.nstblz == 0:
+            if step%state.qmc.nstblz == 0:
                 detR = w.reortho(state.system.nup)
                 if not state.importance_sampling:
                     w.weight = detR * w.weight
@@ -86,14 +86,14 @@ def do_qmc(state, psi, comm):
                 estimates.calculate_itcf_unstable(state, psi_hist, psi_left)
             # New nth right-hand wfn for next estimate of ITCF.
             psi_hist[:,0] = copy.deepcopy(psi)
-        if step%state.nmeasure == 0:
+        if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
             E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
             estimates.print_step(state, comm, step)
-        if step < state.nequilibrate:
+        if step < state.qmc.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
-        if step%state.npop_control == 0:
-            psi_hist = pop_control.comb(psi, state.nwalkers, psi_hist)
+        if step%state.qmc.npop_control == 0:
+            psi_hist = pop_control.comb(psi, state.qmc.nwalkers, psi_hist)
 
     return (state, psi)

@@ -135,11 +135,12 @@ state : :class:`state.State`
     walker.greens_function(state.trial.psi, state.system.nup)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
     # Check for large population fluctuations
-    E_L = local_energy_bound(E_L, state.mean_local_energy, state.local_energy_bound)
+    E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
+                             state.qmc.local_energy_bound)
     ot_new = walker.calc_otrial(state.trial.psi)
     # Walker's phase.
     dtheta = cmath.phase(cxf*ot_new/walker.ot)
-    walker.weight = (walker.weight * math.exp(-0.5*state.dt*(walker.E_L+E_L))
+    walker.weight = (walker.weight * math.exp(-0.5*state.qmc.dt*(walker.E_L+E_L))
                                    * max(0, math.cos(dtheta)))
     walker.E_L = E_L
     walker.ot = ot_new
@@ -184,7 +185,7 @@ state : :class:`afqmcpy.state.State`
     Simulation state.
 """
     # Construct random auxilliary field.
-    delta = state.auxf - 1
+    delta = state.system.auxf - 1
     nup = state.system.nup
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
@@ -235,14 +236,20 @@ state : :class:`afqmcpy.state.State`
     Simulation state.
 """
 
+    mf = state.qmc.mf_shift
+    ifac = state.qmc.iut_fac
+    ufac = state.qmc.ut_fac
+    nsq = state.qmc.mf_nsq
     # Normally distrubted auxiliary fields.
     xi = numpy.random.normal(0.0, 1.0, state.system.nbasis)
     # Optimal field shift for real local energy approximation.
-    xi_opt = -state.iut_fac*(numpy.diag(walker.G[0])+numpy.diag(walker.G[1])-state.mf_shift)
+    shift = numpy.diag(walker.G[0])+numpy.diag(walker.G[1]) - mf
+    xi_opt = -ifac*shift
     sxf = sum(xi-xi_opt)
+    print (sxf)
     # Propagator for potential term with mean field and auxilary field shift.
-    c_xf = cmath.exp(0.5*state.ut_fac*state.mf_nsq-state.iut_fac*state.mf_shift*sxf)
-    EXP_VHS = numpy.exp(0.5*state.ut_fac*(1-2.0*state.mf_shift)+state.iut_fac*(xi-xi_opt))
+    c_xf = cmath.exp(0.5*ufac*nsq-ifac*mf*sxf)
+    EXP_VHS = numpy.exp(0.5*ufac*(1-2.0*mf)+ifac*(xi-xi_opt))
     nup = state.system.nup
     walker.phi[:,:nup] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,:nup])
     walker.phi[:,nup:] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,nup:])

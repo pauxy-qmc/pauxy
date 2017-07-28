@@ -16,21 +16,10 @@ class State:
 
     def __init__(self, model, qmc_opts, trial):
 
-        # Generic method option
-        self.method = qmc_opts['method']
-        self.nwalkers = qmc_opts['nwalkers']
-        self.dt = qmc_opts['dt']
-        self.nsteps = qmc_opts['nsteps']
-        self.nmeasure = qmc_opts['nmeasure']
-        self.nstblz = qmc_opts.get('nstabilise', 10)
-        self.npop_control = qmc_opts.get('npop_control')
-        self.temp = qmc_opts['temperature']
-        # number of steps to equilibrate simulation, default to tau = 1.
-        self.nequilibrate = qmc_opts.get('nequilibrate', int(1.0/self.dt))
-        self.importance_sampling = qmc_opts['importance_sampling']
-        self.hubbard_stratonovich = qmc_opts.get('hubbard_stratonovich',
-                                                 'discrete')
-        self.ffts = qmc_opts.get('kinetic_kspace', False)
+        if model['name'] == 'Hubbard':
+            # sytem packages all generic information + model specific information.
+            self.system = hubbard.Hubbard(model, qmc_opts['dt'])
+        self.qmc = QMCOpts(qmc_opts, self.system)
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.nback_prop = qmc_opts.get('nback_prop', 0)
         itcf_opts = qmc_opts.get('itcf', None)
@@ -48,44 +37,24 @@ class State:
         self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
-        if model['name'] == 'Hubbard':
-            # sytem packages all generic information + model specific information.
-            self.system = hubbard.Hubbard(model)
-            self.gamma = numpy.arccosh(numpy.exp(0.5*self.dt*self.system.U))
-            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*self.dt*self.system.U)
-            if self.hubbard_stratonovich == 'generic':
-                self.two_body = afqmcpy.hs_transform.construct_generic_one_body(system.Hubbard.gamma)
 
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                          self.hubbard_stratonovich,
-                                                          self.dt, self.system.T,
-                                                          self.importance_sampling,
+                                                          self.qmc.hubbard_stratonovich,
+                                                          self.qmc.dt, self.system.T,
+                                                          self.qmc.importance_sampling,
                                                           self.system.eks,
-                                                          self.ffts)
-        self.cplx = ('continuous' in self.hubbard_stratonovich
-                     or self.system.ktwist.all() != 0)
+                                                          self.qmc.ffts)
         # effective hubbard U for UHF trial wavefunction.
-        if self.hubbard_stratonovich == 'opt_continuous':
-            # optimal mean-field shift for the hubbard model
-            self.mf_shift = (self.system.nup + self.system.ndown) / float(self.system.nbasis)
-            self.iut_fac = 1j*numpy.sqrt((self.system.U*self.dt))
-            self.ut_fac = self.dt*self.system.U
-            # Include factor of M! bad name
-            self.mf_nsq = self.system.nbasis * self.mf_shift**2.0
         if trial['name'] == 'free_electron':
             self.trial = trial_wave_function.Free_Electron(self.system,
-                                                           self.cplx,
+                                                           self.qmc.cplx,
                                                            trial)
         elif trial['name'] == 'UHF':
             self.trial = trial_wave_function.UHF(self.system,
-                                                 self.cplx,
+                                                 self.qmc.cplx,
                                                  trial)
         elif trial['name'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
-        self.local_energy_bound = (2.0/self.dt)**0.5
-        self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
         self.model = model
         self.qmc_opts = qmc_opts
@@ -137,6 +106,34 @@ class State:
         if encode == True:
             output_string = output_string.encode('utf-8')
         print_function(output_string)
+
+class QMCOpts:
+
+    def __init__(self, inputs, system):
+        self.method = inputs.get('method', None)
+        self.nwalkers = inputs.get('nwalkers', None)
+        self.dt = inputs.get('dt', None)
+        self.nsteps = inputs.get('nsteps', None)
+        self.nmeasure = inputs.get('nmeasure', 10)
+        self.nstblz = inputs.get('nstabilise', 10)
+        self.npop_control = inputs.get('npop_control', 10)
+        self.temp = inputs.get('temperature', None)
+        self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
+        self.importance_sampling = inputs.get('importance_sampling', True)
+        self.hubbard_stratonovich = inputs.get('hubbard_stratonovich',
+                                                'discrete')
+        self.ffts = inputs.get('kinetic_kspace', False)
+        self.cplx = ('continuous' in self.hubbard_stratonovich
+                     or system.ktwist.all() != 0)
+        if self.hubbard_stratonovich == 'opt_continuous':
+            # optimal mean-field shift for the hubbard model
+            self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)
+            self.iut_fac = 1j*numpy.sqrt((system.U*self.dt))
+            self.ut_fac = self.dt*system.U
+            # Include factor of M! bad name
+            self.mf_nsq = system.nbasis * self.mf_shift**2.0
+        self.local_energy_bound = (2.0/self.dt)**0.5
+        self.mean_local_energy = 0
 
 
 def get_git_revision_hash():
