@@ -30,7 +30,7 @@ class State:
             self.itcf_stable = itcf_opts.get('stable', True)
             self.itcf_tmax = itcf_opts.get('tmax', 0.0)
             self.itcf_mode = itcf_opts.get('mode', 'full')
-            self.itcf_nmax = int(self.itcf_tmax/self.dt)
+            self.itcf_nmax = int(self.itcf_tmax/self.qmc.dt)
             self.itcf_kspace = itcf_opts.get('kspace', False)
         else:
             self.itcf = False

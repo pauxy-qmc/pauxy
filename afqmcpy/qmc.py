@@ -22,13 +22,14 @@ def do_qmc(state, psi, comm):
     if state.back_propagation:
         # Easier to just keep a histroy of all walkers for population control
         # purposes if a bit memory inefficient.
-        psi_hist = numpy.empty(shape=(state.nwalkers, state.nprop_tot+1),
+        psi_hist = numpy.empty(shape=(state.qmc.nwalkers, state.nprop_tot+1),
                                dtype=object)
         psi_hist[:,0] = copy.deepcopy(psi)
     else:
         psi_hist = None
 
     (E_T, ke, pe) = estimators.local_energy(state.system, psi[0].G)
+    state.qmc.mean_local_energy = E_T.real
     estimates = estimators.Estimators(state)
     estimates.print_header(state.root, estimates.header)
     if state.back_propagation and state.root:

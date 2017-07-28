@@ -200,7 +200,9 @@ class Estimators():
             print some elements of G.
         """
         for (ic, g) in enumerate(spgf):
-            funit.write(('# tau = %4.2f\n'%(ic*state.dt)).encode('utf-8'))
+            funit.write(('# tau = %4.2f\n'%(ic*state.qmc.dt)).encode('utf-8'))
+            if state.itcf_kspace:
+                kfunit.write(('# tau = %4.2f\n'%(ic*state.qmc.dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
             if state.itcf_mode == 'full':
                 numpy.savetxt(funit, g)
@@ -366,7 +368,7 @@ class Estimators():
                                                                     c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
-                if ic % state.nstblz == 0:
+                if ic % state.qmc.nstblz == 0:
                     wl.reortho(nup)
                 psi_Ls.append(copy.deepcopy(wl))
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -405,7 +407,7 @@ class Estimators():
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
                 afqmcpy.propagation.propagate_single(state, wr, B)
-                if ic % state.nstblz == 0:
+                if ic % state.qmc.nstblz == 0:
                     wr.reortho(nup)
                 Gnn[0] = I - gab(L.phi[:,:nup], wr.phi[:,:nup])
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
