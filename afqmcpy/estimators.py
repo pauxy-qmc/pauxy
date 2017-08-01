@@ -30,49 +30,48 @@ class Estimators():
         See afqmcpy.estimators.Estimates.print_key for description.
     """
 
-    def __init__(self, state):
+    def __init__(self, estimates, dt, nbasis, nwalkers, json_string):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
-        self.bp_header = ['iteration', 'E', 'T', 'V']
-        if state.root:
-            self.print_key()
-        if state.back_propagation:
-            if state.root:
-                self.funit = open('back_propagated_estimates_%s.out'%state.uuid[:8], 'a')
-                state.write_json(print_function=self.funit.write, eol='\n',
-                                 verbose=True)
-                self.print_key(state.back_propagation, self.funit.write,
-                               eol='\n')
-            if state.itcf:
-                self.itcf_keys = [['up', 'down'], ['greater', 'lesser']]
-                # I don't like list indexing
-                self.itcf_units = numpy.empty(shape=(2,2), dtype=object)
-                self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
-                if state.root:
-                    base = '_greens_function_%s.out'%state.uuid[:8]
-                    for (i, s) in enumerate(self.itcf_keys[0]):
-                        for (j, t) in enumerate(self.itcf_keys[1]):
-                            name = 'spin_%s_%s'%(s,t) + base
-                            self.itcf_units[i,j] = open(name, 'ab')
-                            state.write_json(print_function=self.itcf_units[i,j].write,
-                                             eol='\n', verbose=True, encode=True)
-                            if state.itcf_kspace:
-                                self.kspace_units[i,j] = open('kspace_'+name, 'ab')
-                                state.write_json(print_function=self.kspace_units[i,j].write,
-                                                 eol='\n', verbose=True, encode=True)
-                    else:
-                        self.kspace_itcf_unit = None
-        self.nestimators = len(self.header[1:]) + len(self.bp_header[1:])
+        self.key = {
+            'iteration': "Simulation iteration. iteration*dt = tau.",
+            'Weight': "Total walker weight.",
+            'E_num': "Numerator for projected energy estimator.",
+            'E_denom': "Denominator for projected energy estimator.",
+            'E': "Projected energy estimator.",
+            'time': "Time per processor to complete one iteration.",
+        }
+        print_key(self.key)
+        self.nestimators = len(self.header[1:])
+        # Sub-members:
+        # 1. Back-propagation
+        bp = estimates.get('back_propagation', None)
+        self.back_propagation = bp is not None
+        if bp:
+            self.back_prop = BackPropagation(bp, json_string)
+            self.nestimators +=  len(self.back_prop.header[1:])
+            self.nprop_tot = self.back_prop.nmax
+        else:
+            self.nprop_tot = 1
+        # 2. Imaginary time correlation functions.
+        itcf = estimates.get('itcf', None)
+        self.calc_itcf = itcf is not None
+        self.estimates = numpy.zeros(self.nestimators)
+        if itcf:
+            self.itcf = ITCF(itcf, dt, json_string, nbasis)
+            self.estimates = numpy.zeros(self.nestimators +
+                                         len(self.itcf.spgf.flatten()))
+            self.nprop_tot += self.itcf.nmax
+        if itcf or bp:
+            # Store for historic wavefunctions/walkers along back propagation
+            # path.
+            self.psi_hist = numpy.empty(shape=(nwalkers, self.nprop_tot+1),
+                                        dtype=object)
         self.names = EstimatorEnum(self.nestimators)
-        # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-k(=0 for up
-        # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
-        # function at time i.
-        self.spgf = numpy.zeros(shape=(state.itcf_nmax+1, 2, 2,
-                                       state.system.nbasis,
-                                       state.system.nbasis))
-        self.estimates = numpy.zeros(self.nestimators+len(self.spgf.flatten()))
-        self.zero(state)
+        # only store up component for the moment.
+        self.zero(nbasis)
 
-    def zero(self, state):
+
+    def zero(self, nbasis):
         """Zero estimates.
 
         On return self.estimates is zerod and the timers are reset.
@@ -80,57 +79,10 @@ class Estimators():
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
-        self.spgf = numpy.zeros(shape=(state.itcf_nmax+1, 2, 2,
-                                       state.system.nbasis, state.system.nbasis))
-
-    def print_key(self, back_propagation=False, print_function=print, eol=''):
-        """Print out information about what the estimates are.
-
-        Parameters
-        ----------
-        back_propagation : bool, optional
-            True if doing back propagation. Default : False.
-        print_function : method, optional
-            How to print state information, e.g. to std out or file. Default : print.
-        eol : string, optional
-            String to append to output, e.g., '\n', Default : ''.
-        """
-        if back_propagation:
-            explanation = {
-                'iteration': "Simulation iteration when back-propagation "
-                             "measurement occured.",
-                'E_var': "BP estimate for internal energy.",
-                'T': "BP estimate for kinetic energy.",
-                'V': "BP estimate for potential energy."
-            }
-        else:
-            explanation = {
-                'iteration': "Simulation iteration. iteration*dt = tau.",
-                'Weight': "Total walker weight.",
-                'E_num': "Numerator for projected energy estimator.",
-                'E_denom': "Denominator for projected energy estimator.",
-                'E': "Projected energy estimator.",
-                'time': "Time per processor to complete one iteration.",
-            }
-        print_function('# Explanation of output column headers:'+eol)
-        print_function('# -------------------------------------'+eol)
-        for (k, v) in explanation.items():
-            print_function('# %s : %s'%(k, v)+eol)
-
-    def print_header(self, root, header, print_function=print, eol=''):
-        """Print out header for estimators
-
-        Parameters
-        ----------
-        back_propagation : bool, optional
-            True if doing back propagation. Default : False.
-        print_function : method, optional
-            How to print state information, e.g. to std out or file. Default : print.
-        eol : string, optional
-            String to append to output, e.g., '\n', Default : ''.
-        """
-        if root:
-            print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
+        if self.calc_itcf:
+            self.itcf.spgf = numpy.zeros(shape=(self.itcf.nmax+1,
+                                                nbasis,
+                                                nbasis))
 
     def print_step(self, state, comm, step, print_bp=True, print_itcf=True):
         """Print QMC estimates.
@@ -149,72 +101,43 @@ class Estimators():
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
-        es[ns.pot+1:] = self.spgf.flatten() / state.nprocs
+        es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = global_estimates[:ns.time] / state.qmc.nmeasure
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
-                                                          list(global_estimates[:ns.evar])))
+                                list(global_estimates[:ns.evar])))
             if state.back_propagation and print_bp:
-                ff = afqmcpy.utils.format_fixed_width_floats([step]+
-                                                             list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
+                ff = (
+                    afqmcpy.utils.format_fixed_width_floats([step]+
+                            list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
+                )
                 self.funit.write(ff+'\n')
 
-        if state.root and step%state.nprop_tot == 0 and state.itcf and print_itcf:
-            spgf = global_estimates[ns.pot+1:].reshape(self.spgf.shape)
-            for (i,s) in enumerate(self.itcf_keys[0]):
-                for (j,t) in enumerate(self.itcf_keys[1]):
-                    self.print_itcf(spgf[:,i,j,:,:], state,
-                                    self.itcf_units[i,j])
+        if state.root and step%state.nprop_tot == 0 and state.calc_itcf and print_itcf:
+            spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
+            for (i,s) in enumerate(self.itcf.keys[0]):
+                for (j,t) in enumerate(self.itcf.keys[1]):
+                    self.itcf.to_file(spgf[:,i,j,:,:],
+                                      self.itcf_units[i,j],
+                                      state.qmc.dt,
+                                      state.system.nbasis)
             if state.itcf_kspace:
                 M = state.system.nbasis
+                # FFT the real space Green's function.
+                # Todo : could just use numpy.fft.fft....
                 spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
                                       spgf, state.system.P.conj().T).real/M
                 for (i,t) in enumerate(self.itcf_keys[0]):
                     for (j,s) in enumerate(self.itcf_keys[1]):
-                        self.print_itcf(spgf_k[:,i,j,:,:], state,
-                                        self.kspace_units[i,j])
+                        self.itcf.to_file(spgf_k[:,i,j,:,:], state,
+                                          self.kspace_units[i,j])
 
         self.zero(state)
 
-    def print_itcf(self, spgf, state, funit):
-        """Save ITCF to file.
-
-        This appends to any previous estimates from the same simulation.
-
-        Stolen from https://stackoverflow.com/a/3685339
-
-        Parameters
-        ----------
-        itcf : numpy array
-            Flattened ITCF.
-        dt : float
-            Time step
-        gf_shape: tuple
-            Actual shape of ITCF Green's function matrix.
-        funit : file
-            Output file for ITCF.
-        mode : string or list
-            if mode == 'full' we print the full green's function else we'll
-            print some elements of G.
-        """
-        for (ic, g) in enumerate(spgf):
-            funit.write(('# tau = %4.2f\n'%(ic*state.qmc.dt)).encode('utf-8'))
-            if state.itcf_kspace:
-                kfunit.write(('# tau = %4.2f\n'%(ic*state.qmc.dt)).encode('utf-8'))
-            # Maybe look at binary / hdf5 format if things get out of hand.
-            if state.itcf_mode == 'full':
-                numpy.savetxt(funit, g)
-            elif state.itcf_mode == 'diagonal':
-                output = afqmcpy.utils.format_fixed_width_floats(numpy.diag(g))
-                funit.write((output+'\n').encode('utf-8'))
-            else:
-                output = afqmcpy.utils.format_fixed_width_floats(g[state.itcf_mode])
-                funit.write((output+'\n').encode('utf-8'))
-
     def update(self, w, state):
-        """Update estimates for walker w.
+        """Update regular estimates for walker w.
 
         Parameters
         ----------
@@ -238,24 +161,96 @@ class Estimators():
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
-    def update_back_propagated_observables(self, system, psi_nm, psi_n, psi_bp):
-        """"Update estimates using back propagated wavefunctions.
+class EstimatorEnum:
+    """Enum structure for help with indexing estimators array.
+
+    python's support for enums doesn't help as it indexes from 1.
+    """
+    def __init__(self, nestimators):
+        self.weight = 0
+        self.enumer = 1
+        self.edenom = 2
+        self.eproj = 3
+        self.time = 4
+        self.evar = 5
+        self.kin = 6
+        self.pot = 7
+
+
+class BackPropagation:
+
+    def __init__(self, bp, nwalkers, json_string):
+        self.nmax = bp.get('nback_prop', 0)
+        self.header = ['iteration', 'E', 'T', 'V']
+        self.key = {
+            'iteration': "Simulation iteration when back-propagation "
+                         "measurement occured.",
+            'E_var': "BP estimate for internal energy.",
+            'T': "BP estimate for kinetic energy.",
+            'V': "BP estimate for potential energy."
+        }
+        if state.root:
+            file_name = 'back_propagated_estimates_%s.out'%state.uuid[:8]
+            self.funit = open(file_name, 'a')
+            self.funit.write(json_string.encode('utf-8'))
+            print_key(self.key, self.funit.write, eol='\n')
+
+    def update_energy(system, psi_nm, psi_n, psi_bp, estimates):
+        """Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
         ----------
-        state : :class:`afqmcpy.state.State`
-            state object
         psi : list of :class:`afqmcpy.walker.Walker` objects
             current distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
         psit : list of :class:`afqmcpy.walker.Walker` objects
             previous distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau`.
-        psib : list of :class:`afqmcpy.walker.Walker` objects
+        psi_bp : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
+        denominator = sum(wnm.weight for wnm in psi_nm)
+        current = numpy.zeros(3)
+        GTB = [0, 0]
+        nup = system.nup
+        for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
+            GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
+            GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
+            current = current + wnm.weight*numpy.array(list(local_energy(system, GTB)))
+        estimates = estimates + current.real / denominator
 
-        self.estimates[self.names.evar:self.names.pot+1] = back_propagated_energy(system, psi_nm, psi_n, psi_bp)
+
+class ITCF:
+
+    def __init__(self, itcf, root, nbasis, dt, json_string, nbasis):
+        self.stable = itcf.get('stable', True)
+        self.tmax = itcf.get('tmax', 0.0)
+        self.mode = itcf.get('mode', 'full')
+        self.nmax = int(self.tmax/dt)
+        self.kspace = itcf_opts.get('kspace', False)
+        # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
+        # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
+        # function at time i.
+        # +1 in the first dimension is for the green's function at time tau = 0.
+        self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2,
+                                       nbasis,
+                                       nbasis))
+        if root:
+            self.keys = [['up', 'down'], ['greater', 'lesser']]
+            # I don't like list indexing so stick with numpy.
+            self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
+            self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
+            base = '_greens_function_%s.out'%state.uuid[:8]
+            for (i, s) in enumerate(self.rspace_keys[0]):
+                for (j, t) in enumerate(self.rspace_keys[1]):
+                    name = 'spin_%s_%s'%(s,t) + base
+                    self.rspace_units[i,j] = open(name, 'ab')
+                    state.write_json(print_function=self.rspace_units[i,j].write,
+                                     eol='\n', verbose=True, encode=True)
+                    if state.itcf_kspace:
+                        self.kspace_units[i,j] = open('kspace_'+name, 'ab')
+                        state.write_json(print_function=self.kspace_units[i,j].write,
+                                         eol='\n', verbose=True, encode=True)
 
     def calculate_itcf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
@@ -413,16 +408,37 @@ class Estimators():
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
-class EstimatorEnum:
-    """Enum structure for help with indexing estimators array.
+    def to_file(self, spgf, funit, dt, nbasis):
+        """Save ITCF to file.
 
-    python's support for enums doesn't help as it indexes from 1.
-    """
+        This appends to any previous estimates from the same simulation.
 
-    def __init__(self, nestimators):
-        (self.weight, self.enumer, self.edenom, self.eproj,
-         self.time, self.evar, self.kin, self.pot) = range(nestimators)
+        Stolen from https://stackoverflow.com/a/3685339
 
+        Parameters
+        ----------
+        itcf : numpy array
+            Flattened ITCF.
+        dt : float
+            Time step
+        gf_shape: tuple
+            Actual shape of ITCF Green's function matrix.
+        funit : file
+            Output file for ITCF.
+        mode : string or list
+            if mode == 'full' we print the full green's function else we'll
+            print some elements of G.
+        """
+        for (ic, g) in enumerate(self.spgf):
+            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
+            # Maybe look at binary / hdf5 format if things get out of hand.
+            if self.mode == 'full':
+                numpy.savetxt(self.funit, g)
+            elif self.mode == 'diagonal':
+                numpy.savetxt(self.funit, numpy.diag(g).T)
+            else:
+                output = afqmcpy.utils.format_fixed_width_floats(g[self.mode])
+                self.funit.write((output+'\n').encode('utf-8'))
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.
@@ -445,31 +461,6 @@ E_L(phi) : float
     pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
     return (ke + pe, ke, pe)
-
-
-def back_propagated_energy(system, psi_nm, psi_n, psi_bp):
-    """Calculate back-propagated "local" energy for given walker/determinant.
-
-    Parameters
-    ----------
-    psi : list of :class:`afqmcpy.walker.Walker` objects
-        current distribution of walkers, i.e., at the current iteration in the
-        simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-    psit : list of :class:`afqmcpy.walker.Walker` objects
-        previous distribution of walkers, i.e., at the current iteration in the
-        simulation corresponding to :math:`\tau`.
-    psi_bp : list of :class:`afqmcpy.walker.Walker` objects
-        backpropagated walkers at time :math:`\tau_{bp}`.
-    """
-    denominator = sum(wnm.weight for wnm in psi_nm)
-    estimates = numpy.zeros(3)
-    GTB = [0, 0]
-    nup = system.nup
-    for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
-        GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
-        GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
-        estimates = estimates + wnm.weight*numpy.array(list(local_energy(system, GTB)))
-    return estimates.real / denominator
 
 
 def gab(A, B):
@@ -504,3 +495,36 @@ def gab(A, B):
     inv_O = scipy.linalg.inv((A.conj().T).dot(B))
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
+
+
+def print_key(key, print_function=print, eol=''):
+    """Print out information about what the estimates are.
+
+    Parameters
+    ----------
+    back_propagation : bool, optional
+        True if doing back propagation. Default : False.
+    print_function : method, optional
+        How to print state information, e.g. to std out or file. Default : print.
+    eol : string, optional
+        String to append to output, e.g., '\n', Default : ''.
+    """
+    print_function('# Explanation of output column headers:'+eol)
+    print_function('# -------------------------------------'+eol)
+    for (k, v) in key.items():
+        print_function('# %s : %s'%(k, v)+eol)
+
+
+def print_header(header, print_function=print, eol=''):
+    """Print out header for estimators
+
+    Parameters
+    ----------
+    back_propagation : bool, optional
+        True if doing back propagation. Default : False.
+    print_function : method, optional
+        How to print state information, e.g. to std out or file. Default : print.
+    eol : string, optional
+        String to append to output, e.g., '\n', Default : ''.
+    """
+    print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)

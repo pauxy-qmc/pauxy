@@ -9,35 +9,21 @@ import numpy
 import uuid
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
+import afqmcpy.estimators
 import afqmcpy.propagation
 import afqmcpy.hs_transform
 
 class State:
 
-    def __init__(self, model, qmc_opts, trial):
+    def __init__(self, model, qmc_opts, trial, estimates):
 
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model, qmc_opts['dt'])
         self.qmc = QMCOpts(qmc_opts, self.system)
         self.back_propagation = qmc_opts.get('back_propagation', False)
-        self.nback_prop = qmc_opts.get('nback_prop', 0)
-        itcf_opts = qmc_opts.get('itcf', None)
-        # repackage these options into class/dict
-        self.itcf_nmax = 0
-        if itcf_opts is not None:
-            self.itcf = True
-            self.itcf_stable = itcf_opts.get('stable', True)
-            self.itcf_tmax = itcf_opts.get('tmax', 0.0)
-            self.itcf_mode = itcf_opts.get('mode', 'full')
-            self.itcf_nmax = int(self.itcf_tmax/self.qmc.dt)
-            self.itcf_kspace = itcf_opts.get('kspace', False)
-        else:
-            self.itcf = False
-        self.nprop_tot = max(1, self.itcf_nmax+self.nback_prop)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
-
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                           self.qmc.hubbard_stratonovich,
                                                           self.qmc.dt, self.system.T,
@@ -56,13 +42,15 @@ class State:
         elif trial['name'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         # Handy to keep original dicts so they can be printed at run time.
-        self.model = model
-        self.qmc_opts = qmc_opts
+        self.json_string = self.write_json(model, qmc_opts)
+        self.estimators = afqmcpy.estimators.Estimators(estimates,
+                                                       self.qmc.dt,
+                                                       self.system.nbasis,
+                                                       self.qmc.nwalkers,
+                                                       self.json_string)
 
-
-    def write_json(self, print_function=print, eol='', eoll='\n',
-                   verbose=True, encode=False):
-        r"""Print out state object information.
+    def write_json(self, model, qmc_opts):
+        r"""Print out state object information to string.
 
         Parameters
         ----------
@@ -89,23 +77,17 @@ class State:
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
         json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        if verbose:
-            info = {
-                'calculation': calc_info,
-                'model': self.model,
-                'qmc_options': self.qmc_opts,
-                'trial_wavefunction': trial_wavefunction,
-            }
-        else:
-            info = {'calculation': calc_info,}
+        info = {
+            'calculation': calc_info,
+            'model': model,
+            'qmc_options': qmc_opts,
+            'trial_wavefunction': trial_wavefunction,
+        }
         # Note that we require python 3.6 to print dict in ordered fashion.
-        first = '# Input options:' + eol
-        last = eol + '# End of input options' + eoll
+        first = '# Input options:'
+        last =  '# End of input options.'
         md = json.dumps(info, sort_keys=False, indent=4)
-        output_string = first + md + last
-        if encode == True:
-            output_string = output_string.encode('utf-8')
-        print_function(output_string)
+        return (first + md + last)
 
 class QMCOpts:
     """Input options and certain constants / parameters derived from them.

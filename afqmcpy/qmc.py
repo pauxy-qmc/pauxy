@@ -4,7 +4,7 @@ import scipy.linalg
 import copy
 import random
 import afqmcpy.walker as walker
-import afqmcpy.estimators as estimators
+import afqmcpy.estimators
 import afqmcpy.pop_control as pop_control
 import afqmcpy.propagation
 
@@ -22,25 +22,18 @@ def do_qmc(state, psi, comm):
     if state.back_propagation:
         # Easier to just keep a histroy of all walkers for population control
         # purposes if a bit memory inefficient.
-        psi_hist = numpy.empty(shape=(state.qmc.nwalkers, state.nprop_tot+1),
-                               dtype=object)
         psi_hist[:,0] = copy.deepcopy(psi)
     else:
         psi_hist = None
 
-    (E_T, ke, pe) = estimators.local_energy(state.system, psi[0].G)
+    (E_T, ke, pe) = afqmcpy.estimators.local_energy(state.system, psi[0].G)
     state.qmc.mean_local_energy = E_T.real
-    estimates = estimators.Estimators(state)
-    estimates.print_header(state.root, estimates.header)
-    if state.back_propagation and state.root:
-        estimates.print_header(state.root, estimates.bp_header,
-                               print_function=estimates.funit.write, eol='\n')
     # Calculate estimates for initial distribution of walkers.
     for w in psi:
-        estimates.update(w, state)
+        state.estimators.update(w, state)
     # We can't have possibly performed back propagation yet so don't print out
     # zero which would mess up the averages.
-    estimates.print_step(state, comm, 0, print_bp=False, print_itcf=False)
+    state.estimators.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
     for step in range(1, state.qmc.nsteps):
         for w in psi:
@@ -52,12 +45,12 @@ def do_qmc(state, psi, comm):
             # Constant factors
             w.weight = w.weight * exp(state.qmc.dt*E_T.real)
             # Add current (propagated) walkers contribution to estimates.
-            estimates.update(w, state)
+            state.estimators.update(w, state)
             if step%state.qmc.nstblz == 0:
                 detR = w.reortho(state.system.nup)
                 if not state.importance_sampling:
                     w.weight = detR * w.weight
-        bp_step = (step-1)%state.nprop_tot
+        bp_step = (step-1)%state.estimators.nprop_tot
         if state.back_propagation:
             psi_hist[:,bp_step+1] = copy.deepcopy(psi)
             if step%state.nback_prop == 0:
@@ -80,7 +73,7 @@ def do_qmc(state, psi, comm):
                 if not state.itcf:
                     # New nth right-hand wfn for next estimate of ITCF.
                     psi_hist[:,0] = copy.deepcopy(psi)
-        if state.itcf and step%state.nprop_tot == 0:
+        if state.estimators.calc_itcf and step%state.estimators.nprop_tot == 0:
             if state.itcf_stable:
                 estimates.calculate_itcf(state, psi_hist, psi_left)
             else:
@@ -89,7 +82,7 @@ def do_qmc(state, psi, comm):
             psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
-            E_T = (estimates.estimates[estimates.names.enumer]/estimates.estimates[estimates.names.edenom]).real
+            E_T = (state.estimators.estimates[estimators.names.enumer]/estimators.estimates[estimators.names.edenom]).real
             estimates.print_step(state, comm, step)
         if step < state.qmc.nequilibrate:
             # Update local energy bound.
