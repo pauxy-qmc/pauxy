@@ -70,7 +70,7 @@ def propagate_walker_free(walker, state):
     walker.inverse_overlap(state.trial.psi, nup)
     # Update walker weight
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial.psi, nup)
+    walker.greens_function(state.trial, nup)
 
 
 def propagate_walker_free_continuous(walker, state):
@@ -105,7 +105,7 @@ def propagate_walker_free_continuous(walker, state):
     kinetic_real(walker.phi, state)
     walker.inverse_overlap(state.trial.psi, nup)
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial.psi, nup)
+    walker.greens_function(state.trial, nup)
     # Constant terms are included in the walker's weight.
     walker.weight = walker.weight * c_xf
 
@@ -134,7 +134,7 @@ state : :class:`state.State`
 
     # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi, state.system.nup)
-    walker.greens_function(state.trial.psi, state.system.nup)
+    walker.greens_function(state.trial, state.system.nup)
     E_L = estimators.local_energy(state.system, walker.G)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
@@ -212,14 +212,8 @@ state : :class:`afqmcpy.state.State`
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
                 walker.ot = 2 * walker.ot * probs[1]
                 walker.field_config[i] = 1
-            # The transposing seems like overkill
-            walker.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[0],
-                                                                state.trial.psi[:,:nup].T[:,i],
-                                                                vtup)
-            walker.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(walker.inv_ovlp[1],
-                                                                state.trial.psi[:,nup:].T[:,i],
-                                                                vtdown)
-            walker.greens_function(state.trial.psi, nup)
+            walker.update_overlap(state.trial, vtup, vtdown, nup, i)
+            walker.greens_function(state.trial, nup)
         else:
             walker.weight = 0
 
@@ -319,7 +313,7 @@ state : :class:`afqmcpy.state.State`
     walker.inverse_overlap(state.trial.psi, state.system.nup)
     # Update walker weight
     ot_new = walker.calc_otrial(state.trial)
-    walker.greens_function(state.trial.psi, state.system.nup)
+    walker.greens_function(state.trial, state.system.nup)
     ratio = ot_new / walker.ot
     if ratio.real > 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot).real

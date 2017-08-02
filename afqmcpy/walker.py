@@ -13,7 +13,7 @@ class Walker:
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
         self.G = [0, 0]
-        self.greens_function(trial.psi, system.nup)
+        self.greens_function(trial, system.nup)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
@@ -26,6 +26,14 @@ class Walker:
     def inverse_overlap(self, trial, nup):
         self.inv_ovlp[0] = scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         self.inv_ovlp[1] = scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+
+    def update_overlap(self, trial, vtup, vtdown, nup, i):
+        self.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
+                                                          trial.psi[:,:nup].T[:,i],
+                                                          vtup)
+        self.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[1],
+                                                          trial.psi[:,nup:].T[:,i],
+                                                          vtdown)
 
     def calc_otrial(self, trial):
         # The importance function, i.e. <phi_T|phi>. We do 1 over this because
@@ -45,8 +53,12 @@ class Walker:
         return detR
 
     def greens_function(self, trial, nup):
-        self.G[0] = np.dot(np.dot(self.phi[:,:nup], self.inv_ovlp[0]), (trial[:,:nup].conj()).T).T
-        self.G[1] = np.dot(np.dot(self.phi[:,nup:], self.inv_ovlp[1]), (trial[:,nup:].conj()).T).T
+        self.G[0] = (
+            np.dot(np.dot(self.phi[:,:nup],self.inv_ovlp[0]),(trial.psi[:,:nup].conj()).T).T
+        )
+        self.G[1] = (
+            np.dot(np.dot(self.phi[:,nup:],self.inv_ovlp[1]),(trial.psi[:,nup:].conj()).T).T
+        )
 
 
 class MultiDetWalker:
@@ -54,7 +66,7 @@ class MultiDetWalker:
 
     def __init__(self, nw, system, trial, index=0):
         self.weight = nw
-        self.phi = copy.deepcopy(trial.psi[index,:,:])
+        self.phi = copy.deepcopy(trial.psi[index])
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
         up_shape = (trial.psi.shape[0], system.nup, system.nup)
@@ -72,8 +84,12 @@ class MultiDetWalker:
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
-        # self.E_L = afqmcpy.estimators.local_energy_multi_det(system, self.G)[0].real
+        self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        G2 = afqmcpy.estimators.gab(trial.psi[0][:,:system.nup],
+                                    trial.psi[0][:,:system.nup])
+        print (self.E_L, afqmcpy.estimators.local_energy(system, [G2,G2])[0].real)
         self.index = index
+        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial, nup):
         for (indx, t) in enumerate(trial):
@@ -115,7 +131,19 @@ class MultiDetWalker:
             self.Gi[ix,0,:,:] = (
                     self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)
             )
-            self.Gi[ix,0,:,:] = (
+            self.Gi[ix,1,:,:] = (
                     self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)
             )
         self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots) / self.ot
+
+    def update_overlap(self, trial, vtup, vtdown, nup, i):
+        for (ix, t) in enumerate(trial.psi):
+            self.inv_ovlp[0][ix] = (
+                afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
+                                               t[:,:nup].T[:,i], vtup)
+            )
+            self.inv_ovlp[1][ix] = (
+                afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
+                                                                  t[:,nup:].T[:,i],
+                                                                  vtdown)
+            )

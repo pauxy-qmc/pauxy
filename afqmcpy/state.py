@@ -38,6 +38,7 @@ class State:
             self.trial = trial_wave_function.FreeElectron(self.system,
                                                            self.qmc.cplx,
                                                            trial)
+        if trial['name'] == 'UHF':
             self.trial = trial_wave_function.UHF(self.system,
                                                  self.qmc.cplx,
                                                  trial)
