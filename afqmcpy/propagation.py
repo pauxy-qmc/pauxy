@@ -318,7 +318,7 @@ state : :class:`afqmcpy.state.State`
     # Update inverse overlap
     walker.inverse_overlap(state.trial.psi, state.system.nup)
     # Update walker weight
-    ot_new = walker.calc_otrial(state.trial.psi)
+    ot_new = walker.calc_otrial(state.trial)
     walker.greens_function(state.trial.psi, state.system.nup)
     ratio = ot_new / walker.ot
     if ratio.real > 1e-16:

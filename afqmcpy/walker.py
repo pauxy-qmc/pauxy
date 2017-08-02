@@ -9,11 +9,11 @@ class Walker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
-        self.phi = copy.deepcopy(trial)
+        self.phi = copy.deepcopy(trial.psi)
         self.inv_ovlp = [0, 0]
-        self.inverse_overlap(trial, system.nup)
+        self.inverse_overlap(trial.psi, system.nup)
         self.G = [0, 0]
-        self.greens_function(trial, system.nup)
+        self.greens_function(trial.psi, system.nup)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
@@ -52,27 +52,27 @@ class Walker:
 class MultiDetWalker:
     '''Essentially just some wrappers around Walker class.'''
 
-    def __init__(self, nw, system, trial, index):
+    def __init__(self, nw, system, trial, index=0):
         self.weight = nw
-        self.phi = copy.deepcopy(trial[index,:,:])
+        self.phi = copy.deepcopy(trial.psi[index,:,:])
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        up_shape = (trial.shape[0], system.nup, system.nup)
-        down_shape = (trial.shape[0], system.ndown, system.ndown)
-        self.inv_ovlp = [numpy.zeros(shape=(up_shape)),
-                         numpy.zeros(shape=(down_shape)]
-        self.inverse_overlap(trial, system.nup)
+        up_shape = (trial.psi.shape[0], system.nup, system.nup)
+        down_shape = (trial.psi.shape[0], system.ndown, system.ndown)
+        self.inv_ovlp = [np.zeros(shape=(up_shape)),
+                         np.zeros(shape=(down_shape))]
+        self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = numpy.zeros(shape=(trial.shape[0], 2, system.nbasis,
+        self.Gi = np.zeros(shape=(trial.psi.shape[0], 2, system.nbasis,
                               system.nbasis))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis))
-        self.greens_function(trial)
+        self.G = np.zeros(shape=(2, system.nbasis, system.nbasis))
+        self.ots = np.zeros(trial.ndets)
         # Contains overlaps of the current walker with the trial wavefunction.
-        self.ots = numpy.zeros(len(trial)[0])
         self.ot = self.calc_otrial(trial)
-        self.E_L = afqmcpy.estimators.local_energy_multi_det(system, self.G)[0].real
+        self.greens_function(trial, system.nup)
+        # self.E_L = afqmcpy.estimators.local_energy_multi_det(system, self.G)[0].real
         self.index = index
 
     def inverse_overlap(self, trial, nup):
@@ -90,11 +90,11 @@ class MultiDetWalker:
         # green's function.
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
-        for (ix, c) in enumerate(trial.coeff):
-            dup = 1.0 / scipy.linalg.det(inv_ovlp[0][indx,:,:])
-            ddown = 1.0 / scipy.linalg.det(inv_ovlp[1][indx,:,:])
-            self.ots[ix] = c * dup * down
-        return otrial
+        for (ix, c) in enumerate(trial.coeffs):
+            dup = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix,:,:])
+            ddown = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix,:,:])
+            self.ots[ix] = c * dup * ddown
+        return (sum(self.ots))
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
@@ -109,13 +109,13 @@ class MultiDetWalker:
         self.ots = self.ots / detR
         self.ot = self.ot / detR
 
-    def greens_function(self, trial):
-        for (ix, t) in enumerate(trial):
+    def greens_function(self, trial, nup):
+        for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
-            self.Gs[0,ix,:,:] = (
-                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(trial[:,:nup].conj().T)
+            self.Gi[ix,0,:,:] = (
+                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)
             )
-            self.Gs[1,ix,:,:] = (
-                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(trial[:,nup:].conj().T)
+            self.Gi[ix,0,:,:] = (
+                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)
             )
-        self.G = numpy.einsum('ij,ijkl,ij->ijkl', trial.coeffs, self.Gs, self.ots) / self.ot
+        self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots) / self.ot

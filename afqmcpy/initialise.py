@@ -80,8 +80,12 @@ def initialise(input_file):
                                                      state.system.nbasis,
                                                      state.qmc.nwalkers,
                                                      state.json_string)
-    psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)
-            for w in range(state.qmc.nwalkers)]
+    if state.trial.__class__.__name__ == 'MultiDeterminant':
+        psi0 = [afqmcpy.walker.MultiDetWalker(1, state.system, state.trial)
+                for w in range(state.qmc.nwalkers)]
+    else:
+        psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)
+                for w in range(state.qmc.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     # TODO: Return state and psi and run from another routine.
     return state
