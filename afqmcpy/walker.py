@@ -54,67 +54,68 @@ class MultiDetWalker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
-        # ?
-        self.phi = copy.deepcopy(trial[random.randint(0,ndets),:,:,:])
-        # This contains the inverse of the walkers determinant with ALL of the
-        # elements of the trial wavefunction
-        self.inv_ovlp = numpy.zeros(numpy.shape(trial))
-        self.inverse_overlap(trial)
-        # Green's functions for ALL elements of the trial function
-        self.Gi = numpy.zeros(numpy.shape(trial))
+        self.phi = copy.deepcopy(trial[index,:,:])
+        # This stores an array of overlap matrices with the various elements of
+        # the trial wavefunction.
+        up_shape = (trial.shape[0], system.nup, system.nup)
+        down_shape = (trial.shape[0], system.ndown, system.ndown)
+        self.inv_ovlp = [numpy.zeros(shape=(up_shape)),
+                         numpy.zeros(shape=(down_shape)]
+        self.inverse_overlap(trial, system.nup)
+        # Green's functions for various elements of the trial wavefunction.
+        self.Gi = numpy.zeros(shape=(trial.shape[0], 2, system.nbasis,
+                              system.nbasis))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = numpy.zeros(numpy.shape(trial)[1:])
+        self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis))
         self.greens_function(trial)
-        self.ots = numpy.zeros(numpy.shape(trial)[0])
+        # Contains overlaps of the current walker with the trial wavefunction.
+        self.ots = numpy.zeros(len(trial)[0])
         self.ot = self.calc_otrial(trial)
         self.E_L = afqmcpy.estimators.local_energy_multi_det(system, self.G)[0].real
         self.index = index
 
-    def inverse_overlap(self, trial):
+    def inverse_overlap(self, trial, nup):
         for (indx, t) in enumerate(trial):
-            self.inv_ovlp[indx,0,:,:] = scipy.linalg.inv((t[0,:,:].conj()).T.dot(self.phi[0,:,:]))
-            self.inv_ovlp[indx,1,:,:] = scipy.linalg.inv((t[1,:,:].conj()).T.dot(self.phi[1,:,:]))
+            self.inv_ovlp[0][indx,:,:] = (
+                scipy.linalg.inv((t[:,:nup].conj()).T.dot(self.phi[:,:nup]))
+            )
+            self.inv_ovlp[1][indx,:,:] = (
+                scipy.linalg.inv((t[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+            )
 
     def calc_otrial(self, trial):
         # The importance function, i.e. <phi_T|phi>. We do 1 over this because
         # inv_ovlp stores the inverse overlap matrix for ease when updating the
         # green's function.
-        for (indx, inv_ovlp) in enumerate(self.inv_ovlp):
-            # The trial wavefunctions coefficients should be complex conjugated
-            # on initialisation!
-            # store the individual overlaps for use later when constructing
-            # green's function.
-            self.ots[indx] = trial.coeff[indx]/(scipy.linalg.det(inv_ovlp[indx,0,:,:])*scipy.linalg.det(inv_ovlp[indx,1,:,:]))
+        # The trial wavefunctions coefficients should be complex conjugated
+        # on initialisation!
+        for (ix, c) in enumerate(trial.coeff):
+            dup = 1.0 / scipy.linalg.det(inv_ovlp[0][indx,:,:])
+            ddown = 1.0 / scipy.linalg.det(inv_ovlp[1][indx,:,:])
+            self.ots[ix] = c * dup * down
         return otrial
 
-    def reortho(self):
-        (self.phi, R) = [list(t)
-                         for t in zip(*[scipy.linalg.qr(p, mode='economic')
-                         for p in self.phi])]
-        signs_up = np.diag(np.sign(np.diag(R[0])))
-        signs_down = np.diag(np.sign(np.diag(R[1])))
-        self.phi[0] = self.phi[0].dot(signs_up)
-        self.phi[1] = self.phi[1].dot(signs_down)
-        detR = (scipy.linalg.det(signs_up.dot(R[0]))*scipy.linalg.det(signs_down.dot(R[1])))
+    def reortho(self, nup):
+        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
+        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        # Enforce a positive diagonal for the overlap.
+        signs_up = np.diag(np.sign(np.diag(Rup)))
+        signs_down = np.diag(np.sign(np.diag(Rdown)))
+        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
+        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        # Todo: R is upper triangular.
+        detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
+        self.ots = self.ots / detR
         self.ot = self.ot / detR
-
-    def reortho_free(self):
-        (self.phi, R) = [list(t)
-                         for t in zip(*[scipy.linalg.qr(p, mode='economic')
-                         for p in self.phi])]
-        signs_up = np.diag(np.sign(np.diag(R[0])))
-        signs_down = np.diag(np.sign(np.diag(R[1])))
-        self.phi[0] = self.phi[0].dot(signs_up)
-        self.phi[1] = self.phi[1].dot(signs_down)
-        detR = (scipy.linalg.det(signs_up.dot(R[0]))*scipy.linalg.det(signs_down.dot(R[1])))
-        self.ot = self.ot / detR
-        self.weight = self.weight * detR
 
     def greens_function(self, trial):
-        # Look into einsum, keep it simple for the moment.
-        for (indx, t) in enumerate(trial):
+        for (ix, t) in enumerate(trial):
             # construct "local" green's functions for each component of psi_T
-            self.Gs[index,0,:,:] = numpy.multi_dot(self.phi[0], self.inv_ovlp[index,0,:,:], trial.conj().T).T
-            self.Gs[index,1,:,:] = numpy.multi_dot(self.phi[1], self.inv_ovlp[index,1,:,:], trial.conj().T).T
-        self.G = numpy.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gs, self.ots) / self.ot
+            self.Gs[0,ix,:,:] = (
+                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(trial[:,:nup].conj().T)
+            )
+            self.Gs[1,ix,:,:] = (
+                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(trial[:,nup:].conj().T)
+            )
+        self.G = numpy.einsum('ij,ijkl,ij->ijkl', trial.coeffs, self.Gs, self.ots) / self.ot
