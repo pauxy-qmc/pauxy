@@ -27,7 +27,7 @@ class Walker:
         self.inv_ovlp[0] = scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         self.inv_ovlp[1] = scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
 
-    def update_overlap(self, trial, vtup, vtdown, nup, i):
+    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         self.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
                                                           trial.psi[:,:nup].T[:,i],
                                                           vtup)
@@ -40,6 +40,9 @@ class Walker:
         # inv_ovlp stores the inverse overlap matrix for ease when updating the
         # green's function.
         return 1.0/(scipy.linalg.det(self.inv_ovlp[0])*scipy.linalg.det(self.inv_ovlp[1]))
+
+    def update_overlap(self, probs, xi):
+        walker.ot = 2 * walker.ot * probs[xi]
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
@@ -87,7 +90,6 @@ class MultiDetWalker:
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
         G2 = afqmcpy.estimators.gab(trial.psi[0][:,:system.nup],
                                     trial.psi[0][:,:system.nup])
-        print (self.E_L, afqmcpy.estimators.local_energy(system, [G2,G2])[0].real)
         self.index = index
         self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
 
@@ -111,6 +113,10 @@ class MultiDetWalker:
             ddown = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix,:,:])
             self.ots[ix] = c * dup * ddown
         return (sum(self.ots))
+
+    def update_inverse_overlap(self, probs, xi):
+        walker.ots = walker.R[xi] * walker.ots 
+        walker.ot = sum(walker.ots) / walker.ots
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
@@ -136,7 +142,7 @@ class MultiDetWalker:
             )
         self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots) / self.ot
 
-    def update_overlap(self, trial, vtup, vtdown, nup, i):
+    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],

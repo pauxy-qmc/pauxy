@@ -175,6 +175,19 @@ threshold : float
 
     return local_energy
 
+def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
+    for (i, G) in enumerate(walker.Gi):
+        walker.R1[i] = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
+        walker.R2[i] = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
+    R1 = walker.R1.dot(walker.ots) / walker.ot
+    R2 = walker.R2.dot(walker.ots) / walker.ot
+    return 0.5 * numpy.array(R1,R2)
+
+def calculate_overlap_ratio_single_det(walker, delta, trial, xi):
+    R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
+    R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
+    return 0.5 * numpy.array([R1,R2])
+
 def discrete_hubbard(walker, state):
     """Propagate by potential term using discrete HS transform.
 
@@ -191,8 +204,7 @@ state : :class:`afqmcpy.state.State`
     nup = state.system.nup
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
-        probs = 0.5 * numpy.array([(1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i]),
-                                   (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])])
+        probs = state.propagators.calculate_overlap_ratio(delta, walker)
         norm = sum(probs.real)
         r = numpy.random.random()
         # Is this necessary?
@@ -203,16 +215,16 @@ state : :class:`afqmcpy.state.State`
                 vtdown = walker.phi[i,nup:] * delta[0, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.ot = 2 * walker.ot * probs[0]
+                walker.update_overlap(probs, 0)
                 walker.field_config[i] = 0
             else:
                 vtup = walker.phi[i,:nup] * delta[1, 0]
                 vtdown = walker.phi[i,nup:] * delta[1, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.ot = 2 * walker.ot * probs[1]
+                walker.update_overlap(probs, 1)
                 walker.field_config[i] = 1
-            walker.update_overlap(state.trial, vtup, vtdown, nup, i)
+            walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
             walker.greens_function(state.trial, nup)
         else:
             walker.weight = 0
@@ -501,6 +513,10 @@ class Projectors:
                 self.propagate_walker = _propagators['continuous']['free']
         elif importance_sampling:
             self.propagate_walker = _propagators['discrete']['constrained']
+            if multi_det:
+                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
+            else:
+                self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
         else:
             self.propagate_walker = _propagators['discrete']['free']
         if fft:
