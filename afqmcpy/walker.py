@@ -135,12 +135,12 @@ class MultiDetWalker:
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,0,:,:] = (
-                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)
+                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T).T
             )
             self.Gi[ix,1,:,:] = (
-                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)
+                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T).T
             )
-        self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots) / self.ot
+        self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (ix, t) in enumerate(trial.psi):
@@ -150,6 +150,6 @@ class MultiDetWalker:
             )
             self.inv_ovlp[1][ix] = (
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
-                                                                  t[:,nup:].T[:,i],
-                                                                  vtdown)
+                                               t[:,nup:].T[:,i],
+                                               vtdown)
             )
