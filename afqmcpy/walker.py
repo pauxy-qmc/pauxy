@@ -42,7 +42,7 @@ class Walker:
         return 1.0/(scipy.linalg.det(self.inv_ovlp[0])*scipy.linalg.det(self.inv_ovlp[1]))
 
     def update_overlap(self, probs, xi):
-        walker.ot = 2 * walker.ot * probs[xi]
+        self.ot = 2 * self.ot * probs[xi]
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
@@ -72,14 +72,17 @@ class MultiDetWalker:
         self.phi = copy.deepcopy(trial.psi[index])
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        up_shape = (trial.psi.shape[0], system.nup, system.nup)
-        down_shape = (trial.psi.shape[0], system.ndown, system.ndown)
+        up_shape = (trial.ndets, system.nup, system.nup)
+        down_shape = (trial.ndets, system.ndown, system.ndown)
         self.inv_ovlp = [np.zeros(shape=(up_shape)),
                          np.zeros(shape=(down_shape))]
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = np.zeros(shape=(trial.psi.shape[0], 2, system.nbasis,
+        self.Gi = np.zeros(shape=(trial.ndets, 2, system.nbasis,
                               system.nbasis))
+        # Should be nfields per basis * ndets.
+        # Todo: update this for the continuous HS trasnform case.
+        self.R = np.zeros(shape=(2, trial.ndets))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = np.zeros(shape=(2, system.nbasis, system.nbasis))
@@ -114,9 +117,11 @@ class MultiDetWalker:
             self.ots[ix] = c * dup * ddown
         return (sum(self.ots))
 
-    def update_inverse_overlap(self, probs, xi):
-        walker.ots = walker.R[xi] * walker.ots 
-        walker.ot = sum(walker.ots) / walker.ots
+    def update_overlap(self, probs, xi):
+        # Update each component's overlap and the total overlap.
+        # The trial wavefunctions coeficients should be included in ots?
+        self.ots = self.R[xi] * self.ots
+        self.ot = sum(self.ots)
 
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')

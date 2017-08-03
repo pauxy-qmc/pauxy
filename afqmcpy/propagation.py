@@ -176,14 +176,14 @@ threshold : float
     return local_energy
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
-    for (i, G) in enumerate(walker.Gi):
-        walker.R1[i] = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
-        walker.R2[i] = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
-    R1 = walker.R1.dot(walker.ots) / walker.ot
-    R2 = walker.R2.dot(walker.ots) / walker.ot
-    return 0.5 * numpy.array(R1,R2)
+    for (ix, G) in enumerate(walker.Gi):
+        walker.R[0,ix] = (1+delta[0][0]*G[0][i,i])*(1+delta[0][1]*G[1][i,i])
+        walker.R[1,ix] = (1+delta[1][0]*G[0][i,i])*(1+delta[1][1]*G[1][i,i])
+    R1 = walker.R[0].dot(walker.ots) / walker.ot
+    R2 = walker.R[1].dot(walker.ots) / walker.ot
+    return 0.5 * numpy.array([R1,R2])
 
-def calculate_overlap_ratio_single_det(walker, delta, trial, xi):
+def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
     R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
     return 0.5 * numpy.array([R1,R2])
@@ -204,7 +204,8 @@ state : :class:`afqmcpy.state.State`
     nup = state.system.nup
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
-        probs = state.propagators.calculate_overlap_ratio(delta, walker)
+        probs = state.propagators.calculate_overlap_ratio(walker, delta,
+                                                          state.trial, i)
         norm = sum(probs.real)
         r = numpy.random.random()
         # Is this necessary?
