@@ -503,7 +503,8 @@ _propagators = {
 class Projectors:
     '''Base propagator class'''
 
-    def __init__(self, model, hs_type, dt, T, importance_sampling, eks, fft):
+    def __init__(self, model, hs_type, dt, T, importance_sampling, eks, fft,
+                 trial_type):
         self.bt2 = scipy.linalg.expm(-0.5*dt*T)
         self.btk = numpy.exp(-0.5*dt*eks)
         if 'continuous' in hs_type:
@@ -513,7 +514,7 @@ class Projectors:
                 self.propagate_walker = _propagators['continuous']['free']
         elif importance_sampling:
             self.propagate_walker = _propagators['discrete']['constrained']
-            if multi_det:
+            if trial_type == 'multi_determinant':
                 self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
             else:
                 self.calculate_overlap_ratio = calculate_overlap_ratio_single_det

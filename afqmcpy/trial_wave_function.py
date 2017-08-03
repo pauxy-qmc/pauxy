@@ -15,6 +15,7 @@ class FreeElectron:
 
     def __init__(self, system, cplx, trial):
         init_time = time.time()
+        self.name = "free_electron",
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex
@@ -34,6 +35,7 @@ class UHF:
     def __init__(self, system, cplx, trial):
         print ("# Constructing trial wavefunction")
         init_time = time.time()
+        self.name = "UHF",
         if cplx:
             self.trial_type = complex
         else:
@@ -139,6 +141,7 @@ class MultiDeterminant:
 
     def __init__(self, system, cplx, trial, expansion_type='free_electron'):
         init_time = time.time()
+        self.name = "multi_determinant"
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex

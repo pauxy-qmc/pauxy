@@ -46,6 +46,13 @@ class State:
             self.trial = trial_wave_function.MultiDeterminant(self.system,
                                                               self.cplx,
                                                               trial)
+        self.propagators = afqmcpy.propagation.Projectors(model['name'],
+                                                          self.hubbard_stratonovich,
+                                                          self.qmc.dt, self.system.T,
+                                                          self.qmc.importance_sampling,
+                                                          self.system.eks,
+                                                          self.qmc.ffts,
+                                                          self.trial.name)
         self.local_energy_bound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
