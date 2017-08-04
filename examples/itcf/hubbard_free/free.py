@@ -11,6 +11,7 @@ import afqmcpy
 import numpy
 import pandas as pd
 from cmath import exp
+import matplotlib.pyplot as pl
 
 # Fake some inputs
 table = {
@@ -20,6 +21,7 @@ table = {
         "U": 4,
         "nx": 5,
         "ny": 1,
+        "ktwist": [0],
         "nup": 3,
         "ndown": 3,
     },
@@ -41,16 +43,28 @@ table = {
 
 def spgf(kp, eks, kc, tau, nup, rij, nsites):
     # Assume nup = ndown
-    unocc = len(kp) - nup
     spgf = sum(exp(1j*(kc*k).dot(rij)-tau*ek) for (k, ek) in zip(kp[nup:], eks[nup:]))
+
+    return spgf.real / nsites
+
+def hole_gf(kp, eks, kc, tau, nup, rij, nsites):
+    # Assume nup = ndown
+    spgf = sum(exp(1j*(kc*k).dot(rij)+tau*ek) for (k, ek) in zip(kp[:nup], eks[:nup]))
 
     return spgf.real / nsites
 
 state = afqmcpy.state.State(table['model'], table['qmc_options'])
 rij = numpy.array([0])
 taus = numpy.linspace(0,10,100)
-g = [spgf(state.system.kpoints, state.system.eks, state.system.kc, t,
+ek = state.system.eks
+ix = ek.argsort()
+ek = ek[ix]
+print (ek)
+kp = state.system.kpoints[ix]
+g = [spgf(kp, ek, state.system.kc, t,
         state.system.nup, rij, state.system.nx*state.system.ny) for t in taus]
 
-print (pd.DataFrame({'tau': taus, 'g00': g}, columns=['tau',
-'g00']).to_string(index=False))
+gl = [hole_gf(kp, ek, state.system.kc, t,
+        state.system.nup, rij, state.system.nx*state.system.ny) for t in taus]
+print (pd.DataFrame({'tau': taus, 'g00': g, 'gh': gl}, columns=['tau',
+'g00', 'gh']).to_string(index=False))
