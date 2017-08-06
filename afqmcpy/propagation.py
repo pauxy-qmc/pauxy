@@ -330,6 +330,7 @@ state : :class:`afqmcpy.state.State`
     if ratio.real > 1e-16:
         walker.weight = walker.weight * (ot_new/walker.ot).real
         walker.ot = ot_new
+        # Todo : remove computation of green's function repeatedly.
         walker.greens_function(state.trial, state.system.nup)
     else:
         walker.weight = 0.0
