@@ -112,9 +112,8 @@ class MultiDetWalker:
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
         for (ix, c) in enumerate(trial.coeffs):
-            dup = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix,:,:])
-            ddown = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix,:,:])
-            self.ots[ix] = c * dup * ddown
+            deto = 1.0 / scipy.linalg.det(self.inv_ovlp[ix,:,:])
+            self.ots[ix] = c * deto
         return (sum(self.ots))
 
     def update_overlap(self, probs, xi):
@@ -124,6 +123,7 @@ class MultiDetWalker:
         self.ot = sum(self.ots)
 
     def reortho(self, nup):
+        # We assume that our walker is still block diagonal in the spin basis.
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
         # Enforce a positive diagonal for the overlap.
@@ -139,22 +139,14 @@ class MultiDetWalker:
     def greens_function(self, trial, nup):
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
-            self.Gi[ix,0,:,:] = (
-                    self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T).T
+            self.Gi[ix,:,:] = (
+                self.phi[:,:nup].dot(self.inv_ovlp[ix]).dot(t[:,:nup].conj().T).T
             )
-            self.Gi[ix,1,:,:] = (
-                    self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T).T
-            )
-        self.G = np.einsum('i,ijkl,i->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
+        self.G = np.einsum('i,ikl,i->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (ix, t) in enumerate(trial.psi):
-            self.inv_ovlp[0][ix] = (
-                afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
+            self.inv_ovlp[ix] = (
+                afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
                                                t[:,:nup].T[:,i], vtup)
-            )
-            self.inv_ovlp[1][ix] = (
-                afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
-                                               t[:,nup:].T[:,i],
-                                               vtdown)
             )
