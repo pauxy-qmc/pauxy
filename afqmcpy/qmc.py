@@ -31,8 +31,7 @@ def do_qmc(state, psi, comm):
     # Calculate estimates for initial distribution of walkers.
     for w in psi:
         state.estimators.update(w, state)
-    # We can't have possibly performed back propagation yet so don't print out
-    # zero which would mess up the averages.
+    # Print out zeroth step for convenience.
     state.estimators.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
     for step in range(1, state.qmc.nsteps):
