@@ -80,7 +80,7 @@ def initialise(input_file):
                                                      state.system.nbasis,
                                                      state.qmc.nwalkers,
                                                      state.json_string)
-    if state.trial.__class__.__name__ == 'MultiDeterminant':
+    if state.trial.name == 'multi_determinant':
         if state.trial.type== 'GHF':
             psi0 = [afqmcpy.walker.MultiGHFWalker(1, state.system, state.trial)
                     for w in range(state.qmc.nwalkers)]
