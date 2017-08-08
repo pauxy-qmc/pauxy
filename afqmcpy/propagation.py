@@ -424,7 +424,7 @@ def back_propagate(state, psi):
         Back propagated list of walkers.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial.psi, w)
+    psi_bp = [walker.Walker(1, state.system, state.trial, w)
               for w in range(state.qmc.nwalkers)]
     nup = state.system.nup
     for (iw, w) in enumerate(psi):
