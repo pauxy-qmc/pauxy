@@ -218,14 +218,14 @@ state : :class:`afqmcpy.state.State`
                 vtdown = walker.phi[i,nup:] * delta[0, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs[0], state.trial.coeffs)
+                walker.update_overlap(probs, 0, state.trial.coeffs)
                 walker.field_config[i] = 0
             else:
                 vtup = walker.phi[i,:nup] * delta[1, 0]
                 vtdown = walker.phi[i,nup:] * delta[1, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs[1], state.trial.coeffs)
+                walker.update_overlap(probs, 1, state.trial.coeffs)
                 walker.field_config[i] = 1
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
             walker.greens_function(state.trial, nup)

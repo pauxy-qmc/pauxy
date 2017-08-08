@@ -41,7 +41,7 @@ class Walker:
         # green's function.
         return 1.0/(scipy.linalg.det(self.inv_ovlp[0])*scipy.linalg.det(self.inv_ovlp[1]))
 
-    def update_overlap(self, probs, xi):
+    def update_overlap(self, probs, xi, coeffs):
         self.ot = 2 * self.ot * probs[xi]
 
     def reortho(self, nup):
