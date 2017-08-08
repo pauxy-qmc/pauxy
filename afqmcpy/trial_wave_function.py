@@ -173,9 +173,8 @@ class MultiDeterminant:
             orbitals = self.read_fortran_complex_numbers(self.orbital_file)
             self.psi = orbitals.reshape((M,system.ne),order='F')
             self.coeffs = self.read_fortran_complex_numbers(self.coeffs_file)
-
-        G = afqmcpy.estimators.gab(self.psi, self.psi)
-        self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
+            G = afqmcpy.estimators.gab(self.psi, self.psi)
+            self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
         self.initialisation_time = time.time() - init_time
 
     def read_fortran_complex_numbers(self, filename):
