@@ -177,11 +177,12 @@ threshold : float
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
     for (ix, G) in enumerate(walker.Gi):
-        walker.R[0,ix] = (1+delta[0][0]*G[0][i,i])*(1+delta[0][1]*G[1][i,i])
-        walker.R[1,ix] = (1+delta[1][0]*G[0][i,i])*(1+delta[1][1]*G[1][i,i])
-    R1 = walker.R[0].dot(walker.ots) / walker.ot
-    R2 = walker.R[1].dot(walker.ots) / walker.ot
-    return 0.5 * numpy.array([R1,R2])
+        walker.R[0,ix,0] = (1+delta[0][0]*G[0][i,i])
+        walker.R[0,ix,1] = (1+delta[0][1]*G[1][i,i])
+        walker.R[1,ix,0] = (1+delta[1][0]*G[0][i,i])
+        walker.R[1,ix,1] = (1+delta[1][1]*G[1][i,i])
+    R = numpy.einsum('i,jik,ik->j',trial.coeffs,walker.R,walker.ots)/walker.ot
+    return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
@@ -216,14 +217,14 @@ state : :class:`afqmcpy.state.State`
                 vtdown = walker.phi[i,nup:] * delta[0, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs, 0)
+                walker.update_overlap(probs[0], state.trial.coeffs)
                 walker.field_config[i] = 0
             else:
                 vtup = walker.phi[i,:nup] * delta[1, 0]
                 vtdown = walker.phi[i,nup:] * delta[1, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs, 1)
+                walker.update_overlap(probs[1], state.trial.coeffs)
                 walker.field_config[i] = 1
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
             walker.greens_function(state.trial, nup)

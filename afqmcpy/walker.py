@@ -82,11 +82,11 @@ class MultiDetWalker:
                               system.nbasis))
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
-        self.R = np.zeros(shape=(2, trial.ndets))
+        self.R = np.zeros(shape=(2, trial.ndets, 2))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = np.zeros(shape=(2, system.nbasis, system.nbasis))
-        self.ots = np.zeros(trial.ndets)
+        self.ots = np.zeros(2, trial.ndets)
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
@@ -111,6 +111,60 @@ class MultiDetWalker:
         # green's function.
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
+        # This looks wrong for the UHF case - no spin considerations here.
+        ot = 0.0
+        for (ix, c) in enumerate(trial.coeffs):
+            deto_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix,:,:])
+            deto_down = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix,:,:])
+            self.ots[0, ix] = deto_up
+            self.ots[1, ix] = deto_down
+            ot += c * deto_up * deto_down
+        return ot
+
+    def update_overlap(self, probs, coeffs):
+        # Update each component's overlap and the total overlap.
+        # The trial wavefunctions coeficients should be included in ots?
+        self.ots = numpy.einsum('ij,ij->ij',probs,self.ots)
+        self.ot = sum(coeffs*self.ots)
+
+    def reortho(self, nup):
+        # We assume that our walker is still block diagonal in the spin basis.
+        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
+        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        # Enforce a positive diagonal for the overlap.
+        signs_up = np.diag(np.sign(np.diag(Rup)))
+        signs_down = np.diag(np.sign(np.diag(Rdown)))
+        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
+        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        # Todo: R is upper triangular.
+        detR_up = (scipy.linalg.det(signs_up.dot(Rup))
+        detR_down = scipy.linalg.det(signs_down.dot(Rdown)))
+        self.ots[0] = self.ots[0] / detR_up
+        self.ots[1] = self.ots[1] / detR_down
+        self.ot = self.ot / detR
+
+    def greens_function(self, trial, nup):
+        for (ix, t) in enumerate(trial.psi):
+            # construct "local" green's functions for each component of psi_T
+            self.Gi[ix,0,:,:] = (
+                self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T).T
+            )
+            self.Gi[ix,1,:,:] = (
+                self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T).T
+            )
+        self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
+
+    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
+        for (ix, t) in enumerate(trial.psi):
+            self.inv_ovlp[0][ix] = (
+                afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
+                                               t[:,:nup].T[:,i], vtup)
+            )
+            self.inv_ovlp[1][ix] = (
+                afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
+                    t[:,nup:].T[:,i], vtdown)
+            )
+
         for (ix, c) in enumerate(trial.coeffs):
             deto = 1.0 / scipy.linalg.det(self.inv_ovlp[ix,:,:])
             self.ots[ix] = c * deto
