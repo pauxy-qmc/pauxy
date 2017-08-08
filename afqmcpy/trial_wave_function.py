@@ -30,7 +30,7 @@ class FreeElectron:
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         self.initialisation_time = time.time() - init_time
         # For interface compatability
-        self.trial.coeffs = 1.0
+        self.coeffs = 1.0
 
 
 class UHF:
@@ -50,7 +50,7 @@ class UHF:
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
         # For interface compatability
-        self.trial.coeffs = 1.0
+        self.coeffs = 1.0
         (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx,
                                                              self.ueff,
                                                              self.ninitial,
