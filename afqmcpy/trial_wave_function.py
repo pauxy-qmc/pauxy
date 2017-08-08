@@ -157,7 +157,7 @@ class MultiDeterminant:
         # For debugging purposes.
         if self.type == 'free_electron':
             (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
-            psi = numpy.zeros(shape=(system.nbasis, system.ne))
+            psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
             psi[:,:system.nup] = self.eigv[:,:system.nup]
             psi[:,system.nup:] = self.eigv[:,:system.ndown]
             self.psi = numpy.array([copy.deepcopy(psi) for i in range(0,self.ndets)])
@@ -171,9 +171,10 @@ class MultiDeterminant:
             else:
                 M = 2 * system.nbasis
             orbitals = self.read_fortran_complex_numbers(self.orbital_file)
-            self.psi = orbitals.reshape((M,system.ne),order='F')
+            self.psi = orbitals.reshape((self.ndets,M,system.ne),order='F')
             self.coeffs = self.read_fortran_complex_numbers(self.coeffs_file)
-            G = afqmcpy.estimators.gab(self.psi, self.psi)
+            # Todo : Update this for multi true multideterminant case.
+            G = afqmcpy.estimators.gab(self.psi[0], self.psi[0])
             self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
         self.initialisation_time = time.time() - init_time
 
