@@ -82,11 +82,11 @@ class MultiDetWalker:
                               system.nbasis))
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
-        self.R = np.zeros(shape=(2, trial.ndets, 2))
+        self.R = np.zeros(shape=(trial.ndets, 2, 2))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = np.zeros(shape=(2, system.nbasis, system.nbasis))
-        self.ots = np.zeros(2, trial.ndets)
+        self.ots = np.zeros(shape=(2,trial.ndets))
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
@@ -121,11 +121,11 @@ class MultiDetWalker:
             ot += c * deto_up * deto_down
         return ot
 
-    def update_overlap(self, probs, coeffs):
+    def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
-        self.ots = numpy.einsum('ij,ij->ij',probs,self.ots)
-        self.ot = sum(coeffs*self.ots)
+        self.ots = np.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
+        self.ot = sum(coeffs*self.ots[0,:]*self.ots[1,:])
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
@@ -137,11 +137,11 @@ class MultiDetWalker:
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
         self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
-        detR_up = (scipy.linalg.det(signs_up.dot(Rup))
-        detR_down = scipy.linalg.det(signs_down.dot(Rdown)))
+        detR_up = scipy.linalg.det(signs_up.dot(Rup))
+        detR_down = scipy.linalg.det(signs_down.dot(Rdown))
         self.ots[0] = self.ots[0] / detR_up
         self.ots[1] = self.ots[1] / detR_down
-        self.ot = self.ot / detR
+        self.ot = self.ot / (detR_up*detR_down)
 
     def greens_function(self, trial, nup):
         for (ix, t) in enumerate(trial.psi):
@@ -152,7 +152,10 @@ class MultiDetWalker:
             self.Gi[ix,1,:,:] = (
                 self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T).T
             )
-        self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
+        denom = np.einsum('j,ij->i',trial.coeffs,self.ots)
+        self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
+        self.G[0] = self.G[0]/denom[0]
+        self.G[1] = self.G[1]/denom[1]
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (ix, t) in enumerate(trial.psi):
@@ -208,11 +211,11 @@ class MultiGHFWalker:
             self.ots[ix] = c * deto
         return (sum(self.ots))
 
-    def update_overlap(self, probs, xi):
+    def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
-        self.ots = self.R[xi] * self.ots
-        self.ot = sum(self.ots)
+        self.ots = np.einsum('ij,ij->ij',self.R[xi],self.ots)
+        self.ot = sum(coeffs*self.ots)
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
