@@ -176,7 +176,7 @@ class MultiGHFWalker:
         self.phi = copy.deepcopy(trial.psi[index])
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        self.inv_ovlp = np.zeros(trial.ndets, system.nel),
+        self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne))
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
@@ -191,7 +191,7 @@ class MultiGHFWalker:
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
-        self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.G)[0].real
         self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial, nup):
@@ -235,9 +235,10 @@ class MultiGHFWalker:
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,:,:] = (
-                self.phi[:,:nup].dot(self.inv_ovlp[ix]).dot(t[:,:nup].conj().T).T
+                self.phi.dot(self.inv_ovlp[ix]).dot(t.conj().T).T
             )
-        self.G = np.einsum('i,ikl,i->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
+        denom = np.dot(trial.coeffs,self.ots)
+        self.G = np.einsum('i,ijk,i->jk', trial.coeffs, self.Gi, self.ots)/denom
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (indx, t) in enumerate(trial):
