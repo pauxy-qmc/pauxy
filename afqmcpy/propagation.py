@@ -176,12 +176,13 @@ threshold : float
     return local_energy
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
-    for (ix, G) in enumerate(walker.Gi):
-        walker.R[0,ix,0] = (1+delta[0][0]*G[0][i,i])
-        walker.R[0,ix,1] = (1+delta[0][1]*G[1][i,i])
-        walker.R[1,ix,0] = (1+delta[1][0]*G[0][i,i])
-        walker.R[1,ix,1] = (1+delta[1][1]*G[1][i,i])
-    R = numpy.einsum('i,jik,ik->j',trial.coeffs,walker.R,walker.ots)/walker.ot
+    for (idx, G) in enumerate(walker.Gi):
+        walker.R[idx,0,0] = (1+delta[0][0]*G[0][i,i])
+        walker.R[idx,0,1] = (1+delta[0][1]*G[1][i,i])
+        walker.R[idx,1,0] = (1+delta[1][0]*G[0][i,i])
+        walker.R[idx,1,1] = (1+delta[1][1]*G[1][i,i])
+    spin_prod = numpy.einsum('ikj,ji->ikj',walker.R,walker.ots)
+    R = numpy.einsum('i,ij->j',trial.coeffs,spin_prod[:,:,0]*spin_prod[:,:,1])/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_single_det(walker, delta, trial, i):
