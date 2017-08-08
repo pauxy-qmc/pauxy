@@ -165,6 +165,44 @@ class MultiDetWalker:
                     t[:,nup:].T[:,i], vtdown)
             )
 
+class MultiGHFWalker:
+    '''Essentially just some wrappers around Walker class.'''
+
+    def __init__(self, nw, system, trial, index=0):
+        self.weight = nw
+        self.phi = copy.deepcopy(trial.psi[index])
+        # This stores an array of overlap matrices with the various elements of
+        # the trial wavefunction.
+        self.inv_ovlp = np.zeros(trial.ndets, system.nel),
+        self.inverse_overlap(trial.psi, system.nup)
+        # Green's functions for various elements of the trial wavefunction.
+        self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
+                                  2*system.nbasis))
+        # Should be nfields per basis * ndets.
+        # Todo: update this for the continuous HS trasnform case.
+        self.R = np.zeros(shape=(2, trial.ndets))
+        # Actual green's function contracted over determinant index in Gi above.
+        # i.e., <psi_T|c_i^d c_j|phi>
+        self.G = np.zeros(shape=(2*system.nbasis, 2*system.nbasis))
+        self.ots = np.zeros(trial.ndets)
+        # Contains overlaps of the current walker with the trial wavefunction.
+        self.ot = self.calc_otrial(trial)
+        self.greens_function(trial, system.nup)
+        self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+
+    def inverse_overlap(self, trial, nup):
+        for (indx, t) in enumerate(trial):
+            self.inv_ovlp[indx,:,:] = (
+                scipy.linalg.inv((t.conj()).T.dot(self.phi))
+            )
+
+    def calc_otrial(self, trial):
+        # The importance function, i.e. <phi_T|phi>. We do 1 over this because
+        # inv_ovlp stores the inverse overlap matrix for ease when updating the
+        # green's function.
+        # The trial wavefunctions coefficients should be complex conjugated
+        # on initialisation!
         for (ix, c) in enumerate(trial.coeffs):
             deto = 1.0 / scipy.linalg.det(self.inv_ovlp[ix,:,:])
             self.ots[ix] = c * deto
@@ -199,8 +237,14 @@ class MultiDetWalker:
         self.G = np.einsum('i,ikl,i->jkl', trial.coeffs, self.Gi, self.ots)/self.ot
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
-        for (ix, t) in enumerate(trial.psi):
-            self.inv_ovlp[ix] = (
-                afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
-                                               t[:,:nup].T[:,i], vtup)
+        for (indx, t) in enumerate(trial):
+            self.inv_ovlp[indx,:,:] = (
+                scipy.linalg.inv((t.conj()).T.dot(self.phi))
             )
+
+    # def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
+        # for (ix, t) in enumerate(trial.psi):
+            # self.inv_ovlp[ix] = (
+                # afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
+                                               # t[:,:nup].T[:,i], vtup)
+            # )

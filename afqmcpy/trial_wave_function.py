@@ -29,6 +29,8 @@ class FreeElectron:
         self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         self.initialisation_time = time.time() - init_time
+        # For interface compatability
+        self.trial.coeffs = 1.0
 
 
 class UHF:
@@ -47,6 +49,8 @@ class UHF:
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
+        # For interface compatability
+        self.trial.coeffs = 1.0
         (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx,
                                                              self.ueff,
                                                              self.ninitial,
@@ -145,6 +149,7 @@ class MultiDeterminant:
         self.name = "multi_determinant"
         self.type = trial.get('type')
         self.ndets = trial.get('ndets', None)
+        self.eigs = numpy.array([0.0])
         if cplx:
             self.trial_type = complex
         else:
@@ -169,8 +174,7 @@ class MultiDeterminant:
             self.coeffs = self.read_fortran_complex_numbers(self.coeffs_file)
 
         G = afqmcpy.estimators.gab(self.psi, self.psi)
-        print (numpy.diag(G))
-        self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)
+        self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
         self.initialisation_time = time.time() - init_time
 
     def read_fortran_complex_numbers(self, filename):
