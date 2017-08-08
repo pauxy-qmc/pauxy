@@ -159,8 +159,9 @@ class MultiDeterminant:
             (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
             psi = numpy.zeros(shape=(system.nbasis, system.ne))
             psi[:,:system.nup] = self.eigv[:,:system.nup]
-            psi[:,system.nup:] = self.eigv[:,:system.nup]
+            psi[:,system.nup:] = self.eigv[:,:system.ndown]
             self.psi = numpy.array([copy.deepcopy(psi) for i in range(0,self.ndets)])
+            self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
             self.coeffs = numpy.ones(self.ndets)
         else:
             self.orbital_file = trial.get('orbital_file')
