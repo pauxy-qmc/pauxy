@@ -52,7 +52,7 @@ class State:
                                                           self.qmc.importance_sampling,
                                                           self.system.eks,
                                                           self.qmc.ffts,
-                                                          self.trial.name)
+                                                          self.trial)
         self.local_energy_bound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.

@@ -173,21 +173,35 @@ class MultiGHFWalker:
 
     def __init__(self, nw, system, trial, index=0):
         self.weight = nw
-        self.phi = copy.deepcopy(trial.psi[index])
+        # Initialise to a particular free electron slater determinant rather
+        # than GHF.
+        self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
+                dtype=trial.psi.dtype)
+        tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                                 trial.psi.dtype==complex, {})
+        self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
+        self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne))
+        self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),
+                                 dtype=self.phi.dtype)
+        ovlp = (np.dot(trial.psi[0].conj().T, self.phi))
+        print (ovlp)
+        for i in range(0,system.ne):
+            for j in range(0,system.ne):
+                print (i, j, ovlp[i,j])
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
-                                  2*system.nbasis))
+                           2*system.nbasis), dtype=self.phi.dtype)
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
-        self.R = np.zeros(shape=(2, trial.ndets))
+        self.R = np.zeros(shape=(trial.ndets, 2), dtype=self.phi.dtype)
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = np.zeros(shape=(2*system.nbasis, 2*system.nbasis))
-        self.ots = np.zeros(trial.ndets)
+        self.G = np.zeros(shape=(2*system.nbasis, 2*system.nbasis),
+                          dtype=self.phi.dtype)
+        self.ots = np.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
@@ -206,16 +220,15 @@ class MultiGHFWalker:
         # green's function.
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
-        for (ix, c) in enumerate(trial.coeffs):
-            deto = 1.0 / scipy.linalg.det(self.inv_ovlp[ix,:,:])
-            self.ots[ix] = c * deto
-        return (sum(self.ots))
+        for (ix, inv) in enumerate(self.inv_ovlp):
+            self.ots[ix] = 1.0 / scipy.linalg.det(inv)
+        return trial.coeffs.dot(self.ots)
 
     def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
-        self.ots = np.einsum('ij,ij->ij',self.R[xi],self.ots)
-        self.ot = sum(coeffs*self.ots)
+        self.ots = self.R[:,xi] * self.ots
+        self.ot = coeffs.dot(self.ots)
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
@@ -241,7 +254,7 @@ class MultiGHFWalker:
         self.G = np.einsum('i,ijk,i->jk', trial.coeffs, self.Gi, self.ots)/denom
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
-        for (indx, t) in enumerate(trial):
+        for (indx, t) in enumerate(trial.psi):
             self.inv_ovlp[indx,:,:] = (
                 scipy.linalg.inv((t.conj()).T.dot(self.phi))
             )

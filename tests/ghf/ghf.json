@@ -6,25 +6,25 @@
         "nx": 4,
         "ny": 4,
         "ktwist": [0, 0],
-        "nup": 7,
-        "ndown": 7
+        "nup": 5,
+        "ndown": 5
     },
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 2,
+        "nsteps": 100,
         "nmeasure": 10,
-        "nwalkers": 100,
+        "nwalkers": 1,
         "npop_control": 10000,
         "temperature": 0.0,
-        "hubbard_stratonovich": "discrete",
+        "hubbard_stratonovich": "discrete_phaseless",
         "importance_sampling": true,
         "rng_seed": 7
     },
     "trial_wavefunction": {
         "name": "multi_determinant",
         "type": "GHF",
-        "orbital_file": "GHF_4x4_7u7d_u4.0_ndet001_orb.dat",
+        "orbital_file": "GHF_tri.4x4_5u5d_u4.0_ndet001_orb.dat",
         "coefficients_file": "GHF_4x4_7u7d_u4.0_ndet001_coeff.dat",
         "ndets": 1
     }
