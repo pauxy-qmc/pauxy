@@ -28,17 +28,12 @@ state : :class:`state.State`
     Simulation state.
 """
 
-    print (walker.ot, walker.weight)
-    print (walker.phi[:,1])
     if abs(walker.weight) > 0:
         kinetic_importance_sampling(walker, state)
-        print (walker.ot, walker.weight)
     if abs(walker.weight) > 0:
         state.propagators.potential(walker, state)
-        print (walker.ot)
     if abs(walker.weight.real) > 0:
         kinetic_importance_sampling(walker, state)
-        print (walker.ot)
 
 
 def propagate_walker_discrete_multi_site(walker, state):
@@ -224,7 +219,7 @@ def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
         walker.R[idx,1] = (
             (1+delta[1,0]*guu)*(1+delta[1,1]*gdd) - delta[1,0]*gud*delta[1,1]*gdu
         )
-    R = numpy.einsum('i,ij->j',trial.coeffs,walker.R)/walker.ot
+    R = numpy.einsum('i,ij,i->j',trial.coeffs,walker.R,walker.ots)/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
@@ -299,32 +294,31 @@ state : :class:`afqmcpy.state.State`
     # Construct random auxilliary field.
     delta = state.auxf - 1
     nup = state.system.nup
+    nb = state.system.nbasis
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = state.propagators.calculate_overlap_ratio(walker, delta,
                                                           state.trial, i)
-        print (probs)
         phase = numpy.angle(probs)
         probs = numpy.abs(probs) * numpy.array([max(0,math.cos(phase[0])),
                                                 max(0,math.cos(phase[1]))])
-        print (numpy.cos(phase))
         # Todo : mirror correction?
-        norm = sum(probs.real)
+        norm = sum(probs)
         r = numpy.random.random()
         if norm > 0:
             walker.weight = walker.weight * norm
             if r < probs[0]/norm:
                 vtup = walker.phi[i,:nup] * delta[0, 0]
-                vtdown = walker.phi[i,nup:] * delta[0, 1]
+                vtdown = walker.phi[i+nb,nup:] * delta[0, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                walker.phi[i+nb,nup:] = walker.phi[i+nb,nup:] + vtdown
                 walker.update_overlap(probs, 0, state.trial.coeffs)
                 walker.field_config[i] = 0
             else:
                 vtup = walker.phi[i,:nup] * delta[1, 0]
-                vtdown = walker.phi[i,nup:] * delta[1, 1]
+                vtdown = walker.phi[i+nb,nup:] * delta[1, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                walker.phi[i+nb,nup:] = walker.phi[i+nb,nup:] + vtdown
                 walker.update_overlap(probs, 1, state.trial.coeffs)
                 walker.field_config[i] = 1
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
@@ -429,7 +423,7 @@ state : :class:`afqmcpy.state.State`
     ot_new = walker.calc_otrial(state.trial)
     ratio = (ot_new/walker.ot)
     phase = cmath.phase(ratio)
-    if phase < math.pi/2:
+    if abs(phase) < math.pi/2:
         walker.weight = walker.weight * ratio.real
         walker.ot = ot_new
         # Todo : remove computation of green's function repeatedly.
