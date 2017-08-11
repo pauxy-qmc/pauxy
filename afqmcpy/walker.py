@@ -186,10 +186,6 @@ class MultiGHFWalker:
         self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),
                                  dtype=self.phi.dtype)
         ovlp = (np.dot(trial.psi[0].conj().T, self.phi))
-        print (ovlp)
-        for i in range(0,system.ne):
-            for j in range(0,system.ne):
-                print (i, j, ovlp[i,j])
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
@@ -207,6 +203,7 @@ class MultiGHFWalker:
         self.greens_function(trial, system.nup)
         self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.G)[0].real
         self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+        self.nb = system.nbasis
 
     def inverse_overlap(self, trial, nup):
         for (indx, t) in enumerate(trial):
@@ -232,13 +229,13 @@ class MultiGHFWalker:
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
-        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
-        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        (self.phi[:self.nb,:nup], Rup) = scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
+        (self.phi[self.nb:,nup:], Rdown) = scipy.linalg.qr(self.phi[self.nb:,nup:], mode='economic')
         # Enforce a positive diagonal for the overlap.
         signs_up = np.diag(np.sign(np.diag(Rup)))
         signs_down = np.diag(np.sign(np.diag(Rdown)))
-        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        self.phi[:self.nb,:nup] = self.phi[:self.nb,:nup].dot(signs_up)
+        self.phi[self.nb:,nup:] = self.phi[self.nb:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
         detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
         self.ots = self.ots / detR
