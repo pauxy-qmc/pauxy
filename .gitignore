@@ -6,3 +6,5 @@ tags*
 *.pdf
 test.out*
 test.err*
+*.geom
+*.txt
