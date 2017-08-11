@@ -19,12 +19,6 @@ class FreeElectron:
         self.name = "free_electron"
         self.type = "free_electron"
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
-        for i in range(0,system.nbasis):
-            for j in range(0,system.nbasis):
-                if (abs(system.T[i,j]) > 1e-8):
-                    print (i, j, system.T[i,j])
-        for (e, ev) in zip(self.eigs, self.eigv.T):
-            print (e, ev)
         if cplx:
             self.trial_type = complex
         else:
@@ -36,8 +30,6 @@ class FreeElectron:
         self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
         G = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
-        for i in range(0,len(G)):
-            print (G[i,i])
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         self.initialisation_time = time.time() - init_time
         # For interface compatability
@@ -182,21 +174,21 @@ class MultiDeterminant:
                 M = system.nbasis
             else:
                 M = 2 * system.nbasis
-            orbitals = self.read_fortran_complex_numbers(self.orbital_file)
+            orbitals = read_fortran_complex_numbers(self.orbital_file)
             self.psi = orbitals.reshape((self.ndets,M,system.ne),order='F')
             self.psi = self.psi
-            self.coeffs = self.read_fortran_complex_numbers(self.coeffs_file)
+            self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
             # Todo : Update this for multi true multideterminant case.
             G = afqmcpy.estimators.gab(self.psi[0], self.psi[0])
             self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
         self.initialisation_time = time.time() - init_time
 
-    def read_fortran_complex_numbers(self, filename):
-        with open (filename) as f:
-            content = f.readlines()
-        # Converting fortran complex numbers to python. ugh
-        # Be verbose for clarity.
-        useable = [c.strip() for c in content]
-        tuples = [ast.literal_eval(u) for u in useable]
-        orbs = [complex(t[0], t[1]) for t in tuples]
-        return numpy.array(orbs)
+def read_fortran_complex_numbers(filename):
+    with open (filename) as f:
+        content = f.readlines()
+    # Converting fortran complex numbers to python. ugh
+    # Be verbose for clarity.
+    useable = [c.strip() for c in content]
+    tuples = [ast.literal_eval(u) for u in useable]
+    orbs = [complex(t[0], t[1]) for t in tuples]
+    return numpy.array(orbs)
