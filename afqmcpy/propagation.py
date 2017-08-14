@@ -446,14 +446,27 @@ def kinetic_real(phi, state):
         Simulation state.
     """
     nup = state.system.nup
-    # HACK
-    # Todd : fix this.
-    nb = state.system.nbasis
-    if state.trial.type == "GHF":
-        offset = nb
-    else:
-        offset = 0
     # Assuming that our walker is in UHF form.
+    phi[:,:nup] = state.propagators.bt2.dot(phi[:,:nup])
+    phi[:,nup:] = state.propagators.bt2.dot(phi[:,nup:])
+
+
+def kinetic_ghf(phi, state):
+    """Propagate by the kinetic term by direct matrix multiplication.
+
+    For use with the GHF algorithm.
+
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        Walker object to be updated. On output we have acted on |phi_i> by B_V and
+        updated the weight appropriately. Updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
+    nup = state.system.nup
+    nb = state.system.nbasis
+    # Assuming that our walker is in GHF form.
     phi[:nb,:nup] = state.propagators.bt2.dot(phi[:nb,:nup])
     phi[offset:,nup:] = state.propagators.bt2.dot(phi[offset:,nup:])
 
@@ -630,7 +643,12 @@ class Projectors:
                 self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
         else:
             self.propagate_walker = _propagators['discrete']['free']
-        if fft:
+        if trial.name == 'multi_determinant':
+            if trial.type == 'GHF':
+                self.kinetic = kinetic_ghf
+            else:
+                self.kinetic = kinetic_real
+        elif fft:
             self.kinetic = kinetic_kspace
         else:
             self.kinetic = kinetic_real
