@@ -6,6 +6,7 @@ from mpi4py import MPI
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
+import afqmcpy.estimators
 
 # TODO: change module name
 def initialise(input_file):
@@ -51,14 +52,22 @@ def initialise(input_file):
     if rank == 0:
         state = afqmcpy.state.State(options.get('model'),
                                     options.get('qmc_options'),
-                                    options.get('trial_wavefunction'),
-                                    options.get('estimates'))
+                                    options.get('trial_wavefunction'))
     else:
         state = None
     state = comm.bcast(state, root=0)
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
+    # We can't serialise '_io.BufferWriter' object, so just delay initialisation
+    # of estimators object to after MPI communication.
+    state.estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
+                                                     state.root,
+                                                     state.uuid,
+                                                     state.qmc.dt,
+                                                     state.system.nbasis,
+                                                     state.qmc.nwalkers,
+                                                     state.json_string)
     # TODO: Do this more gracefully.
     state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)

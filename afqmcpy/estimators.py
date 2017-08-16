@@ -30,7 +30,7 @@ class Estimators():
         See afqmcpy.estimators.Estimates.print_key for description.
     """
 
-    def __init__(self, estimates, dt, nbasis, nwalkers, json_string):
+    def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -181,7 +181,7 @@ class EstimatorEnum:
 
 class BackPropagation:
 
-    def __init__(self, bp, nwalkers, json_string):
+    def __init__(self, bp, root, uuid, json_string):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.key = {
@@ -191,11 +191,11 @@ class BackPropagation:
             'T': "BP estimate for kinetic energy.",
             'V': "BP estimate for potential energy."
         }
-        if state.root:
-            file_name = 'back_propagated_estimates_%s.out'%state.uuid[:8]
-            self.funit = open(file_name, 'a')
+        if root:
+            file_name = 'back_propagated_estimates_%s.out'%uuid[:8]
+            self.funit = open(file_name, 'ab')
             self.funit.write(json_string.encode('utf-8'))
-            print_key(self.key, self.funit.write, eol='\n')
+            print_key(self.key, self.funit.write, eol='\n', encode=True)
 
     def update_energy(system, psi_nm, psi_n, psi_bp, estimates):
         """Calculate back-propagated "local" energy for given walker/determinant.
