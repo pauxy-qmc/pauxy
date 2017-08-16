@@ -31,5 +31,6 @@
     },
     "trial_wavefunction": {
         "name": "free_electron"
-    }
+    },
+    "estimates": {}
 }
