@@ -47,8 +47,8 @@ class Estimators():
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
-        if bp:
-            self.back_prop = BackPropagation(bp, json_string)
+        if self.back_propagation:
+            self.back_prop = BackPropagation(bp, root, uuid, json_string)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -57,15 +57,15 @@ class Estimators():
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators)
-        if itcf:
-            self.itcf = ITCF(itcf, dt, json_string, nbasis)
+        if self.calc_itcf:
+            self.itcf = ITCF(itcf, dt, root, uuid, json_string, nbasis)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.itcf.spgf.flatten()))
             self.nprop_tot += self.itcf.nmax
-        if itcf or bp:
+        if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
             # path.
-            self.psi_hist = numpy.empty(shape=(nwalkers, self.nprop_tot+1),
+            self.psi_hist = numpy.zeros(shape=(nwalkers, self.nprop_tot+1),
                                         dtype=object)
         self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
