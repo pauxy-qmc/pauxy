@@ -294,20 +294,14 @@ class Estimators():
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            G[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
-            G[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
-            self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*G[0].real
-            self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*G[1].real
-=======
-            Ggr[0] = I - gab(wl.phi[0], wr.phi[0])
-            Ggr[1] = I - gab(wl.phi[1], wr.phi[1])
+            Ggr[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
+            Ggr[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
             Gls[0] = I - Ggr[0]
             Gls[1] = I - Ggr[1]
             self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Ggr[0].real
             self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Ggr[1].real
             self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*Gls[0].real
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
->>>>>>> 8e0ee17... Fix bugs.
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
