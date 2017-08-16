@@ -501,7 +501,7 @@ def gab(A, B):
     return GAB
 
 
-def print_key(key, print_function=print, eol=''):
+def print_key(key, print_function=print, eol='', encode=False):
     """Print out information about what the estimates are.
 
     Parameters
@@ -513,13 +513,21 @@ def print_key(key, print_function=print, eol=''):
     eol : string, optional
         String to append to output, e.g., '\n', Default : ''.
     """
-    print_function('# Explanation of output column headers:'+eol)
-    print_function('# -------------------------------------'+eol)
+    header = (
+        '# Explanation of output column headers:\n'
+        '# -------------------------------------'
+    )
+    if encode:
+        header = header.encode('utf-8')
+    print_function(header)
     for (k, v) in key.items():
-        print_function('# %s : %s'%(k, v)+eol)
+        s = '# %s : %s'%(k, v) + eol
+        if encode:
+            s = s.encode('utf-8')
+        print_function(s)
 
 
-def print_header(header, print_function=print, eol=''):
+def print_header(header, print_function=print, eol='', encode=False):
     """Print out header for estimators
 
     Parameters
@@ -531,7 +539,10 @@ def print_header(header, print_function=print, eol=''):
     eol : string, optional
         String to append to output, e.g., '\n', Default : ''.
     """
-    print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
+    s = afqmcpy.utils.format_fixed_width_strings(header) + eol
+    if encode:
+        s = s.encode('utf-8')
+    print_function(s)
 
 def eproj(estimates, enum):
     """Real projected energy.
