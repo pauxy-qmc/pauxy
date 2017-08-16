@@ -71,6 +71,10 @@ def do_qmc(state, psi, comm):
                                                              psi_hist[:,s],
                                                              psi_left)
                 if not state.itcf:
+                state.estimators.back_prop.update(state.system,
+                                              state.estimators.psi_hist[:,e],
+                                              state.estimators.psi_hist[:,s],
+                                              psi_left)
                     # New nth right-hand wfn for next estimate of ITCF.
                     psi_hist[:,0] = copy.deepcopy(psi)
         if state.estimators.calc_itcf and step%state.estimators.nprop_tot == 0:

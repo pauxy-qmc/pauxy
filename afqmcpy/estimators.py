@@ -102,6 +102,8 @@ class Estimators():
         ns = self.names
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
+        # Back propagated estimates
+        es[ns.evar:ns.pot+1] = self.back_prop.estimates
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
         if self.calc_itcf:
             es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
@@ -185,6 +187,7 @@ class BackPropagation:
     def __init__(self, bp, root, uuid, json_string):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
+        self.estimates = numpy.zeros(len(self.header[1:]))
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -198,7 +201,7 @@ class BackPropagation:
             self.funit.write(json_string.encode('utf-8'))
             print_key(self.key, self.funit.write, eol='\n', encode=True)
 
-    def update_energy(system, psi_nm, psi_n, psi_bp, estimates):
+    def update(self, system, psi_nm, psi_n, psi_bp):
         """Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
@@ -220,17 +223,17 @@ class BackPropagation:
             GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
             GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
             current = current + wnm.weight*numpy.array(list(local_energy(system, GTB)))
-        estimates = estimates + current.real / denominator
+        self.estimates = self.estimates + current.real / denominator
 
 
 class ITCF:
 
-    def __init__(self, itcf, root, dt, json_string, nbasis):
+    def __init__(self, itcf, dt, root, uuid, json_string, nbasis):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/dt)
-        self.kspace = itcf_opts.get('kspace', False)
+        self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
         # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
         # function at time i.
@@ -238,24 +241,22 @@ class ITCF:
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2,
                                        nbasis,
                                        nbasis))
+        self.keys = [['up', 'down'], ['greater', 'lesser']]
+        # I don't like list indexing so stick with numpy.
         if root:
-            self.keys = [['up', 'down'], ['greater', 'lesser']]
-            # I don't like list indexing so stick with numpy.
             self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
             self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
-            base = '_greens_function_%s.out'%state.uuid[:8]
-            for (i, s) in enumerate(self.rspace_keys[0]):
-                for (j, t) in enumerate(self.rspace_keys[1]):
+            base = '_greens_function_%s.out'%uuid[:8]
+            for (i, s) in enumerate(self.keys[0]):
+                for (j, t) in enumerate(self.keys[1]):
                     name = 'spin_%s_%s'%(s,t) + base
                     self.rspace_units[i,j] = open(name, 'ab')
-                    state.write_json(print_function=self.rspace_units[i,j].write,
-                                     eol='\n', verbose=True, encode=True)
-                    if state.itcf_kspace:
+                    self.rspace_units[i,j].write(json_string.encode('utf-8'))
+                    if self.kspace:
                         self.kspace_units[i,j] = open('kspace_'+name, 'ab')
-                        state.write_json(print_function=self.kspace_units[i,j].write,
-                                         eol='\n', verbose=True, encode=True)
+                        self.kspace_units[i,j].write(json_string.encode('utf-8'))
 
-    def calculate_itcf_unstable(self, state, psi_hist, psi_left):
+    def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
