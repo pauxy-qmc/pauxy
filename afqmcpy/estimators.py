@@ -41,6 +41,7 @@ class Estimators():
             'time': "Time per processor to complete one iteration.",
         }
         print_key(self.key)
+        print_header(self.header)
         self.nestimators = len(self.header[1:])
         # Sub-members:
         # 1. Back-propagation
