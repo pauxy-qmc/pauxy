@@ -125,21 +125,21 @@ class Estimators():
             for (i,s) in enumerate(self.itcf.keys[0]):
                 for (j,t) in enumerate(self.itcf.keys[1]):
                     self.itcf.to_file(spgf[:,i,j,:,:],
-                                      self.itcf_units[i,j],
-                                      state.qmc.dt,
-                                      state.system.nbasis)
-            if state.itcf_kspace:
+                                      self.itcf.rspace_units[i,j],
+                                      state.qmc.dt)
+            if self.itcf.kspace:
                 M = state.system.nbasis
                 # FFT the real space Green's function.
                 # Todo : could just use numpy.fft.fft....
                 spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
                                       spgf, state.system.P.conj().T).real/M
-                for (i,t) in enumerate(self.itcf_keys[0]):
-                    for (j,s) in enumerate(self.itcf_keys[1]):
-                        self.itcf.to_file(spgf_k[:,i,j,:,:], state,
-                                          self.kspace_units[i,j])
+                for (i,t) in enumerate(self.itcf.keys[0]):
+                    for (j,s) in enumerate(self.itcf.keys[1]):
+                        self.itcf.to_file(spgf_k[:,i,j,:,:],
+                                          self.itcf.kspace_units[i,j],
+                                          state.qmc.dt)
 
-        self.zero(state)
+        self.zero(state.system.nbasis)
 
     def update(self, w, state):
         """Update regular estimates for walker w.
@@ -286,7 +286,7 @@ class ITCF:
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
                 # propagators should be applied in reverse order
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config,
@@ -322,7 +322,7 @@ class ITCF:
             w.bp_counter = 0
         self.spgf = self.spgf / denom
 
-    def calculate_itcf(self, state, psi_hist, psi_left):
+    def calculate_spgf(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in: Feldbacher and Assad,
@@ -361,7 +361,7 @@ class ITCF:
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:state.itcf_nmax+1]))):
+            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
                 # propagators should be applied in reverse order
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config,
@@ -381,7 +381,7 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
+            for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
                                                                     c.field_config)
@@ -412,7 +412,7 @@ class ITCF:
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
-    def to_file(self, spgf, funit, dt, nbasis):
+    def to_file(self, spgf, funit, dt):
         """Save ITCF to file.
 
         This appends to any previous estimates from the same simulation.
@@ -433,16 +433,16 @@ class ITCF:
             if mode == 'full' we print the full green's function else we'll
             print some elements of G.
         """
-        for (ic, g) in enumerate(self.spgf):
+        for (ic, g) in enumerate(spgf):
             funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
             # Maybe look at binary / hdf5 format if things get out of hand.
             if self.mode == 'full':
                 numpy.savetxt(self.funit, g)
             elif self.mode == 'diagonal':
-                numpy.savetxt(self.funit, numpy.diag(g).T)
+                numpy.savetxt(funit, numpy.diag(g).T)
             else:
                 output = afqmcpy.utils.format_fixed_width_floats(g[self.mode])
-                self.funit.write((output+'\n').encode('utf-8'))
+                funit.write((output+'\n').encode('utf-8'))
 
 def local_energy(system, G):
     '''Calculate local energy of walker for the Hubbard model.

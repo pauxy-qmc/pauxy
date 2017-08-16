@@ -19,12 +19,12 @@ def do_qmc(state, psi, comm):
         Initial wavefunction / distribution of walkers.
     comm : MPI communicator
     """
-    if state.back_propagation:
+    if state.estimators.back_propagation:
         # Easier to just keep a histroy of all walkers for population control
         # purposes if a bit memory inefficient.
-        psi_hist[:,0] = copy.deepcopy(psi)
+        state.estimators.psi_hist[:,0] = copy.deepcopy(psi)
     else:
-        psi_hist = None
+        state.estimators.psi_hist = None
 
     (E_T, ke, pe) = afqmcpy.estimators.local_energy(state.system, psi[0].G)
     state.qmc.mean_local_energy = E_T.real
@@ -48,14 +48,14 @@ def do_qmc(state, psi, comm):
             state.estimators.update(w, state)
             if step%state.qmc.nstblz == 0:
                 detR = w.reortho(state.system.nup)
-                if not state.importance_sampling:
+                if not state.qmc.importance_sampling:
                     w.weight = detR * w.weight
         bp_step = (step-1)%state.estimators.nprop_tot
-        if state.back_propagation:
-            psi_hist[:,bp_step+1] = copy.deepcopy(psi)
-            if step%state.nback_prop == 0:
+        if state.estimators.back_propagation:
+            state.estimators.psi_hist[:,bp_step+1] = copy.deepcopy(psi)
+            if step%state.estimators.back_prop.nmax == 0:
                 # start and end points for selecting field configurations.
-                s = bp_step - state.nback_prop + 1
+                s = bp_step - state.estimators.back_prop.nmax + 1
                 e = bp_step + 1
                 # the first entry in psi_hist (with index 0) contains the
                 # wavefunction at the step where we start to accumulate the
@@ -65,25 +65,25 @@ def do_qmc(state, psi, comm):
                 # array, i.e., s+1. Slicing excludes the endpoint which we need
                 # so also add one to e.
                 psi_left = afqmcpy.propagation.back_propagate(state,
-                                                              psi_hist[:,s+1:e+1])
-                estimates.update_back_propagated_observables(state.system,
-                                                             psi_hist[:,e],
-                                                             psi_hist[:,s],
-                                                             psi_left)
-                if not state.itcf:
+                                          state.estimators.psi_hist[:,s+1:e+1])
                 state.estimators.back_prop.update(state.system,
                                               state.estimators.psi_hist[:,e],
                                               state.estimators.psi_hist[:,s],
                                               psi_left)
+                if not state.estimators.calc_itcf:
                     # New nth right-hand wfn for next estimate of ITCF.
                     psi_hist[:,0] = copy.deepcopy(psi)
         if state.estimators.calc_itcf and step%state.estimators.nprop_tot == 0:
-            if state.itcf_stable:
-                estimates.calculate_itcf(state, psi_hist, psi_left)
+            if state.estimators.itcf.stable:
+                state.estimators.itcf.calculate_spgf(state,
+                                                     state.estimators.psi_hist,
+                                                     psi_left)
             else:
-                estimates.calculate_itcf_unstable(state, psi_hist, psi_left)
+                state.estimators.itcf.calculate_spgf_unstable(state,
+                                                              state.estimators.psi_hist,
+                                                              psi_left)
             # New nth right-hand wfn for next estimate of ITCF.
-            psi_hist[:,0] = copy.deepcopy(psi)
+            state.estimators.psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
             E_T = afqmcpy.estimators.eproj(state.estimators.estimates,
@@ -93,6 +93,7 @@ def do_qmc(state, psi, comm):
             # Update local energy bound.
             state.mean_local_energy = E_T
         if step%state.qmc.npop_control == 0:
-            psi_hist = pop_control.comb(psi, state.qmc.nwalkers, psi_hist)
+            state.estimators.psi_hist = pop_control.comb(psi, state.qmc.nwalkers,
+                                                         state.estimators.psi_hist)
 
     return (state, psi)
