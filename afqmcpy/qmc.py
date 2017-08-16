@@ -54,6 +54,8 @@ def do_qmc(state, psi, comm):
             estimates.update(w, state)
             if step%state.nstblz == 0:
                 detR = w.reortho(state.system.nup)
+                if not state.importance_sampling:
+                    w.weight = detR * w.weight
         bp_step = (step-1)%state.nprop_tot
         if state.back_propagation:
             psi_hist[:,bp_step+1] = copy.deepcopy(psi)
