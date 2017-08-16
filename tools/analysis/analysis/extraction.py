@@ -121,4 +121,4 @@ def pretty_table_loop(results, model):
 
 def extract_test_data(filename):
     (md, data) = extract_data(filename)
-    return data[::8].to_dict()
+    return data[::8].to_dict(orient='list')
