@@ -101,7 +101,8 @@ class Estimators():
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         es[ns.time] = (time.time()-es[ns.time])/state.nprocs
-        es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
+        if self.calc_itcf:
+            es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = global_estimates[:ns.time] / state.qmc.nmeasure
@@ -115,7 +116,7 @@ class Estimators():
                 )
                 self.funit.write(ff+'\n')
 
-        if state.root and step%state.nprop_tot == 0 and state.calc_itcf and print_itcf:
+        if state.root and step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
             for (i,s) in enumerate(self.itcf.keys[0]):
                 for (j,t) in enumerate(self.itcf.keys[1]):
@@ -222,7 +223,7 @@ class BackPropagation:
 
 class ITCF:
 
-    def __init__(self, itcf, root, nbasis, dt, json_string, nbasis):
+    def __init__(self, itcf, root, dt, json_string, nbasis):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
