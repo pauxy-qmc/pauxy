@@ -21,6 +21,8 @@ class State:
             # sytem packages all generic information + model specific information.
             self.system = hubbard.Hubbard(model, qmc_opts['dt'])
         self.qmc = QMCOpts(qmc_opts, self.system)
+        # Store input dictionaries for the moment.
+        # Todo : output constructed derived objects.
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
@@ -44,10 +46,10 @@ class State:
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts)
         self.estimators = afqmcpy.estimators.Estimators(estimates,
-                                                       self.qmc.dt,
-                                                       self.system.nbasis,
-                                                       self.qmc.nwalkers,
-                                                       self.json_string)
+                                                        self.qmc.dt,
+                                                        self.system.nbasis,
+                                                        self.qmc.nwalkers,
+                                                        self.json_string)
 
     def write_json(self, model, qmc_opts):
         r"""Print out state object information to string.
