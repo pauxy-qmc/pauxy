@@ -528,3 +528,23 @@ def print_header(header, print_function=print, eol=''):
         String to append to output, e.g., '\n', Default : ''.
     """
     print_function(afqmcpy.utils.format_fixed_width_strings(header)+eol)
+
+def eproj(estimates, enum):
+    """Real projected energy.
+
+    Parameters
+    ----------
+    estimates : numpy.array
+        Array containing estimates averaged over all processors.
+    enum : :class:`afqmcpy.estimators.EstimatorEnum` object
+        Enumerator class outlining indices of estimates array elements.
+
+    Returns
+    -------
+    eproj : float
+        Projected energy from current estimates array.
+    """
+
+    numerator = estimates[enum.enumer]
+    denominator = estimates[enum.edenom]
+    return (numerator/denominator).real

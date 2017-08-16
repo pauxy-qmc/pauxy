@@ -82,8 +82,9 @@ def do_qmc(state, psi, comm):
             psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
-            E_T = (state.estimators.estimates[estimators.names.enumer]/estimators.estimates[estimators.names.edenom]).real
-            estimates.print_step(state, comm, step)
+            E_T = afqmcpy.estimators.eproj(state.estimators.estimates,
+                                           state.estimators.names)
+            state.estimators.print_step(state, comm, step)
         if step < state.qmc.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
