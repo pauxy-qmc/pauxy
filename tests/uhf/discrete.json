@@ -23,7 +23,7 @@
     },
     "trial_wavefunction": {
         "name": "UHF",
-        "ueff": 0.5,
-        "ninitial": 20
+        "ueff": 0.4,
+        "ninitial": 100
     }
 }
