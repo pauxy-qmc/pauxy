@@ -59,8 +59,6 @@ def initialise(input_file):
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
-    if state.root:
-        print (state.json_string)
     # TODO: Do this more gracefully.
     state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)

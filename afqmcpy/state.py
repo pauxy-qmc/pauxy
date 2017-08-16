@@ -45,6 +45,7 @@ class State:
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts)
+        print (self.json_string)
         self.estimators = afqmcpy.estimators.Estimators(estimates,
                                                         self.qmc.dt,
                                                         self.system.nbasis,
@@ -86,8 +87,8 @@ class State:
             'trial_wavefunction': trial_wavefunction,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
-        first = '# Input options:'
-        last =  '# End of input options.'
+        first = '# Input options:\n'
+        last =  '\n# End of input options.'
         md = json.dumps(info, sort_keys=False, indent=4)
         return (first + md + last)
 
