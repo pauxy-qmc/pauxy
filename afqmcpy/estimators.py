@@ -82,6 +82,7 @@ class Estimators():
         self.estimates[self.names.time] = time.time()
         if self.calc_itcf:
             self.itcf.spgf = numpy.zeros(shape=(self.itcf.nmax+1,
+                                                2, 2,
                                                 nbasis,
                                                 nbasis))
 
