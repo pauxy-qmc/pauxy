@@ -9,13 +9,12 @@ import numpy
 import uuid
 import afqmcpy.hubbard as hubbard
 import afqmcpy.trial_wave_function as trial_wave_function
-import afqmcpy.estimators
 import afqmcpy.propagation
 import afqmcpy.hs_transform
 
 class State:
 
-    def __init__(self, model, qmc_opts, trial, estimates):
+    def __init__(self, model, qmc_opts, trial):
 
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
@@ -26,6 +25,8 @@ class State:
         self.back_propagation = qmc_opts.get('back_propagation', False)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
+        # Hack - this is modified on initialisation.
+        self.root = True
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                           self.qmc.hubbard_stratonovich,
                                                           self.qmc.dt, self.system.T,
@@ -46,11 +47,6 @@ class State:
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts)
         print (self.json_string)
-        self.estimators = afqmcpy.estimators.Estimators(estimates,
-                                                        self.qmc.dt,
-                                                        self.system.nbasis,
-                                                        self.qmc.nwalkers,
-                                                        self.json_string)
 
     def write_json(self, model, qmc_opts):
         r"""Print out state object information to string.
