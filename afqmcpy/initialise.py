@@ -6,6 +6,7 @@ from mpi4py import MPI
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
+import afqmcpy.estimators
 
 # TODO: change module name
 def initialise(input_file):
@@ -49,20 +50,28 @@ def initialise(input_file):
     seed = seed + rank
     numpy.random.seed(seed)
     if rank == 0:
-        state = afqmcpy.state.State(options['model'], options['qmc_options'],
-                                    options['trial_wavefunction'])
+        state = afqmcpy.state.State(options.get('model'),
+                                    options.get('qmc_options'),
+                                    options.get('trial_wavefunction'))
     else:
         state = None
     state = comm.bcast(state, root=0)
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
-    if state.root:
-        state.write_json(eol='\n', eoll='')
+    # We can't serialise '_io.BufferWriter' object, so just delay initialisation
+    # of estimators object to after MPI communication.
+    state.estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
+                                                     state.root,
+                                                     state.uuid,
+                                                     state.qmc.dt,
+                                                     state.system.nbasis,
+                                                     state.qmc.nwalkers,
+                                                     state.json_string)
     # TODO: Do this more gracefully.
-    state.nwalkers = int(state.nwalkers/nprocs)
+    state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)
-            for w in range(state.nwalkers)]
+            for w in range(state.qmc.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     # TODO: Return state and psi and run from another routine.
     return state

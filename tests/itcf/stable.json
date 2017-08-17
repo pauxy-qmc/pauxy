@@ -19,17 +19,20 @@
         "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
         "importance_sampling": true,
-        "kinetic_kspace": false,
-        "rng_seed": 7,
-        "back_propagation": true,
-        "nback_prop": 10,
-        "itcf": {
-            "stable": true,
-            "tmax": 2,
-            "mode": "diagonal"
-        }
+        "rng_seed": 7
     },
     "trial_wavefunction": {
         "name": "free_electron"
+    },
+    "estimates": {
+        "back_propagation": {
+            "nback_prop": 10
+        },
+        "itcf": {
+            "stable": true,
+            "tmax": 2,
+            "mode": "diagonal",
+            "kspace": true
+        }
     }
 }
