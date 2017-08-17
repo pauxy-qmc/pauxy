@@ -52,6 +52,7 @@ def initialise(input_file):
     if rank == 0:
         state = afqmcpy.state.State(options.get('model'),
                                     options.get('qmc_options'),
+                                    options.get('estimates'),
                                     options.get('trial_wavefunction'))
     else:
         state = None

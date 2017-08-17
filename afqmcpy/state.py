@@ -14,7 +14,7 @@ import afqmcpy.hs_transform
 
 class State:
 
-    def __init__(self, model, qmc_opts, trial):
+    def __init__(self, model, qmc_opts, estimates, trial):
 
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
@@ -45,10 +45,10 @@ class State:
         elif trial['name'] == 'multi_determinant':
             self.trial = trial_wave_function.multi_det(self.system, self.cplx)
         # Handy to keep original dicts so they can be printed at run time.
-        self.json_string = self.write_json(model, qmc_opts)
+        self.json_string = self.write_json(model, qmc_opts, estimates)
         print (self.json_string)
 
-    def write_json(self, model, qmc_opts):
+    def write_json(self, model, qmc_opts, estimates):
         r"""Print out state object information to string.
 
         Parameters
@@ -81,6 +81,7 @@ class State:
             'model': model,
             'qmc_options': qmc_opts,
             'trial_wavefunction': trial_wavefunction,
+            'estimates': estimates,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
         first = '# Input options:\n'
