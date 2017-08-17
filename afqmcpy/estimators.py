@@ -105,7 +105,8 @@ class Estimators():
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         # Back propagated estimates
-        es[ns.evar:ns.pot+1] = self.back_prop.estimates / state.nprocs
+        if self.back_propagation:
+            es[ns.evar:ns.pot+1] = self.back_prop.estimates / state.nprocs
         es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
         if self.calc_itcf:
             es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
