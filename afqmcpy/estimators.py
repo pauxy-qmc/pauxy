@@ -80,6 +80,8 @@ class Estimators():
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
+        if self.back_propagation:
+            self.back_prop.estimates[:] = 0
         if self.calc_itcf:
             self.itcf.spgf = numpy.zeros(shape=(self.itcf.nmax+1,
                                                 2, 2,
