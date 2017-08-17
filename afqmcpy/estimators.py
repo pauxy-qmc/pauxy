@@ -180,14 +180,15 @@ class EstimatorEnum:
     python's support for enums doesn't help as it indexes from 1.
     """
     def __init__(self, nestimators):
+        # Exception for alignment of equal sign.
         self.weight = 0
         self.enumer = 1
         self.edenom = 2
-        self.eproj = 3
-        self.time = 4
-        self.evar = 5
-        self.kin = 6
-        self.pot = 7
+        self.eproj  = 3
+        self.time   = 4
+        self.evar   = 5
+        self.kin    = 6
+        self.pot    = 7
 
 
 class BackPropagation:
