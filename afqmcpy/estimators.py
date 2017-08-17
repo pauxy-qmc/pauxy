@@ -315,10 +315,10 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(psi_hist[ix,1:state.itcf_nmax+1]):
+            for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(state,
-                                                                    c.field_config)
+                                                                c.field_config)
                 Ggr[0] = B[0].dot(Ggr[0])
                 Ggr[1] = B[1].dot(Ggr[1])
                 Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
