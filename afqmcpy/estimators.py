@@ -514,8 +514,8 @@ def print_key(key, print_function=print, eol='', encode=False):
         String to append to output, e.g., '\n', Default : ''.
     """
     header = (
-        '# Explanation of output column headers:\n'
-        '# -------------------------------------'
+        eol + '# Explanation of output column headers:\n' +
+        '# -------------------------------------' + eol
     )
     if encode:
         header = header.encode('utf-8')
