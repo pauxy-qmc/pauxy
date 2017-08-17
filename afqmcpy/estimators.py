@@ -450,7 +450,8 @@ class ITCF:
             if self.mode == 'full':
                 numpy.savetxt(self.funit, g)
             elif self.mode == 'diagonal':
-                numpy.savetxt(funit, numpy.diag(g).T)
+                output = afqmcpy.utils.format_fixed_width_floats(numpy.diag(g))
+                funit.write((output+'\n').encode('utf-8'))
             else:
                 output = afqmcpy.utils.format_fixed_width_floats(g[self.mode])
                 funit.write((output+'\n').encode('utf-8'))
