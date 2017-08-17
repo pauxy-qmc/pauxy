@@ -115,12 +115,12 @@ class Estimators():
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                 list(global_estimates[:ns.evar])))
-            if state.back_propagation and print_bp:
+            if self.back_propagation and print_bp:
                 ff = (
                     afqmcpy.utils.format_fixed_width_floats([step]+
                             list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
                 )
-                self.funit.write(ff+'\n')
+                self.back_prop.funit.write((ff+'\n').encode('utf-8'))
 
         if state.root and step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
