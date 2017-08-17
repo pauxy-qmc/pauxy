@@ -200,6 +200,7 @@ class BackPropagation:
             self.funit = open(file_name, 'ab')
             self.funit.write(json_string.encode('utf-8'))
             print_key(self.key, self.funit.write, eol='\n', encode=True)
+            print_header(self.header, self.funit.write, eol='\n', encode=True)
 
     def update(self, system, psi_nm, psi_n, psi_bp):
         """Calculate back-propagated "local" energy for given walker/determinant.
