@@ -3,6 +3,7 @@ import json
 import time
 import numpy
 from mpi4py import MPI
+import warnings
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
@@ -62,6 +63,16 @@ def initialise(input_file):
     state.root = state.rank == 0
     # We can't serialise '_io.BufferWriter' object, so just delay initialisation
     # of estimators object to after MPI communication.
+    # TODO: Do this more gracefully.
+    state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
+    if state.qmc.nwalkers == 0:
+        # This should occur on all processors so we don't need to worry about
+        # race conditions / mpi4py hanging.
+        if state.root:
+            warnings.warn('Not enough walkers for selected core count. There '
+                          'must be at least one walker per core set in the '
+                          'input file. Exiting.')
+        sys.exit()
     state.estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
                                                      state.root,
                                                      state.uuid,
@@ -69,8 +80,6 @@ def initialise(input_file):
                                                      state.system.nbasis,
                                                      state.qmc.nwalkers,
                                                      state.json_string)
-    # TODO: Do this more gracefully.
-    state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial.psi, w)
             for w in range(state.qmc.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
