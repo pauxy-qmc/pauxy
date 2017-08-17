@@ -105,24 +105,30 @@ class Estimators():
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         # Back propagated estimates
-        es[ns.evar:ns.pot+1] = self.back_prop.estimates
-        es[ns.time] = (time.time()-es[ns.time])/state.nprocs
+        es[ns.evar:ns.pot+1] = self.back_prop.estimates / state.nprocs
+        es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
         if self.calc_itcf:
             es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
-        global_estimates[:ns.time] = global_estimates[:ns.time] / state.qmc.nmeasure
+        global_estimates[:ns.time] = (
+            global_estimates[:ns.time] / state.qmc.nmeasure
+        )
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                 list(global_estimates[:ns.evar])))
             if self.back_propagation and print_bp:
                 ff = (
                     afqmcpy.utils.format_fixed_width_floats([step]+
-                            list(global_estimates[ns.evar:ns.pot+1]/state.nprocs))
+                        list(global_estimates[ns.evar:ns.pot+1]))
                 )
                 self.back_prop.funit.write((ff+'\n').encode('utf-8'))
 
-        if state.root and step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
+        print_now = (
+            state.root and step%self.nprop_tot == 0 and
+            self.calc_itcf and print_itcf
+        )
+        if print_now:
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
             for (i,s) in enumerate(self.itcf.keys[0]):
                 for (j,t) in enumerate(self.itcf.keys[1]):
