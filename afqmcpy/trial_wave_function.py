@@ -1,20 +1,23 @@
 import numpy
+import scipy.optimize
+import scipy.linalg
 import math
 import cmath
 import time
 import copy
 import sys
-import scipy.optimize
-import scipy.linalg
-import afqmcpy.hubbard
-import afqmcpy.estimators
+import ast
 import afqmcpy.utils
+import afqmcpy.estimators
+import afqmcpy.hubbard
 
 
-class Free_Electron:
+class FreeElectron:
 
     def __init__(self, system, cplx, trial):
         init_time = time.time()
+        self.name = "free_electron"
+        self.type = "free_electron"
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex
@@ -25,8 +28,12 @@ class Free_Electron:
                                dtype=self.trial_type)
         self.psi[:,:system.nup] = self.eigv[:,:system.nup]
         self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
+        G = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+                                   self.psi[:,:system.nup])
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         self.initialisation_time = time.time() - init_time
+        # For interface compatability
+        self.coeffs = 1.0
 
 
 class UHF:
@@ -34,6 +41,8 @@ class UHF:
     def __init__(self, system, cplx, trial):
         print ("# Constructing trial wavefunction")
         init_time = time.time()
+        self.name = "UHF"
+        self.type = "UHF"
         if cplx:
             self.trial_type = complex
         else:
@@ -44,6 +53,8 @@ class UHF:
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
+        # For interface compatability
+        self.coeffs = 1.0
         (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx,
                                                              self.ueff,
                                                              self.ninitial,
@@ -134,3 +145,50 @@ class UHF:
 
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
+
+class MultiDeterminant:
+
+    def __init__(self, system, cplx, trial):
+        init_time = time.time()
+        self.name = "multi_determinant"
+        self.type = trial.get('type')
+        self.ndets = trial.get('ndets', None)
+        self.eigs = numpy.array([0.0])
+        if cplx:
+            self.trial_type = complex
+        else:
+            self.trial_type = float
+        # For debugging purposes.
+        if self.type == 'free_electron':
+            (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
+            psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
+            psi[:,:system.nup] = self.eigv[:,:system.nup]
+            psi[:,system.nup:] = self.eigv[:,:system.ndown]
+            self.psi = numpy.array([copy.deepcopy(psi) for i in range(0,self.ndets)])
+            self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
+            self.coeffs = numpy.ones(self.ndets)
+        else:
+            self.orbital_file = trial.get('orbital_file')
+            self.coeffs_file = trial.get('coefficients_file')
+            if self.type == 'UHF':
+                M = system.nbasis
+            else:
+                M = 2 * system.nbasis
+            orbitals = read_fortran_complex_numbers(self.orbital_file)
+            self.psi = orbitals.reshape((self.ndets,M,system.ne),order='F')
+            self.psi = self.psi
+            self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
+            # Todo : Update this for multi true multideterminant case.
+            G = afqmcpy.estimators.gab(self.psi[0], self.psi[0])
+            self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
+        self.initialisation_time = time.time() - init_time
+
+def read_fortran_complex_numbers(filename):
+    with open (filename) as f:
+        content = f.readlines()
+    # Converting fortran complex numbers to python. ugh
+    # Be verbose for clarity.
+    useable = [c.strip() for c in content]
+    tuples = [ast.literal_eval(u) for u in useable]
+    orbs = [complex(t[0], t[1]) for t in tuples]
+    return numpy.array(orbs)

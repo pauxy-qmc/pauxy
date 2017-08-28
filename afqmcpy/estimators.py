@@ -474,10 +474,17 @@ E_L(phi) : float
     Local energy of given walker phi.
 '''
 
+    # Todo: Be less stupid
     ke = numpy.sum(system.T * (G[0] + G[1]))
     pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
 
     return (ke + pe, ke, pe)
+
+def local_energy_ghf(system, G):
+    ke = numpy.sum(system.T*(G[:system.nbasis,:system.nbasis]+G[system.nbasis:,system.nbasis:]))
+    pe = sum(system.U*(G[i,i]*G[i+system.nbasis,i+system.nbasis]-
+             G[i+system.nbasis][i]*G[i,i+system.nbasis]) for i in range(0, system.nbasis))
+    return (ke+pe, ke, pe)
 
 
 def gab(A, B):
