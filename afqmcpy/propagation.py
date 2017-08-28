@@ -446,10 +446,16 @@ def kinetic_real(phi, state):
         Simulation state.
     """
     nup = state.system.nup
+    # HACK
+    # Todd : fix this.
     nb = state.system.nbasis
+    if state.trial.type == "GHF":
+        offset = nb
+    else:
+        offset = 0
     # Assuming that our walker is in UHF form.
     phi[:nb,:nup] = state.propagators.bt2.dot(phi[:nb,:nup])
-    phi[nb:,nup:] = state.propagators.bt2.dot(phi[nb:,nup:])
+    phi[offset:,nup:] = state.propagators.bt2.dot(phi[offset:,nup:])
 
 
 def propagate_potential_auxf(phi, state, field_config):

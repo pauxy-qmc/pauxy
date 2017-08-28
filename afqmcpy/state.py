@@ -27,12 +27,6 @@ class State:
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
         self.root = True
-        self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                          self.qmc.hubbard_stratonovich,
-                                                          self.qmc.dt, self.system.T,
-                                                          self.qmc.importance_sampling,
-                                                          self.system.eks,
-                                                          self.qmc.ffts)
         # effective hubbard U for UHF trial wavefunction.
         if trial['name'] == 'free_electron':
             self.trial = trial_wave_function.FreeElectron(self.system,
@@ -47,14 +41,12 @@ class State:
                                                               self.cplx,
                                                               trial)
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                          self.hubbard_stratonovich,
+                                                          self.qmc.hubbard_stratonovich,
                                                           self.qmc.dt, self.system.T,
                                                           self.qmc.importance_sampling,
                                                           self.system.eks,
                                                           self.qmc.ffts,
                                                           self.trial)
-        self.local_energy_bound = (2.0/self.dt)**0.5
-        self.mean_local_energy = 0
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts, estimates)
         print (self.json_string)
