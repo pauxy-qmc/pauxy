@@ -95,7 +95,6 @@ def initialise(input_file):
     return state
 
 def finalise(state, init_time):
-
     if state.root:
         print ("# End Time: %s"%time.asctime())
         print ("# Running time : %.6f seconds"%(time.time()-init_time))
