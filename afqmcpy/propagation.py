@@ -166,7 +166,7 @@ state : :class:`state.State`
     # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi, state.system.nup)
     walker.greens_function(state.trial, state.system.nup)
-    E_L = estimators.local_energy(state.system, walker.G)[0].real
+    E_L = state.estimators.local_energy(state.system, walker.G)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
                              state.qmc.local_energy_bound)
@@ -396,7 +396,7 @@ state : :class:`afqmcpy.state.State`
     walker.inverse_overlap(trial)
     walker.greens_function(trial)
     # Perform importance sampling, phaseless and real local energy approximation and update
-    E_L = estimators.local_energy(system, walker.G)[0].real
+    E_L = state.estimators.local_energy(system, walker.G)[0].real
     ot_new = walker.calc_otrial(trial)
     dtheta = cmath.phase(ot_new/walker.ot)
     walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
