@@ -2,6 +2,27 @@ from math import cos, pi
 import numpy
 
 def kpoints(t, nx, ny):
+    """ Construct kpoints for system.
+
+    Parameters
+    ----------
+    t : float
+        Hopping amplitude.
+    nx : int
+        Number of x lattice sites.
+    nx : int
+        Number of y lattice sites.
+
+    Returns
+    -------
+    kp : numpy array
+        System kpoints Note these are not sorted according to eigenvalue energy
+        but rather so as to conform with numpys default kpoint indexing for FFTs.
+    kfac : float
+        Kpoint scaling factor (2pi/L).
+    eigs : numpy array
+        Single particle eigenvalues associated with kp.
+    """
     kp = []
     eigs = []
     if ny == 1:
@@ -22,6 +43,19 @@ def kpoints(t, nx, ny):
     return (kp, kfac, eigs)
 
 def ek(t, k, kc, ny):
+    """ Calculate single-particle energies.
+
+    Parameters
+    ----------
+    t : float
+        Hopping amplitude.
+    k : numpy array
+        Kpoint.
+    kc : float
+        Scaling factor.
+    ny : int
+        Number of y lattice points.
+    """
     if ny == 1:
         e = -2.0*t*cos(kc*k)
     else:
