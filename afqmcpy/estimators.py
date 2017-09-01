@@ -13,21 +13,48 @@ import afqmcpy.utils
 class Estimators():
     """Container for qmc estimates of observables.
 
+    Parameters
+    ----------
+    estimates : dict
+        input options detailing which estimators to calculate.
+    root : bool
+        True if on root/master processor.
+    uuid : string
+        Calculation uuid.
+    dt : float
+        Timestep.
+    nbasis : int
+        Number of basis functions.
+    nwalkers : int
+        Number of walkers on this processor.
+    json_string : string
+        Information regarding input options.
+
     Attributes
     ----------
     header : list of strings
         Default estimates and simulation information.
-    funit : file unit
-        File to write back-propagated estimates to.
-    bp_header : list of strings
-        Back-propagated estimates.
+    key : dict
+        Explanation of output columns.
     nestimators : int
         Number of estimators.
-    names : :class:`afqmcpy.estimators.EstimatorEnum`
-        Enum type object to allow for clearer (maybe) indexing.
     estimates : :class:`numpy.ndarray`
         Array containing accumulated estimates.
-        See afqmcpy.estimators.Estimates.print_key for description.
+        See afqmcpy.estimators.Estimates.key for description.
+    back_propagation : bool
+        True if doing back propagation, specified in estimates dict.
+    back_prop : :class:`afqmcpy.estimators.BackPropagation` object
+        Class containing attributes and routines pertaining to back propagation.
+    calc_itcf : bool
+        True if calculating imaginary time correlation functions (ITCFs).
+    itcf : :class:`afqmcpy.estimators.ITCF` object
+        Class containing attributes and routines pertaining to back propagation.
+    nprop_tot : int
+        Total number of auxiliary field configurations we store / use for back
+        propagation and itcf calculation.
+    psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
+        Store for historic distributions of walkers used for back propagation
+        and ITCF calculation.
     """
 
     def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string):
@@ -78,6 +105,10 @@ class Estimators():
 
         On return self.estimates is zerod and the timers are reset.
 
+        Parameters
+        ----------
+        nbasis : int
+            Number of basis functions.
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
@@ -100,6 +131,10 @@ class Estimators():
             MPI communicator.
         step : int
             Current iteration number.
+        print_bp : bool (optional)
+            If True we print out estimates relating to back propagation.
+        print_itcf : bool (optional)
+            If True we print out estimates relating to ITCFs.
         """
         es = self.estimates
         ns = self.names
@@ -194,6 +229,32 @@ class EstimatorEnum:
 
 
 class BackPropagation:
+    """ Container for performing back propagation.
+
+    Parameters
+    ----------
+    bp : dict
+        Input back propagation options :
+            nmax : int
+                Number of back propagation steps to perform.
+    root : bool
+        True if on root/master processor.
+    uuid : string
+        Calculation uuid.
+    json_string : string
+        Information regarding input options.
+
+    Attributes
+    ----------
+    header : list
+        Header sfor back propagated estimators.
+    estimates : :class:`numpy.ndarray`
+        Container for local estimates.
+    key : dict
+        Explanation of output columns.
+    funit : file
+        Output file for back propagated estimates.
+    """
 
     def __init__(self, bp, root, uuid, json_string):
         self.nmax = bp.get('nback_prop', 0)
@@ -218,10 +279,10 @@ class BackPropagation:
 
         Parameters
         ----------
-        psi : list of :class:`afqmcpy.walker.Walker` objects
+        psi_nm : list of :class:`afqmcpy.walker.Walker` objects
             current distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        psit : list of :class:`afqmcpy.walker.Walker` objects
+        psi_n : list of :class:`afqmcpy.walker.Walker` objects
             previous distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau`.
         psi_bp : list of :class:`afqmcpy.walker.Walker` objects
@@ -239,6 +300,49 @@ class BackPropagation:
 
 
 class ITCF:
+    """ Container for calculating ITCFs.
+
+    Parameters
+    ----------
+    itcf : dict
+        Input itcf options:
+            tmax : float
+                Maximum value of imaginary time to calculate ITCF to.
+            stable : bool
+                If True use the stabalised algorithm of Feldbacher and Assad.
+            mode : string / list
+                How much of the ITCF to save to file:
+                    'full' : print full ITCF.
+                    'diagonal' : print diagonal elements of ITCF.
+                    elements : list : print select elements defined from list.
+            kspace : bool
+                If True evaluate correlation functions in momentum space.
+    dt : float
+        Timestep.
+    root : bool
+        True if on root/master processor.
+    uuid : string
+        Calculation uuid.
+    json_string : string
+        Information regarding input options.
+    nbasis : int
+        Number of basis functions.
+
+    Attributes
+    ----------
+    nmax : int
+        Number of back propagation steps to perform.
+    spgf : :class:`numpy.ndarray`
+        Storage for single-particle greens function (SPGF).
+    header : list
+        Header sfor back propagated estimators.
+    key : dict
+        Explanation of output columns.
+    rspace_units : numpy array of files
+        Output files for real space itcfs.
+    kspace_units : numpy array of files
+        Output files for real space itcfs.
+    """
 
     def __init__(self, itcf, dt, root, uuid, json_string, nbasis):
         self.stable = itcf.get('stable', True)
@@ -277,11 +381,9 @@ class ITCF:
         ----------
         state : :class:`afqmcpy.state.State`
             state object
-        psi : list of :class:`afqmcpy.walker.Walker` objects
-            current distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau_r'=\tau_n+\tau+\tau_{bp}`.
-        psi_right : list of :class:`afqmcpy.walker.Walker` objects
-            previous distribution of walkers, i.e., at :math:`\tau_n`.
+        psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
+            Store for historic distributions of walkers used for back
+            propagation and ITCF calculation.
         psi_left : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
@@ -337,18 +439,16 @@ class ITCF:
     def calculate_spgf(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
 
-        This uses the stable algorithm as outlined in: Feldbacher and Assad,
-        Phys. Rev. B 63, 073105.
+        This uses the stable algorithm as outlined in:
+            Feldbacher and Assad, Phys. Rev. B 63, 073105.
 
         Parameters
         ----------
         state : :class:`afqmcpy.state.State`
             state object
-        psi : list of :class:`afqmcpy.walker.Walker` objects
-            current distribution of walkers, i.e., at the current iteration in the
-            simulation corresponding to :math:`\tau_r'=\tau_n+\tau+\tau_{bp}`.
-        psi_right : list of :class:`afqmcpy.walker.Walker` objects
-            previous distribution of walkers, i.e., at :math:`\tau_n`.
+        psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
+            Store for historic distributions of walkers used for back
+            propagation and ITCF calculation.
         psi_left : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
@@ -433,17 +533,12 @@ class ITCF:
 
         Parameters
         ----------
-        itcf : numpy array
-            Flattened ITCF.
-        dt : float
-            Time step
-        gf_shape: tuple
-            Actual shape of ITCF Green's function matrix.
+        spgf : :class:`numpy.ndarray`
+            Storage for single-particle greens function (SPGF).
         funit : file
             Output file for ITCF.
-        mode : string or list
-            if mode == 'full' we print the full green's function else we'll
-            print some elements of G.
+        dt : float
+            Timestep.
         """
         for (ic, g) in enumerate(spgf):
             funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
@@ -458,21 +553,21 @@ class ITCF:
                 funit.write((output+'\n').encode('utf-8'))
 
 def local_energy(system, G):
-    '''Calculate local energy of walker for the Hubbard model.
+    """Calculate local energy of walker for the Hubbard model.
 
 Parameters
 ----------
 system : :class:`Hubbard`
     System information for the Hubbard model.
 G : :class:`numpy.ndarray`
-    Greens function for given walker phi, i.e.,
+    Greens function (sort of) for given walker phi, i.e.,
     :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
 
 Returns
 -------
 E_L(phi) : float
     Local energy of given walker phi.
-'''
+"""
 
     # Todo: Be less stupid
     ke = numpy.sum(system.T * (G[0] + G[1]))
@@ -481,6 +576,21 @@ E_L(phi) : float
     return (ke + pe, ke, pe)
 
 def local_energy_ghf(system, G):
+    """Calculate local energy of GHF walker for the Hubbard model.
+
+Parameters
+----------
+system : :class:`Hubbard`
+    System information for the Hubbard model.
+G : :class:`numpy.ndarray`
+    Greens function (sort of) for given walker phi, i.e.,
+    :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+
+Returns
+-------
+E_L(phi) : float
+    Local energy of given walker phi.
+"""
     ke = numpy.sum(system.T*(G[:system.nbasis,:system.nbasis]+G[system.nbasis:,system.nbasis:]))
     pe = sum(system.U*(G[i,i]*G[i+system.nbasis,i+system.nbasis]-
              G[i+system.nbasis][i]*G[i,i+system.nbasis]) for i in range(0, system.nbasis))
@@ -526,12 +636,14 @@ def print_key(key, print_function=print, eol='', encode=False):
 
     Parameters
     ----------
-    back_propagation : bool, optional
-        True if doing back propagation. Default : False.
+    key : dict
+        Explanation of output columns.
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
         String to append to output, e.g., '\n', Default : ''.
+    encode : bool
+        In True encode output to be utf-8.
     """
     header = (
         eol + '# Explanation of output column headers:\n' +
@@ -552,12 +664,14 @@ def print_header(header, print_function=print, eol='', encode=False):
 
     Parameters
     ----------
-    back_propagation : bool, optional
-        True if doing back propagation. Default : False.
+    header : list
+        Output header.
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
         String to append to output, e.g., '\n', Default : ''.
+    encode : bool
+        In True encode output to be utf-8.
     """
     s = afqmcpy.utils.format_fixed_width_strings(header) + eol
     if encode:
