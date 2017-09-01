@@ -27,5 +27,7 @@
         "orbital_file": "GHF_4x4_7u7d_u4.0_ndet001_orb.dat",
         "coefficients_file": "GHF_4x4_7u7d_u4.0_ndet001_coeff.dat",
         "ndets": 1
+    },
+    "estimates": {
     }
 }

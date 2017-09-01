@@ -292,7 +292,7 @@ state : :class:`afqmcpy.state.State`
     Simulation state.
 """
     # Construct random auxilliary field.
-    delta = state.auxf - 1
+    delta = state.system.auxf - 1
     nup = state.system.nup
     nb = state.system.nbasis
     for i in range(0, state.system.nbasis):
@@ -468,7 +468,7 @@ def kinetic_ghf(phi, state):
     nb = state.system.nbasis
     # Assuming that our walker is in GHF form.
     phi[:nb,:nup] = state.propagators.bt2.dot(phi[:nb,:nup])
-    phi[offset:,nup:] = state.propagators.bt2.dot(phi[offset:,nup:])
+    phi[nb:,nup:] = state.propagators.bt2.dot(phi[nb:,nup:])
 
 
 def propagate_potential_auxf(phi, state, field_config):

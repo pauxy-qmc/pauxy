@@ -76,7 +76,7 @@ class State:
                                                  trial)
         elif trial['name'] == 'multi_determinant':
             self.trial = trial_wave_function.MultiDeterminant(self.system,
-                                                              self.cplx,
+                                                              self.qmc.cplx,
                                                               trial)
         self.propagators = afqmcpy.propagation.Projectors(model['name'],
                                                           self.qmc.hubbard_stratonovich,
