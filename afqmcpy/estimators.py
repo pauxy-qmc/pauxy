@@ -555,19 +555,19 @@ class ITCF:
 def local_energy(system, G):
     """Calculate local energy of walker for the Hubbard model.
 
-Parameters
-----------
-system : :class:`Hubbard`
-    System information for the Hubbard model.
-G : :class:`numpy.ndarray`
-    Greens function (sort of) for given walker phi, i.e.,
-    :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Greens function (sort of) for given walker phi, i.e.,
+        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
 
-Returns
--------
-E_L(phi) : float
-    Local energy of given walker phi.
-"""
+    Returns
+    -------
+    E_L(phi) : float
+        Local energy of given walker phi.
+    """
 
     # Todo: Be less stupid
     ke = numpy.sum(system.T * (G[0] + G[1]))
@@ -578,19 +578,19 @@ E_L(phi) : float
 def local_energy_ghf(system, G):
     """Calculate local energy of GHF walker for the Hubbard model.
 
-Parameters
-----------
-system : :class:`Hubbard`
-    System information for the Hubbard model.
-G : :class:`numpy.ndarray`
-    Greens function (sort of) for given walker phi, i.e.,
-    :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Greens function (sort of) for given walker phi, i.e.,
+        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
 
-Returns
--------
-E_L(phi) : float
-    Local energy of given walker phi.
-"""
+    Returns
+    -------
+    E_L(phi) : float
+        Local energy of given walker phi.
+    """
     ke = numpy.sum(system.T*(G[:system.nbasis,:system.nbasis]+G[system.nbasis:,system.nbasis:]))
     pe = sum(system.U*(G[i,i]*G[i+system.nbasis,i+system.nbasis]-
              G[i+system.nbasis][i]*G[i,i+system.nbasis]) for i in range(0, system.nbasis))
