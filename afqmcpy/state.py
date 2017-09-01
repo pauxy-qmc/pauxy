@@ -13,6 +13,46 @@ import afqmcpy.propagation
 import afqmcpy.hs_transform
 
 class State:
+    """ Container for global simulation state.
+
+    The `state` of the simulation is essentially everything to the calculation
+    including input options, estimators trial wavefunctions etc.
+
+    This object contains all the instances of the classes which parse input
+    options. Convenient wrapper for setup, state as a whole should generally not
+    be passed around without explanation.
+
+    Parameters
+    ----------
+    model : dict
+        Input parameters for model system.
+    qmc_opts : dict
+        Input options relating to qmc parameters.
+    estimates : dict
+        Input options relating to what estimator to calculate.
+    trial : dict
+        Input options relating to trial wavefunction.
+
+    Attributes
+    ----------
+    system : :class:`afqmcpy.hubbard.Hubbard` / system object in general.
+        Container for model input options.
+    qmc : :class:`afqmcpy.state.QMCOpts` object.
+        Container for qmc input options.
+    uuid : string
+        Simulation state uuid.
+    seed : int
+        RNG seed. This is set during initialisation but is useful to output in
+        json_string.
+    root : bool
+        If True we are on the root / master processor.
+    trial : :class:`afqmcpy.trial_wave_function.X' object
+        Trial wavefunction class.
+    propagators : :class:`afqmcpy.propagation.Projectors` object
+        Container for system specific propagation routines.
+    json_string : string
+        String containing all input options and certain derived options.
+    """
 
     def __init__(self, model, qmc_opts, estimates, trial):
 
@@ -21,8 +61,6 @@ class State:
             self.system = hubbard.Hubbard(model, qmc_opts['dt'])
         self.qmc = QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
-        # Todo : output constructed derived objects.
-        self.back_propagation = qmc_opts.get('back_propagation', False)
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
@@ -179,15 +217,16 @@ class QMCOpts:
 
 
 def get_git_revision_hash():
-    '''Return git revision.
+    """ Return git revision.
 
-    Adapted from: http://stackoverflow.com/questions/14989858/get-the-current-git-hash-in-a-python-script
+    Adapted from:
+        http://stackoverflow.com/questions/14989858/get-the-current-git-hash-in-a-python-script
 
-Returns
--------
-sha1 : string
-    git hash with -dirty appended if uncommitted changes.
-'''
+    Returns
+    -------
+    sha1 : string
+        git hash with -dirty appended if uncommitted changes.
+    """
 
     src = [s for s in sys.path if 'afqmcpy' in s][-1]
 

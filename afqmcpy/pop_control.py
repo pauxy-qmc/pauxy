@@ -1,7 +1,28 @@
+""" Population control algorithms. """
 import numpy
 import copy
 
 def comb(psi, nw, psi_history=None):
+    """ Apply the comb method of population control / branching.
+
+    See Booth & Gubernatis PRE 80, 046704 (2009).
+
+    .. warning::
+        This algorithm is biased and not necessarily correct.
+
+    Todo : implement consistent algorithm.
+
+    Parameters
+    ----------
+    psi : list of :class:`afqmcpy.walker.Walker` objects
+        current distribution of walkers, i.e., at the current iteration in the
+        simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+    nw : int
+        Number of walkers on current processor.
+    psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
+        Store for historic distributions of walkers used for back propagation
+        and ITCF calculation. Optional.
+    """
     # Need make a copy to since the elements in psi are only references to
     # walker objects in memory. We don't want future changes in a given element
     # of psi having unintended consequences.
@@ -11,8 +32,6 @@ def comb(psi, nw, psi_history=None):
     total_weight = sum(weights)
     cprobs = numpy.cumsum(weights)
 
-    # Apply the comb method of population control / branching.
-    # See Booth & Gubernatis PRE 80, 046704 (2009).
     r = numpy.random.random()
     comb = [(i+r) * (total_weight/nw) for i in range(nw)]
     for (ic, c) in enumerate(comb):
