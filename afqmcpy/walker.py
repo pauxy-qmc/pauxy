@@ -2,6 +2,7 @@ import numpy as np
 import scipy.linalg
 import copy
 import afqmcpy.estimators
+import afqmcpy.trial_wave_function as twfn
 
 # Worthwhile overloading / having real and complex walker classes (Hermitian
 # conjugate)?
@@ -175,12 +176,16 @@ class MultiGHFWalker:
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
         # than GHF.
-        self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
-                dtype=trial.psi.dtype)
-        tmp = afqmcpy.trial_wave_function.FreeElectron(system,
-                                 trial.psi.dtype==complex, {})
-        self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
-        self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
+        if trial.read_init is not None:
+            orbs = twfn.read_fortran_complex_numbers(trial.read_init)
+            self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
+        else:
+            self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
+                                dtype=trial.psi.dtype)
+            tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                                     trial.psi.dtype==complex, {})
+            self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
+            self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
         self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),

@@ -18,6 +18,7 @@ class FreeElectron:
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
+        self.read_init = trial.get('inititial_wavefunction', None)
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex
@@ -43,6 +44,7 @@ class UHF:
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
+        self.read_init = trial.get('initial_wavefunction', None)
         if cplx:
             self.trial_type = complex
         else:
@@ -154,6 +156,7 @@ class MultiDeterminant:
         self.type = trial.get('type')
         self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])
+        self.read_init = trial.get('initial_wavefunction', None)
         if cplx:
             self.trial_type = complex
         else:
