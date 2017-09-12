@@ -171,21 +171,31 @@ class MultiDeterminant:
             self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
             self.coeffs = numpy.ones(self.ndets)
         else:
-            self.orbital_file = trial.get('orbital_file')
-            self.coeffs_file = trial.get('coefficients_file')
+            self.orbital_file = trial.get('orbitals')
+            self.coeffs_file = trial.get('coefficients')
             if self.type == 'UHF':
                 M = system.nbasis
             else:
                 M = 2 * system.nbasis
-            orbitals = read_fortran_complex_numbers(self.orbital_file)
-            self.psi = orbitals.reshape((self.ndets, M, system.ne), order='F')
             # Store the complex conjugate of the multi-determinant trial
             # wavefunction expansion coefficients for ease later.
-            self.coeffs = read_fortran_complex_numbers(self.coeffs_file).conj()
+            self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
+            self.psi = numpy.zeros(shape=(self.ndets, M, system.ne),
+                    dtype=self.coeffs.dtype)
+            orbitals = read_fortran_complex_numbers(self.orbital_file)
+            start = 0
+            skip = M * system.ne
+            end = skip 
+            for i in range(self.ndets):
+                self.psi[i] = orbitals[start:end].reshape((M, system.ne), order='F')
+                start = end
+                end += skip
             # Todo : Update this for multi true multideterminant case.
             G = afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
                                                       self.coeffs, self.coeffs)
-            self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
+            # G = afqmcpy.estimators.gab(self.psi[0], self.psi[0]).T
+            self.emin = afqmcpy.estimators.local_energy_ghf(system, G)[0].real
+            print (afqmcpy.estimators.local_energy_ghf(system, G))
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):

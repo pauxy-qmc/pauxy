@@ -712,13 +712,18 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB):
     M = A.shape[1]
     GAB = numpy.zeros(shape=(ndetsA, ndetsB, M, M), dtype=coeffsA.dtype)
     overlaps = numpy.zeros(shape=(ndetsA, ndetsB), dtype=coeffsA.dtype)
-    for (iy, Biy) in enumerate(B):
-        for (ix, Aix) in enumerate(A):
+    d2 = 0.0
+    for (ix, Aix) in enumerate(A):
+        for (iy, Biy) in enumerate(B):
             # construct "local" green's functions for each component of A
             inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
-            GAB[ix,iy] = Biy.dot(inv_O.dot(Aix.conj().T))
+            GAB[ix,iy] = (Biy.dot(inv_O)).dot(Aix.conj().T)
             overlaps[ix,iy] = 1.0 / scipy.linalg.det(inv_O)
+            d2 += coeffsA[ix]*(coeffsB[iy].conj())*overlaps[ix,iy]
+            print ("overlaps: ", ix, iy, overlaps[ix,iy], coeffsA[ix], coeffsB[iy],
+                   overlaps[ix,iy]*coeffsA[ix]*coeffsB[iy].conjugate(), d2)
     denom = numpy.einsum('i,ij,j', coeffsA, overlaps, coeffsB.conj())
+    print (denom)
     return numpy.einsum('i,j,ijkl,ij->kl', coeffsA, coeffsB.conj(),
                         GAB, overlaps) / denom
 
