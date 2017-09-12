@@ -178,11 +178,13 @@ class MultiDeterminant:
             else:
                 M = 2 * system.nbasis
             orbitals = read_fortran_complex_numbers(self.orbital_file)
-            self.psi = orbitals.reshape((self.ndets,M,system.ne),order='F')
-            self.psi = self.psi
-            self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
+            self.psi = orbitals.reshape((self.ndets, M, system.ne), order='F')
+            # Store the complex conjugate of the multi-determinant trial
+            # wavefunction expansion coefficients for ease later.
+            self.coeffs = read_fortran_complex_numbers(self.coeffs_file).conj()
             # Todo : Update this for multi true multideterminant case.
-            G = afqmcpy.estimators.gab(self.psi[0], self.psi[0])
+            G = afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
+                                                      self.coeffs, self.coeffs)
             self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
         self.initialisation_time = time.time() - init_time
 
