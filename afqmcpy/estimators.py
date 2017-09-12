@@ -637,6 +637,90 @@ def gab(A, B):
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
 
+def gab_multi_det(A, B, coeffs):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+    .. math::
+        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    For example, usually A would represent a multi-determinant trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Numpy array of the Matrix representation of the elements of the bra used
+        to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    # Todo: check energy evaluation at later point, i.e., if this needs to be
+    # transposed. Shouldn't matter for Hubbard model.
+    Gi = numpy.zeros(A.shape)
+    overlaps = numpy.zeros(A.shape[1])
+    for (ix, Aix) in enumerate(A):
+        # construct "local" green's functions for each component of A
+        inv_O = scipy.linalg.inv((Aix.conj().T).dot(B))
+        Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T))).T
+        overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
+    denom = numpy.dot(coeffs, overlaps)
+    return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps)/denom
+
+def gab_multi_det_full(A, B, coeffsA, coeffsB):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+    .. math::
+        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    Here we assume both A and B are multi-determinant expansions.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Numpy array of the Matrix representation of the elements of the bra used
+        to construct G.
+    B : :class:`numpy.ndarray`
+        Array containing elements of multi-determinant matrix representation of
+        the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    # A(Ndets, 2M,N), GAB = Ndets * 2Mx2M
+    ndetsA = A.shape[0]
+    ndetsB = B.shape[0]
+    M = A.shape[1]
+    GAB = numpy.zeros(shape=(ndetsA, ndetsB, M, M), dtype=coeffsA.dtype)
+    overlaps = numpy.zeros(shape=(ndetsA, ndetsB), dtype=coeffsA.dtype)
+    for (iy, Biy) in enumerate(B):
+        for (ix, Aix) in enumerate(A):
+            # construct "local" green's functions for each component of A
+            inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
+            GAB[ix,iy] = Biy.dot(inv_O.dot(Aix.conj().T))
+            overlaps[ix,iy] = 1.0 / scipy.linalg.det(inv_O)
+    denom = numpy.einsum('i,ij,j', coeffsA, overlaps, coeffsB.conj())
+    return numpy.einsum('i,j,ijkl,ij->kl', coeffsA, coeffsB.conj(),
+                        GAB, overlaps) / denom
 
 def print_key(key, print_function=print, eol='', encode=False):
     """Print out information about what the estimates are.
