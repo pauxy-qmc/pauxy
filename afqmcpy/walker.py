@@ -58,10 +58,10 @@ class Walker:
 
     def greens_function(self, trial, nup):
         self.G[0] = (
-            np.dot(np.dot(self.phi[:,:nup],self.inv_ovlp[0]),(trial.psi[:,:nup].conj()).T).T
+            (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(trial.psi[:,:nup].conj().T)).T
         )
         self.G[1] = (
-            np.dot(np.dot(self.phi[:,nup:],self.inv_ovlp[1]),(trial.psi[:,nup:].conj()).T).T
+            (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(trial.psi[:,nup:].conj().T)).T
         )
 
 
@@ -148,10 +148,10 @@ class MultiDetWalker:
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,0,:,:] = (
-                self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T).T
+                (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
             )
             self.Gi[ix,1,:,:] = (
-                self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T).T
+                (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
         denom = np.einsum('j,ij->i',trial.coeffs,self.ots)
         self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
@@ -250,7 +250,7 @@ class MultiGHFWalker:
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,:,:] = (
-                self.phi.dot(self.inv_ovlp[ix]).dot(t.conj().T).T
+                (self.phi.dot(self.inv_ovlp[ix]).dot(t.conj().T)).T
             )
         denom = np.dot(trial.coeffs,self.ots)
         self.G = np.einsum('i,ijk,i->jk', trial.coeffs, self.Gi, self.ots)/denom
