@@ -604,6 +604,38 @@ def local_energy_ghf(system, G):
     return (ke+pe, ke, pe)
 
 
+def local_energy_ghf_full(system, GAB, weights):
+    """Calculate local energy of GHF walker for the Hubbard model.
+
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Greens function (sort of) for given walker phi, i.e.,
+        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+
+    Returns
+    -------
+    E_L(phi) : float
+        Local energy of given walker phi.
+    """
+    denom = numpy.sum(weights)
+    ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text)
+    # numpy.diagonal returns a view so there should be no overhead in creating
+    # temporary arrays.
+    guu = numpy.diagonal(GAB[:,:,:system.nbasis,:system.nbasis], axis1=2,
+                         axis2=3)
+    gdd = numpy.diagonal(GAB[:,:,system.nbasis:,system.nbasis:], axis1=2,
+                         axis2=3)
+    gud = numpy.diagonal(GAB[:,:,system.nbasis:,:system.nbasis], axis1=2,
+                         axis2=3)
+    gdu = numpy.diagonal(GAB[:,:,:system.nbasis,system.nbasis:], axis1=2,
+                         axis2=3)
+    gdiag = guu*gdd - gud*gdu
+    pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag)
+    return (ke+pe, ke, pe)
+
 def gab(A, B):
     r"""One-particle Green's function.
 
@@ -677,7 +709,7 @@ def gab_multi_det(A, B, coeffs):
     denom = numpy.dot(coeffs, overlaps)
     return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps)/denom
 
-def gab_multi_det_full(A, B, coeffsA, coeffsB):
+def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
@@ -706,26 +738,15 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB):
     GAB : :class:`numpy.ndarray`
         (One minus) the green's function.
     """
-    # A(Ndets, 2M,N), GAB = Ndets * 2Mx2M
-    ndetsA = A.shape[0]
-    ndetsB = B.shape[0]
-    M = A.shape[1]
-    GAB = numpy.zeros(shape=(ndetsA, ndetsB, M, M), dtype=coeffsA.dtype)
-    overlaps = numpy.zeros(shape=(ndetsA, ndetsB), dtype=coeffsA.dtype)
-    d2 = 0.0
-    for (ix, Aix) in enumerate(A):
-        for (iy, Biy) in enumerate(B):
+    for ix, (Aix, cix) in enumerate(zip(A,coeffsA)):
+        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
             # construct "local" green's functions for each component of A
             inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
             GAB[ix,iy] = (Biy.dot(inv_O)).dot(Aix.conj().T)
-            overlaps[ix,iy] = 1.0 / scipy.linalg.det(inv_O)
-            d2 += coeffsA[ix]*(coeffsB[iy].conj())*overlaps[ix,iy]
-            print ("overlaps: ", ix, iy, overlaps[ix,iy], coeffsA[ix], coeffsB[iy],
-                   overlaps[ix,iy]*coeffsA[ix]*coeffsB[iy].conjugate(), d2)
-    denom = numpy.einsum('i,ij,j', coeffsA, overlaps, coeffsB.conj())
-    print (denom)
-    return numpy.einsum('i,j,ijkl,ij->kl', coeffsA, coeffsB.conj(),
-                        GAB, overlaps) / denom
+            weights[ix,iy] =  cix*(ciy.conj()) / scipy.linalg.det(inv_O)
+    denom = numpy.sum(weights)
+    G = numpy.einsum('ij,ijkl->kl', weights, GAB) / denom
+    return G
 
 def print_key(key, print_function=print, eol='', encode=False):
     """Print out information about what the estimates are.
