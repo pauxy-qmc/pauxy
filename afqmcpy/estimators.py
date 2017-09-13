@@ -98,10 +98,6 @@ class Estimators():
             # path.
             self.psi_hist = numpy.zeros(shape=(nwalkers, self.nprop_tot+1),
                                         dtype=object)
-        if ghf:
-            self.local_energy = local_energy_ghf
-        else:
-            self.local_energy = local_energy
         self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
         self.zero(nbasis)
@@ -210,11 +206,11 @@ class Estimators():
             if 'continuous' in state.qmc.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
-                self.estimates[self.names.enumer] += w.weight*self.local_energy(state.system, w.G)[0].real
+                self.estimates[self.names.enumer] += w.weight*w.local_energy(state.system)[0].real
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
-            self.estimates[self.names.enumer] += (w.weight*self.local_energy(state.system, w.G)[0]*w.ot).real
+            self.estimates[self.names.enumer] += (w.weight*w.local_energy(state.system)[0]*w.ot).real
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
@@ -582,7 +578,7 @@ def local_energy(system, G):
 
     return (ke + pe, ke, pe)
 
-def local_energy_ghf(system, G):
+def local_energy_ghf(system, Gi, weights):
     """Calculate local energy of GHF walker for the Hubbard model.
 
     Parameters

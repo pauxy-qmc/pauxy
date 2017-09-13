@@ -64,6 +64,9 @@ class Walker:
             (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(trial.psi[:,nup:].conj().T)).T
         )
 
+    def local_energy(self, system):
+        return afqmcpy.estimators.local_energy(system, self.G)
+
 
 class MultiDetWalker:
     '''Essentially just some wrappers around Walker class.'''
@@ -153,7 +156,7 @@ class MultiDetWalker:
             self.Gi[ix,1,:,:] = (
                 (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
-        denom = np.einsum('j,ij->i',trial.coeffs,self.ots)
+        denom = np.einsum('j,ij->i',trial.coeffs, self.ots)
         self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
         self.G[0] = self.G[0]/denom[0]
         self.G[1] = self.G[1]/denom[1]
@@ -168,6 +171,10 @@ class MultiDetWalker:
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
                     t[:,nup:].T[:,i], vtdown)
             )
+    def local_energy(self, system):
+        return afqmcpy.estimators.local_energy_multi_det(system,
+                                                         self.Gi,
+                                                         self.weights)
 
 class MultiGHFWalker:
     '''Essentially just some wrappers around Walker class.'''
@@ -190,6 +197,7 @@ class MultiGHFWalker:
         # the trial wavefunction.
         self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),
                                  dtype=self.phi.dtype)
+        self.weights = np.zeros(trial.ndets, dtype=trial.psi.dtype)
         ovlp = (np.dot(trial.psi[0].conj().T, self.phi))
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
@@ -206,7 +214,8 @@ class MultiGHFWalker:
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
-        self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.G)[0].real
+        self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
+                                                       self.weights)[0].real
         self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
 
@@ -224,13 +233,15 @@ class MultiGHFWalker:
         # on initialisation!
         for (ix, inv) in enumerate(self.inv_ovlp):
             self.ots[ix] = 1.0 / scipy.linalg.det(inv)
-        return trial.coeffs.dot(self.ots)
+            self.weights[ix] = trial.coeffs[ix] * self.ots[ix]
+        return sum(self.weights)
 
     def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
         self.ots = self.R[:,xi] * self.ots
-        self.ot = coeffs.dot(self.ots)
+        self.weights = coeffs * self.ots
+        self.ot = sum(self.weights)
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
@@ -252,8 +263,8 @@ class MultiGHFWalker:
             self.Gi[ix,:,:] = (
                 (self.phi.dot(self.inv_ovlp[ix]).dot(t.conj().T)).T
             )
-        denom = np.dot(trial.coeffs,self.ots)
-        self.G = np.einsum('i,ijk,i->jk', trial.coeffs, self.Gi, self.ots)/denom
+        denom = sum(self.weights)
+        self.G = np.einsum('i,ijk->jk', self.weights, self.Gi) / denom
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (indx, t) in enumerate(trial.psi):
@@ -261,6 +272,8 @@ class MultiGHFWalker:
                 scipy.linalg.inv((t.conj()).T.dot(self.phi))
             )
 
+    def local_energy(self, system):
+        return afqmcpy.estimators.local_energy_ghf(system, self.Gi, self.ots)
     # def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         # for (ix, t) in enumerate(trial.psi):
             # self.inv_ovlp[ix] = (
