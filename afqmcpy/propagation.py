@@ -545,7 +545,7 @@ def back_propagate(state, psi):
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
-            B = construct_propagator_matrix(state, ws.field_config)
+            B = construct_propagator_matrix(state, ws.field_config, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % state.qmc.nstblz == 0:
