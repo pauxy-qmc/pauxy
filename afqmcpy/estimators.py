@@ -655,7 +655,7 @@ def local_energy_ghf_full(system, GAB, weights):
         Local energy of given walker phi.
     """
     denom = numpy.sum(weights)
-    ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text)
+    ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text) / denom
     # numpy.diagonal returns a view so there should be no overhead in creating
     # temporary arrays.
     guu = numpy.diagonal(GAB[:,:,:system.nbasis,:system.nbasis], axis1=2,
@@ -667,7 +667,7 @@ def local_energy_ghf_full(system, GAB, weights):
     gdu = numpy.diagonal(GAB[:,:,:system.nbasis,system.nbasis:], axis1=2,
                          axis2=3)
     gdiag = guu*gdd - gud*gdu
-    pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag)
+    pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag) / denom
     return (ke+pe, ke, pe)
 
 def gab(A, B):
@@ -737,11 +737,12 @@ def gab_multi_det(A, B, coeffs):
     overlaps = numpy.zeros(A.shape[1])
     for (ix, Aix) in enumerate(A):
         # construct "local" green's functions for each component of A
+        # Todo: list comprehension here.
         inv_O = scipy.linalg.inv((Aix.conj().T).dot(B))
         Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T))).T
         overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
     denom = numpy.dot(coeffs, overlaps)
-    return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps)/denom
+    return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
 
 def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
