@@ -754,6 +754,8 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
 
+    Todo: Fix docstring
+
     Here we assume both A and B are multi-determinant expansions.
 
     .. warning::
@@ -773,7 +775,7 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     GAB : :class:`numpy.ndarray`
         (One minus) the green's function.
     """
-    for ix, (Aix, cix) in enumerate(zip(A,coeffsA)):
+    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
         for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
             # construct "local" green's functions for each component of A
             inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))

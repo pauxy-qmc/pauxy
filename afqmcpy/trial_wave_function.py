@@ -185,23 +185,23 @@ class MultiDeterminant:
             # wavefunction expansion coefficients for ease later.
             self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
             self.psi = numpy.zeros(shape=(self.ndets, nbasis, system.ne),
-                    dtype=self.coeffs.dtype)
+                                   dtype=self.coeffs.dtype)
             orbitals = read_fortran_complex_numbers(self.orbital_file)
             start = 0
             skip = nbasis * system.ne
-            end = skip 
+            end = skip
             for i in range(self.ndets):
-                self.psi[i] = orbitals[start:end].reshape((nbasis, system.ne), order='F')
+                self.psi[i] = orbitals[start:end].reshape((nbasis, system.ne),
+                                                          order='F')
                 start = end
                 end += skip
-            # Todo : Update this for multi true multideterminant case.
             afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
                                                   self.coeffs, self.coeffs,
                                                   self.GAB, self.weights)
-            # G = afqmcpy.estimators.gab(self.psi[0], self.psi[0]).T
-            self.emin = afqmcpy.estimators.local_energy_ghf_full(system,
-                                                                 self.GAB,
-                                                                 self.weights)[0].real
+            self.emin = (
+                afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
+                                                         self.weights)[0].real
+            )
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):
