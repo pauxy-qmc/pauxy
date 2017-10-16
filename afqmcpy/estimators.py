@@ -578,7 +578,7 @@ def local_energy(system, G):
 
     return (ke + pe, ke, pe)
 
-def local_energy_ghf(system, Gi, weights):
+def local_energy_ghf(system, Gi, weights, denom):
     """Calculate local energy of GHF walker for the Hubbard model.
 
     Parameters
@@ -594,7 +594,6 @@ def local_energy_ghf(system, Gi, weights):
     E_L(phi) : float
         Local energy of given walker phi.
     """
-    denom = numpy.sum(weights)
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
     # numpy.diagonal returns a view so there should be no overhead in creating
     # temporary arrays.

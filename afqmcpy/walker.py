@@ -215,7 +215,8 @@ class MultiGHFWalker:
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
         self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
-                                                       self.weights)[0].real
+                                                       self.weights,
+                                                       sum(self.weights))[0].real
         self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
 
@@ -274,7 +275,8 @@ class MultiGHFWalker:
             )
 
     def local_energy(self, system):
-        return afqmcpy.estimators.local_energy_ghf(system, self.Gi, self.ots)
+        return afqmcpy.estimators.local_energy_ghf(system, self.Gi,
+                                                   self.weights, self.ot)
     # def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         # for (ix, t) in enumerate(trial.psi):
             # self.inv_ovlp[ix] = (
