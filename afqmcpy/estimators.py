@@ -598,14 +598,10 @@ def local_energy_ghf(system, Gi, weights):
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
     # numpy.diagonal returns a view so there should be no overhead in creating
     # temporary arrays.
-    guu = numpy.diagonal(Gi[:,:system.nbasis,:system.nbasis], axis1=1,
-                         axis2=2)
-    gdd = numpy.diagonal(Gi[:,system.nbasis:,system.nbasis:], axis1=1,
-                         axis2=2)
-    gud = numpy.diagonal(Gi[:,system.nbasis:,:system.nbasis], axis1=1,
-                         axis2=2)
-    gdu = numpy.diagonal(Gi[:,:system.nbasis,system.nbasis:], axis1=1,
-                         axis2=2)
+    guu = numpy.diagonal(Gi[:,:system.nbasis,:system.nbasis], axis1=1, axis2=2)
+    gdd = numpy.diagonal(Gi[:,system.nbasis:,system.nbasis:], axis1=1, axis2=2)
+    gud = numpy.diagonal(Gi[:,system.nbasis:,:system.nbasis], axis1=1, axis2=2)
+    gdu = numpy.diagonal(Gi[:,:system.nbasis,system.nbasis:], axis1=1, axis2=2)
     gdiag = guu*gdd - gud*gdu
     pe = system.U * numpy.einsum('j,jk->', weights, gdiag) / denom
     return (ke+pe, ke, pe)
