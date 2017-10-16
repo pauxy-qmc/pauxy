@@ -241,7 +241,8 @@ class MultiGHFWalker:
         # The trial wavefunctions coeficients should be included in ots?
         self.ots = self.R[:,xi] * self.ots
         self.weights = coeffs * self.ots
-        self.ot = sum(self.weights)
+        # The overlap should have the phaseless constraint imposed on it
+        self.ot = 2.0 * self.ot * probs[xi]
 
     def reortho(self, nup):
         # We assume that our walker is still block diagonal in the spin basis.
