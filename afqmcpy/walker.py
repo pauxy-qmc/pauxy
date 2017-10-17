@@ -242,7 +242,6 @@ class MultiGHFWalker:
         # The trial wavefunctions coeficients should be included in ots?
         self.ots = self.R[:,xi] * self.ots
         self.weights = coeffs * self.ots
-        # The overlap should have the phaseless constraint imposed on it
         self.ot = 2.0 * self.ot * probs[xi]
 
     def reortho(self, nup):
