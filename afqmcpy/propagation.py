@@ -251,6 +251,7 @@ state : :class:`afqmcpy.state.State`
     # Construct random auxilliary field.
     delta = state.system.auxf - 1
     nup = state.system.nup
+    soffset = walker.phi.shape[0] - state.system.nbasis
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = state.propagators.calculate_overlap_ratio(walker, delta,
@@ -268,9 +269,9 @@ state : :class:`afqmcpy.state.State`
             else:
                 xi = 1
             vtup = walker.phi[i,:nup] * delta[xi, 0]
-            vtdown = walker.phi[i,nup:] * delta[xi, 1]
+            vtdown = walker.phi[i+soffset,nup:] * delta[xi, 1]
             walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-            walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+            walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
             walker.update_overlap(probs, xi, state.trial.coeffs)
             walker.field_config[i] = xi
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
