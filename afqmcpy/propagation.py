@@ -552,7 +552,6 @@ _projectors = {
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
-            'discrete_phaseless': discrete_hubbard_phaseless,
             'generic': generic_continuous,
             'opt_continuous': dumb_hubbard,
             'dumb_continuous': dumb_hubbard,
