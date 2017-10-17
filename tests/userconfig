@@ -7,6 +7,6 @@ ignore_fields = iteration time
 
 [user]
 diff = vimdiff
-benchmark = e3d2669 546be5b
+benchmark = fd045e7 e3d2669 546be5b
 tolerance = (1e-8, 1e-6, None, False)
 
