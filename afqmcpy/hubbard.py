@@ -53,6 +53,7 @@ class Hubbard:
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
         self.T = kinetic(self.t, self.nbasis, self.nx,
                          self.ny, self.ktwist)
+        self.Text = scipy.linalg.block_diag(self.T, self.T)
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                                 self.kc, self.nx, self.ny)

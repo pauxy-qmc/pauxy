@@ -26,7 +26,7 @@ def do_qmc(state, psi, comm):
     else:
         state.estimators.psi_hist = None
 
-    (E_T, ke, pe) = state.estimators.local_energy(state.system, psi[0].G)
+    (E_T, ke, pe) = psi[0].local_energy(state.system)
     state.qmc.mean_local_energy = E_T.real
     # Calculate estimates for initial distribution of walkers.
     for w in psi:

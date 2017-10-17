@@ -166,7 +166,7 @@ state : :class:`state.State`
     # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi, state.system.nup)
     walker.greens_function(state.trial, state.system.nup)
-    E_L = state.estimators.local_energy(state.system, walker.G)[0].real
+    E_L = walker.local_energy(state.system)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
                              state.qmc.local_energy_bound)
@@ -251,80 +251,34 @@ state : :class:`afqmcpy.state.State`
     # Construct random auxilliary field.
     delta = state.system.auxf - 1
     nup = state.system.nup
+    soffset = walker.phi.shape[0] - state.system.nbasis
     for i in range(0, state.system.nbasis):
         # Ratio of determinants for the two choices of auxilliary fields
         probs = state.propagators.calculate_overlap_ratio(walker, delta,
                                                           state.trial, i)
-        norm = sum(probs.real)
+        # issues here with complex numbers?
+        phaseless_ratio = numpy.maximum(probs.real, [0,0])
+        norm = sum(phaseless_ratio)
         r = numpy.random.random()
         # Is this necessary?
+        # todo : mirror correction
         if norm > 0:
             walker.weight = walker.weight * norm
-            if r < probs[0]/norm:
-                vtup = walker.phi[i,:nup] * delta[0, 0]
-                vtdown = walker.phi[i,nup:] * delta[0, 1]
-                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs, 0, state.trial.coeffs)
-                walker.field_config[i] = 0
+            if r < phaseless_ratio[0]/norm:
+                xi = 0
             else:
-                vtup = walker.phi[i,:nup] * delta[1, 0]
-                vtdown = walker.phi[i,nup:] * delta[1, 1]
-                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                walker.update_overlap(probs, 1, state.trial.coeffs)
-                walker.field_config[i] = 1
+                xi = 1
+            vtup = walker.phi[i,:nup] * delta[xi, 0]
+            vtdown = walker.phi[i+soffset,nup:] * delta[xi, 1]
+            walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
+            walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
+            walker.update_overlap(probs, xi, state.trial.coeffs)
+            walker.field_config[i] = xi
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
             walker.greens_function(state.trial, nup)
         else:
             walker.weight = 0
             return
-
-def discrete_hubbard_phaseless(walker, state):
-    """Propagate by potential term using discrete HS transform.
-
-Parameters
-----------
-walker : :class:`afqmcpy.walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`afqmcpy.state.State`
-    Simulation state.
-"""
-    # Construct random auxilliary field.
-    delta = state.system.auxf - 1
-    nup = state.system.nup
-    nb = state.system.nbasis
-    for i in range(0, state.system.nbasis):
-        # Ratio of determinants for the two choices of auxilliary fields
-        probs = state.propagators.calculate_overlap_ratio(walker, delta,
-                                                          state.trial, i)
-        phase = numpy.angle(probs)
-        probs = numpy.abs(probs) * numpy.array([max(0,math.cos(phase[0])),
-                                                max(0,math.cos(phase[1]))])
-        # Todo : mirror correction?
-        norm = sum(probs)
-        r = numpy.random.random()
-        if norm > 0:
-            walker.weight = walker.weight * norm
-            if r < probs[0]/norm:
-                vtup = walker.phi[i,:nup] * delta[0, 0]
-                vtdown = walker.phi[i+nb,nup:] * delta[0, 1]
-                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i+nb,nup:] = walker.phi[i+nb,nup:] + vtdown
-                walker.update_overlap(probs, 0, state.trial.coeffs)
-                walker.field_config[i] = 0
-            else:
-                vtup = walker.phi[i,:nup] * delta[1, 0]
-                vtdown = walker.phi[i+nb,nup:] * delta[1, 1]
-                walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
-                walker.phi[i+nb,nup:] = walker.phi[i+nb,nup:] + vtdown
-                walker.update_overlap(probs, 1, state.trial.coeffs)
-                walker.field_config[i] = 1
-            walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
-            walker.greens_function(state.trial, nup)
-        else:
-            walker.weight = 0
 
 def dumb_hubbard(walker, state):
     """Continuous Hubbard-Statonovich transformation for Hubbard model.
@@ -599,7 +553,6 @@ _projectors = {
     'potential': {
         'Hubbard': {
             'discrete': discrete_hubbard,
-            'discrete_phaseless': discrete_hubbard_phaseless,
             'generic': generic_continuous,
             'opt_continuous': dumb_hubbard,
             'dumb_continuous': dumb_hubbard,

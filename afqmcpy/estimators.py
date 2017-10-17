@@ -98,10 +98,6 @@ class Estimators():
             # path.
             self.psi_hist = numpy.zeros(shape=(nwalkers, self.nprop_tot+1),
                                         dtype=object)
-        if ghf:
-            self.local_energy = local_energy_ghf
-        else:
-            self.local_energy = local_energy
         self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
         self.zero(nbasis)
@@ -210,11 +206,11 @@ class Estimators():
             if 'continuous' in state.qmc.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
-                self.estimates[self.names.enumer] += w.weight*self.local_energy(state.system, w.G)[0].real
+                self.estimates[self.names.enumer] += w.weight*w.local_energy(state.system)[0].real
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
-            self.estimates[self.names.enumer] += (w.weight*self.local_energy(state.system, w.G)[0]*w.ot).real
+            self.estimates[self.names.enumer] += (w.weight*w.local_energy(state.system)[0]*w.ot).real
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
@@ -582,7 +578,7 @@ def local_energy(system, G):
 
     return (ke + pe, ke, pe)
 
-def local_energy_ghf(system, G):
+def local_energy_ghf(system, Gi, weights, denom):
     """Calculate local energy of GHF walker for the Hubbard model.
 
     Parameters
@@ -598,11 +594,76 @@ def local_energy_ghf(system, G):
     E_L(phi) : float
         Local energy of given walker phi.
     """
-    ke = numpy.sum(system.T*(G[:system.nbasis,:system.nbasis]+G[system.nbasis:,system.nbasis:]))
-    pe = sum(system.U*(G[i,i]*G[i+system.nbasis,i+system.nbasis]-
-             G[i+system.nbasis][i]*G[i,i+system.nbasis]) for i in range(0, system.nbasis))
+    ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
+    # numpy.diagonal returns a view so there should be no overhead in creating
+    # temporary arrays.
+    guu = numpy.diagonal(Gi[:,:system.nbasis,:system.nbasis], axis1=1, axis2=2)
+    gdd = numpy.diagonal(Gi[:,system.nbasis:,system.nbasis:], axis1=1, axis2=2)
+    gud = numpy.diagonal(Gi[:,system.nbasis:,:system.nbasis], axis1=1, axis2=2)
+    gdu = numpy.diagonal(Gi[:,:system.nbasis,system.nbasis:], axis1=1, axis2=2)
+    gdiag = guu*gdd - gud*gdu
+    pe = system.U * numpy.einsum('j,jk->', weights, gdiag) / denom
     return (ke+pe, ke, pe)
 
+
+def local_energy_multi_det(system, Gi, weights):
+    """Calculate local energy of GHF walker for the Hubbard model.
+
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Greens function (sort of) for given walker phi, i.e.,
+        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+
+    Returns
+    -------
+    E_L(phi) : float
+        Local energy of given walker phi.
+    """
+    denom = numpy.sum(weights)
+    ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
+    # numpy.diagonal returns a view so there should be no overhead in creating
+    # temporary arrays.
+    guu = numpy.diagonal(Gi[:,:,:system.nup], axis1=1,
+                         axis2=2)
+    gdd = numpy.diagonal(Gi[:,:,system.nup:], axis1=1,
+                         axis2=2)
+    pe = system.U * numpy.einsum('j,jk->', weights, guu*gdd) / denom
+    return (ke+pe, ke, pe)
+
+def local_energy_ghf_full(system, GAB, weights):
+    """Calculate local energy of GHF walker for the Hubbard model.
+
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Greens function (sort of) for given walker phi, i.e.,
+        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+
+    Returns
+    -------
+    E_L(phi) : float
+        Local energy of given walker phi.
+    """
+    denom = numpy.sum(weights)
+    ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text) / denom
+    # numpy.diagonal returns a view so there should be no overhead in creating
+    # temporary arrays.
+    guu = numpy.diagonal(GAB[:,:,:system.nbasis,:system.nbasis], axis1=2,
+                         axis2=3)
+    gdd = numpy.diagonal(GAB[:,:,system.nbasis:,system.nbasis:], axis1=2,
+                         axis2=3)
+    gud = numpy.diagonal(GAB[:,:,system.nbasis:,:system.nbasis], axis1=2,
+                         axis2=3)
+    gdu = numpy.diagonal(GAB[:,:,:system.nbasis,system.nbasis:], axis1=2,
+                         axis2=3)
+    gdiag = guu*gdd - gud*gdu
+    pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag) / denom
+    return (ke+pe, ke, pe)
 
 def gab(A, B):
     r"""One-particle Green's function.
@@ -637,6 +698,87 @@ def gab(A, B):
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
 
+def gab_multi_det(A, B, coeffs):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+    .. math::
+        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    For example, usually A would represent a multi-determinant trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Numpy array of the Matrix representation of the elements of the bra used
+        to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    # Todo: check energy evaluation at later point, i.e., if this needs to be
+    # transposed. Shouldn't matter for Hubbard model.
+    Gi = numpy.zeros(A.shape)
+    overlaps = numpy.zeros(A.shape[1])
+    for (ix, Aix) in enumerate(A):
+        # construct "local" green's functions for each component of A
+        # Todo: list comprehension here.
+        inv_O = scipy.linalg.inv((Aix.conj().T).dot(B))
+        Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T))).T
+        overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
+    denom = numpy.dot(coeffs, overlaps)
+    return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
+
+def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+    .. math::
+        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    Todo: Fix docstring
+
+    Here we assume both A and B are multi-determinant expansions.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Numpy array of the Matrix representation of the elements of the bra used
+        to construct G.
+    B : :class:`numpy.ndarray`
+        Array containing elements of multi-determinant matrix representation of
+        the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
+        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
+            # construct "local" green's functions for each component of A
+            inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
+            GAB[ix,iy] = (Biy.dot(inv_O)).dot(Aix.conj().T)
+            weights[ix,iy] =  cix*(ciy.conj()) / scipy.linalg.det(inv_O)
+    denom = numpy.sum(weights)
+    G = numpy.einsum('ij,ijkl->kl', weights, GAB) / denom
+    return G
 
 def print_key(key, print_function=print, eol='', encode=False):
     """Print out information about what the estimates are.

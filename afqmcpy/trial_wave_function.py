@@ -18,6 +18,7 @@ class FreeElectron:
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
+        self.read_init = trial.get('inititial_wavefunction', None)
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex
@@ -43,6 +44,7 @@ class UHF:
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
+        self.read_init = trial.get('initial_wavefunction', None)
         if cplx:
             self.trial_type = complex
         else:
@@ -154,10 +156,19 @@ class MultiDeterminant:
         self.type = trial.get('type')
         self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])
-        if cplx:
+        self.read_init = trial.get('initial_wavefunction', None)
+        if cplx or self.type == 'GHF':
             self.trial_type = complex
         else:
             self.trial_type = float
+        if self.type == 'UHF':
+            nbasis = system.nbasis
+        else:
+            nbasis = 2 * system.nbasis
+        self.GAB = numpy.zeros(shape=(self.ndets, self.ndets, nbasis, nbasis),
+                               dtype=self.trial_type)
+        self.weights = numpy.zeros(shape=(self.ndets, self.ndets),
+                                   dtype=self.trial_type)
         # For debugging purposes.
         if self.type == 'free_electron':
             (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
@@ -168,19 +179,29 @@ class MultiDeterminant:
             self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
             self.coeffs = numpy.ones(self.ndets)
         else:
-            self.orbital_file = trial.get('orbital_file')
-            self.coeffs_file = trial.get('coefficients_file')
-            if self.type == 'UHF':
-                M = system.nbasis
-            else:
-                M = 2 * system.nbasis
-            orbitals = read_fortran_complex_numbers(self.orbital_file)
-            self.psi = orbitals.reshape((self.ndets,M,system.ne),order='F')
-            self.psi = self.psi
+            self.orbital_file = trial.get('orbitals')
+            self.coeffs_file = trial.get('coefficients')
+            # Store the complex conjugate of the multi-determinant trial
+            # wavefunction expansion coefficients for ease later.
             self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
-            # Todo : Update this for multi true multideterminant case.
-            G = afqmcpy.estimators.gab(self.psi[0], self.psi[0])
-            self.emin = afqmcpy.estimators.local_energy_ghf(system, G.T)[0].real
+            self.psi = numpy.zeros(shape=(self.ndets, nbasis, system.ne),
+                                   dtype=self.coeffs.dtype)
+            orbitals = read_fortran_complex_numbers(self.orbital_file)
+            start = 0
+            skip = nbasis * system.ne
+            end = skip
+            for i in range(self.ndets):
+                self.psi[i] = orbitals[start:end].reshape((nbasis, system.ne),
+                                                          order='F')
+                start = end
+                end += skip
+            afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
+                                                  self.coeffs, self.coeffs,
+                                                  self.GAB, self.weights)
+            self.emin = (
+                afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
+                                                         self.weights)[0].real
+            )
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):
