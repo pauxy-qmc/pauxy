@@ -166,7 +166,7 @@ state : :class:`state.State`
     # Now apply phaseless, real local energy approximation
     walker.inverse_overlap(state.trial.psi, state.system.nup)
     walker.greens_function(state.trial, state.system.nup)
-    E_L = state.estimators.local_energy(state.system, walker.G)[0].real
+    E_L = walker.local_energy(state.system)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
                              state.qmc.local_energy_bound)
