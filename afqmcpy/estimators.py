@@ -207,11 +207,15 @@ class Estimators():
             if 'continuous' in state.qmc.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
-                self.estimates[self.names.enumer] += w.weight*w.local_energy(state.system)[0].real
+                self.estimates[self.names.enumer] += (
+                        w.weight*w.local_energy(state.system)[0].real
+                )
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
-            self.estimates[self.names.enumer] += (w.weight*w.local_energy(state.system)[0]*w.ot).real
+            self.estimates[self.names.enumer] += (
+                    w.weight*w.local_energy(state.system)[0]*w.ot).real
+            )
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
