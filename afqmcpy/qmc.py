@@ -22,6 +22,7 @@ def do_qmc(state, psi, comm):
     if state.estimators.back_propagation:
         # Easier to just keep a histroy of all walkers for population control
         # purposes if a bit memory inefficient.
+        # TODO: just store historic fields rather than all the walkers.
         state.estimators.psi_hist[:,0] = copy.deepcopy(psi)
     else:
         state.estimators.psi_hist = None
@@ -71,7 +72,7 @@ def do_qmc(state, psi, comm):
                                               psi_left)
                 if not state.estimators.calc_itcf:
                     # New nth right-hand wfn for next estimate of ITCF.
-                    psi_hist[:,0] = copy.deepcopy(psi)
+                    state.estimators.psi_hist[:,0] = copy.deepcopy(psi)
         if state.estimators.calc_itcf and step%state.estimators.nprop_tot == 0:
             if state.estimators.itcf.stable:
                 state.estimators.itcf.calculate_spgf(state,
