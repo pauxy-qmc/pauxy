@@ -99,3 +99,5 @@ def finalise(state, init_time):
     if state.root:
         print ("# End Time: %s"%time.asctime())
         print ("# Running time : %.6f seconds"%(time.time()-init_time))
+        if state.estimators.back_propagation:
+            state.estimators.back_prop.h5f.close()

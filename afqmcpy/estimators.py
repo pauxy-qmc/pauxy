@@ -8,6 +8,7 @@ import copy
 from mpi4py import MPI
 import scipy.linalg
 import afqmcpy.utils
+import h5py
 
 
 class Estimators():
@@ -272,7 +273,12 @@ class BackPropagation:
         }
         if root:
             file_name = 'back_propagated_estimates_%s.out'%uuid[:8]
+            h5f_name =  'back_propagated_estimates_%s.h5'%uuid[:8]
             self.funit = open(file_name, 'ab')
+            self.h5f = h5py.File(h5f_name, 'a')
+            stype = h5py.special_dtype(vlen=bytes)
+            metadata = self.h5f.create_dataset('metadata', data=json_string,
+                                               dtype=stype)
             self.funit.write(json_string.encode('utf-8'))
             print_key(self.key, self.funit.write, eol='\n', encode=True)
             print_header(self.header, self.funit.write, eol='\n', encode=True)
