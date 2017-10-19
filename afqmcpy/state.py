@@ -87,7 +87,9 @@ class State:
                                                           self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts, estimates)
+        print ('# Input options:')
         print (self.json_string)
+        print('# End of input options.')
 
     def write_json(self, model, qmc_opts, estimates):
         r"""Print out state object information to string.
@@ -125,10 +127,8 @@ class State:
             'estimates': estimates,
         }
         # Note that we require python 3.6 to print dict in ordered fashion.
-        first = '# Input options:\n'
-        last =  '\n# End of input options.'
         md = json.dumps(info, sort_keys=False, indent=4)
-        return (first + md + last)
+        return (md)
 
 class QMCOpts:
     """Input options and certain constants / parameters derived from them.
