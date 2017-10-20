@@ -61,7 +61,7 @@ class Estimators():
     """
 
     def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string,
-                 ghf=False):
+                 nsteps, ghf=False):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -80,7 +80,8 @@ class Estimators():
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, uuid, json_string)
+            self.back_prop = BackPropagation(bp, root, uuid, json_string,
+                                             nsteps)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -159,11 +160,7 @@ class Estimators():
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                 list(global_estimates[:ns.evar])))
             if self.back_propagation and print_bp:
-                ff = (
-                    afqmcpy.utils.format_fixed_width_floats([step]+
-                        list(global_estimates[ns.evar:ns.pot+1]))
-                )
-                self.back_prop.funit.write((ff+'\n').encode('utf-8'))
+                self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
 
         print_now = (
             state.root and step%self.nprop_tot == 0 and
@@ -214,7 +211,7 @@ class Estimators():
             self.estimates[self.names.edenom] += w.weight
         else:
             self.estimates[self.names.enumer] += (
-                    w.weight*w.local_energy(state.system)[0]*w.ot).real
+                    (w.weight*w.local_energy(state.system)[0]*w.ot).real
             )
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
@@ -251,6 +248,8 @@ class BackPropagation:
         Calculation uuid.
     json_string : string
         Information regarding input options.
+    nsteps : int
+        Total number of simulation steps.
 
     Attributes
     ----------
@@ -264,7 +263,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, uuid, json_string):
+    def __init__(self, bp, root, uuid, json_string, nsteps):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:]))
@@ -276,16 +275,17 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            file_name = 'back_propagated_estimates_%s.out'%uuid[:8]
             h5f_name =  'back_propagated_estimates_%s.h5'%uuid[:8]
-            self.funit = open(file_name, 'ab')
             self.h5f = h5py.File(h5f_name, 'a')
             stype = h5py.special_dtype(vlen=bytes)
             metadata = self.h5f.create_dataset('metadata', data=json_string,
                                                dtype=stype)
-            self.funit.write(json_string.encode('utf-8'))
-            print_key(self.key, self.funit.write, eol='\n', encode=True)
-            print_header(self.header, self.funit.write, eol='\n', encode=True)
+            energies = self.h5f.create_group('energy_estimators')
+            header = numpy.array(['E', 'T', 'V'], dtype=object)
+            energies.create_dataset('headers', data=header,
+                                    dtype=h5py.special_dtype(vlen=str))
+            self.output = H5EstimatorHelper(energies, 'energies',
+                                            (nsteps//self.nmax-1, len(header)))
 
     def update(self, system, psi_nm, psi_n, psi_bp):
         """Calculate back-propagated "local" energy for given walker/determinant.
@@ -373,17 +373,11 @@ class ITCF:
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
-            self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
-            self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
             base = '_greens_function_%s.out'%uuid[:8]
+            self.h5f
             for (i, s) in enumerate(self.keys[0]):
                 for (j, t) in enumerate(self.keys[1]):
                     name = 'spin_%s_%s'%(s,t) + base
-                    self.rspace_units[i,j] = open(name, 'ab')
-                    self.rspace_units[i,j].write(json_string.encode('utf-8'))
-                    if self.kspace:
-                        self.kspace_units[i,j] = open('kspace_'+name, 'ab')
-                        self.kspace_units[i,j].write(json_string.encode('utf-8'))
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.

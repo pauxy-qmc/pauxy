@@ -80,6 +80,7 @@ def initialise(input_file):
                                                      state.system.nbasis,
                                                      state.qmc.nwalkers,
                                                      state.json_string,
+                                                     state.qmc.nsteps,
                                                      state.trial.type=='GHF')
     if state.trial.name == 'multi_determinant':
         if state.trial.type== 'GHF':
