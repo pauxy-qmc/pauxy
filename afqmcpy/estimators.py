@@ -856,3 +856,14 @@ def eproj(estimates, enum):
     numerator = estimates[enum.enumer]
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
+
+class H5EstimatorHelper:
+    def __init__(self, h5f, name, shape):
+        self.store = h5f.create_dataset(name, shape, dtype='f')
+        dims = numpy.array(list(shape))
+        self.stride = numpy.prod(dims[1:])
+        self.index = 0
+
+    def push(self, data):
+        self.store[self.index] = data
+        self.index = self.index + 1
