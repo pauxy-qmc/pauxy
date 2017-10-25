@@ -869,7 +869,6 @@ class H5EstimatorHelper:
     def __init__(self, h5f, name, shape):
         self.store = h5f.create_dataset(name, shape, dtype='f')
         dims = numpy.array(list(shape))
-        self.stride = numpy.prod(dims[1:])
         self.index = 0
 
     def push(self, data):
