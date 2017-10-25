@@ -99,7 +99,7 @@ class Estimators():
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators)
         if self.calc_itcf:
-            self.itcf = ITCF(itcf, dt, root, uuid, json_string, nbasis)
+            self.itcf = ITCF(itcf, dt, root, self.h5f, nbasis, nsteps)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.itcf.spgf.flatten()))
             self.nprop_tot += self.itcf.nmax
@@ -178,9 +178,7 @@ class Estimators():
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
             for (i,s) in enumerate(self.itcf.keys[0]):
                 for (j,t) in enumerate(self.itcf.keys[1]):
-                    self.itcf.to_file(spgf[:,i,j,:,:],
-                                      self.itcf.rspace_units[i,j],
-                                      state.qmc.dt)
+                    self.itcf.rspace_units[i,j].push(spgf[:,i,j,:,:])
             if self.itcf.kspace:
                 M = state.system.nbasis
                 # FFT the real space Green's function.
@@ -189,9 +187,7 @@ class Estimators():
                                       spgf, state.system.P.conj().T).real/M
                 for (i,t) in enumerate(self.itcf.keys[0]):
                     for (j,s) in enumerate(self.itcf.keys[1]):
-                        self.itcf.to_file(spgf_k[:,i,j,:,:],
-                                          self.itcf.kspace_units[i,j],
-                                          state.qmc.dt)
+                        self.itcf.kspace_units[i,j].push(spgf_k[:,i,j,:,:])
 
         self.zero(state.system.nbasis)
 
@@ -360,7 +356,7 @@ class ITCF:
         Output files for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, uuid, json_string, nbasis):
+    def __init__(self, itcf, dt, root, h5f, nbasis, nsteps):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
@@ -376,11 +372,26 @@ class ITCF:
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
-            base = '_greens_function_%s.out'%uuid[:8]
-            self.h5f
+            if self.mode == 'full':
+                shape = (nsteps//(self.nmax+1), nbasis, nbasis)
+            elif self.mode == 'diagonal':
+                shape = (nsteps//self.nmax, nbasis)
+            else:
+                shape = (nsteps//self.nmax, len(self.mode))
+            spgfs = h5f.create_group('single_particle_greens_function')
+            self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
+            self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
             for (i, s) in enumerate(self.keys[0]):
                 for (j, t) in enumerate(self.keys[1]):
-                    name = 'spin_%s_%s'%(s,t) + base
+                    name = 'spin_%s_%s'%(s,t)
+                    self.rspace_units[i,j] = H5EstimatorHelper(spgfs,
+                                                               name,
+                                                               shape)
+                    if self.kspace:
+                        name = 'kspace_' + name
+                        self.kspace_units[i,j] = H5EstimatorHelper(spgfs,
+                                                                   name,
+                                                                   shape)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
