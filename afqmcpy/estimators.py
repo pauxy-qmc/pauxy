@@ -80,13 +80,16 @@ class Estimators():
             print_key(self.key)
             print_header(self.header)
         self.nestimators = len(self.header[1:])
+        h5f_name =  'estimates_%s.h5'%uuid[:8]
+        self.h5f = h5py.File(h5f_name, 'w')
+        stype = h5py.special_dtype(vlen=bytes)
+        self.h5f.create_dataset('metadata', data=json_string, dtype=stype)
         # Sub-members:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, uuid, json_string,
-                                             nsteps)
+            self.back_prop = BackPropagation(bp, root, self.h5f, nsteps)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -268,7 +271,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, uuid, json_string, nsteps):
+    def __init__(self, bp, root, h5f, nsteps):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:]))
@@ -280,12 +283,7 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            h5f_name =  'back_propagated_estimates_%s.h5'%uuid[:8]
-            self.h5f = h5py.File(h5f_name, 'a')
-            stype = h5py.special_dtype(vlen=bytes)
-            metadata = self.h5f.create_dataset('metadata', data=json_string,
-                                               dtype=stype)
-            energies = self.h5f.create_group('energy_estimators')
+            energies = h5f.create_group('back_propagated_energy_estimators')
             header = numpy.array(['E', 'T', 'V'], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
