@@ -5,7 +5,12 @@ from __future__ import print_function
 import numpy
 import time
 import copy
-from mpi4py import MPI
+import warnings
+# todo : handle more gracefully
+try:
+    from mpi4py import MPI
+except ImportError:
+    warnings.warn('No MPI library found')
 import scipy.linalg
 import afqmcpy.utils
 import h5py

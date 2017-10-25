@@ -2,8 +2,12 @@ import sys
 import json
 import time
 import numpy
-from mpi4py import MPI
 import warnings
+# todo : handle more gracefully.
+try:
+    from mpi4py import MPI
+except ImportError:
+    warnings.warn('No MPI library found')
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
