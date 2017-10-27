@@ -182,7 +182,8 @@ class Estimators():
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
             for (i,s) in enumerate(self.itcf.keys[0]):
                 for (j,t) in enumerate(self.itcf.keys[1]):
-                    self.itcf.rspace_units[i,j].push(spgf[:,i,j,:,:])
+                    self.itcf.to_file(self.itcf.rspace_units[i,j],
+                                      spgf[:,i,j,:,:])
             if self.itcf.kspace:
                 M = state.system.nbasis
                 # FFT the real space Green's function.
@@ -191,7 +192,8 @@ class Estimators():
                                       spgf, state.system.P.conj().T).real/M
                 for (i,t) in enumerate(self.itcf.keys[0]):
                     for (j,s) in enumerate(self.itcf.keys[1]):
-                        self.itcf.kspace_units[i,j].push(spgf_k[:,i,j,:,:])
+                        self.itcf.to_file(self.itcf.kspace_units[i,j],
+                                          spgf_k[:,i,j,:,:])
 
         self.zero(state.system.nbasis)
 
@@ -377,11 +379,11 @@ class ITCF:
         # I don't like list indexing so stick with numpy.
         if root:
             if self.mode == 'full':
-                shape = (nsteps//(self.nmax+1), nbasis, nbasis)
+                shape = (nsteps//(self.nmax), self.nmax+1, nbasis, nbasis)
             elif self.mode == 'diagonal':
-                shape = (nsteps//self.nmax, nbasis)
+                shape = (nsteps//(self.nmax), self.nmax+1, nbasis)
             else:
-                shape = (nsteps//self.nmax, len(self.mode))
+                shape = (nsteps//(self.nmax), self.nmax+1, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
             self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
             self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
@@ -549,33 +551,22 @@ class ITCF:
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
-    def to_file(self, spgf, funit, dt):
-        """Save ITCF to file.
-
-        This appends to any previous estimates from the same simulation.
-
-        Stolen from https://stackoverflow.com/a/3685339
+    def to_file(self, group, spgf):
+        """Push ITCF to hdf5 group.
 
         Parameters
         ----------
+        group: string
+            HDF5 group name.
         spgf : :class:`numpy.ndarray`
-            Storage for single-particle greens function (SPGF).
-        funit : file
-            Output file for ITCF.
-        dt : float
-            Timestep.
+            Single-particle Green's function (SPGF).
         """
-        for (ic, g) in enumerate(spgf):
-            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
-            # Maybe look at binary / hdf5 format if things get out of hand.
-            if self.mode == 'full':
-                numpy.savetxt(self.funit, g)
-            elif self.mode == 'diagonal':
-                output = afqmcpy.utils.format_fixed_width_floats(numpy.diag(g))
-                funit.write((output+'\n').encode('utf-8'))
-            else:
-                output = afqmcpy.utils.format_fixed_width_floats(g[self.mode])
-                funit.write((output+'\n').encode('utf-8'))
+        if self.mode == 'full':
+            group.push(spgf)
+        elif self.mode == 'diagonal':
+            group.push(spgf.diagonal(axis1=1, axis2=2))
+        else:
+            group.push(numpy.array([g[mode] for g in spgf]))
 
 def local_energy(system, G):
     """Calculate local energy of walker for the Hubbard model.
