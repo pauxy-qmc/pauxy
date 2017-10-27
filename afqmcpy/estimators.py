@@ -167,7 +167,11 @@ class Estimators():
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                 list(global_estimates[:ns.evar])))
-            if self.back_propagation and print_bp:
+            print_bp = (
+                self.back_propagation and print_bp and
+                step%self.back_prop.nmax == 0
+            )
+            if print_bp:
                 self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
 
         print_now = (
