@@ -82,8 +82,9 @@ class Estimators():
         self.nestimators = len(self.header[1:])
         h5f_name =  'estimates_%s.h5'%uuid[:8]
         self.h5f = h5py.File(h5f_name, 'w')
-        stype = h5py.special_dtype(vlen=bytes)
-        self.h5f.create_dataset('metadata', data=json_string, dtype=stype)
+        self.h5f.create_dataset('metadata',
+                                data=numpy.array([json_string], dtype=object),
+                                dtype=h5py.special_dtype(vlen=str))
         # Sub-members:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
@@ -180,20 +181,14 @@ class Estimators():
         )
         if print_now:
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
-            for (i,s) in enumerate(self.itcf.keys[0]):
-                for (j,t) in enumerate(self.itcf.keys[1]):
-                    self.itcf.to_file(self.itcf.rspace_units[i,j],
-                                      spgf[:,i,j,:,:])
+            self.itcf.to_file(self.itcf.rspace_unit, spgf)
             if self.itcf.kspace:
                 M = state.system.nbasis
                 # FFT the real space Green's function.
                 # Todo : could just use numpy.fft.fft....
                 spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
                                       spgf, state.system.P.conj().T).real/M
-                for (i,t) in enumerate(self.itcf.keys[0]):
-                    for (j,s) in enumerate(self.itcf.keys[1]):
-                        self.itcf.to_file(self.itcf.kspace_units[i,j],
-                                          spgf_k[:,i,j,:,:])
+                self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
 
         self.zero(state.system.nbasis)
 
@@ -356,10 +351,10 @@ class ITCF:
         Header sfor back propagated estimators.
     key : dict
         Explanation of output columns.
-    rspace_units : numpy array of files
-        Output files for real space itcfs.
-    kspace_units : numpy array of files
-        Output files for real space itcfs.
+    rspace : hdf5 dataset
+        Output dataset for real space itcfs.
+    kspace : hdf5 dataset
+        Output dataset for real space itcfs.
     """
 
     def __init__(self, itcf, dt, root, h5f, nbasis, nsteps):
@@ -379,25 +374,16 @@ class ITCF:
         # I don't like list indexing so stick with numpy.
         if root:
             if self.mode == 'full':
-                shape = (nsteps//(self.nmax), self.nmax+1, nbasis, nbasis)
+                shape = (nsteps//(self.nmax),) + self.spgf.shape
             elif self.mode == 'diagonal':
-                shape = (nsteps//(self.nmax), self.nmax+1, nbasis)
+                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, nbasis)
             else:
-                shape = (nsteps//(self.nmax), self.nmax+1, len(self.mode))
+                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
-            self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
-            self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
-            for (i, s) in enumerate(self.keys[0]):
-                for (j, t) in enumerate(self.keys[1]):
-                    name = 'spin_%s_%s'%(s,t)
-                    self.rspace_units[i,j] = H5EstimatorHelper(spgfs,
-                                                               name,
-                                                               shape)
-                    if self.kspace:
-                        name = 'kspace_' + name
-                        self.kspace_units[i,j] = H5EstimatorHelper(spgfs,
-                                                                   name,
-                                                                   shape)
+            name = 'real_space'
+            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape)
+            if self.kspace:
+                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
@@ -564,7 +550,7 @@ class ITCF:
         if self.mode == 'full':
             group.push(spgf)
         elif self.mode == 'diagonal':
-            group.push(spgf.diagonal(axis1=1, axis2=2))
+            group.push(spgf.diagonal(axis1=3, axis2=4))
         else:
             group.push(numpy.array([g[mode] for g in spgf]))
 
