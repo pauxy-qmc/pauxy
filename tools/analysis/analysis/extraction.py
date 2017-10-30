@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy
 import json
+import h5py
 
 def _extract_json(fhandle, find_start=False, max_end=None):
     '''Extract JSON output from a AFQMCPY output file.
@@ -86,6 +87,38 @@ def extract_data(filename, itcf=False):
         data = pd.read_csv(filename, skiprows=skip, sep=r'\s+', comment='#')
 
     return (metadata, data)
+
+def extract_hdf5_data_sets(files):
+
+    data =  [extract_hdf5(f) for f in files]
+
+    return data
+
+def extract_hdf5(filename):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    estimates = metadata.get('estimates')
+    if estimates is not None:
+        bp = estimates.get('back_propagation')
+        if bp is not None:
+            bpe = data['back_propagated_energy_estimators/energies'][:]
+            headers = data['back_propagated_energy_estimators/headers'][:]
+            bp_data = pd.DataFrame(bpe)
+            bp_data.columns = headers
+        else:
+            bp_data = None
+        itcf_info = estimates.get('itcf')
+        if itcf_info is not None:
+            itcf = data['single_particle_greens_function/real_space'] 
+            if itcf_info['kspace']:
+                kspace_itcf = data['single_particle_greens_function/k_space'] 
+            else:
+                kspace_itcf = None
+        else:
+            itcf = None
+            kspace_itcf = None
+
+    return (metadata, bp_data, itcf, kspace_itcf)
 
 def pretty_table(summary, metadata):
 
