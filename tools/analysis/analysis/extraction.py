@@ -2,6 +2,7 @@ import pandas as pd
 import numpy
 import json
 import h5py
+import ast
 
 def _extract_json(fhandle, find_start=False, max_end=None):
     '''Extract JSON output from a AFQMCPY output file.
@@ -157,3 +158,27 @@ def pretty_table_loop(results, model):
 def extract_test_data(filename):
     (md, data) = extract_data(filename)
     return data[::8].to_dict(orient='list')
+
+def extract_analysed_itcf(filename, elements, spin, order):
+    data = h5py.File(filename, 'r')
+    md = ast.literal_eval(data['metadata'][:][0])
+    dt = md['qmc_options']['dt']
+    mode = md['estimates']['itcf']['mode']
+    convert = {'up': 0, 'down': 1, 'greater': 0, 'lesser': 1}
+    gf = data['real_itcf'][:]
+    gf_err = data['real_itcf_err'][:]
+    isp = convert[spin]
+    it = convert[order]
+    results = pd.DataFrame()
+    if mode == 'full':
+        name = 'G_'+order+'_spin_'+spin+'_%s%s'%(elements[0],elements[1])
+        results[name] = gf[:,isp,it,elements[0],elements[1]]
+        results[name+'_err'] = gf_err[:,isp,it,elements[0],elements[1]]
+        # note that the interpretation of elements necessarily changes if we
+        # didn't store the full green's function.
+    else:
+        name = 'G_'+order+'_spin_'+spin+'_%s%s'%(elements[0],elements[0])
+        results[name] = gf[:,isp,it,elements[0]]
+        results[name+'_err'] = gf_err[:,isp,it,elements[0]]
+
+    return results
