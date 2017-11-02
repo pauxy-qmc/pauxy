@@ -37,8 +37,7 @@ start_iteration : int
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--start', type=int, dest='start_iteration',
                         default=None, help='Iteration number from which to '
-                        'gather statistics.  Default: Try finding starting '
-                        'iteration automatically. ')
+                        'gather statistics.  Default: 0')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                         default=False, help='Increase verbosity of output.')
     parser.add_argument('-l', '--loops', dest='loops', action='store_true',
@@ -47,12 +46,10 @@ start_iteration : int
                         default=False, help='Short output.')
     parser.add_argument('-i', '--input', dest='input', action='store_true',
                         default=False, help='Extract input file.')
-    parser.add_argument('-b', '--back-prop', dest='back_propagation', action='store_true',
-                        default=False, help='Analyse back propagated estimates.')
+    parser.add_argument('-e', '--estimates', dest='estimates', action='store_true',
+                        default=False, help='Analyse all estimators in hdf5 output.')
     parser.add_argument('-p', '--plot', dest='plot', action='store_true',
                         default=False, help='Make plots.')
-    parser.add_argument('-c', '--correlation', dest='itcf', nargs='+', type=int,
-                        default=None, help='Imaginary time correlation function.')
     parser.add_argument('-f', nargs='+', dest='filenames',
                         help='Space-separated list of files to analyse.')
 
@@ -81,25 +78,21 @@ None.
 '''
 
     options = parse_args(args)
-    if options.loops:
-        if options.back_propagation:
-            data = analysis.blocking.average_back_propagated(options.filenames,
-                                                             options.start_iteration)
-            if options.plot:
-                fig, ax = plt.subplots(2, sharex=True)
-                ax[0].errorbar(data.nbp.values, data['T'].values,
-                        yerr=data.T_error.values, fmt='o')
-                ax[1].errorbar(data.nbp.values, data.V.values,
-                        data.V_error.values, fmt='o')
-                ax[0].set_ylabel('T')
-                ax[1].set_ylabel('V')
-                plt.savefig('conv_bp.pdf', fmt='pdf')
-                plt.show()
-        elif options.itcf is not None:
-            data = analysis.blocking.average_itcf(options.filenames,
-                    options.itcf, options.start_iteration)
-        else:
-            data = analysis.blocking.average_tau(options.filenames)
+    if options.estimates:
+        bp_av = analysis.blocking.analyse_estimates(options.filenames,
+                                                    options.start_iteration)
+        if options.plot:
+            fig, ax = plt.subplots(2, sharex=True)
+            ax[0].errorbar(data.nbp.values, data['T'].values,
+                    yerr=data.T_error.values, fmt='o')
+            ax[1].errorbar(data.nbp.values, data.V.values,
+                    data.V_error.values, fmt='o')
+            ax[0].set_ylabel('T')
+            ax[1].set_ylabel('V')
+            plt.savefig('conv_bp.pdf', fmt='pdf')
+            plt.show()
+    elif options.loops:
+        data = analysis.blocking.average_tau(options.filenames)
         if options.tail:
             print (data.tail(1).to_string(index=False))
         else:
