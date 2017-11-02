@@ -27,12 +27,6 @@
     "estimates": {
         "back_propagation": {
             "nback_prop": 10
-        },
-        "itcf": {
-            "stable": false,
-            "tmax": 2,
-            "mode": "diagonal",
-            "kspace": true
         }
     }
 }

@@ -8,7 +8,7 @@ import numpy
 import scipy.stats
 import analysis.extraction
 import matplotlib.pyplot as pl
-
+import h5py
 
 def run_blocking_analysis(filename, start_iter):
     '''
@@ -70,69 +70,7 @@ def average_tau(filenames):
     return analysis.extraction.pretty_table_loop(results, m['model'])
 
 
-def average_itcf(filenames, element, start_iteration=0):
-    """Compute mean and standard error of itcf.
-
-    Parameters
-    ----------
-    filenames : list
-        Files to be extracted which contain itcfs.
-    element : list
-        Which elements of correlation function to average.
-    start_iteration : int, optional
-        Discard first start_iteration estimates.
-
-    Returns
-    -------
-    results : :class:`pandas.DataFrame`
-        Tabulated itcf.
-    """
-
-    data = analysis.extraction.extract_data_sets(filenames, itcf=True)
-    md = data[0][0]['qmc_options']
-    itcf_opts = data[0][0]['estimates']['itcf']
-    nits = int(itcf_opts['tmax']/md['dt']) + 1
-    itcf = []
-    for (m, d) in data:
-        itcf.append(d[nits*start_iteration:])
-    big = numpy.concatenate(itcf)
-    if len(element) == 2:
-        gijs = big[:,element[0], element[1]]
-    else:
-        gijs = big[:,element[0]]
-    nsim = len(gijs) / nits
-    gijs = gijs.reshape((nsim, nits))
-    for (i, s) in enumerate(gijs):
-        pl.plot(s, linewidth=0, marker='o', label='%s'%str(i))
-    pl.ylim([0,1])
-    pl.legend()
-    pl.show()
-    means = gijs.mean(axis=0)
-    errs = scipy.stats.sem(gijs, axis=0)
-    tau_range = numpy.linspace(0, itcf_opts['tmax'], nits)
-    if len(element) == 2:
-        gstring = 'G_%s%s'%tuple(element)
-    else:
-        gstring = 'G_%s'%tuple(element)
-    header = ['tau', gstring, gstring+'_error']
-    results = pd.DataFrame({'tau': tau_range,
-                            gstring: means,
-                            gstring+'_error': errs},
-                            columns=header)
-    return results
-
-def average_back_propagated(filenames, start_iteration=0):
-
-    data = analysis.extraction.extract_data_sets(filenames)
-    frames = []
-
-    # I'm pretty sure there's a faster way of doing this.
-    for (m,d) in data:
-        d['nbp'] = m['qmc_options']['nback_prop']
-        frames.append(d.loc[:,'E':][start_iteration:])
-
-    frames = pd.concat(frames)
-    frames.drop(frames[abs(frames.E)<1e-8].index, inplace=True)
+def analyse_back_propagation(frames):
     frames = frames.groupby('nbp')
     data_len = frames.size()
     means = frames.mean().reset_index()
@@ -140,4 +78,44 @@ def average_back_propagated(filenames, start_iteration=0):
     # default to 1 for scipy but it's different elsewhere, so let's be careful.
     errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
     full = pd.merge(means, errs, on='nbp', suffixes=('','_error'))
+    full.columns.values[1:].sort()
     return full
+
+def analyse_itcf(itcf):
+    means = itcf.mean(axis=(0,1), dtype=numpy.float64)
+    n = itcf.shape[0]*itcf.shape[1]
+    errs = (
+        itcf.std(axis=(0,1), ddof=1, dtype=numpy.float64) / numpy.sqrt(n)
+    )
+    return (means, errs)
+
+def analyse_estimates(filenames, start_iteration=0, skip=0): 
+    data = analysis.extraction.extract_hdf5_data_sets(filenames)
+    bp_data = []
+    itcf_data = []
+    itcfk_data = []
+    mds = []
+    for g in data:
+        (m, bp, itcf, itcfk) = g
+        bp['nbp'] = m.get('estimates').get('back_propagation').get('nback_prop')
+        bp_data.append(bp[start_iteration:])
+        itcf_data.append(itcf[skip:])
+        itcfk_data.append(itcfk[skip:])
+        mds.append(str(m))
+
+    bp_data = pd.concat(bp_data)
+    itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
+    itcfk_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
+    bp_av = analyse_back_propagation(bp_data)
+    (itcf_av, itcf_err) = analyse_itcf(itcf_data)
+    (itcfk_av, itcfk_err) = analyse_itcf(itcf_data)
+    store = h5py.File('analysed_estimates.h5', 'w')
+    store.create_dataset('metadata', data=numpy.array(mds, dtype=object),
+                         dtype=h5py.special_dtype(vlen=str))
+    store.create_dataset('real_itcf', data=itcf_av, dtype=float)
+    store.create_dataset('real_itcf_err', data=itcf_err, dtype=float)
+    store.create_dataset('kspace_itcf', data=itcfk_err, dtype=float)
+    store.create_dataset('kspace_itcf_err', data=itcfk_err, dtype=float)
+    store.close()
+
+    return bp_av

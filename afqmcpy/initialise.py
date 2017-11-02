@@ -2,8 +2,12 @@ import sys
 import json
 import time
 import numpy
-from mpi4py import MPI
 import warnings
+# todo : handle more gracefully.
+try:
+    from mpi4py import MPI
+except ImportError:
+    warnings.warn('No MPI library found')
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
@@ -80,6 +84,7 @@ def initialise(input_file):
                                                      state.system.nbasis,
                                                      state.qmc.nwalkers,
                                                      state.json_string,
+                                                     state.qmc.nsteps,
                                                      state.trial.type=='GHF')
     if state.trial.name == 'multi_determinant':
         if state.trial.type== 'GHF':
@@ -99,3 +104,5 @@ def finalise(state, init_time):
     if state.root:
         print ("# End Time: %s"%time.asctime())
         print ("# Running time : %.6f seconds"%(time.time()-init_time))
+        if state.estimators.back_propagation:
+            state.estimators.h5f.close()

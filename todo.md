@@ -1,45 +1,48 @@
-TODO:
+### TODO:
 
-=== T=0 ===
+### T = 0
 
-- [ ] Twisted boundaries
-- [.] Parallelisation
+- [X] Twisted boundaries
+- [ ] Parallelisation
     - [X] simple algorithm
     - [ ] reconfiguration
     - [ ] load balancing
-- [O] population control
+- [ ] population control
     - [X] try simple algorithm
     - [X] back propagation parents
     - [X] ITCF
-    - [ ] more correct version
-- [o] Profile:
+    - [ ] correct version
+- [ ] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
-- [o] Imaginary time green's functions
+    - [ ] Green's function
+- [ ] Imaginary time green's functions
     - [X] Benchmarking
     - [X] error estimation
     - [X] stabilised algorithm
     - [ ] targeted algorithm
     - [ ] optimisation
-- [o] back propagation / forward walking
+- [ ] back propagation / forward walking
     - [X] energy estimators
     - [X] analysis / convergence
-- [o] continuous HS transformation
+- [ ] continuous HS transformation
     - [X] free projection
-    - [ ] generic v_{ijkl}
+    - [ ] back propagation
+    - [ ] generic `v_{ijkl}`
 - [X] error estimation
 - [X] UHF trial wfn
-- [X] Rectangular grid bcs issues
+- [ ] Rectangular grid bcs issues
 - [X] python3
-- [o] tests/benchmarks
+- [ ] tests/benchmarks
     - [X] bulk tests
     - [ ] unit tests
 - [ ] documentation
-- [X] extraction script
+- [ ] extraction script
     - [X] extract input file
-    - [X] consistent analysis (numerator/denominator etc.)
+    - [ ] hdf5 extraction 
+    - [ ] consistent analysis (numerator/denominator etc.)
 
-=== T>0 ===
+### T>0
 
 - [ ] Algorithm
 - [ ] estimators

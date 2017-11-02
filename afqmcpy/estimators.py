@@ -5,9 +5,15 @@ from __future__ import print_function
 import numpy
 import time
 import copy
-from mpi4py import MPI
+import warnings
+# todo : handle more gracefully
+try:
+    from mpi4py import MPI
+except ImportError:
+    warnings.warn('No MPI library found')
 import scipy.linalg
 import afqmcpy.utils
+import h5py
 
 
 class Estimators():
@@ -60,7 +66,7 @@ class Estimators():
     """
 
     def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string,
-                 ghf=False):
+                 nsteps, ghf=False):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -74,12 +80,17 @@ class Estimators():
             print_key(self.key)
             print_header(self.header)
         self.nestimators = len(self.header[1:])
+        h5f_name =  'estimates_%s.h5'%uuid[:8]
+        self.h5f = h5py.File(h5f_name, 'w')
+        self.h5f.create_dataset('metadata',
+                                data=numpy.array([json_string], dtype=object),
+                                dtype=h5py.special_dtype(vlen=str))
         # Sub-members:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, uuid, json_string)
+            self.back_prop = BackPropagation(bp, root, self.h5f, nsteps)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -89,7 +100,7 @@ class Estimators():
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators)
         if self.calc_itcf:
-            self.itcf = ITCF(itcf, dt, root, uuid, json_string, nbasis)
+            self.itcf = ITCF(itcf, dt, root, self.h5f, nbasis, nsteps)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.itcf.spgf.flatten()))
             self.nprop_tot += self.itcf.nmax
@@ -157,12 +168,12 @@ class Estimators():
         if state.root:
             print(afqmcpy.utils.format_fixed_width_floats([step]+
                                 list(global_estimates[:ns.evar])))
-            if self.back_propagation and print_bp:
-                ff = (
-                    afqmcpy.utils.format_fixed_width_floats([step]+
-                        list(global_estimates[ns.evar:ns.pot+1]))
-                )
-                self.back_prop.funit.write((ff+'\n').encode('utf-8'))
+            print_bp = (
+                self.back_propagation and print_bp and
+                step%self.back_prop.nmax == 0
+            )
+            if print_bp:
+                self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
 
         print_now = (
             state.root and step%self.nprop_tot == 0 and
@@ -170,22 +181,14 @@ class Estimators():
         )
         if print_now:
             spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
-            for (i,s) in enumerate(self.itcf.keys[0]):
-                for (j,t) in enumerate(self.itcf.keys[1]):
-                    self.itcf.to_file(spgf[:,i,j,:,:],
-                                      self.itcf.rspace_units[i,j],
-                                      state.qmc.dt)
+            self.itcf.to_file(self.itcf.rspace_unit, spgf)
             if self.itcf.kspace:
                 M = state.system.nbasis
                 # FFT the real space Green's function.
                 # Todo : could just use numpy.fft.fft....
                 spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
                                       spgf, state.system.P.conj().T).real/M
-                for (i,t) in enumerate(self.itcf.keys[0]):
-                    for (j,s) in enumerate(self.itcf.keys[1]):
-                        self.itcf.to_file(spgf_k[:,i,j,:,:],
-                                          self.itcf.kspace_units[i,j],
-                                          state.qmc.dt)
+                self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
 
         self.zero(state.system.nbasis)
 
@@ -206,11 +209,15 @@ class Estimators():
             if 'continuous' in state.qmc.hubbard_stratonovich:
                 self.estimates[self.names.enumer] += w.weight * w.E_L.real
             else:
-                self.estimates[self.names.enumer] += w.weight*w.local_energy(state.system)[0].real
+                self.estimates[self.names.enumer] += (
+                        w.weight*w.local_energy(state.system)[0].real
+                )
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
         else:
-            self.estimates[self.names.enumer] += (w.weight*w.local_energy(state.system)[0]*w.ot).real
+            self.estimates[self.names.enumer] += (
+                    (w.weight*w.local_energy(state.system)[0]*w.ot).real
+            )
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
@@ -246,6 +253,8 @@ class BackPropagation:
         Calculation uuid.
     json_string : string
         Information regarding input options.
+    nsteps : int
+        Total number of simulation steps.
 
     Attributes
     ----------
@@ -259,7 +268,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, uuid, json_string):
+    def __init__(self, bp, root, h5f, nsteps):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:]))
@@ -271,11 +280,12 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            file_name = 'back_propagated_estimates_%s.out'%uuid[:8]
-            self.funit = open(file_name, 'ab')
-            self.funit.write(json_string.encode('utf-8'))
-            print_key(self.key, self.funit.write, eol='\n', encode=True)
-            print_header(self.header, self.funit.write, eol='\n', encode=True)
+            energies = h5f.create_group('back_propagated_energy_estimators')
+            header = numpy.array(['E', 'T', 'V'], dtype=object)
+            energies.create_dataset('headers', data=header,
+                                    dtype=h5py.special_dtype(vlen=str))
+            self.output = H5EstimatorHelper(energies, 'energies',
+                                            (nsteps//self.nmax-1, len(header)))
 
     def update(self, system, psi_nm, psi_n, psi_bp):
         """Calculate back-propagated "local" energy for given walker/determinant.
@@ -341,13 +351,13 @@ class ITCF:
         Header sfor back propagated estimators.
     key : dict
         Explanation of output columns.
-    rspace_units : numpy array of files
-        Output files for real space itcfs.
-    kspace_units : numpy array of files
-        Output files for real space itcfs.
+    rspace : hdf5 dataset
+        Output dataset for real space itcfs.
+    kspace : hdf5 dataset
+        Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, uuid, json_string, nbasis):
+    def __init__(self, itcf, dt, root, h5f, nbasis, nsteps):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
@@ -363,17 +373,17 @@ class ITCF:
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
-            self.rspace_units = numpy.empty(shape=(2,2), dtype=object)
-            self.kspace_units = numpy.empty(shape=(2,2), dtype=object)
-            base = '_greens_function_%s.out'%uuid[:8]
-            for (i, s) in enumerate(self.keys[0]):
-                for (j, t) in enumerate(self.keys[1]):
-                    name = 'spin_%s_%s'%(s,t) + base
-                    self.rspace_units[i,j] = open(name, 'ab')
-                    self.rspace_units[i,j].write(json_string.encode('utf-8'))
-                    if self.kspace:
-                        self.kspace_units[i,j] = open('kspace_'+name, 'ab')
-                        self.kspace_units[i,j].write(json_string.encode('utf-8'))
+            if self.mode == 'full':
+                shape = (nsteps//(self.nmax),) + self.spgf.shape
+            elif self.mode == 'diagonal':
+                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, nbasis)
+            else:
+                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
+            spgfs = h5f.create_group('single_particle_greens_function')
+            name = 'real_space'
+            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape)
+            if self.kspace:
+                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
@@ -527,33 +537,22 @@ class ITCF:
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
-    def to_file(self, spgf, funit, dt):
-        """Save ITCF to file.
-
-        This appends to any previous estimates from the same simulation.
-
-        Stolen from https://stackoverflow.com/a/3685339
+    def to_file(self, group, spgf):
+        """Push ITCF to hdf5 group.
 
         Parameters
         ----------
+        group: string
+            HDF5 group name.
         spgf : :class:`numpy.ndarray`
-            Storage for single-particle greens function (SPGF).
-        funit : file
-            Output file for ITCF.
-        dt : float
-            Timestep.
+            Single-particle Green's function (SPGF).
         """
-        for (ic, g) in enumerate(spgf):
-            funit.write(('# tau = %4.2f\n'%(ic*dt)).encode('utf-8'))
-            # Maybe look at binary / hdf5 format if things get out of hand.
-            if self.mode == 'full':
-                numpy.savetxt(self.funit, g)
-            elif self.mode == 'diagonal':
-                output = afqmcpy.utils.format_fixed_width_floats(numpy.diag(g))
-                funit.write((output+'\n').encode('utf-8'))
-            else:
-                output = afqmcpy.utils.format_fixed_width_floats(g[self.mode])
-                funit.write((output+'\n').encode('utf-8'))
+        if self.mode == 'full':
+            group.push(spgf)
+        elif self.mode == 'diagonal':
+            group.push(spgf.diagonal(axis1=3, axis2=4))
+        else:
+            group.push(numpy.array([g[mode] for g in spgf]))
 
 def local_energy(system, G):
     """Calculate local energy of walker for the Hubbard model.
@@ -846,3 +845,13 @@ def eproj(estimates, enum):
     numerator = estimates[enum.enumer]
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
+
+class H5EstimatorHelper:
+    def __init__(self, h5f, name, shape):
+        self.store = h5f.create_dataset(name, shape, dtype='f')
+        dims = numpy.array(list(shape))
+        self.index = 0
+
+    def push(self, data):
+        self.store[self.index] = data
+        self.index = self.index + 1
