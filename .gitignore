@@ -8,3 +8,4 @@ test.out*
 test.err*
 *.geom
 *.txt
+docs/build/*
