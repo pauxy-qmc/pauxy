@@ -159,23 +159,30 @@ def extract_test_data(filename):
     (md, data) = extract_data(filename)
     return data[::8].to_dict(orient='list')
 
-def extract_analysed_itcf(filename, elements, spin, order):
+def extract_analysed_itcf(filename, elements, spin, order, kspace):
     data = h5py.File(filename, 'r')
     md = ast.literal_eval(data['metadata'][:][0])
     dt = md['qmc_options']['dt']
+    tmax = md['estimates']['itcf']['tmax']
+    tau = numpy.arange(0, tmax+1e-8, dt)
     mode = md['estimates']['itcf']['mode']
     convert = {'up': 0, 'down': 1, 'greater': 0, 'lesser': 1}
-    gf = data['real_itcf'][:]
-    gf_err = data['real_itcf_err'][:]
+    if kspace:
+        gf = data['kspace_itcf'][:]
+        gf_err = data['kspace_itcf_err'][:]
+    else:
+        gf = data['real_itcf'][:]
+        gf_err = data['real_itcf_err'][:]
     isp = convert[spin]
     it = convert[order]
     results = pd.DataFrame()
+    results['tau'] = tau
+    # note that the interpretation of elements necessarily changes if we
+    # didn't store the full green's function.
     if mode == 'full':
         name = 'G_'+order+'_spin_'+spin+'_%s%s'%(elements[0],elements[1])
         results[name] = gf[:,isp,it,elements[0],elements[1]]
         results[name+'_err'] = gf_err[:,isp,it,elements[0],elements[1]]
-        # note that the interpretation of elements necessarily changes if we
-        # didn't store the full green's function.
     else:
         name = 'G_'+order+'_spin_'+spin+'_%s%s'%(elements[0],elements[0])
         results[name] = gf[:,isp,it,elements[0]]

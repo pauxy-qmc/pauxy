@@ -40,10 +40,12 @@ start_iteration : int
     parser.add_argument('-o', '--order', type=str, dest='order',
                         default=None, help='Type of green\'s function to extract.'
                         'Options: lesser/greater')
+    parser.add_argument('-k', '--kspace', dest='kspace', action='store_true',
+                        default=False, help='Extract kspace green\'s function.')
     parser.add_argument('-e', '--elements',
                         type=lambda s: [int(item) for item in s.split(',')],
                         dest='elements', default=None,
-                        help='Element to extract. Options: lesser/greater')
+                        help='Element to extract.')
     parser.add_argument('-f', nargs='+', dest='filename',
                         help='Space-separated list of files to analyse.')
 
@@ -73,7 +75,8 @@ None.
     results = analysis.extraction.extract_analysed_itcf(options.filename[0],
                                                         options.elements,
                                                         options.spin,
-                                                        options.order)
+                                                        options.order,
+                                                        options.kspace)
     print (results.to_string(index=False))
 
 if __name__ == '__main__':

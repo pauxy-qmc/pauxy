@@ -106,16 +106,16 @@ def analyse_estimates(filenames, start_iteration=0, skip=0):
 
     bp_data = pd.concat(bp_data)
     itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
-    itcfk_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
+    itcfk_data = numpy.reshape(itcfk_data, (len(itcf_data),)+itcf_data[0].shape)
     bp_av = analyse_back_propagation(bp_data)
     (itcf_av, itcf_err) = analyse_itcf(itcf_data)
-    (itcfk_av, itcfk_err) = analyse_itcf(itcf_data)
+    (itcfk_av, itcfk_err) = analyse_itcf(itcfk_data)
     store = h5py.File('analysed_estimates.h5', 'w')
     store.create_dataset('metadata', data=numpy.array(mds, dtype=object),
                          dtype=h5py.special_dtype(vlen=str))
     store.create_dataset('real_itcf', data=itcf_av, dtype=float)
     store.create_dataset('real_itcf_err', data=itcf_err, dtype=float)
-    store.create_dataset('kspace_itcf', data=itcfk_err, dtype=float)
+    store.create_dataset('kspace_itcf', data=itcfk_av, dtype=float)
     store.create_dataset('kspace_itcf_err', data=itcfk_err, dtype=float)
     store.close()
 
