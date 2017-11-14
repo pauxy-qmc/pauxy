@@ -78,8 +78,9 @@ def analyse_back_propagation(frames):
     # default to 1 for scipy but it's different elsewhere, so let's be careful.
     errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
     full = pd.merge(means, errs, on='nbp', suffixes=('','_error'))
-    full.columns.values[1:].sort()
-    return full
+    columns = sorted(full.columns.values[1:])
+    columns = numpy.insert(columns, 0, 'nbp')
+    return full[columns]
 
 def analyse_itcf(itcf):
     means = itcf.mean(axis=(0,1), dtype=numpy.float64)
