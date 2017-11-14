@@ -30,7 +30,8 @@
     - [ ] back propagation
     - [ ] generic `v_{ijkl}`
 - [X] error estimation
-- [X] UHF trial wfn
+- [X] UHF trial wfn:
+    - [ ] tidy up
 - [ ] Rectangular grid bcs issues
 - [X] python3
 - [ ] tests/benchmarks
@@ -39,8 +40,8 @@
 - [ ] documentation
 - [ ] extraction script
     - [X] extract input file
-    - [ ] hdf5 extraction 
-    - [ ] consistent analysis (numerator/denominator etc.)
+    - [X] hdf5 extraction 
+    - [X] consistent analysis (numerator/denominator etc.)
 
 ### T>0
 
