@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to AFQMCPY's documentation!
-===================================
+AFQMCPY
+=======
 
 Simple test code implementing the constrained path algorithm in the auxilliary field
 quantum Monte Carlo framework.
