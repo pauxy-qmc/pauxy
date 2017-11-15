@@ -99,6 +99,10 @@ def extract_hdf5(filename):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
     estimates = metadata.get('estimates')
+    basic = data['basic_estimators/energies'][:]
+    headers = data['basic_estimators/headers'][:]
+    basic = pd.DataFrame(basic)
+    basic.columns = headers
     if estimates is not None:
         bp = estimates.get('back_propagation')
         if bp is not None:
@@ -119,7 +123,7 @@ def extract_hdf5(filename):
             itcf = None
             kspace_itcf = None
 
-    return (metadata, bp_data, itcf, kspace_itcf)
+    return (metadata, basic, bp_data, itcf, kspace_itcf)
 
 def pretty_table(summary, metadata):
 
