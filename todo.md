@@ -39,11 +39,18 @@
     - [X] bulk tests
     - [ ] unit tests
     - [ ] extract output from hdf5
-- [ ] documentation
+- [ ] documentation:
+    - [ ] move math to separate theory sections and refer to in docstrings to
+      keep them cleaner
 - [ ] extraction script
     - [X] extract input file
     - [X] hdf5 extraction 
     - [X] consistent analysis (numerator/denominator etc.)
+- [ ] pickle class metadata for more verbose output
+- [ ] theory docs
+- [ ] tidy uhf routine
+- [ ] ghf solver for hubbard model?
+- [ ] self consistent rdm / optimal Ueff.
 
 ### T>0
 
