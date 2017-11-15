@@ -9,3 +9,6 @@ test.err*
 *.geom
 *.txt
 docs/build/*
+*.h5
+testcode_data*
+benchmark*
