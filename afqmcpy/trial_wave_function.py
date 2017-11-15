@@ -38,6 +38,43 @@ class FreeElectron:
 
 
 class UHF:
+    r"""UHF trial wavefunction.
+
+    Search for UHF trial wavefunction by self consistenly solving the mean field
+    Hamiltonian:
+
+        .. math::
+            H^{\sigma} = \sum_{\langle ij\rangle} \left(
+                    c^{\dagger}_{i\sigma}c_{j\sigma} + h.c.\right) +
+                    U_{\mathrm{eff}} \sum_i \hat{n}_{i\sigma}\langle\hat{n}_{i\bar{\sigma}}\rangle -
+                    \frac{1}{2} U_{\mathrm{eff}} \sum_i \langle\hat{n}_{i\sigma}\rangle
+                    \langle\hat{n}_{i\bar{\sigma}}\rangle.
+
+    See [Xu11]_ for more details.
+
+    .. Warning::
+        This is for the Hubbard model only
+
+    .. todo:: We should generalise in the future perhaps.
+
+    Parameters
+    ----------
+    system : :class:`afqmcpy.Hubbard` object
+        System parameters.
+    cplx : bool
+        True if the trial wavefunction etc is complex.
+    trial : dict
+        Trial wavefunction input options.
+
+    Attributes
+    ----------
+    psi : :class:`numpy.ndarray`
+        Trial wavefunction.
+    eigs : :class:`numpy.array`
+        One-electron eigenvalues.
+    emin : float
+        Ground state mean field total energy of trial wavefunction.
+    """
 
     def __init__(self, system, cplx, trial):
         print ("# Constructing trial wavefunction")
@@ -65,50 +102,40 @@ class UHF:
                                                              self.deps)
         self.initialisation_time = time.time() - init_time
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha,
-                     deps=1e-8):
+    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha, deps=1e-8):
         emin = 0
         uold = system.U
         system.U = ueff
-        minima= [0]
+        minima= [0] # Local minima
         nup = system.nup
+        # Search over different random starting points.
         for attempt in range(0, ninit):
-            random = numpy.random.random((system.nbasis, system.nbasis))
-            random = 0.5*(random + random.T)
-            (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(random)
-            random = numpy.random.random((system.nbasis, system.nbasis))
-            random = 0.5*(random + random.T)
-            (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(random)
-            if cplx:
-                trial_type = complex
-            else:
-                trial_type = float
-
-            trial = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
-                                dtype=trial_type)
-            trial[:,:system.nup] = ev_up[:,:system.nup]
-            trial[:,system.nup:] = ev_down[:,:system.ndown]
-            niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
-            nidown = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
-            niup_old = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
-            nidown_old = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
-            eold = sum(e_up[:system.nup]) + sum(e_down[:system.ndown])
+            # Set up initial (random) guess for the density.
+            (trial, eold) = self.initialise(system.nbasis, system.nup,
+                                            system.ndown, cplx)
+            niup = self.density(trial[:,:nup])
+            nidown = self.density(trial[:,nup:])
+            niup_old = self.density(trial[:,:nup])
+            nidown_old = self.density(trial[:,nup:])
             for it in range(0, nit_max):
+                # mean field Hamiltonians.
                 HMFU = system.T + numpy.diag(ueff*nidown)
                 HMFD = system.T + numpy.diag(ueff*niup)
                 (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
                 (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
-                trial = numpy.zeros(shape=(system.nbasis,
-                                    system.nup+system.ndown), dtype=trial_type)
+                # Construct new wavefunction given new density.
                 trial[:,:system.nup] = ev_up[:,:system.nup]
                 trial[:,system.nup:] = ev_down[:,:system.ndown]
-                niup = numpy.diag(trial[:,:nup].dot((trial[:,:nup].conj()).T))
-                nidown = numpy.diag(trial[:,nup:].dot((trial[:,nup:].conj()).T))
+                # Construct corresponding site densities.
+                niup = self.density(trial[:,:nup])
+                nidown = self.density(trial[:,nup:])
+                # Construct Green's function to compute the energy.
                 Gup = afqmcpy.estimators.gab(trial[:,:nup], trial[:,:nup]).T
                 Gdown = afqmcpy.estimators.gab(trial[:,nup:], trial[:,nup:]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
                 if self.self_consistant(enew, eold, niup, niup_old, nidown,
                                         nidown_old, it, deps):
+                    # Global minimum search.
                     if all(abs(numpy.array(minima))-abs(enew) < -deps):
                         minima.append(enew)
                         psi_accept = copy.deepcopy(trial)
@@ -134,6 +161,31 @@ class UHF:
             print ("%f"%(enew-emin))
             sys.exit()
 
+
+    def initialise(self, nbasis, nup, ndown, cplx):
+        (e_up, ev_up) = self.random_starting_point(nbasis)
+        (e_down, ev_down) = self.random_starting_point(nbasis)
+
+        if cplx:
+            trial_type = complex
+        else:
+            trial_type = float
+        trial = numpy.zeros(shape=(nbasis, nup+ndown),
+                            dtype=trial_type)
+        trial[:,:nup] = ev_up[:,:nup]
+        trial[:,nup:] = ev_down[:,:ndown]
+        eold = sum(e_up[:nup]) + sum(e_down[:ndown])
+
+        return (trial, eold)
+
+    def random_starting_point(self, nbasis):
+        random = numpy.random.random((nbasis, nbasis))
+        random = 0.5*(random + random.T)
+        (energies, eigv) = afqmcpy.utils.diagonalise_sorted(random)
+        return (energies, eigv)
+
+    def density(self, wfn):
+        return numpy.diag(wfn.dot((wfn.conj()).T))
 
     def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
                         it, deps=1e-8):
