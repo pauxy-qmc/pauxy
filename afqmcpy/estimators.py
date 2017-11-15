@@ -66,7 +66,7 @@ class Estimators():
     """
 
     def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string,
-                 nsteps, ghf=False):
+                 nsteps, nmeasure, ghf=False):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -85,6 +85,12 @@ class Estimators():
         self.h5f.create_dataset('metadata',
                                 data=numpy.array([json_string], dtype=object),
                                 dtype=h5py.special_dtype(vlen=str))
+        energies = self.h5f.create_group('basic_estimators')
+        energies.create_dataset('headers',
+                                data=numpy.array(self.header[1:], dtype=object),
+                                dtype=h5py.special_dtype(vlen=str))
+        self.output = H5EstimatorHelper(energies, 'energies',
+                                        (nsteps/nmeasure+1, len(self.header[1:])))
         # Sub-members:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
@@ -103,7 +109,7 @@ class Estimators():
             self.itcf = ITCF(itcf, dt, root, self.h5f, nbasis, nsteps)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.itcf.spgf.flatten()))
-            self.nprop_tot += self.itcf.nmax
+            self.nprop_tot = self.itcf.nmax
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
             # path.
@@ -166,8 +172,8 @@ class Estimators():
             global_estimates[:ns.time] / state.qmc.nmeasure
         )
         if state.root:
-            print(afqmcpy.utils.format_fixed_width_floats([step]+
-                                list(global_estimates[:ns.evar])))
+            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar])))
+            self.output.push(global_estimates[:ns.evar])
             print_bp = (
                 self.back_propagation and print_bp and
                 step%self.back_prop.nmax == 0
@@ -285,7 +291,7 @@ class BackPropagation:
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nsteps//self.nmax-1, len(header)))
+                                            (nsteps//self.nmax, len(header)))
 
     def update(self, system, psi_nm, psi_n, psi_bp):
         """Calculate back-propagated "local" energy for given walker/determinant.

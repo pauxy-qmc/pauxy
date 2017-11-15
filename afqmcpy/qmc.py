@@ -35,7 +35,7 @@ def do_qmc(state, psi, comm):
     # Print out zeroth step for convenience.
     state.estimators.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
-    for step in range(1, state.qmc.nsteps):
+    for step in range(1, state.qmc.nsteps+1):
         for w in psi:
             # Want to possibly allow for walkers with negative / complex weights
             # when not using a constraint. I'm not so sure about the criteria
