@@ -50,7 +50,9 @@ class Hubbard:
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
-        (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t, self.nx, self.ny)
+        (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t,
+                                                                    self.nx,
+                                                                    self.ny)
         self.T = kinetic(self.t, self.nbasis, self.nx,
                          self.ny, self.ktwist)
         self.Text = scipy.linalg.block_diag(self.T, self.T)
@@ -105,16 +107,27 @@ def kinetic(t, nbasis, nx, ny, ks):
             if sum(dij) == 1:
                 T[i, j] = -t
             # Take care of periodic boundary conditions
+            # there should be a less stupid way of doing this.
             if ny == 1 and dij == [nx-1]:
-                phase = numpy.dot(cmath.pi*ks,[1])
-                T[i,j] += -t * cmath.exp(1j*phase)
+                if ks is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
+                else:
+                    phase = 1.0
+                T[i,j] += -t * phase
             elif (dij==[nx-1, 0]).all():
-                phase = numpy.dot(cmath.pi*ks,numpy.array([1,0]))
+                if ks is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
+                else:
+                    phase = 1.0
                 T[i, j] += -t * cmath.exp(1j*phase)
             elif (dij==[0, ny-1]).all():
-                phase = numpy.dot(cmath.pi*ks,numpy.array([0,1]))
+                if ks is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
+                else:
+                    phase = 1.0
                 T[i, j] += -t * cmath.exp(1j*phase)
 
+    # This only works because the diagonal of T is zero.
     return T + T.conj().T
 
 def decode_basis(nx, ny, i):
