@@ -99,7 +99,6 @@ def kinetic(t, nbasis, nx, ny, ks):
     else:
         T = numpy.zeros((nbasis, nbasis), dtype=complex)
 
-    print (ks, ks.all() is not None, T.dtype)
     for i in range(0, nbasis):
         for j in range(i+1, nbasis):
             xy1 = decode_basis(nx, ny, i)
@@ -123,7 +122,7 @@ def kinetic(t, nbasis, nx, ny, ks):
                 T[i, j] += -t * phase 
             elif (dij==[0, ny-1]).all():
                 if ks.all() is not None:
-                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
                 else:
                     phase = 1.0
                 T[i, j] += -t * phase 
