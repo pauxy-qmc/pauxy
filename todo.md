@@ -12,6 +12,7 @@
     - [X] back propagation parents
     - [X] ITCF
     - [ ] correct version
+    - [ ] store histories in walker class
 - [ ] Profile:
     - [X] timing per iteration
     - [ ] unit profiling
@@ -37,6 +38,7 @@
 - [ ] tests/benchmarks
     - [X] bulk tests
     - [ ] unit tests
+    - [ ] extract output from hdf5
 - [ ] documentation
 - [ ] extraction script
     - [X] extract input file
