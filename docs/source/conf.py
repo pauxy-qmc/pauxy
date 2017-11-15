@@ -37,6 +37,7 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
+    'sphinx.ext.mathjax',
     'sphinx.ext.viewcode']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -174,8 +175,10 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-
-
-
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/2.7', None),
+    'numpy':('http://docs.scipy.org/doc/numpy', 'http://docs.scipy.org/doc/numpy/objects.inv'),
+    'pandas': ('http://pandas.pydata.org/pandas-docs/stable/',   None),
+    'matplotlib': ('http://matplotlib.sourceforge.net', None),
+    'pyblock': ('http://pyblock.readthedocs.org/en/latest/', None),
+}

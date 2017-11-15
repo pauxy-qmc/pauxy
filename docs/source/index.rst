@@ -12,6 +12,12 @@ quantum Monte Carlo framework.
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   :glob:
+
+   theory/index
+   input/index
+   tutorials/index
+   bibliography
 
 Indices and tables
 ==================
