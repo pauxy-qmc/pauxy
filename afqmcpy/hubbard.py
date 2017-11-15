@@ -94,11 +94,12 @@ def kinetic(t, nbasis, nx, ny, ks):
         Hopping Hamiltonian matrix.
     """
 
-    if ks.all() == 0:
+    if ks.all() is None:
         T = numpy.zeros((nbasis, nbasis), dtype=float)
     else:
         T = numpy.zeros((nbasis, nbasis), dtype=complex)
 
+    print (ks, ks.all() is not None, T.dtype)
     for i in range(0, nbasis):
         for j in range(i+1, nbasis):
             xy1 = decode_basis(nx, ny, i)
@@ -109,23 +110,23 @@ def kinetic(t, nbasis, nx, ny, ks):
             # Take care of periodic boundary conditions
             # there should be a less stupid way of doing this.
             if ny == 1 and dij == [nx-1]:
-                if ks is not None:
+                if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
                 else:
                     phase = 1.0
                 T[i,j] += -t * phase
             elif (dij==[nx-1, 0]).all():
-                if ks is not None:
+                if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
                 else:
                     phase = 1.0
-                T[i, j] += -t * cmath.exp(1j*phase)
+                T[i, j] += -t * phase 
             elif (dij==[0, ny-1]).all():
-                if ks is not None:
+                if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
                 else:
                     phase = 1.0
-                T[i, j] += -t * cmath.exp(1j*phase)
+                T[i, j] += -t * phase 
 
     # This only works because the diagonal of T is zero.
     return T + T.conj().T
