@@ -79,9 +79,10 @@ None.
 
     options = parse_args(args)
     if options.estimates:
-        bp_av = analysis.blocking.analyse_estimates(options.filenames,
+        (bp_av, norm) = analysis.blocking.analyse_estimates(options.filenames,
                                                     options.start_iteration)
         print (bp_av.to_string(index=False))
+        print (norm.to_string(index=False))
         if options.plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].errorbar(data.nbp.values, data['T'].values,
