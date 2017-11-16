@@ -64,8 +64,8 @@ def do_qmc(state, psi, comm):
                 # Psi_n to Psi_{n+1} we want to select the next entry in the
                 # array, i.e., s+1. Slicing excludes the endpoint which we need
                 # so also add one to e.
-                psi_left = afqmcpy.propagation.back_propagate(state,
-                                          state.estimators.psi_hist[:,s+1:e+1])
+                psi_left = state.propagators.back_propagate(state.system,
+                        state.estimators.psi_hist[:,s+1:e+1], state.trial)
                 state.estimators.back_prop.update(state.system,
                                               state.estimators.psi_hist[:,e],
                                               state.estimators.psi_hist[:,s],

@@ -13,7 +13,7 @@ import afqmcpy.propagation
 import afqmcpy.hs_transform
 
 class State:
-    """ Container for global simulation state.
+    """Container for global simulation state.
 
     The `state` of the simulation is essentially everything to the calculation
     including input options, estimators trial wavefunctions etc.
@@ -78,12 +78,8 @@ class State:
             self.trial = trial_wave_function.MultiDeterminant(self.system,
                                                               self.qmc.cplx,
                                                               trial)
-        self.propagators = afqmcpy.propagation.Projectors(model['name'],
-                                                          self.qmc.hubbard_stratonovich,
-                                                          self.qmc.dt, self.system.T,
-                                                          self.qmc.importance_sampling,
-                                                          self.system.eks,
-                                                          self.qmc.ffts,
+        self.propagators = afqmcpy.propagation.Propagator(self.qmc,
+                                                          self.system,
                                                           self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts, estimates)
