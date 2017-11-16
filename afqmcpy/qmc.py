@@ -66,7 +66,7 @@ def do_qmc(state, psi, comm):
                 # so also add one to e.
                 psi_left = state.propagators.back_propagate(state.system,
                         state.estimators.psi_hist[:,s+1:e+1], state.trial)
-                state.estimators.back_prop.update(state.system,
+                state.estimators.back_prop.update(state.system, state.trial,
                                               state.estimators.psi_hist[:,e],
                                               state.estimators.psi_hist[:,s],
                                               psi_left)
