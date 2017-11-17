@@ -483,6 +483,7 @@ def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
     bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
     bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
     BV = scipy.linalg.block_diag(bv_up, bv_down)
+    B = BT2.dot(BV).dot(BT2)
 
     if conjt:
         return B.conj().T
