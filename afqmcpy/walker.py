@@ -179,11 +179,13 @@ class MultiDetWalker:
 class MultiGHFWalker:
     '''Essentially just some wrappers around Walker class.'''
 
-    def __init__(self, nw, system, trial, index=0, weights='zeros', bp_wfn=False):
+    def __init__(self, nw, system, trial, index=0, weights='zeros', wfn0='init'):
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
-        # than GHF.
-        if not bp_wfn:
+        # than GHF. Can actually initialise to GHF by passing single GHF with
+        # read_init. The distinction is really for back propagation when we may
+        # want to use the full expansion.
+        if wfn0 == 'init':
             # Initialise walker with single determinant.
             if trial.read_init is not None:
                 orbs = twfn.read_fortran_complex_numbers(trial.read_init)
@@ -205,7 +207,7 @@ class MultiGHFWalker:
             self.weights = np.zeros(trial.ndets, dtype=trial.psi.dtype)
         else:
             self.weights = np.ones(trial.ndets, dtype=trial.psi.dtype)
-        if not bp_wfn:
+        if wfn0 != 'GHF':
             self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
@@ -219,7 +221,7 @@ class MultiGHFWalker:
                           dtype=self.phi.dtype)
         self.ots = np.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        if not bp_wfn:
+        if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
             self.greens_function(trial, system.nup)
             self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
