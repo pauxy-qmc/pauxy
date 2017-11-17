@@ -339,7 +339,10 @@ class BackPropagation:
         current = numpy.zeros(3)
         for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
             construct_multi_ghf_gab(wb.phi, wn.phi, trial.coeffs, wb.Gi, wb.ots)
-            weights = trial.coeffs * wb.ots
+            # note that we are abusing the weights variable from the multighf
+            # walker to store the reorthogonalisation factors.
+            # todo : consistent conjugation
+            weights = numpy.conj(wb.weights) * trial.coeffs * wb.ots
             energies = local_energy_ghf(system, wb.Gi, weights, sum(weights))
             current = current + wnm.weight*numpy.array(list(energies))
         self.estimates = self.estimates + current.real / denominator

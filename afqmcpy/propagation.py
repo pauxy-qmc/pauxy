@@ -551,17 +551,20 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
         back propagated list of walkers.
     """
 
-    psi_bp = [walker.MultiGHFWalker(1, state.system, state.trial, w)
-              for w in range(state.qmc.nwalkers)]
-    nup = state.system.nup
+    psi_bp = [walker.MultiGHFWalker(1, system, trial, w, weights='ones',
+                                    bp_wfn=True) for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
-            B = construct_propagator_matrix_ghf(state, BT2, ws.field_config,
+            B = construct_propagator_matrix_ghf(system, BT2, ws.field_config,
                                                 conjt=True)
-            psi_bp[iw].phi = B.dot(psi_bp[iw])
-            if i % state.qmc.nstblz == 0:
-                psi_bp[iw].reortho(nup)
+            for (idet, psi_i) in enumerate(psi_bp[iw].phi):
+                # propagate each component of multi-determinant expansion
+                psi_i = B.dot(psi_i)
+                if i % nstblz == 0:
+                    # implicitly propagating the full GHF wavefunction
+                    detR = afqmcpy.utils.reortho(psi_i)
+                    psi_bp[iw].weights[idet] *= detR
     return psi_bp
 
 def propagate_single(state, psi, B):
