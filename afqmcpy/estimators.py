@@ -451,7 +451,8 @@ class ITCF:
             # Note we use the first itcf_nmax fields for estimating the ITCF.
             for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
                 # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
+                                                                    state.propagators.BT_BP,
                                                                     c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
@@ -470,7 +471,8 @@ class ITCF:
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
+                                                                state.propagators.BT_BP,
                                                                 c.field_config)
                 Ggr[0] = B[0].dot(Ggr[0])
                 Ggr[1] = B[1].dot(Ggr[1])
@@ -524,7 +526,8 @@ class ITCF:
             # Note we use the first itcf_nmax fields for estimating the ITCF.
             for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
                 # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state,
+                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
+                                                                    state.propagators.BT_BP,
                                                                     c.field_config,
                                                                     conjt=True)
                 afqmcpy.propagation.propagate_single(state, wl, B)
@@ -544,8 +547,9 @@ class ITCF:
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state,
-                                                                    c.field_config)
+                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
+                                                                state.propagators.BT_BP,
+                                                                c.field_config)
                 Bi[0] = scipy.linalg.inv(B[0])
                 Bi[1] = scipy.linalg.inv(B[1])
                 # G is the cumulative product of stabilised short-time ITCFs.
