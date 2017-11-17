@@ -552,7 +552,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
     """
 
     psi_bp = [walker.MultiGHFWalker(1, system, trial, w, weights='ones',
-                                    bp_wfn=True) for w in range(len(psi))]
+                                    wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
