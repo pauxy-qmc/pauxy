@@ -88,3 +88,26 @@ def fft_wavefunction(psi, nx, ny, ns, sin):
 def ifft_wavefunction(psi, nx, ny, ns, sin):
     return numpy.fft.ifft2(psi.reshape(nx,ny,ns),
                                  axes=(0,1)).reshape(sin)
+
+def reortho(A):
+    """Reorthogonalise a MxN matrix A.
+
+    Performs a QR decomposition of A. Note that for consistency elsewhere we
+    want to preserve detR > 0 which is not guaranteed. We thus factor the signs
+    of the diagonal of R into Q.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        MxN matrix. On output its columns will be mutually orthogonal.
+
+    Returns
+    -------
+    detR : float
+        Determinant of upper triangular matrix (R) from QR decomposition.
+    """
+    (A, R) = scipy.linalg.qr(A, mode='economic')
+    signs = numpy.diag(numpy.sign(numpy.diag(R)))
+    A = A.dot(signs)
+    detR = scipy.linalg.det(signs.dot(R))
+    return detR

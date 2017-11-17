@@ -32,9 +32,10 @@ class FreeElectron:
         G = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
-        self.initialisation_time = time.time() - init_time
         # For interface compatability
         self.coeffs = 1.0
+        self.bp_wfn = None
+        self.initialisation_time = time.time() - init_time
 
 
 class UHF:
@@ -100,6 +101,7 @@ class UHF:
                                                              self.nconv,
                                                              self.alpha,
                                                              self.deps)
+        self.bp_wfn = None
         self.initialisation_time = time.time() - init_time
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha, deps=1e-8):
@@ -254,6 +256,7 @@ class MultiDeterminant:
                 afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
                                                          self.weights)[0].real
             )
+        self.bp_wfn = 0
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):

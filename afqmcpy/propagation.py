@@ -8,7 +8,6 @@ import math
 import cmath
 import copy
 import afqmcpy.utils
-import afqmcpy.estimators as estimators
 import afqmcpy.walker as walker
 
 
@@ -445,7 +444,7 @@ def propagate_potential_auxf(phi, state, field_config):
     phi[:,:nup] = numpy.einsum('i,ij->ij', bv_up, phi[:,:nup])
     phi[:,nup:] = numpy.einsum('i,ij->ij', bv_down, phi[:,nup:])
 
-def construct_propagator_matrix(state, config, conjt=False):
+def construct_propagator_matrix(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
     Parameters
@@ -458,52 +457,114 @@ def construct_propagator_matrix(state, config, conjt=False):
     B : :class:`numpy.ndarray`
         Full projector matrix.
     """
-    BK2 = state.propagators.bt2
-    bv_up = numpy.diag(numpy.array([state.system.auxf[xi, 0] for xi in config]))
-    bv_down = numpy.diag(numpy.array([state.system.auxf[xi, 1] for xi in config]))
-    Bup = BK2.dot(bv_up).dot(BK2)
-    Bdown = BK2.dot(bv_down).dot(BK2)
+    bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
+    bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
+    Bup = BT2.dot(bv_up).dot(BT2)
+    Bdown = BT2.dot(bv_down).dot(BT2)
 
     if conjt:
         return [Bup.conj().T, Bdown.conj().T]
     else:
         return [Bup, Bdown]
 
-def back_propagate(state, psi):
-    r"""Perform backpropagation.
-
-    TODO: explanation and disentangle measurement from act.
+def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
+    """Construct the full projector from a configuration of auxiliary fields.
 
     Parameters
+    ----------
+    config : numpy array
+        Auxiliary field configuration.
+
+    Returns
+    -------
+    B : :class:`numpy.ndarray`
+        Full projector matrix.
+    """
+    bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
+    bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
+    BV = scipy.linalg.block_diag(bv_up, bv_down)
+    B = BT2.dot(BV).dot(BT2)
+
+    if conjt:
+        return B.conj().T
+    else:
+        return B
+
+def back_propagate(system, psi, trial, nstblz, BT2):
+    r"""Perform back propagation for UHF style wavefunction.
+
+    todo: Explanation.
+
+    parameters
+    ---------
+    state : :class:`afqmcpy.state.state`
+        state object
+    psi_n : list of :class:`afqmcpy.walker.walker` objects
+        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
+        output the walker's auxiliary field counter will be set to zero if we
+        are not also calculating an itcf.
+    step : int
+        simulation step (modulo total number of fields to save). this is
+        necessary when estimating an itcf for imaginary times >> back
+        propagation time.
+
+    returns
+    -------
+    psi_bp : list of :class:`afqmcpy.walker.walker` objects
+        back propagated list of walkers.
+    """
+
+    psi_bp = [walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    nup = system.nup
+    for (iw, w) in enumerate(psi):
+        # propagators should be applied in reverse order
+        for (i, ws) in enumerate(reversed(list(w))):
+            B = construct_propagator_matrix(system, BT2, ws.field_config,
+                                            conjt=True)
+            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
+            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
+            if i % nstblz == 0:
+                psi_bp[iw].reortho(nup)
+    return psi_bp
+
+def back_propagate_ghf(system, psi, trial, nstblz, BT2):
+    r"""perform backpropagation.
+
+    todo: explanation and disentangle measurement from act.
+
+    parameters
     ---------
     state : :class:`afqmcpy.state.State`
         state object
     psi_n : list of :class:`afqmcpy.walker.Walker` objects
-        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. On
+        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
         output the walker's auxiliary field counter will be set to zero if we
-        are not also calculating an ITCF.
+        are not also calculating an itcf.
     step : int
-        Simulation step (modulo total number of fields to save). This is
-        necessary when estimating an ITCF for imaginary times >> back
+        simulation step (modulo total number of fields to save). this is
+        necessary when estimating an itcf for imaginary times >> back
         propagation time.
 
-    Returns
+    returns
     -------
     psi_bp : list of :class:`afqmcpy.walker.Walker` objects
-        Back propagated list of walkers.
+        back propagated list of walkers.
     """
 
-    psi_bp = [walker.Walker(1, state.system, state.trial, w)
-              for w in range(state.qmc.nwalkers)]
-    nup = state.system.nup
+    psi_bp = [walker.MultiGHFWalker(1, system, trial, w, weights='ones',
+                                    bp_wfn=True) for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, ws) in enumerate(reversed(list(w))):
-            B = construct_propagator_matrix(state, ws.field_config, conjt=True)
-            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
-            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
-            if i % state.qmc.nstblz == 0:
-                psi_bp[iw].reortho(nup)
+            B = construct_propagator_matrix_ghf(system, BT2, ws.field_config,
+                                                conjt=True)
+            for (idet, psi_i) in enumerate(psi_bp[iw].phi):
+                # propagate each component of multi-determinant expansion
+                psi_i = B.dot(psi_i)
+                if i % nstblz == 0:
+                    # implicitly propagating the full GHF wavefunction
+                    detR = afqmcpy.utils.reortho(psi_i)
+                    psi_bp[iw].weights[idet] *= detR
     return psi_bp
 
 def propagate_single(state, psi, B):
@@ -571,21 +632,26 @@ _propagators = {
     }
 }
 
-# This shouldn't exist, just rename in state at the beginning and rename module
-# functions
-class Projectors:
+class Propagator:
     '''Base propagator class'''
 
-    def __init__(self, model, hs_type, dt, T, importance_sampling, eks, fft,
-                 trial):
-        self.bt2 = scipy.linalg.expm(-0.5*dt*T)
-        self.btk = numpy.exp(-0.5*dt*eks)
+    def __init__(self, qmc, system, trial):
+        self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T)
+        if trial.type == 'GHF' and trial.bp_wfn is not None:
+            self.BT_BP = scipy.linalg.block_diag(self.bt2, self.bt2)
+            self.back_propagate = self.back_propagate_ghf
+        else:
+            self.BT_BP = self.bt2
+            self.back_propagate = self.back_propagate_uhf
+        self.nstblz = qmc.nstblz
+        self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
+        hs_type = qmc.hubbard_stratonovich
         if 'continuous' in hs_type:
-            if importance_sampling:
+            if qmc.importance_sampling:
                 self.propagate_walker = _propagators['continuous']['constrained']
             else:
                 self.propagate_walker = _propagators['continuous']['free']
-        elif importance_sampling:
+        elif qmc.importance_sampling:
             self.propagate_walker = _propagators['discrete']['constrained']
             if trial.name == 'multi_determinant':
                 if trial.type == 'GHF':
@@ -601,8 +667,17 @@ class Projectors:
                 self.kinetic = kinetic_ghf
             else:
                 self.kinetic = kinetic_real
-        elif fft:
+        elif qmc.ffts:
             self.kinetic = kinetic_kspace
         else:
             self.kinetic = kinetic_real
+        model = system.__class__.__name__
         self.potential = _projectors['potential'][model][hs_type]
+
+    def back_propagate_uhf(self, system, psi, trial):
+        return afqmcpy.propagation.back_propagate(system, psi, trial,
+                                                  self.nstblz, self.BT_BP)
+
+    def back_propagate_ghf(self, system, psi, trial):
+        return afqmcpy.propagation.back_propagate_ghf(system, psi, trial,
+                                                      self.nstblz, self.BT_BP)

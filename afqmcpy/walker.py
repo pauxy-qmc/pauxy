@@ -179,27 +179,34 @@ class MultiDetWalker:
 class MultiGHFWalker:
     '''Essentially just some wrappers around Walker class.'''
 
-    def __init__(self, nw, system, trial, index=0):
+    def __init__(self, nw, system, trial, index=0, weights='zeros', bp_wfn=False):
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
         # than GHF.
-        if trial.read_init is not None:
-            orbs = twfn.read_fortran_complex_numbers(trial.read_init)
-            self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
+        if not bp_wfn:
+            # Initialise walker with single determinant.
+            if trial.read_init is not None:
+                orbs = twfn.read_fortran_complex_numbers(trial.read_init)
+                self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
+            else:
+                self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
+                                    dtype=trial.psi.dtype)
+                tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                                         trial.psi.dtype==complex, {})
+                self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
+                self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
         else:
-            self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
-                                dtype=trial.psi.dtype)
-            tmp = afqmcpy.trial_wave_function.FreeElectron(system,
-                                     trial.psi.dtype==complex, {})
-            self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
-            self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
+            self.phi = copy.deepcopy(trial.psi)
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
         self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),
                                  dtype=self.phi.dtype)
-        self.weights = np.zeros(trial.ndets, dtype=trial.psi.dtype)
-        ovlp = (np.dot(trial.psi[0].conj().T, self.phi))
-        self.inverse_overlap(trial.psi, system.nup)
+        if weights == 'zeros':
+            self.weights = np.zeros(trial.ndets, dtype=trial.psi.dtype)
+        else:
+            self.weights = np.ones(trial.ndets, dtype=trial.psi.dtype)
+        if not bp_wfn:
+            self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
                            2*system.nbasis), dtype=self.phi.dtype)
@@ -212,12 +219,13 @@ class MultiGHFWalker:
                           dtype=self.phi.dtype)
         self.ots = np.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        self.ot = self.calc_otrial(trial)
-        self.greens_function(trial, system.nup)
-        self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
-                                                       self.weights,
-                                                       sum(self.weights))[0].real
-        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+        if not bp_wfn:
+            self.ot = self.calc_otrial(trial)
+            self.greens_function(trial, system.nup)
+            self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
+                                                           self.weights,
+                                                           sum(self.weights))[0].real
+            self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
 
     def inverse_overlap(self, trial, nup):

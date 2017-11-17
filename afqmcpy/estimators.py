@@ -96,7 +96,7 @@ class Estimators():
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, self.h5f, nsteps)
+            self.back_prop = BackPropagation(bp, root, self.h5f, nsteps, ghf)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -274,7 +274,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps):
+    def __init__(self, bp, root, h5f, nsteps, ghf):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:]))
@@ -292,9 +292,13 @@ class BackPropagation:
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (nsteps//self.nmax, len(header)))
+        if ghf:
+            self.update = self.update_ghf
+        else:
+            self.update = self.update_uhf
 
-    def update(self, system, psi_nm, psi_n, psi_bp):
-        """Calculate back-propagated "local" energy for given walker/determinant.
+    def update_uhf(self, system, trial, psi_nm, psi_n, psi_bp):
+        r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
         ----------
@@ -315,6 +319,32 @@ class BackPropagation:
             GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
             GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
             current = current + wnm.weight*numpy.array(list(local_energy(system, GTB)))
+        self.estimates = self.estimates + current.real / denominator
+
+    def update_ghf(self, system, trial, psi_nm, psi_n, psi_bp):
+        r"""Calculate back-propagated "local" energy for given walker/determinant.
+
+        Parameters
+        ----------
+        psi_nm : list of :class:`afqmcpy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+        psi_n : list of :class:`afqmcpy.walker.Walker` objects
+            previous distribution of walkers, i.e., at the current iteration in the
+            simulation corresponding to :math:`\tau`.
+        psi_bp : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers at time :math:`\tau_{bp}`.
+        """
+        denominator = sum(wnm.weight for wnm in psi_nm)
+        current = numpy.zeros(3)
+        for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
+            construct_multi_ghf_gab(wb.phi, wn.phi, trial.coeffs, wb.Gi, wb.ots)
+            # note that we are abusing the weights variable from the multighf
+            # walker to store the reorthogonalisation factors.
+            # todo : consistent conjugation
+            weights = numpy.conj(wb.weights) * trial.coeffs * wb.ots
+            energies = local_energy_ghf(system, wb.Gi, weights, sum(weights))
+            current = current + wnm.weight*numpy.array(list(energies))
         self.estimates = self.estimates + current.real / denominator
 
 
@@ -392,7 +422,7 @@ class ITCF:
                 self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
-        """Calculate imaginary time single-particle green's function.
+        r"""Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
 
@@ -743,6 +773,18 @@ def gab_multi_det(A, B, coeffs):
         overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
     denom = numpy.dot(coeffs, overlaps)
     return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
+
+def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
+    if Gi is None:
+        Gi = numpy.zeros(A.shape)
+    if overlaps is None:
+        overlaps = numpy.zeros(A.shape[1])
+    for (ix, Aix) in enumerate(A):
+        # construct "local" green's functions for each component of A
+        # Todo: list comprehension here.
+        inv_O = scipy.linalg.inv((Aix.conj().T).dot(B))
+        Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T))).T
+        overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
 
 def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
