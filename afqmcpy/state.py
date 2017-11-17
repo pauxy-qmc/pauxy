@@ -196,12 +196,16 @@ class QMCOpts:
         self.temp = inputs.get('temperature', None)
         self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = inputs.get('importance_sampling', True)
+        if self.importance_sampling:
+            self.constraint = 'constrained'
+        else:
+            self.constraint = 'free'
         self.hubbard_stratonovich = inputs.get('hubbard_stratonovich',
                                                 'discrete')
         self.ffts = inputs.get('kinetic_kspace', False)
         self.cplx = ('continuous' in self.hubbard_stratonovich
                      or system.ktwist.all() != 0)
-        if self.hubbard_stratonovich == 'opt_continuous':
+        if self.hubbard_stratonovich == 'continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)
             self.iut_fac = 1j*numpy.sqrt((system.U*self.dt))

@@ -207,6 +207,7 @@ class MultiDeterminant:
     def __init__(self, system, cplx, trial):
         init_time = time.time()
         self.name = "multi_determinant"
+        self.expansion = "multi_determinant"
         self.type = trial.get('type')
         self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])

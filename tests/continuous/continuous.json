@@ -16,7 +16,7 @@
         "nwalkers": 30,
         "npop_control": 10,
         "temperature": 0.0,
-        "hubbard_stratonovich": "opt_continuous",
+        "hubbard_stratonovich": "continuous",
         "importance_sampling": true,
         "rng_seed": 7
     },

@@ -615,8 +615,7 @@ _projectors = {
         'Hubbard': {
             'discrete': discrete_hubbard,
             'generic': generic_continuous,
-            'opt_continuous': dumb_hubbard,
-            'dumb_continuous': dumb_hubbard,
+            'continuous': dumb_hubbard,
         }
     }
 }
@@ -646,33 +645,23 @@ class Propagator:
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
         hs_type = qmc.hubbard_stratonovich
-        if 'continuous' in hs_type:
-            if qmc.importance_sampling:
-                self.propagate_walker = _propagators['continuous']['constrained']
-            else:
-                self.propagate_walker = _propagators['continuous']['free']
-        elif qmc.importance_sampling:
-            self.propagate_walker = _propagators['discrete']['constrained']
-            if trial.name == 'multi_determinant':
-                if trial.type == 'GHF':
-                    self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
-                else:
-                    self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
-            else:
-                self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
-        else:
-            self.propagate_walker = _propagators['discrete']['free']
-        if trial.name == 'multi_determinant':
-            if trial.type == 'GHF':
-                self.kinetic = kinetic_ghf
-            else:
-                self.kinetic = kinetic_real
-        elif qmc.ffts:
-            self.kinetic = kinetic_kspace
-        else:
-            self.kinetic = kinetic_real
+        constraint = qmc.constraint
+        self.propagate_walker = _propagators[hs_type][constraint]
         model = system.__class__.__name__
         self.potential = _projectors['potential'][model][hs_type]
+        if trial.name == 'multi_determinant':
+            if trial.type == 'GHF':
+                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
+                self.kinetic = kinetic_ghf
+            else:
+                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
+                self.kinetic = kinetic_real
+        else:
+            self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
+            if qmc.ffts:
+                self.kinetic = kinetic_kspace
+            else:
+                self.kinetic = kinetic_real
 
     def back_propagate_uhf(self, system, psi, trial):
         return afqmcpy.propagation.back_propagate(system, psi, trial,
