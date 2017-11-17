@@ -34,7 +34,7 @@ class FreeElectron:
         self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
         # For interface compatability
         self.coeffs = 1.0
-        self.bp_wfn = None
+        self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
 
@@ -101,7 +101,7 @@ class UHF:
                                                              self.nconv,
                                                              self.alpha,
                                                              self.deps)
-        self.bp_wfn = None
+        self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha, deps=1e-8):
@@ -212,6 +212,7 @@ class MultiDeterminant:
         self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])
         self.read_init = trial.get('initial_wavefunction', None)
+        self.bp_wfn = trial.get('bp_wfn', 'init')
         if cplx or self.type == 'GHF':
             self.trial_type = complex
         else:
@@ -257,7 +258,6 @@ class MultiDeterminant:
                 afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
                                                          self.weights)[0].real
             )
-        self.bp_wfn = 0
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):
