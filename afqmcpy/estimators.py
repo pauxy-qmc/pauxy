@@ -16,7 +16,7 @@ import afqmcpy.utils
 import h5py
 
 
-class Estimators():
+class Estimators:
     """Container for qmc estimates of observables.
 
     Parameters
@@ -65,8 +65,8 @@ class Estimators():
         and ITCF calculation.
     """
 
-    def __init__(self, estimates, root, uuid, dt, nbasis, nwalkers, json_string,
-                 nsteps, nmeasure, ghf=False):
+    def __init__(self, estimates, root, uuid, qmc, nbasis, json_string,
+                 ghf=False):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -89,7 +89,8 @@ class Estimators():
                                     data=numpy.array(self.header[1:], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nsteps/nmeasure+1, len(self.header[1:])))
+                                            (qmc.nsteps/qmc.nmeasure+1,
+                                            len(self.header[1:])))
         else:
             self.h5f = None
         self.nestimators = len(self.header[1:])
@@ -98,7 +99,8 @@ class Estimators():
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, self.h5f, nsteps, ghf)
+            self.back_prop = BackPropagation(bp, root, self.h5f,
+                                             qmc.nsteps, ghf)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -108,14 +110,14 @@ class Estimators():
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators)
         if self.calc_itcf:
-            self.itcf = ITCF(itcf, dt, root, self.h5f, nbasis, nsteps)
+            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, qmc.nsteps)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.itcf.spgf.flatten()))
             self.nprop_tot = self.itcf.nmax
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
             # path.
-            self.psi_hist = numpy.zeros(shape=(nwalkers, self.nprop_tot+1),
+            self.psi_hist = numpy.zeros(shape=(qmc.nwalkers, self.nprop_tot+1),
                                         dtype=object)
         self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
@@ -247,7 +249,7 @@ class EstimatorEnum:
 
 
 class BackPropagation:
-    """ Container for performing back propagation.
+    """Container for performing back propagation.
 
     Parameters
     ----------
@@ -276,7 +278,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps, ghf):
+    def __init__(self, bp, root, h5f, nsteps, ghf=False):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:]))

@@ -80,12 +80,9 @@ def initialise(input_file):
     state.estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
                                                      state.root,
                                                      state.uuid,
-                                                     state.qmc.dt,
+                                                     state.qmc,
                                                      state.system.nbasis,
-                                                     state.qmc.nwalkers,
                                                      state.json_string,
-                                                     state.qmc.nsteps,
-                                                     state.qmc.nmeasure,
                                                      state.trial.type=='GHF')
     if state.trial.name == 'multi_determinant':
         if state.trial.type== 'GHF':
