@@ -32,15 +32,8 @@ def run_blocking_analysis(filename, start_iter):
     return (reblock, useful_table)
 
 
-def average_tau(filenames):
+def average_tau(frames):
 
-    data = analysis.extraction.extract_data_sets(filenames)
-    frames = []
-
-    for (m,d) in data:
-        frames.append(d)
-
-    frames = pd.concat(frames).groupby('iteration')
     data_len = frames.size()
     means = frames.mean()
     err = numpy.sqrt(frames.var())
@@ -56,30 +49,28 @@ def average_tau(filenames):
     weight_error = err['Weight']
     numerator = means['E_num']
     numerator_error = err['E_num']
-    tau = m['qmc_options']['dt']
-    nsites = m['model']['nx']*m['model']['ny']
-    results = pd.DataFrame({'E': energy/nsites, 'E_error': energy_err/nsites,
-                            'Eproj': eproj/nsites,
-                            'Eproj_error': eproj_err/nsites,
+    results = pd.DataFrame({'E': energy, 'E_error': energy_err,
+                            'Eproj': eproj,
+                            'Eproj_error': eproj_err,
                             'weight': weight,
                             'weight_error': weight_error,
                             'numerator': numerator,
                             'numerator_error': numerator_error}).reset_index()
-    results['tau'] = results['iteration'] * tau
 
-    return analysis.extraction.pretty_table_loop(results, m['model'])
+    return results
 
 
 def analyse_back_propagation(frames):
-    frames = frames.groupby('nbp')
+    frames = frames.groupby(['nbp','dt'])
     data_len = frames.size()
     means = frames.mean().reset_index()
     # calculate standard error of the mean for grouped objects. ddof does
     # default to 1 for scipy but it's different elsewhere, so let's be careful.
     errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
-    full = pd.merge(means, errs, on='nbp', suffixes=('','_error'))
-    columns = sorted(full.columns.values[1:])
+    full = pd.merge(means, errs, on=['nbp','dt'], suffixes=('','_error'))
+    columns = sorted(full.columns.values[2:])
     columns = numpy.insert(columns, 0, 'nbp')
+    columns = numpy.insert(columns, 1, 'dt')
     return full[columns]
 
 def analyse_itcf(itcf):
@@ -90,33 +81,57 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
-def analyse_estimates(filenames, start_iteration=0, skip=0): 
+def analyse_estimates(filenames, start_iteration=0, skip=0):
     data = analysis.extraction.extract_hdf5_data_sets(filenames)
     bp_data = []
+    norm_data = []
     itcf_data = []
     itcfk_data = []
     mds = []
+    nsim = 0
     for g in data:
-        (m, bp, itcf, itcfk) = g
-        bp['nbp'] = m.get('estimates').get('back_propagation').get('nback_prop')
-        bp_data.append(bp[start_iteration:])
-        itcf_data.append(itcf[skip:])
-        itcfk_data.append(itcfk[skip:])
+        (m, norm, bp, itcf, itcfk) = g
+        dt = m.get('qmc_options').get('dt')
+        step = m.get('qmc_options').get('nmeasure')
+        norm['dt'] = dt
+        norm['iteration'] = numpy.arange(0, step*len(norm), step)
+        norm_data.append(norm)
+        if bp is not None:
+            bp['nbp'] = m.get('estimates').get('back_propagation').get('nback_prop')
+            bp['dt'] = dt
+            bp_data.append(bp[start_iteration:])
+        if itcf is not None:
+            itcf_data.append(itcf[skip:])
+        if itcfk is not None:
+            itcfk_data.append(itcfk[skip:])
         mds.append(str(m))
 
-    bp_data = pd.concat(bp_data)
-    itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
-    itcfk_data = numpy.reshape(itcfk_data, (len(itcf_data),)+itcf_data[0].shape)
-    bp_av = analyse_back_propagation(bp_data)
-    (itcf_av, itcf_err) = analyse_itcf(itcf_data)
-    (itcfk_av, itcfk_err) = analyse_itcf(itcfk_data)
     store = h5py.File('analysed_estimates.h5', 'w')
     store.create_dataset('metadata', data=numpy.array(mds, dtype=object),
                          dtype=h5py.special_dtype(vlen=str))
-    store.create_dataset('real_itcf', data=itcf_av, dtype=float)
-    store.create_dataset('real_itcf_err', data=itcf_err, dtype=float)
-    store.create_dataset('kspace_itcf', data=itcfk_av, dtype=float)
-    store.create_dataset('kspace_itcf_err', data=itcfk_err, dtype=float)
+    if itcf is not None:
+        itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
+        (itcf_av, itcf_err) = analyse_itcf(itcf_data)
+        store.create_dataset('real_itcf', data=itcf_av, dtype=float)
+        store.create_dataset('real_itcf_err', data=itcf_err, dtype=float)
+    if itcfk is not None:
+        itcfk_data = numpy.reshape(itcfk_data, (len(itcf_data),)+itcf_data[0].shape)
+        (itcfk_av, itcfk_err) = analyse_itcf(itcfk_data)
+        store.create_dataset('kspace_itcf', data=itcfk_av, dtype=float)
+        store.create_dataset('kspace_itcf_err', data=itcfk_err, dtype=float)
+    if bp is not None:
+        bp_data = pd.concat(bp_data)
+        bp_av = analyse_back_propagation(bp_data)
+        bp_group = store.create_group('back_propagation')
+        bp_group.create_dataset('estimates', data=bp_av.as_matrix(), dtype=float)
+        bp_group.create_dataset('headers', data=bp_av.columns.values,
+                dtype=h5py.special_dtype(vlen=str))
+    norm_data = pd.concat(norm_data).groupby('iteration')
+    norm_av = average_tau(norm_data)
+    basic = store.create_group('basic_estimators')
+    basic.create_dataset('estimates', data=norm_av.as_matrix(), dtype=float)
+    basic.create_dataset('headers', data=norm_av.columns.values,
+            dtype=h5py.special_dtype(vlen=str))
     store.close()
 
-    return bp_av
+    return (bp_av, norm_av)

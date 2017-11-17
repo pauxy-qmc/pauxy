@@ -203,3 +203,14 @@ def extract_analysed_itcf(filename, elements, spin, order, kspace):
         results[name+'_err'] = gf_err[:,isp,it,elements[0]]
 
     return results
+
+
+def analysed_energies(filename, name):
+    data = h5py.File(filename, 'r')
+    md = ast.literal_eval(data['metadata'][:][0])
+    dt = md['qmc_options']['dt']
+    output = data[name+'/estimates'][:]
+    columns = data[name+'/headers'][:]
+    results = pd.DataFrame(output, columns=columns)
+
+    return results

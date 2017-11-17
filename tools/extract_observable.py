@@ -37,7 +37,7 @@ start_iteration : int
     parser.add_argument('-s', '--spin', type=str, dest='spin',
                         default=None, help='Spin component to extract.'
                         'Options: up/down')
-    parser.add_argument('-o', '--order', type=str, dest='order',
+    parser.add_argument('-t', '--type', type=str, dest='type',
                         default=None, help='Type of green\'s function to extract.'
                         'Options: lesser/greater')
     parser.add_argument('-k', '--kspace', dest='kspace', action='store_true',
@@ -46,6 +46,8 @@ start_iteration : int
                         type=lambda s: [int(item) for item in s.split(',')],
                         dest='elements', default=None,
                         help='Element to extract.')
+    parser.add_argument('-o', '--observable', type=str, dest='obs',
+                        default='energy', help='Data to extract')
     parser.add_argument('-f', nargs='+', dest='filename',
                         help='Space-separated list of files to analyse.')
 
@@ -72,11 +74,22 @@ None.
 '''
 
     options = parse_args(args)
-    results = analysis.extraction.extract_analysed_itcf(options.filename[0],
-                                                        options.elements,
-                                                        options.spin,
-                                                        options.order,
-                                                        options.kspace)
+    if options.obs == 'itcf':
+        results = analysis.extraction.extract_analysed_itcf(options.filename[0],
+                                                            options.elements,
+                                                            options.spin,
+                                                            options.type,
+                                                            options.kspace)
+    elif options.obs == 'energy':
+        results = analysis.extraction.analysed_energies(options.filename[0],
+                                                        'basic_estimators')
+    elif options.obs == 'back_propagation':
+        results = analysis.extraction.analysed_energies(options.filename[0],
+                                                        'back_propagation')
+    else:
+        results = None
+        print ('Unknown observable')
+
     print (results.to_string(index=False))
 
 if __name__ == '__main__':

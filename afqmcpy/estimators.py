@@ -79,18 +79,20 @@ class Estimators():
         if root:
             print_key(self.key)
             print_header(self.header)
+            h5f_name =  'estimates_%s.h5'%uuid[:8]
+            self.h5f = h5py.File(h5f_name, 'w')
+            self.h5f.create_dataset('metadata',
+                                    data=numpy.array([json_string], dtype=object),
+                                    dtype=h5py.special_dtype(vlen=str))
+            energies = self.h5f.create_group('basic_estimators')
+            energies.create_dataset('headers',
+                                    data=numpy.array(self.header[1:], dtype=object),
+                                    dtype=h5py.special_dtype(vlen=str))
+            self.output = H5EstimatorHelper(energies, 'energies',
+                                            (nsteps/nmeasure+1, len(self.header[1:])))
+        else:
+            self.h5f = None
         self.nestimators = len(self.header[1:])
-        h5f_name =  'estimates_%s.h5'%uuid[:8]
-        self.h5f = h5py.File(h5f_name, 'w')
-        self.h5f.create_dataset('metadata',
-                                data=numpy.array([json_string], dtype=object),
-                                dtype=h5py.special_dtype(vlen=str))
-        energies = self.h5f.create_group('basic_estimators')
-        energies.create_dataset('headers',
-                                data=numpy.array(self.header[1:], dtype=object),
-                                dtype=h5py.special_dtype(vlen=str))
-        self.output = H5EstimatorHelper(energies, 'energies',
-                                        (nsteps/nmeasure+1, len(self.header[1:])))
         # Sub-members:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
