@@ -31,6 +31,15 @@ def run_blocking_analysis(filename, start_iter):
 
     return (reblock, useful_table)
 
+def average_single(frame):
+    short = frame.drop(['time', 'dt', 'iteration', 'E_denom', 'E_num'], axis=1)
+    means = short.mean().to_frame().T
+    err = short.sem().to_frame().T
+    averaged = means.merge(err, left_index=True, right_index=True, suffixes=('', '_error'))
+    columns = sorted(averaged.columns.values)
+    return averaged[columns]
+
+
 
 def average_tau(frames):
 
@@ -81,7 +90,7 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
-def analyse_estimates(filenames, start_iteration=0, skip=0):
+def analyse_estimates(filenames, start_iteration=0):
     data = analysis.extraction.extract_hdf5_data_sets(filenames)
     bp_data = []
     norm_data = []
@@ -95,12 +104,17 @@ def analyse_estimates(filenames, start_iteration=0, skip=0):
         step = m.get('qmc_options').get('nmeasure')
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
-        norm_data.append(norm)
+        norm_data.append(norm[start_iteration:])
         if bp is not None:
-            bp['nbp'] = m.get('estimates').get('back_propagation').get('nback_prop')
+            nbp = m.get('estimates').get('back_propagation').get('nback_prop')
             bp['dt'] = dt
-            bp_data.append(bp[start_iteration:])
+            bp['nbp'] = nbp
+            skip = max(1, int(start_iteration/nbp))
+            bp_data.append(bp[skip:])
         if itcf is not None:
+            itcf_tmax = m.get('estimates').get('itcf').get('tmax')
+            nits = int(itcf_tmax/dt) + 1
+            skip = max([1, int(start_iteration/nits)])
             itcf_data.append(itcf[skip:])
         if itcfk is not None:
             itcfk_data.append(itcfk[skip:])
@@ -126,8 +140,12 @@ def analyse_estimates(filenames, start_iteration=0, skip=0):
         bp_group.create_dataset('estimates', data=bp_av.as_matrix(), dtype=float)
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
-    norm_data = pd.concat(norm_data).groupby('iteration')
-    norm_av = average_tau(norm_data)
+    if len(norm_data) > 1:
+        norm_data = pd.concat(norm_data).groupby('iteration')
+        norm_av = average_tau(norm_data)
+    else:
+        norm_data = pd.concat(norm_data)
+        norm_av = average_single(norm_data)
     basic = store.create_group('basic_estimators')
     basic.create_dataset('estimates', data=norm_av.as_matrix(), dtype=float)
     basic.create_dataset('headers', data=norm_av.columns.values,
