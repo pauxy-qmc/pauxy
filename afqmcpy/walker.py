@@ -10,7 +10,20 @@ class Walker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
-        self.phi = copy.deepcopy(trial.psi)
+        if trial.initial_wavefunction == 'UHF':
+            # assumption here is that we're using a UHF trial state too.
+            # Will not work with FE trial state etc.
+            self.phi = copy.deepcopy(trial.psi)
+        elif trial.initial_wavefunction == 'free_electron':
+            self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
+                                dtype=trial.psi.dtype)
+            tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                                                trial.psi.dtype==complex, {})
+            self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
+            self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
+        else:
+            orbs = twfn.read_fortran_complex_numbers(trial.initial_wavefunction)
+            self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
         self.G = [0, 0]
@@ -183,11 +196,11 @@ class MultiGHFWalker:
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
         # than GHF. Can actually initialise to GHF by passing single GHF with
-        # read_init. The distinction is really for back propagation when we may
-        # want to use the full expansion.
+        # initial_wavefunction. The distinction is really for back propagation
+        # when we may want to use the full expansion.
         if wfn0 == 'init':
             # Initialise walker with single determinant.
-            if trial.read_init is not None:
+            if trial.initial_wavefunction != 'free_electron':
                 orbs = twfn.read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
