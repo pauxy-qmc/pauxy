@@ -2,6 +2,7 @@ import numpy
 import scipy.optimize
 import scipy.linalg
 import math
+import warnings
 import cmath
 import time
 import copy
@@ -35,6 +36,7 @@ class FreeElectron:
         # For interface compatability
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
+        self.error = False
         self.initialisation_time = time.time() - init_time
 
 
@@ -95,12 +97,10 @@ class UHF:
         self.alpha = trial.get('alpha', 0.5)
         # For interface compatability
         self.coeffs = 1.0
-        (self.psi, self.eigs, self.emin) = self.find_uhf_wfn(system, cplx,
-                                                             self.ueff,
-                                                             self.ninitial,
-                                                             self.nconv,
-                                                             self.alpha,
-                                                             self.deps)
+        (self.psi, self.eigs, self.emin, self.error) = (
+                self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
+                                  self.nconv, self.alpha, self.deps)
+        )
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
@@ -157,11 +157,11 @@ class UHF:
         system.U = uold
         print ("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
-            return (psi_accept, e_accept, min(minima))
+            return (psi_accept, e_accept, min(minima), False)
         except UnboundLocalError:
-            print ("Warning: No UHF wavefunction found.")
-            print ("%f"%(enew-emin))
-            sys.exit()
+            warnings.warn("Warning: No UHF wavefunction found."
+                          "Delta E: %f"%(enew-emin))
+            return (trial, numpy.append(e_up, e_down), None, True)
 
 
     def initialise(self, nbasis, nup, ndown, cplx):
@@ -258,6 +258,7 @@ class MultiDeterminant:
                 afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
                                                          self.weights)[0].real
             )
+        self.error = False
         self.initialisation_time = time.time() - init_time
 
 def read_fortran_complex_numbers(filename):

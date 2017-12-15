@@ -56,12 +56,15 @@ def initialise(input_file):
     numpy.random.seed(seed)
     if rank == 0:
         state = afqmcpy.state.State(options.get('model'),
-                                    options.get('qmc_options'),
-                                    options.get('estimates'),
-                                    options.get('trial_wavefunction'))
+                                            options.get('qmc_options'),
+                                            options.get('estimates'),
+                                            options.get('trial_wavefunction'))
     else:
         state = None
     state = comm.bcast(state, root=0)
+    if state.trial.error:
+        warnings.warn('Error in constructing trial wavefunction. Exiting')
+        sys.exit()
     state.rank = rank
     state.nprocs = nprocs
     state.root = state.rank == 0
