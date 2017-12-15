@@ -14,6 +14,7 @@ except ImportError:
 import scipy.linalg
 import afqmcpy.utils
 import h5py
+import os
 
 
 class Estimators:
@@ -79,7 +80,11 @@ class Estimators:
         if root:
             print_key(self.key)
             print_header(self.header)
-            h5f_name =  'estimates_%s.h5'%uuid[:8]
+            index = estimates.get('index', 0)
+            h5f_name =  'estimates.%s.h5'%index
+            if os.path.isfile(h5f_name):
+                index += 1
+                h5f_name =  'estimates.%s.h5'%index
             self.h5f = h5py.File(h5f_name, 'w')
             self.h5f.create_dataset('metadata',
                                     data=numpy.array([json_string], dtype=object),
