@@ -95,6 +95,7 @@ class UHF:
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
+        self.verbose = trial.get('verbose', False)
         # For interface compatability
         self.coeffs = 1.0
         (self.psi, self.eigs, self.emin, self.error) = (
@@ -135,8 +136,11 @@ class UHF:
                 Gup = afqmcpy.estimators.gab(trial[:,:nup], trial[:,:nup]).T
                 Gdown = afqmcpy.estimators.gab(trial[:,nup:], trial[:,nup:]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
-                if self.self_consistant(enew, eold, niup, niup_old, nidown,
-                                        nidown_old, it, deps):
+                if self.verbose:
+                    print ("# %d %f %f"%(it, enew, eold))
+                sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
+                                          nidown_old, it, deps, self.verbose)
+                if sc:
                     # Global minimum search.
                     if all(abs(numpy.array(minima))-abs(enew) < -deps):
                         minima.append(enew)
@@ -190,14 +194,17 @@ class UHF:
         return numpy.diag(wfn.dot((wfn.conj()).T))
 
     def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
-                        it, deps=1e-8):
+                        it, deps=1e-8, verbose=False):
         '''Check if system parameters are converged'''
 
-        e_cond= abs(enew-eold) < deps
-        nup_cond = sum(abs(niup-niup_old))/len(niup) < deps
-        ndown_cond = sum(abs(nidown-nidown_old))/len(nidown) < deps
+        depsn = deps**0.5
+        ediff = abs(enew-eold)
+        nup_diff = sum(abs(niup-niup_old))/len(niup)
+        ndown_diff = sum(abs(nidown-nidown_old))/len(nidown)
+        if verbose:
+            print ("# de: %.10e dniu: %.10e dnid: %.10e"%(ediff, nup_diff, ndown_diff))
 
-        return e_cond and nup_cond and ndown_cond
+        return (ediff < deps) and (nup_diff < depsn) and (ndown_diff < depsn)
 
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
