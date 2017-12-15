@@ -185,20 +185,17 @@ class Estimators:
             if print_bp:
                 self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
 
-        print_now = (
-            state.root and step%self.nprop_tot == 0 and
-            self.calc_itcf and print_itcf
-        )
-        if print_now:
-            spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
-            self.itcf.to_file(self.itcf.rspace_unit, spgf)
-            if self.itcf.kspace:
-                M = state.system.nbasis
-                # FFT the real space Green's function.
-                # Todo : could just use numpy.fft.fft....
-                spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
-                                      spgf, state.system.P.conj().T).real/M
-                self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+            if step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
+                spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
+                self.itcf.to_file(self.itcf.rspace_unit, spgf)
+                if self.itcf.kspace:
+                    M = state.system.nbasis
+                    # FFT the real space Green's function.
+                    # Todo : could just use numpy.fft.fft....
+                    spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
+                                          spgf, state.system.P.conj().T).real/M
+                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+            self.h5f.flush()
 
         self.zero(state.system.nbasis)
 
