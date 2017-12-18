@@ -83,8 +83,9 @@ class Estimators:
             index = estimates.get('index', 0)
             overwrite = estimates.get('overwrite', True)
             h5f_name =  'estimates.%s.h5'%index
-            if os.path.isfile(h5f_name) and not overwrite:
-                index += 1
+            while os.path.isfile(h5f_name) and not overwrite:
+                index = int(h5f_name.split('.')[1])
+                index = index + 1
                 h5f_name =  'estimates.%s.h5'%index
             self.h5f = h5py.File(h5f_name, 'w')
             self.h5f.create_dataset('metadata',
