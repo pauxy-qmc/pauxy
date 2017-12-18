@@ -104,20 +104,23 @@ def analyse_estimates(filenames, start_iteration=0):
         step = m.get('qmc_options').get('nmeasure')
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
-        norm_data.append(norm[start_iteration:])
+        nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
+        norm_data.append(norm[start_iteration:nzero])
         if bp is not None:
             nbp = m.get('estimates').get('back_propagation').get('nback_prop')
             bp['dt'] = dt
             bp['nbp'] = nbp
+            nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start_iteration/nbp))
-            bp_data.append(bp[skip:])
+            bp_data.append(bp[skip:nzero])
         if itcf is not None:
             itcf_tmax = m.get('estimates').get('itcf').get('tmax')
             nits = int(itcf_tmax/dt) + 1
             skip = max([1, int(start_iteration/nits)])
-            itcf_data.append(itcf[skip:])
+            nzero = numpy.nonzero(itcf)[0][-1]
+            itcf_data.append(itcf[skip:nzero])
         if itcfk is not None:
-            itcfk_data.append(itcfk[skip:])
+            itcfk_data.append(itcfk[skip:nzero])
         mds.append(str(m))
 
     store = h5py.File('analysed_estimates.h5', 'w')
