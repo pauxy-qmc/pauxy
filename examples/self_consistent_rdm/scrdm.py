@@ -1,30 +1,22 @@
 import numpy
-import afqmcpy.trail_wave_function as tw
+import afqmcpy.initialise
+import analysis.extraction
+import sys
+import h5py
 
 # 1. Perform initial CPMC calculation
-table = {
-    "model": {
-        "name": "Hubbard",
-        "t": 1.0,
-        "U": 4,
-        "nx": 4,
-        "ny": 4,
-        "ktwist": [0],
-        "nup": 3,
-        "ndown": 3,
-    },
-    "qmc_options": {
-        "method": "CPMC",
-        "dt": 0.05,
-        "nsteps": 2,
-        "nmeasure": 10,
-        "nwalkers": 100,
-        "npop_control": 10000,
-        "temperature": 0.0,
-        "hubbard_stratonovich": "discrete",
-        "importance_sampling": True,
-        "rng_seed": 7,
-        "ueff": 4,
-        "trial_wavefunction": "free_electron",
-    }
-}
+input_file = 'stable.json'
+(state, psi, comm) = afqmcpy.initialise.initialise(input_file)
+afqmcpy.initialise.finalise(state, 0)
+
+data = h5py.File('estimates.0.h5', 'r')
+print (data.items())
+# 2. Extract initial 1RDM
+rdm, err = analysis.blocking.average_rdm('estimates.0.h5')
+# check quality.
+mean_err = err.diag.mean()
+if (mean_err > rdm_delta):
+    warnings.warn("Error too large in CPMC rdm: %f. Exiting"%mean_err)
+    sys.exit()
+
+# 3.
