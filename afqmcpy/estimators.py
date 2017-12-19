@@ -77,6 +77,10 @@ class Estimators:
             'E': "Projected energy estimator.",
             'time': "Time per processor to complete one iteration.",
         }
+        if qmc.cplx:
+            etype = complex
+        else:
+            etype = float
         if root:
             print_key(self.key)
             print_header(self.header)
@@ -97,7 +101,8 @@ class Estimators:
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (qmc.nsteps/qmc.nmeasure+1,
-                                            len(self.header[1:])))
+                                            len(self.header[1:])),
+                                            etype)
         else:
             self.h5f = None
         self.nestimators = len(self.header[1:])
@@ -107,7 +112,7 @@ class Estimators:
         self.back_propagation = bp is not None
         if self.back_propagation:
             self.back_prop = BackPropagation(bp, root, self.h5f,
-                                             qmc.nsteps, nbasis, ghf)
+                                             qmc.nsteps, nbasis, etype, ghf)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -115,15 +120,18 @@ class Estimators:
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
-        self.estimates = numpy.zeros(self.nestimators)
+        self.estimates = numpy.zeros(self.nestimators, dtype=etype)
         if self.back_propagation:
             self.estimates = numpy.zeros(self.nestimators +
-                                         len(self.back_prop.G.flatten()))
+                                         len(self.back_prop.G.flatten()),
+                                         dtype=etype)
         if self.calc_itcf:
-            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, qmc.nsteps)
+            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, etype,
+                             qmc.nsteps)
             self.estimates = numpy.zeros(self.nestimators +
                                          len(self.back_prop.G.flatten()) +
-                                         len(self.itcf.spgf.flatten()))
+                                         len(self.itcf.spgf.flatten()),
+                                         dtype=etype)
             self.nprop_tot = self.itcf.nmax
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
@@ -173,8 +181,8 @@ class Estimators:
         """
         es = self.estimates
         ns = self.names
-        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
-        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
+        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom]))
+        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
         if self.back_propagation:
             endp =  ns.gbp + len(self.back_prop.G.flatten())
@@ -182,13 +190,14 @@ class Estimators:
         es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
         if self.calc_itcf:
             es[endp:] = self.itcf.spgf.flatten() / state.nprocs
-        global_estimates = numpy.zeros(len(self.estimates))
+        global_estimates = numpy.zeros(len(self.estimates),
+                                       dtype=self.estimates.dtype)
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = (
             global_estimates[:ns.time] / state.qmc.nmeasure
         )
         if state.root:
-            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar])))
+            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar].real)))
             self.output.push(global_estimates[:ns.evar])
             print_bp = (
                 self.back_propagation and print_bp and
@@ -206,7 +215,7 @@ class Estimators:
                     # FFT the real space Green's function.
                     # Todo : could just use numpy.fft.fft....
                     spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
-                                          spgf, state.system.P.conj().T).real/M
+                                          spgf, state.system.P.conj().T)/M
                     self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
             self.h5f.flush()
 
@@ -289,11 +298,11 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps, nbasis, ghf=False):
+    def __init__(self, bp, root, h5f, nsteps, nbasis, dtype, ghf=False):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.estimates = numpy.zeros(len(self.header[1:])+2*nbasis*nbasis)
-        self.G = numpy.zeros((2, nbasis, nbasis))
+        self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -307,9 +316,11 @@ class BackPropagation:
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nsteps//self.nmax, len(header)))
+                                            (nsteps//self.nmax, len(header)),
+                                            dtype)
             self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                              (nsteps//self.nmax,)+self.G.shape)
+                                              (nsteps//self.nmax,)+self.G.shape,
+                                              dtype)
         if ghf:
             self.update = self.update_ghf
         else:
@@ -412,7 +423,7 @@ class ITCF:
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, h5f, nbasis, nsteps):
+    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
@@ -424,7 +435,8 @@ class ITCF:
         # +1 in the first dimension is for the green's function at time tau = 0.
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2,
                                        nbasis,
-                                       nbasis))
+                                       nbasis),
+                                       dtype=dtype)
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
@@ -436,9 +448,11 @@ class ITCF:
                 shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
             name = 'real_space'
-            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape)
+            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape,
+                                                 dtype)
             if self.kspace:
-                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape)
+                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape,
+                                                     dtype)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         r"""Calculate imaginary time single-particle green's function.
@@ -918,8 +932,8 @@ def eproj(estimates, enum):
     return (numerator/denominator).real
 
 class H5EstimatorHelper:
-    def __init__(self, h5f, name, shape):
-        self.store = h5f.create_dataset(name, shape, dtype='f')
+    def __init__(self, h5f, name, shape, dtype):
+        self.store = h5f.create_dataset(name, shape, dtype=dtype)
         dims = numpy.array(list(shape))
         self.index = 0
 
