@@ -99,7 +99,7 @@ def initialise(input_file):
                 for w in range(state.qmc.nwalkers)]
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     # TODO: Return state and psi and run from another routine.
-    return state
+    return (state, psi, comm)
 
 def finalise(state, init_time):
     if state.root:
