@@ -216,7 +216,10 @@ class Estimators:
                     # Todo : could just use numpy.fft.fft....
                     spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
                                           spgf, state.system.P.conj().T)/M
-                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                    if self.estimates.dtype == complex:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                    else:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
             self.h5f.flush()
 
         self.zero(state.system.nbasis)
