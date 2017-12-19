@@ -39,7 +39,13 @@ def average_single(frame):
     columns = sorted(averaged.columns.values)
     return averaged[columns]
 
-
+def average_rdm(filename):
+    data = h5py.File(filename, 'r')
+    print (data.items())
+    gf = data['back_propagated_estimates/single_particle_greens_function'][:].real
+    gf_av = gf.mean(axis=0)
+    gf_err = gf.std(axis=0) / len(gf)**0.5
+    return (gf_av, gf_err)
 
 def average_tau(frames):
 
