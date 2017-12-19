@@ -11,11 +11,10 @@
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 100,
-        "nmeasure": 5,
-        "nwalkers": 20,
+        "nsteps": 10000,
+        "nmeasure": 10,
+        "nwalkers": 30,
         "npop_control": 10,
-        "temperature": 0.0,
         "hubbard_stratonovich": "discrete",
         "importance_sampling": true,
         "rng_seed": 7
@@ -24,14 +23,9 @@
         "name": "free_electron"
     },
     "estimates": {
+        "overwrite": true,
         "back_propagation": {
-            "nback_prop": 10
-        },
-        "itcf": {
-            "stable": true,
-            "tmax": 2,
-            "mode": "diagonal",
-            "kspace": true
+            "nback_prop": 40
         }
     }
 }
