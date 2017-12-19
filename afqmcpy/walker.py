@@ -2,7 +2,7 @@ import numpy as np
 import scipy.linalg
 import copy
 import afqmcpy.estimators
-import afqmcpy.trial_wave_function as twfn
+import afqmcpy.trial_wavefunction
 
 # Worthwhile overloading / having real and complex walker classes (Hermitian
 # conjugate)?
@@ -17,7 +17,7 @@ class Walker:
         elif trial.initial_wavefunction == 'free_electron':
             self.phi = copy.deepcopy(trial.psi)
         else:
-            orbs = twfn.read_fortran_complex_numbers(trial.initial_wavefunction)
+            orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.initial_wavefunction)
             self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
@@ -196,7 +196,7 @@ class MultiGHFWalker:
         if wfn0 == 'init':
             # Initialise walker with single determinant.
             if trial.initial_wavefunction != 'free_electron':
-                orbs = twfn.read_fortran_complex_numbers(trial.read_init)
+                orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
                 self.phi = np.zeros(shape=(2*system.nbasis,system.ne),

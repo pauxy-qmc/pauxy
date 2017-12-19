@@ -100,7 +100,7 @@ class UHF:
         self.verbose = trial.get('verbose', False)
         # For interface compatability
         self.coeffs = 1.0
-        (self.psi, self.eigs, self.emin, self.error) = (
+        (self.psi, self.eigs, self.emin, self.error, self.nav) = (
                 self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
                                   self.nconv, self.alpha, self.deps)
         )
@@ -163,11 +163,11 @@ class UHF:
         system.U = uold
         print ("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
-            return (psi_accept, e_accept, min(minima), False)
+            return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
             warnings.warn("Warning: No UHF wavefunction found."
                           "Delta E: %f"%(enew-emin))
-            return (trial, numpy.append(e_up, e_down), None, True)
+            return (trial, numpy.append(e_up, e_down), None, True, None)
 
 
     def initialise(self, nbasis, nup, ndown, cplx):

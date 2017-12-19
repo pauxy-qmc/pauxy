@@ -8,7 +8,7 @@ import json
 import numpy
 import uuid
 import afqmcpy.hubbard as hubbard
-import afqmcpy.trial_wave_function as trial_wave_function
+import afqmcpy.trial_wavefunction
 import afqmcpy.propagation
 import afqmcpy.hs_transform
 
@@ -46,7 +46,7 @@ class State:
         json_string.
     root : bool
         If True we are on the root / master processor.
-    trial : :class:`afqmcpy.trial_wave_function.X' object
+    trial : :class:`afqmcpy.trial_wavefunction.X' object
         Trial wavefunction class.
     propagators : :class:`afqmcpy.propagation.Projectors` object
         Container for system specific propagation routines.
@@ -67,17 +67,17 @@ class State:
         self.root = True
         # effective hubbard U for UHF trial wavefunction.
         if trial['name'] == 'free_electron':
-            self.trial = trial_wave_function.FreeElectron(self.system,
-                                                           self.qmc.cplx,
-                                                           trial)
+            self.trial = afqmcpy.trial_wavefunction.FreeElectron(self.system,
+                                                                 self.qmc.cplx,
+                                                                 trial)
         if trial['name'] == 'UHF':
-            self.trial = trial_wave_function.UHF(self.system,
-                                                 self.qmc.cplx,
-                                                 trial)
+            self.trial = afqmcpy.trial_wavefunction.UHF(self.system,
+                                                        self.qmc.cplx,
+                                                         trial)
         elif trial['name'] == 'multi_determinant':
-            self.trial = trial_wave_function.MultiDeterminant(self.system,
-                                                              self.qmc.cplx,
-                                                              trial)
+            self.trial = afqmcpy.trial_wavefunction.MultiDeterminant(self.system,
+                                                                     self.qmc.cplx,
+                                                                     trial)
         self.propagators = afqmcpy.propagation.Propagator(self.qmc,
                                                           self.system,
                                                           self.trial)

@@ -13,7 +13,7 @@ import afqmcpy.state
 import afqmcpy.walker
 import afqmcpy.hubbard
 import afqmcpy.estimators
-import afqmcpy.trial_wave_function
+import afqmcpy.trial_wavefunction
 import afqmcpy.propagation
 import afqmcpy.kpoints
 import afqmcpy.hs_transform
