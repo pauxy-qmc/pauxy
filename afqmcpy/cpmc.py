@@ -3,17 +3,12 @@ import json
 import time
 import numpy
 import warnings
-# todo : handle more gracefully.
-try:
-    from mpi4py import MPI
-except ImportError:
-    warnings.warn('No MPI library found')
 import afqmcpy.state
 import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
 
-def setup(input_file):
+def setup(options, comm=None):
     """Wrapper routine for initialising simulation
 
     Parameters
@@ -27,19 +22,9 @@ def setup(input_file):
         Simulation state.
     """
 
-    comm = MPI.COMM_WORLD
+    seed = options['qmc_options'].get('rng_seed', None)
     rank = comm.Get_rank()
     nprocs = comm.Get_size()
-    if rank == 0:
-        with open(input_file) as inp:
-            options = json.load(inp)
-        print('# Initialising AFQMCPY simulation from %s'%input_file)
-        # sometimes python is beautiful
-        print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
-    else:
-        options = None
-    options = comm.bcast(options, root=0)
-    seed = options['qmc_options'].get('rng_seed', None)
     if seed is None:
         # only set "random" part of seed on parent processor so we can reproduce
         # results in when running in parallel.
@@ -79,13 +64,6 @@ def setup(input_file):
                           'must be at least one walker per core set in the '
                           'input file. Exiting.')
         sys.exit()
-    state.estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
-                                                     state.root,
-                                                     state.uuid,
-                                                     state.qmc,
-                                                     state.system.nbasis,
-                                                     state.json_string,
-                                                     state.trial.type=='GHF')
     if state.trial.name == 'multi_determinant':
         if state.trial.type== 'GHF':
             psi0 = [afqmcpy.walker.MultiGHFWalker(1, state.system, state.trial)
@@ -99,13 +77,13 @@ def setup(input_file):
     # TODO: Return state and psi and run from another routine.
     return (state, psi0, comm)
 
-def run(state, psi, comm):
-    (state, psi) = afqmcpy.qmc.do_qmc(state, psi, comm)
+def run(state, psi, estimators, comm=None):
+    (state, psi) = afqmcpy.qmc.do_qmc(state, psi, estimators, comm)
     return psi
 
-def finalise(state, init_time):
+def finalise(state, estimators, init_time):
     if state.root:
         print ("# End Time: %s"%time.asctime())
         print ("# Running time : %.6f seconds"%(time.time()-init_time))
-        if state.estimators.back_propagation:
-            state.estimators.h5f.close()
+        if estimators.back_propagation:
+            estimators.h5f.close()
