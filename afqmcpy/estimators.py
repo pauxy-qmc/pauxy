@@ -107,7 +107,7 @@ class Estimators:
         self.back_propagation = bp is not None
         if self.back_propagation:
             self.back_prop = BackPropagation(bp, root, self.h5f,
-                                             qmc.nsteps, ghf)
+                                             qmc.nsteps, nbasis, ghf)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -116,9 +116,13 @@ class Estimators:
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators)
+        if self.back_propagation:
+            self.estimates = numpy.zeros(self.nestimators +
+                                         len(self.back_prop.G.flatten()))
         if self.calc_itcf:
             self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, qmc.nsteps)
             self.estimates = numpy.zeros(self.nestimators +
+                                         len(self.back_prop.G.flatten()) +
                                          len(self.itcf.spgf.flatten()))
             self.nprop_tot = self.itcf.nmax
         if self.calc_itcf or self.back_propagation:
@@ -173,10 +177,11 @@ class Estimators:
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
         # Back propagated estimates
         if self.back_propagation:
-            es[ns.evar:ns.pot+1] = self.back_prop.estimates / state.nprocs
+            endp =  ns.gbp + len(self.back_prop.G.flatten())
+            es[ns.evar:endp] = self.back_prop.estimates / state.nprocs
         es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
         if self.calc_itcf:
-            es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
+            es[endp:] = self.itcf.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates))
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = (
@@ -191,9 +196,10 @@ class Estimators:
             )
             if print_bp:
                 self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
+                self.back_prop.dm_output.push(global_estimates[ns.gbp:endp].reshape(self.back_prop.G.shape))
 
             if step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
-                spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
+                spgf = global_estimates[endp:].reshape(self.itcf.spgf.shape)
                 self.itcf.to_file(self.itcf.rspace_unit, spgf)
                 if self.itcf.kspace:
                     M = state.system.nbasis
@@ -250,6 +256,7 @@ class EstimatorEnum:
         self.evar   = 5
         self.kin    = 6
         self.pot    = 7
+        self.gbp    = 8
 
 
 class BackPropagation:
@@ -282,10 +289,11 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps, ghf=False):
+    def __init__(self, bp, root, h5f, nsteps, nbasis, ghf=False):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
-        self.estimates = numpy.zeros(len(self.header[1:]))
+        self.estimates = numpy.zeros(len(self.header[1:])+2*nbasis*nbasis)
+        self.G = numpy.zeros((2, nbasis, nbasis))
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -294,12 +302,14 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            energies = h5f.create_group('back_propagated_energy_estimators')
+            energies = h5f.create_group('back_propagated_estimators')
             header = numpy.array(['E', 'T', 'V'], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (nsteps//self.nmax, len(header)))
+            self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
+                                              (nsteps//self.nmax,)+self.G.shape)
         if ghf:
             self.update = self.update_ghf
         else:
@@ -321,13 +331,14 @@ class BackPropagation:
         """
         denominator = sum(wnm.weight for wnm in psi_nm)
         current = numpy.zeros(3)
-        GTB = [0, 0]
         nup = system.nup
         for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
-            GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
-            GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
-            current = current + wnm.weight*numpy.array(list(local_energy(system, GTB)))
-        self.estimates = self.estimates + current.real / denominator
+            self.G[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
+            self.G[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
+            energies = numpy.array(list(local_energy(system, self.G)))
+            self.estimates = (
+                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            )
 
     def update_ghf(self, system, trial, psi_nm, psi_n, psi_bp):
         r"""Calculate back-propagated "local" energy for given walker/determinant.

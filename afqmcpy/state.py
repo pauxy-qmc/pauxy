@@ -204,7 +204,7 @@ class QMCOpts:
                                                 'discrete')
         self.ffts = inputs.get('kinetic_kspace', False)
         self.cplx = ('continuous' in self.hubbard_stratonovich
-                     or system.ktwist.all() != 0)
+                     or system.ktwist.all() != None)
         if self.hubbard_stratonovich == 'continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)

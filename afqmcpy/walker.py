@@ -15,12 +15,7 @@ class Walker:
             # Will not work with FE trial state etc.
             self.phi = copy.deepcopy(trial.psi)
         elif trial.initial_wavefunction == 'free_electron':
-            self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
-                                dtype=trial.psi.dtype)
-            tmp = afqmcpy.trial_wave_function.FreeElectron(system,
-                                                trial.psi.dtype==complex, {})
-            self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
-            self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
+            self.phi = copy.deepcopy(trial.psi)
         else:
             orbs = twfn.read_fortran_complex_numbers(trial.initial_wavefunction)
             self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
