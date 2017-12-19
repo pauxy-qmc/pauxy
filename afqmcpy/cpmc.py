@@ -13,8 +13,7 @@ import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
 
-# TODO: change module name
-def initialise(input_file):
+def setup(input_file):
     """Wrapper routine for initialising simulation
 
     Parameters
@@ -56,9 +55,9 @@ def initialise(input_file):
     numpy.random.seed(seed)
     if rank == 0:
         state = afqmcpy.state.State(options.get('model'),
-                                            options.get('qmc_options'),
-                                            options.get('estimates'),
-                                            options.get('trial_wavefunction'))
+                                    options.get('qmc_options'),
+                                    options.get('estimates'),
+                                    options.get('trial_wavefunction'))
     else:
         state = None
     state = comm.bcast(state, root=0)
@@ -97,9 +96,12 @@ def initialise(input_file):
     else:
         psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial, w)
                 for w in range(state.qmc.nwalkers)]
-    (state, psi) = afqmcpy.qmc.do_qmc(state, psi0, comm)
     # TODO: Return state and psi and run from another routine.
-    return (state, psi, comm)
+    return (state, psi0, comm)
+
+def run(state, psi, comm):
+    (state, psi) = afqmcpy.qmc.do_qmc(state, psi, comm)
+    return psi
 
 def finalise(state, init_time):
     if state.root:

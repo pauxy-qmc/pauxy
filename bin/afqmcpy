@@ -6,8 +6,9 @@ import time
 
 def main(input_file):
     init_time = time.time()
-    state = afqmcpy.initialise.initialise(input_file)
-    afqmcpy.initialise.finalise(state, init_time)
+    (state, psi0, comm) = afqmcpy.cpmc.setup(input_file)
+    afqmcpy.cpmc.run(state, psi0, comm)
+    afqmcpy.cpmc.finalise(state, init_time)
 
 if __name__ == '__main__':
     main(sys.argv[1])
