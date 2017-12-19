@@ -314,7 +314,7 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            energies = h5f.create_group('back_propagated_estimators')
+            energies = h5f.create_group('back_propagated_estimates')
             header = numpy.array(['E', 'T', 'V'], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
