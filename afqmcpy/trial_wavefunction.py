@@ -111,7 +111,7 @@ class UHF:
         emin = 0
         uold = system.U
         system.U = ueff
-        minima= [0] # Local minima
+        minima= [] # Local minima
         nup = system.nup
         # Search over different random starting points.
         for attempt in range(0, ninit):
@@ -144,7 +144,11 @@ class UHF:
                                           nidown_old, it, deps, self.verbose)
                 if sc:
                     # Global minimum search.
-                    if all(abs(numpy.array(minima))-abs(enew) < -deps):
+                    if attempt == 0:
+                        minima.append(enew)
+                        psi_accept = copy.deepcopy(trial)
+                        e_accept = numpy.append(e_up, e_down)
+                    elif all(numpy.array(minima)-enew > deps):
                         minima.append(enew)
                         psi_accept = copy.deepcopy(trial)
                         e_accept = numpy.append(e_up, e_down)
