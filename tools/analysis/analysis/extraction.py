@@ -106,17 +106,17 @@ def extract_hdf5(filename):
     if estimates is not None:
         bp = estimates.get('back_propagation')
         if bp is not None:
-            bpe = data['back_propagated_energy_estimators/energies'][:]
-            headers = data['back_propagated_energy_estimators/headers'][:]
+            bpe = data['back_propagated_estimates/energies'][:]
+            headers = data['back_propagated_estimates/headers'][:]
             bp_data = pd.DataFrame(bpe)
             bp_data.columns = headers
         else:
             bp_data = None
         itcf_info = estimates.get('itcf')
         if itcf_info is not None:
-            itcf = data['single_particle_greens_function/real_space'] 
+            itcf = data['single_particle_greens_function/real_space']
             if itcf_info['kspace']:
-                kspace_itcf = data['single_particle_greens_function/k_space'] 
+                kspace_itcf = data['single_particle_greens_function/k_space']
             else:
                 kspace_itcf = None
         else:
