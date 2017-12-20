@@ -26,14 +26,21 @@ class FreeElectron:
             self.trial_type = complex
         else:
             self.trial_type = float
-        # I think this is slightly cleaner than using two separate matrices.
-        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
-                               dtype=self.trial_type)
-        self.psi[:,:system.nup] = self.eigv[:,:system.nup]
-        self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
-        G = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+        self.read_in = trial.get('read_in', None)
+        if self.read_in is not None:
+            print ("# Reading trial wavefunction from %s"%(self.read_in))
+            self.psi = numpy.load(self.read_in)
+        else:
+            # I think this is slightly cleaner than using two separate matrices.
+            self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                                   dtype=self.trial_type)
+            self.psi[:,:system.nup] = self.eigv[:,:system.nup]
+            self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
+        gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
-        self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
+        gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
+                self.psi[:,system.nup:])
+        self.emin = afqmcpy.estimators.local_energy(system, [gup, gdown])[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
