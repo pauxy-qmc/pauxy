@@ -12,3 +12,4 @@ docs/build/*
 *.h5
 testcode_data*
 benchmark*
+*.npy
