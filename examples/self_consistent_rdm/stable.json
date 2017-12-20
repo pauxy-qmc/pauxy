@@ -11,7 +11,7 @@
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 10000,
+        "nsteps": 1000,
         "nmeasure": 10,
         "nwalkers": 30,
         "npop_control": 10,
@@ -23,7 +23,7 @@
         "name": "free_electron"
     },
     "estimates": {
-        "overwrite": true,
+        "filename": "estimates.0.h5",
         "back_propagation": {
             "nback_prop": 40
         }
