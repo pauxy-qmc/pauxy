@@ -12,7 +12,6 @@ import analysis.extraction
 
 def generate_qmc_rdm(state, options, comm, rdm_delta, index=0):
     # 1. Generate psi
-    trial.
     estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
                                                state.root,
                                                state.uuid,
@@ -39,16 +38,16 @@ def generate_qmc_rdm(state, options, comm, rdm_delta, index=0):
         return (rdm, err, norm_av.E, norm_av.E_err)
 
 
-def find_uopt(system, trial, mmin, mmax):
+def find_uopt(rdm, system, trial, mmin, mmax, index=0):
     ueff = numpy.linspace(mmin, mmax, 20)
     cost = numpy.zeros(len(ueff))
-    psis = numpy.zeros(len(ueff), system.nbasis, system.nel)
+    psis = numpy.zeros((len(ueff), system.nbasis, system.ne))
     for (i, u) in enumerate(ueff):
         print ("##########################")
         print ("# Scan %d of %d. Ueff : %f"%(i, len(ueff), u))
         trial['ueff'] = u
         uhf = afqmcpy.trial_wavefunction.UHF(system, False, trial)
-        psis[i] = copy.deepcopy(uhf.trial.psi)
+        psis[i] = copy.deepcopy(uhf.psi)
         cost[i] = (numpy.sum((uhf.nav[0]-rdm[0].diagonal())**2.0))**0.5/len(uhf.nav[0])
         cost[i] += (numpy.sum((uhf.nav[1]-rdm[1].diagonal())**2.0)**0.5)/len(uhf.nav[1])
         print ("##########################")
@@ -61,6 +60,7 @@ def find_uopt(system, trial, mmin, mmax):
     uopt = ueff[imin]
     pl.axvline(uopt, color='red', linestyle=':')
     print ("# Optimal Ueff : %f"%uopt)
+    pl.savefig('uopt.'+str(index)+'.pdf', fmt='pdf')
     pl.show()
     return (uopt, psis[imin])
 
@@ -88,7 +88,7 @@ if comm is not None:
 # -------
 # stochastic error bar in density
 rdm_delta = 5e-3
-nself_consist = 5
+nself_consist = 2
 
 energies = numpy.zeros(nself_consist)
 errors = numpy.zeros(nself_consist)
@@ -107,8 +107,9 @@ print ("# Self consistency cycle %d of %d"%(0, nself_consist))
 (rdm, rdm_err, energies[isc], errors[isc]) = (
     generate_qmc_rdm(state, options, comm, rdm_delta, isc)
 )
-(uopt[isc], psi_opt) = find_uopt(system, uhf_input, 0.1, 3)
-wfn_file = 'uopt_trial_wfn.'+str(isc)'.npy'
+rdm, err = analysis.blocking.average_rdm('estimates.0.h5', skip=2)
+(uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.1, 3)
+wfn_file = 'uopt_trial_wfn.0.npy'
 numpy.save(wfn_file, psi_opt)
 state.trial.psi = numpy.load(wfn_file)
 for isc in range(1, nself_consist):
@@ -116,8 +117,8 @@ for isc in range(1, nself_consist):
     (rdm, rdm_err, energies[isc], errors[isc]) = (
         generate_qmc_rdm(state, options, comm, rdm_delta, isc)
     )
-    (uopt[isc], psi_opt) = find_uopt(system, uhf_input, 0.1, 3)
+    (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 0.1, 3)
     # write psi to file.
-    wfn_file = 'uopt_trial_wfn.'+str(isc)'.npy'
+    wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
     numpy.save(wfn_file, psi_opt)
     state.trial.psi = numpy.load(wfn_file)
