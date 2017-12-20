@@ -4,11 +4,13 @@ import sys
 # todo : handle more gracefully.
 try:
     from mpi4py import MPI
+    parallel = True
 except ImportError:
     warnings.warn('No MPI library found')
     parallel = False
 import time
-import afqmcpy.initialise
+import afqmcpy.cpmc
+import json
 
 def main(input_file):
     init_time = time.time()
@@ -39,8 +41,8 @@ def main(input_file):
                                                state.system.nbasis,
                                                state.json_string,
                                                state.trial.type=='GHF')
-    afqmcpy.cpmc.run(state, psi0, comm)
-    afqmcpy.cpmc.finalise(state, init_time)
+    afqmcpy.cpmc.run(state, psi0, estimators, comm)
+    afqmcpy.cpmc.finalise(state, estimators, init_time)
 
 if __name__ == '__main__':
     main(sys.argv[1])
