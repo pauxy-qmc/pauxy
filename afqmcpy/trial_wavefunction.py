@@ -119,27 +119,19 @@ class UHF:
         # Search over different random starting points.
         for attempt in range(0, ninit):
             # Set up initial (random) guess for the density.
-            (trial, eold) = self.initialise(system.nbasis, system.nup,
+            (self.trial, eold) = self.initialise(system.nbasis, system.nup,
                                             system.ndown, cplx)
-            niup = self.density(trial[:,:nup])
-            nidown = self.density(trial[:,nup:])
-            niup_old = self.density(trial[:,:nup])
-            nidown_old = self.density(trial[:,nup:])
+            niup = self.density(self.trial[:,:nup])
+            nidown = self.density(self.trial[:,nup:])
+            niup_old = self.density(self.trial[:,:nup])
+            nidown_old = self.density(self.trial[:,nup:])
             for it in range(0, nit_max):
-                # mean field Hamiltonians.
-                HMFU = system.T + numpy.diag(ueff*nidown)
-                HMFD = system.T + numpy.diag(ueff*niup)
-                (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
-                (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
-                # Construct new wavefunction given new density.
-                trial[:,:system.nup] = ev_up[:,:system.nup]
-                trial[:,system.nup:] = ev_down[:,:system.ndown]
-                # Construct corresponding site densities.
-                niup = self.density(trial[:,:nup])
-                nidown = self.density(trial[:,nup:])
+                (niup, nidown, e_up, e_down) = (
+                    self.diagonalise_mean_field(system, ueff, niup, nidown)
+                )
                 # Construct Green's function to compute the energy.
-                Gup = afqmcpy.estimators.gab(trial[:,:nup], trial[:,:nup]).T
-                Gdown = afqmcpy.estimators.gab(trial[:,nup:], trial[:,nup:]).T
+                Gup = afqmcpy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
+                Gdown = afqmcpy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
                 if self.verbose:
                     print ("# %d %f %f"%(it, enew, eold))
@@ -149,11 +141,11 @@ class UHF:
                     # Global minimum search.
                     if attempt == 0:
                         minima.append(enew)
-                        psi_accept = copy.deepcopy(trial)
+                        psi_accept = copy.deepcopy(self.trial)
                         e_accept = numpy.append(e_up, e_down)
                     elif all(numpy.array(minima)-enew > deps):
                         minima.append(enew)
-                        psi_accept = copy.deepcopy(trial)
+                        psi_accept = copy.deepcopy(self.trial)
                         e_accept = numpy.append(e_up, e_down)
                     break
                 else:
@@ -217,6 +209,20 @@ class UHF:
 
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
+
+    def diagonalise_mean_field(self, system, ueff, niup, nidown):
+        # mean field Hamiltonians.
+        HMFU = system.T + numpy.diag(ueff*nidown)
+        HMFD = system.T + numpy.diag(ueff*niup)
+        (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
+        (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
+        # Construct new wavefunction given new density.
+        self.trial[:,:system.nup] = ev_up[:,:system.nup]
+        self.trial[:,system.nup:] = ev_down[:,:system.ndown]
+        # Construct corresponding site densities.
+        niup = self.density(self.trial[:,:system.nup])
+        nidown = self.density(self.trial[:,system.nup:])
+        return (niup, nidown, e_up, e_down)
 
 class MultiDeterminant:
 
