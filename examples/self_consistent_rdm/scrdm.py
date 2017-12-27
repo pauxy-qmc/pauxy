@@ -69,6 +69,7 @@ def find_uopt(rdm, system, trial, mmin, mmax, index=0):
     pl.axvline(uopt, color='red', linestyle=':')
     print ("# Optimal Ueff : %f"%uopt)
     pl.savefig('uopt.'+str(index)+'.pdf', fmt='pdf')
+    pl.cla()
     return (uopt, psis[imin])
 
 comm = MPI.COMM_WORLD
@@ -95,7 +96,7 @@ if comm is not None:
 # -------
 # stochastic error bar in density
 rdm_delta = 2e-2
-nself_consist = 10
+nself_consist = 3
 
 energies = numpy.zeros(nself_consist)
 errors = numpy.zeros(nself_consist)
@@ -125,9 +126,15 @@ for isc in range(1, nself_consist):
     (rdm, rdm_err, energies[isc], errors[isc]) = (
         generate_qmc_rdm(state, options, comm, rdm_delta, isc)
     )
-    (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 1, 5)
+    (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 1, 5, isc)
     # write psi to file.
     wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
     # overkill
     numpy.save(wfn_file, psi_opt)
     state.trial.psi = numpy.load(wfn_file)
+
+pl.errorbar(range(0,nself_consist), energies, yerr=errors, fmt='o')
+pl.xlabel(r'iteration')
+pl.xticks(range(0, nself_consist), [str(x) for x in uopt], rotation='vertical')
+pl.ylabel(r'$E_{\mathrm{CPMC}}$')
+pl.savefig('self_consist_conv.pdf', fmt='pdf')
