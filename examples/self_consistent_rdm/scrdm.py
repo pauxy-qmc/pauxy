@@ -25,39 +25,45 @@ def generate_qmc_rdm(state, options, comm, rdm_delta, index=0):
     psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial, w)
             for w in range(state.qmc.nwalkers)]
     psi = afqmcpy.cpmc.run(state, psi0, estimators, comm)
-    # TODO: Return state and psi and run from another routine.
     afqmcpy.cpmc.finalise(state, estimators, start)
     # 2. Extract initial 1RDM
-    rdm, err = analysis.blocking.average_rdm(data, skip=2)
-    bp_av, norm_av = analysis.blocking.analyse_estimates([data], 4)
-    # check quality.
-    mean_err = err.diagonal().mean()
-    print ("# Mean error in CPMC RDM: %f"%mean_err)
-    print ("# CPMC energy: %f +/- %f"%(norm_av.E, norm_av.E_error))
+    if state.root:
+        rdm, err = analysis.blocking.average_rdm(data, skip=2)
+        bp_av, norm_av = analysis.blocking.analyse_estimates([data], 4)
+        # check quality.
+        mean_err = err.diagonal().mean()
+        print ("# Mean error in CPMC RDM: %f"%mean_err)
+        print ("# CPMC energy: %f +/- %f"%(norm_av.E, norm_av.E_error))
+    else:
+        mean_err = None
+    mean_err = comm.bcast(mean_err, root=0)
     if (mean_err > rdm_delta):
         warnings.warn("Error too large in CPMC rdm: %f."%mean_err)
         warnings.warn("Need to run for roughly %d times longer."%(mean_err/rdm_delta)**2.0)
         warnings.warn("Exiting now.")
         sys.exit()
     else:
-        return (rdm, err, norm_av.E, norm_av.E_error)
+        if state.root:
+            return (rdm, err, norm_av.E, norm_av.E_error)
+        else:
+            return (None, None, None, None)
 
 
-def find_uopt(rdm, system, trial, mmin, mmax, index=0):
-    ueff = numpy.linspace(mmin, mmax, 50)
+def find_uopt(rdm, system, trial, mmin, mmax, index=0, dtype=numpy.float64):
+    ueff = numpy.linspace(mmin, mmax, 200)
     cost = numpy.zeros(len(ueff))
-    psis = numpy.zeros((len(ueff), system.nbasis, system.ne))
-    uhf = afqmcpy.trial_wavefunction.UHF(system, False, trial)
+    psis = numpy.zeros((len(ueff), system.nbasis, system.ne), dtype=dtype)
+    uhf = afqmcpy.trial_wavefunction.UHF(system, system.ktwist.all() is not None, trial)
     for (i, u) in enumerate(ueff):
         print ("##########################")
         print ("# Scan %d of %d. Ueff : %f"%(i, len(ueff), u))
         (niup, nidown, e_up, e_down) = uhf.diagonalise_mean_field(system, u,
                                                                   rdm[0].diagonal(),
                                                                   rdm[1].diagonal())
-        # Construct Green's function to compute the energy.
         psis[i] = copy.deepcopy(uhf.trial)
-        cost[i] = (numpy.sum((niup-rdm[0].diagonal())**2.0)**0.5) / len(niup)
-        cost[i] += (numpy.sum((nidown-rdm[1].diagonal())**2.0)**0.5) / len(nidown)
+        cost[i] = numpy.sum((niup-rdm[0].diagonal())**2.0)
+        cost[i] += numpy.sum((nidown-rdm[1].diagonal())**2.0)
+        cost[i] = numpy.sqrt(cost[i]) / system.nbasis
         print ("##########################")
 
     pl.plot(ueff, cost, marker='o')
@@ -68,7 +74,7 @@ def find_uopt(rdm, system, trial, mmin, mmax, index=0):
     uopt = ueff[imin]
     pl.axvline(uopt, color='red', linestyle=':')
     print ("# Optimal Ueff : %f"%uopt)
-    pl.savefig('uopt.'+str(index)+'.pdf', fmt='pdf')
+    pl.savefig('uopt.'+str(index)+'.pdf', fmt='pdf', bbox_inches='tight')
     pl.cla()
     return (uopt, psis[imin])
 
@@ -96,7 +102,7 @@ if comm is not None:
 # -------
 # stochastic error bar in density
 rdm_delta = 2e-2
-nself_consist = 3
+nself_consist = 10
 
 energies = numpy.zeros(nself_consist)
 errors = numpy.zeros(nself_consist)
@@ -111,30 +117,40 @@ uhf_input = {
     "verbose": False,
 }
 # Initial step starting from FE trial wavefunction to construct constraint.
-print ("# Self consistency cycle %d of %d"%(0, nself_consist))
+if rank == 0:
+    print ("# Self consistency cycle %d of %d"%(0, nself_consist))
 (rdm, rdm_err, energies[0], errors[0]) = (
     generate_qmc_rdm(state, options, comm, rdm_delta, 0)
 )
-rdm, err = analysis.blocking.average_rdm('estimates.0.h5', skip=2)
-(uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 1, 5)
-# print (psi_opt)
 wfn_file = 'uopt_trial_wfn.0.npy'
-numpy.save(wfn_file, psi_opt)
+if rank == 0:
+    rdm, err = analysis.blocking.average_rdm('estimates.0.h5', skip=2)
+    (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 1, index=0,
+                                   dtype=psi0[0].phi.dtype)
+    # print (psi_opt)
+    numpy.save(wfn_file, psi_opt)
+comm.Barrier()
 state.trial.psi = numpy.load(wfn_file)
 for isc in range(1, nself_consist):
-    print ("# Self consistency cycle %d of %d"%(isc+1, nself_consist))
+    if rank == 0:
+        print ("# Self consistency cycle %d of %d"%(isc+1, nself_consist))
     (rdm, rdm_err, energies[isc], errors[isc]) = (
         generate_qmc_rdm(state, options, comm, rdm_delta, isc)
     )
-    (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 1, 5, isc)
-    # write psi to file.
-    wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
-    # overkill
-    numpy.save(wfn_file, psi_opt)
+    if rank == 0:
+        (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 1,
+                                         index=isc, dtype=psi0[0].phi.dtype)
+        # write psi to file.
+        wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
+        # overkill
+        numpy.save(wfn_file, psi_opt)
+    comm.Barrier()
     state.trial.psi = numpy.load(wfn_file)
 
-pl.errorbar(range(0,nself_consist), energies, yerr=errors, fmt='o')
-pl.xlabel(r'iteration')
-pl.xticks(range(0, nself_consist), [str(x) for x in uopt], rotation='vertical')
-pl.ylabel(r'$E_{\mathrm{CPMC}}$')
-pl.savefig('self_consist_conv.pdf', fmt='pdf')
+if rank == 0:
+    pl.errorbar(range(1,nself_consist+1), energies, yerr=errors, fmt='o')
+    pl.xlabel(r'iteration')
+    pl.xticks(range(1, nself_consist+1), [str(x)[:5] for x in uopt], rotation=45)
+    pl.xlim([0, nself_consist+1])
+    pl.ylabel(r'$E_{\mathrm{CPMC}}$')
+    pl.savefig('self_consist_conv.pdf', fmt='pdf', bbox_inches='tight')
