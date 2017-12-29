@@ -4,6 +4,14 @@ afqmcpy package
 Submodules
 ----------
 
+afqmcpy\.cpmc module
+--------------------
+
+.. automodule:: afqmcpy.cpmc
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 afqmcpy\.estimators module
 --------------------------
 
@@ -24,14 +32,6 @@ afqmcpy\.hubbard module
 -----------------------
 
 .. automodule:: afqmcpy.hubbard
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-afqmcpy\.initialise module
---------------------------
-
-.. automodule:: afqmcpy.initialise
     :members:
     :undoc-members:
     :show-inheritance:
@@ -76,10 +76,10 @@ afqmcpy\.state module
     :undoc-members:
     :show-inheritance:
 
-afqmcpy\.trial\_wave\_function module
--------------------------------------
+afqmcpy\.trial\_wavefunction module
+-----------------------------------
 
-.. automodule:: afqmcpy.trial_wave_function
+.. automodule:: afqmcpy.trial_wavefunction
     :members:
     :undoc-members:
     :show-inheritance:
