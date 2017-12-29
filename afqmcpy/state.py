@@ -127,13 +127,13 @@ class State:
         return (md)
 
 class QMCOpts:
-    """Input options and certain constants / parameters derived from them.
+    r"""Input options and certain constants / parameters derived from them.
 
     Initialised from a dict containing the following options, not all of which
     are required.
 
-    Parameters/Attributes
-    ---------------------
+    Parameters
+    ----------
     method : string
         Which auxiliary field method are we using? Currently only CPMC is
         implemented.
@@ -159,16 +159,18 @@ class QMCOpts:
     hubbard_statonovich : string
         Which hubbard stratonovich transformation are we using. Currently the
         options are:
-            discrete : Use the discrete Hirsch spin transformation.
-            opt_continuous : Use the continuous transformation for the Hubbard
-                model.
-            generic : Use the generic transformation. Not currently implemented.
+
+        - discrete : Use the discrete Hirsch spin transformation.
+        - opt_continuous : Use the continuous transformation for the Hubbard
+          model.
+        - generic : Use the generic transformation. Not currently implemented.
+
     ffts : boolean
         Use FFTS to diagonalise the kinetic energy propagator? Default False.
         This may speed things up for larger lattices.
 
-    Derived Attributes
-    ------------------
+    Attributes
+    ----------
     cplx : boolean
         Do we require complex wavefunctions?
     mf_shift : float

@@ -12,20 +12,21 @@ import afqmcpy.walker as walker
 
 
 def propagate_walker_discrete(walker, state):
-    """Wrapper function for propagation using discrete transformation
+    r"""Wrapper function for propagation using discrete transformation
 
     The discrete transformation allows us to split the application of the
     projector up a bit more, which allows up to make use of fast matrix update
     routines since only a row might change.
 
-Parameters
-----------
-walker : :class:`walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B(x) and
-    updated the weight appropriately. Updates inplace.
-state : :class:`state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`walker.Walker`
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+        appropriately. Updates inplace.
+    state : :class:`state.State`
+        Simulation state.
+    """
 
     if abs(walker.weight) > 0:
         kinetic_importance_sampling(walker, state)
@@ -36,20 +37,21 @@ state : :class:`state.State`
 
 
 def propagate_walker_discrete_multi_site(walker, state):
-    """Wrapper function for propagation using discrete transformation
+    r"""Wrapper function for propagation using discrete transformation
 
     The discrete transformation allows us to split the application of the
     projector up a bit more, which allows up to make use of fast matrix update
     routines since only a row might change.
 
-Parameters
-----------
-walker : :class:`walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B(x) and
-    updated the weight appropriately. Updates inplace.
-state : :class:`state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`walker.Walker`
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+        appropriately. Updates inplace.
+    state : :class:`state.State`
+        Simulation state.
+    """
 
     # 1. Apply kinetic projector.
     state.propagators.kinetic(walker.phi, state)
@@ -67,15 +69,16 @@ state : :class:`state.State`
 
 
 def propagate_walker_free(walker, state):
-    """Propagate walker without imposing constraint.
+    r"""Propagate walker without imposing constraint.
 
     Uses single-site updates for potential term.
 
     Parameters
     ----------
     walker : :class:`walker.Walker`
-        Walker object to be updated. On output we have acted on |phi_i> by B(x) and
-        updated the weight appropriately. Updates inplace.
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+        appropriately. Updates inplace.
     state : :class:`state.State`
         Simulation state.
 """
@@ -104,18 +107,19 @@ def propagate_walker_free(walker, state):
 
 
 def propagate_walker_free_continuous(walker, state):
-    """Free projection for continuous HS transformation.
+    r"""Free projection for continuous HS transformation.
 
     TODO: update if ever adapted to other model types.
 
     Parameters
     ----------
     walker : :class:`walker.Walker`
-        Walker object to be updated. On output we have acted on |phi_i> by B(x) and
-        updated the weight appropriately. Updates inplace.
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+        appropriately. Updates inplace.
     state : :class:`state.State`
         Simulation state.
-"""
+    """
     nup = state.system.nup
     # 1. Apply kinetic projector.
     kinetic_real(walker.phi, state)
@@ -141,19 +145,20 @@ def propagate_walker_free_continuous(walker, state):
 
 
 def propagate_walker_continuous(walker, state):
-    """Wrapper function for propagation using continuous transformation.
+    r"""Wrapper function for propagation using continuous transformation.
 
     This applied the phaseless, local energy approximation and uses importance
     sampling.
 
-Parameters
-----------
-walker : :class:`walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`walker.Walker`
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+        appropriately. Updates inplace.
+    state : :class:`state.State`
+        Simulation state.
+    """
 
     # 1. Apply kinetic projector.
     state.propagators.kinetic(walker.phi, state)
@@ -237,16 +242,17 @@ def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     return 0.5 * numpy.array([R1,R2])
 
 def discrete_hubbard(walker, state):
-    """Propagate by potential term using discrete HS transform.
+    r"""Propagate by potential term using discrete HS transform.
 
-Parameters
-----------
-walker : :class:`afqmcpy.walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`afqmcpy.state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`b_V` and updated the weight appropriately.
+        updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
     # Construct random auxilliary field.
     delta = state.system.auxf - 1
     nup = state.system.nup
@@ -280,18 +286,19 @@ state : :class:`afqmcpy.state.State`
             return
 
 def dumb_hubbard(walker, state):
-    """Continuous Hubbard-Statonovich transformation for Hubbard model.
+    r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
 
     Only requires M auxiliary fields.
 
-Parameters
-----------
-walker : :class:`afqmcpy.walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`afqmcpy.state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
+        updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
 
     mf = state.qmc.mf_shift
     ifac = state.qmc.iut_fac
@@ -313,21 +320,22 @@ state : :class:`afqmcpy.state.State`
 
 
 def generic_continuous(walker, state):
-    """Continuous HS transformation
+    r"""Continuous HS transformation
 
     This form assumes nothing about the form of the two-body Hamiltonian and
     is thus quite slow, particularly if the matrix is M^2xM^2.
 
     Todo: check if this actually works.
 
-Parameters
-----------
-walker : :class:`afqmcpy.walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`afqmcpy.state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
+        updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
 
     # iterate over spins
 
@@ -359,16 +367,17 @@ state : :class:`afqmcpy.state.State`
 
 
 def kinetic_importance_sampling(walker, state):
-    """Propagate by the kinetic term by direct matrix multiplication.
+    r"""Propagate by the kinetic term by direct matrix multiplication.
 
-Parameters
-----------
-walker : :class:`afqmcpy.walker.Walker`
-    Walker object to be updated. On output we have acted on |phi_i> by B_V and
-    updated the weight appropriately. Updates inplace.
-state : :class:`afqmcpy.state.State`
-    Simulation state.
-"""
+    Parameters
+    ----------
+    walker : :class:`afqmcpy.walker.Walker`
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
+        appropriately.  updates inplace.
+    state : :class:`afqmcpy.state.State`
+        Simulation state.
+    """
     state.propagators.kinetic(walker.phi, state)
     # Update inverse overlap
     walker.inverse_overlap(state.trial.psi, state.system.nup)
@@ -386,15 +395,16 @@ state : :class:`afqmcpy.state.State`
 
 
 def kinetic_real(phi, state):
-    """Propagate by the kinetic term by direct matrix multiplication.
+    r"""Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuus algorithm and free propagation.
 
     Parameters
     ----------
     walker : :class:`afqmcpy.walker.Walker`
-        Walker object to be updated. On output we have acted on |phi_i> by B_V and
-        updated the weight appropriately. Updates inplace.
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
+        appropriately.  updates inplace.
     state : :class:`afqmcpy.state.State`
         Simulation state.
     """
@@ -405,15 +415,16 @@ def kinetic_real(phi, state):
 
 
 def kinetic_ghf(phi, state):
-    """Propagate by the kinetic term by direct matrix multiplication.
+    r"""Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the GHF algorithm.
 
     Parameters
     ----------
     walker : :class:`afqmcpy.walker.Walker`
-        Walker object to be updated. On output we have acted on |phi_i> by B_V and
-        updated the weight appropriately. Updates inplace.
+        Walker object to be updated. on output we have acted on
+        :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
+        appropriately.  updates inplace.
     state : :class:`afqmcpy.state.State`
         Simulation state.
     """

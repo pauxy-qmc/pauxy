@@ -280,8 +280,10 @@ class BackPropagation:
     ----------
     bp : dict
         Input back propagation options :
-            nmax : int
-                Number of back propagation steps to perform.
+
+        - nmax : int
+            Number of back propagation steps to perform.
+
     root : bool
         True if on root/master processor.
     uuid : string
@@ -529,7 +531,7 @@ class ITCF:
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in:
-            Feldbacher and Assad, Phys. Rev. B 63, 073105.
+        Feldbacher and Assad, Phys. Rev. B 63, 073105.
 
         Parameters
         ----------
@@ -633,20 +635,19 @@ class ITCF:
             group.push(numpy.array([g[mode] for g in spgf]))
 
 def local_energy(system, G):
-    """Calculate local energy of walker for the Hubbard model.
+    r"""Calculate local energy of walker for the Hubbard model.
 
     Parameters
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
     G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+        Walker's "Green's function"
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
 
     # Todo: Be less stupid
@@ -662,14 +663,15 @@ def local_energy_ghf(system, Gi, weights, denom):
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Gi : :class:`numpy.ndarray`
+        Array of Walker's "Green's function"
+    denom : float
+        Overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
     # numpy.diagonal returns a view so there should be no overhead in creating
@@ -690,14 +692,15 @@ def local_energy_multi_det(system, Gi, weights):
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Gi : :class:`numpy.ndarray`
+        Array of Walker's "Green's function"
+    weights : :class:`numpy.ndarray`
+        Components of overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     denom = numpy.sum(weights)
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
@@ -711,20 +714,21 @@ def local_energy_multi_det(system, Gi, weights):
     return (ke+pe, ke, pe)
 
 def local_energy_ghf_full(system, GAB, weights):
-    """Calculate local energy of GHF walker for the Hubbard model.
+    r"""Calculate local energy of GHF walker for the Hubbard model.
 
     Parameters
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    GAB : :class:`numpy.ndarray`
+        Matrix of Green's functions for different SDs A and B.
+    weights : :class:`numpy.ndarray`
+        Components of overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L, T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     denom = numpy.sum(weights)
     ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text) / denom
@@ -746,8 +750,10 @@ def gab(A, B):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle =
+        [B(A^{\dagger}B)^{-1}A^{\dagger}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
@@ -779,8 +785,9 @@ def gab_multi_det(A, B, coeffs):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
@@ -832,13 +839,14 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
 
-    Todo: Fix docstring
+    .. todo: Fix docstring
 
     Here we assume both A and B are multi-determinant expansions.
 
@@ -879,9 +887,13 @@ def print_key(key, print_function=print, eol='', encode=False):
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
-        String to append to output, e.g., '\n', Default : ''.
+        String to append to output, e.g., Default : ''.
     encode : bool
         In True encode output to be utf-8.
+
+    Returns
+    -------
+    None
     """
     header = (
         eol + '# Explanation of output column headers:\n' +
@@ -898,7 +910,7 @@ def print_key(key, print_function=print, eol='', encode=False):
 
 
 def print_header(header, print_function=print, eol='', encode=False):
-    """Print out header for estimators
+    r"""Print out header for estimators
 
     Parameters
     ----------
@@ -907,9 +919,13 @@ def print_header(header, print_function=print, eol='', encode=False):
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
-        String to append to output, e.g., '\n', Default : ''.
+        String to append to output, Default : ''.
     encode : bool
         In True encode output to be utf-8.
+
+    Returns
+    -------
+    None
     """
     s = afqmcpy.utils.format_fixed_width_strings(header) + eol
     if encode:

@@ -18,7 +18,7 @@ def setup(options, comm=None):
 
     Returns
     -------
-    state : :class:afqmcpy.state.State`
+    state : :class:`afqmcpy.state.State`
         Simulation state.
     """
 
