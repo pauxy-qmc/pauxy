@@ -19,7 +19,7 @@ class FreeElectron:
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
-        self.initial_wavefunction = trial.get('inititial_wavefunction',
+        self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'free_electron')
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
