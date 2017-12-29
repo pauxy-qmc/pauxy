@@ -10,15 +10,15 @@ class Walker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
-        if trial.initial_wavefunction == 'UHF':
-            # assumption here is that we're using a UHF trial state too.
-            # Will not work with FE trial state etc.
-            self.phi = copy.deepcopy(trial.psi)
-        elif trial.initial_wavefunction == 'free_electron':
-            self.phi = copy.deepcopy(trial.psi)
+        if trial.initial_wavefunction == 'free_electron':
+            self.phi = np.zeros(shape=(system.nbasis,system.ne),
+                                dtype=trial.psi.dtype)
+            tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
+                                     trial.psi.dtype==complex, {})
+            self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
+            self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
         else:
-            orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.initial_wavefunction)
-            self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
+            self.phi = copy.deepcopy(trial.psi)
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
         self.G = [0, 0]
@@ -201,7 +201,7 @@ class MultiGHFWalker:
             else:
                 self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
                                     dtype=trial.psi.dtype)
-                tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
                                          trial.psi.dtype==complex, {})
                 self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
                 self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
