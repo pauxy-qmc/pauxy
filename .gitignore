@@ -13,3 +13,4 @@ docs/build/*
 testcode_data*
 benchmark*
 *.npy
+*.nfs*
