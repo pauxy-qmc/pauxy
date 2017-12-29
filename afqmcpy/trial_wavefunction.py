@@ -27,13 +27,29 @@ class FreeElectron:
         else:
             self.trial_type = float
         self.read_in = trial.get('read_in', None)
+        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                               dtype=self.trial_type)
         if self.read_in is not None:
             print ("# Reading trial wavefunction from %s"%(self.read_in))
-            self.psi = numpy.load(self.read_in)
+            try:
+                self.psi = numpy.load(self.read_in)
+            except OSError:
+                print ("# Trial wavefunction is not in native numpy form.")
+                print ("# Assuming Fortran GHF format.")
+                orbitals = read_fortran_complex_numbers(self.read_in)
+                tmp = orbitals.reshape((2*system.nbasis, system.ne),
+                                       order='F')
+                ups = []
+                downs = []
+                for (i, c) in enumerate(tmp.T):
+                    if all(abs(c[:system.nbasis]) > 1e-10):
+                        ups.append(i)
+                    else:
+                        downs.append(i)
+                self.psi[:,:system.nup] = tmp[:system.nbasis,ups]
+                self.psi[:,system.nup:] = tmp[system.nbasis:,downs]
         else:
             # I think this is slightly cleaner than using two separate matrices.
-            self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
-                                   dtype=self.trial_type)
             self.psi[:,:system.nup] = self.eigv[:,:system.nup]
             self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
         gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
