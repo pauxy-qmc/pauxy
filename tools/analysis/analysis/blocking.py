@@ -148,6 +148,8 @@ def analyse_estimates(filenames, start_iteration=0):
         bp_group.create_dataset('estimates', data=bp_av.as_matrix())
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
+    else:
+        bp_av = None
     if len(norm_data) > 1:
         norm_data = pd.concat(norm_data).groupby('iteration')
         norm_av = average_tau(norm_data)
