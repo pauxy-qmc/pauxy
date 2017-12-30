@@ -198,6 +198,7 @@ class Estimators:
         global_estimates[:ns.time] = (
             global_estimates[:ns.time] / state.qmc.nmeasure
         )
+        # put these in own print routines.
         if state.root:
             print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar].real)))
             self.output.push(global_estimates[:ns.evar])
@@ -207,7 +208,8 @@ class Estimators:
             )
             if print_bp:
                 self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
-                self.back_prop.dm_output.push(global_estimates[ns.gbp:endp].reshape(self.back_prop.G.shape))
+                if self.back_prop.rdm:
+                    self.back_prop.dm_output.push(global_estimates[ns.gbp:endp].reshape(self.back_prop.G.shape))
 
             if step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
                 spgf = global_estimates[endp:].reshape(self.itcf.spgf.shape)
@@ -308,6 +310,7 @@ class BackPropagation:
     def __init__(self, bp, root, h5f, nsteps, nbasis, dtype, ghf=False):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
+        self.rdm = bp.get('rdm', False)
         self.estimates = numpy.zeros(len(self.header[1:])+2*nbasis*nbasis)
         self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
@@ -325,9 +328,10 @@ class BackPropagation:
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (nsteps//self.nmax, len(header)),
                                             dtype)
-            self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                              (nsteps//self.nmax,)+self.G.shape,
-                                              dtype)
+            if self.rdm:
+                self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
+                                                  (nsteps//self.nmax,)+self.G.shape,
+                                                  dtype)
         if ghf:
             self.update = self.update_ghf
         else:
