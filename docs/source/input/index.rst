@@ -2,6 +2,7 @@ Input Options
 =============
 
 AFQMCPY can be used either as a library or run with the usual "binary" + input file mode.
+Here we will describe the input options necessary in both cases.
 
 Input File
 ^^^^^^^^^^
