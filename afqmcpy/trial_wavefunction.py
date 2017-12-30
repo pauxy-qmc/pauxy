@@ -115,7 +115,7 @@ class UHF:
         else:
             self.trial_type = float
         # Unpack input options.
-        self.ninitial = trial.get('ninitial', 100)
+        self.ninitial = trial.get('ninitial', 10)
         self.nconv = trial.get('nconv', 5000)
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
