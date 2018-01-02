@@ -33,6 +33,7 @@ class FreeElectron:
             print ("# Reading trial wavefunction from %s"%(self.read_in))
             try:
                 self.psi = numpy.load(self.read_in)
+                self.psi = self.psi.astype(self.trial_type)
             except OSError:
                 print ("# Trial wavefunction is not in native numpy form.")
                 print ("# Assuming Fortran GHF format.")

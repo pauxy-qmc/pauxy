@@ -14,7 +14,7 @@ class Walker:
             self.phi = np.zeros(shape=(system.nbasis,system.ne),
                                 dtype=trial.psi.dtype)
             tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
-                                     trial.psi.dtype==complex, {})
+                                     system.ktwist.all() != None, {})
             self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
             self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
         else:
