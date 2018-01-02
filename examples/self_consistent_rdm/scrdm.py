@@ -55,8 +55,6 @@ def find_uopt(rdm, system, trial, mmin, mmax, index=0, dtype=numpy.float64):
     psis = numpy.zeros((len(ueff), system.nbasis, system.ne), dtype=dtype)
     uhf = afqmcpy.trial_wavefunction.UHF(system, system.ktwist.all() is not None, trial)
     for (i, u) in enumerate(ueff):
-        print ("##########################")
-        print ("# Scan %d of %d. Ueff : %f"%(i, len(ueff), u))
         (niup, nidown, e_up, e_down) = uhf.diagonalise_mean_field(system, u,
                                                                   rdm[0].diagonal(),
                                                                   rdm[1].diagonal())
@@ -64,7 +62,6 @@ def find_uopt(rdm, system, trial, mmin, mmax, index=0, dtype=numpy.float64):
         cost[i] = numpy.sum((niup-rdm[0].diagonal())**2.0)
         cost[i] += numpy.sum((nidown-rdm[1].diagonal())**2.0)
         cost[i] = numpy.sqrt(cost[i]) / system.nbasis
-        print ("##########################")
 
     pl.plot(ueff, cost, marker='o')
     pl.xlabel(r"$U_{\mathrm{eff}}$")
