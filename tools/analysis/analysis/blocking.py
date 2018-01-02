@@ -39,7 +39,12 @@ def average_single(frame):
     columns = sorted(averaged.columns.values)
     return averaged[columns]
 
-
+def average_rdm(filename, skip=0):
+    data = h5py.File(filename, 'r')
+    gf = data['back_propagated_estimates/single_particle_greens_function'][:].real
+    gf_av = gf[skip:].mean(axis=0)
+    gf_err = gf[skip:].std(axis=0) / len(gf[skip:])**0.5
+    return (gf_av, gf_err)
 
 def average_tau(frames):
 
@@ -105,14 +110,14 @@ def analyse_estimates(filenames, start_iteration=0):
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
-        norm_data.append(norm[start_iteration:nzero])
+        norm_data.append(norm[start_iteration:nzero].apply(numpy.real))
         if bp is not None:
             nbp = m.get('estimates').get('back_propagation').get('nback_prop')
             bp['dt'] = dt
             bp['nbp'] = nbp
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start_iteration/nbp))
-            bp_data.append(bp[skip:nzero])
+            bp_data.append(bp[skip:nzero].apply(numpy.real))
         if itcf is not None:
             itcf_tmax = m.get('estimates').get('itcf').get('tmax')
             nits = int(itcf_tmax/dt) + 1
@@ -129,20 +134,22 @@ def analyse_estimates(filenames, start_iteration=0):
     if itcf is not None:
         itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
         (itcf_av, itcf_err) = analyse_itcf(itcf_data)
-        store.create_dataset('real_itcf', data=itcf_av, dtype=float)
-        store.create_dataset('real_itcf_err', data=itcf_err, dtype=float)
+        store.create_dataset('real_itcf', data=itcf_av)
+        store.create_dataset('real_itcf_err', data=itcf_err)
     if itcfk is not None:
         itcfk_data = numpy.reshape(itcfk_data, (len(itcf_data),)+itcf_data[0].shape)
         (itcfk_av, itcfk_err) = analyse_itcf(itcfk_data)
-        store.create_dataset('kspace_itcf', data=itcfk_av, dtype=float)
-        store.create_dataset('kspace_itcf_err', data=itcfk_err, dtype=float)
+        store.create_dataset('kspace_itcf', data=itcfk_av)
+        store.create_dataset('kspace_itcf_err', data=itcfk_err)
     if bp is not None:
         bp_data = pd.concat(bp_data)
         bp_av = analyse_back_propagation(bp_data)
         bp_group = store.create_group('back_propagation')
-        bp_group.create_dataset('estimates', data=bp_av.as_matrix(), dtype=float)
+        bp_group.create_dataset('estimates', data=bp_av.as_matrix())
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
+    else:
+        bp_av = None
     if len(norm_data) > 1:
         norm_data = pd.concat(norm_data).groupby('iteration')
         norm_av = average_tau(norm_data)
@@ -150,7 +157,7 @@ def analyse_estimates(filenames, start_iteration=0):
         norm_data = pd.concat(norm_data)
         norm_av = average_single(norm_data)
     basic = store.create_group('basic_estimators')
-    basic.create_dataset('estimates', data=norm_av.as_matrix(), dtype=float)
+    basic.create_dataset('estimates', data=norm_av.as_matrix())
     basic.create_dataset('headers', data=norm_av.columns.values,
             dtype=h5py.special_dtype(vlen=str))
     store.close()

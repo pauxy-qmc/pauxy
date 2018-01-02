@@ -8,7 +8,7 @@ import json
 import numpy
 import uuid
 import afqmcpy.hubbard as hubbard
-import afqmcpy.trial_wave_function as trial_wave_function
+import afqmcpy.trial_wavefunction
 import afqmcpy.propagation
 import afqmcpy.hs_transform
 
@@ -46,7 +46,7 @@ class State:
         json_string.
     root : bool
         If True we are on the root / master processor.
-    trial : :class:`afqmcpy.trial_wave_function.X' object
+    trial : :class:`afqmcpy.trial_wavefunction.X' object
         Trial wavefunction class.
     propagators : :class:`afqmcpy.propagation.Projectors` object
         Container for system specific propagation routines.
@@ -67,17 +67,17 @@ class State:
         self.root = True
         # effective hubbard U for UHF trial wavefunction.
         if trial['name'] == 'free_electron':
-            self.trial = trial_wave_function.FreeElectron(self.system,
-                                                           self.qmc.cplx,
-                                                           trial)
+            self.trial = afqmcpy.trial_wavefunction.FreeElectron(self.system,
+                                                                 self.qmc.cplx,
+                                                                 trial)
         if trial['name'] == 'UHF':
-            self.trial = trial_wave_function.UHF(self.system,
-                                                 self.qmc.cplx,
-                                                 trial)
+            self.trial = afqmcpy.trial_wavefunction.UHF(self.system,
+                                                        self.qmc.cplx,
+                                                         trial)
         elif trial['name'] == 'multi_determinant':
-            self.trial = trial_wave_function.MultiDeterminant(self.system,
-                                                              self.qmc.cplx,
-                                                              trial)
+            self.trial = afqmcpy.trial_wavefunction.MultiDeterminant(self.system,
+                                                                     self.qmc.cplx,
+                                                                     trial)
         self.propagators = afqmcpy.propagation.Propagator(self.qmc,
                                                           self.system,
                                                           self.trial)
@@ -127,13 +127,13 @@ class State:
         return (md)
 
 class QMCOpts:
-    """Input options and certain constants / parameters derived from them.
+    r"""Input options and certain constants / parameters derived from them.
 
     Initialised from a dict containing the following options, not all of which
     are required.
 
-    Parameters/Attributes
-    ---------------------
+    Parameters
+    ----------
     method : string
         Which auxiliary field method are we using? Currently only CPMC is
         implemented.
@@ -159,16 +159,18 @@ class QMCOpts:
     hubbard_statonovich : string
         Which hubbard stratonovich transformation are we using. Currently the
         options are:
-            discrete : Use the discrete Hirsch spin transformation.
-            opt_continuous : Use the continuous transformation for the Hubbard
-                model.
-            generic : Use the generic transformation. Not currently implemented.
+
+        - discrete : Use the discrete Hirsch spin transformation.
+        - opt_continuous : Use the continuous transformation for the Hubbard
+          model.
+        - generic : Use the generic transformation. Not currently implemented.
+
     ffts : boolean
         Use FFTS to diagonalise the kinetic energy propagator? Default False.
         This may speed things up for larger lattices.
 
-    Derived Attributes
-    ------------------
+    Attributes
+    ----------
     cplx : boolean
         Do we require complex wavefunctions?
     mf_shift : float
@@ -204,7 +206,7 @@ class QMCOpts:
                                                 'discrete')
         self.ffts = inputs.get('kinetic_kspace', False)
         self.cplx = ('continuous' in self.hubbard_stratonovich
-                     or system.ktwist.all() != 0)
+                     or system.ktwist.all() != None)
         if self.hubbard_stratonovich == 'continuous':
             # optimal mean-field shift for the hubbard model
             self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.linalg
 import copy
 import afqmcpy.estimators
-import afqmcpy.trial_wave_function as twfn
+import afqmcpy.trial_wavefunction
 
 # Worthwhile overloading / having real and complex walker classes (Hermitian
 # conjugate)?
@@ -10,7 +10,15 @@ class Walker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
-        self.phi = copy.deepcopy(trial.psi)
+        if trial.initial_wavefunction == 'free_electron':
+            self.phi = np.zeros(shape=(system.nbasis,system.ne),
+                                dtype=trial.psi.dtype)
+            tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
+                                     trial.psi.dtype==complex, {})
+            self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
+            self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
+        else:
+            self.phi = copy.deepcopy(trial.psi)
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
         self.G = [0, 0]
@@ -183,17 +191,17 @@ class MultiGHFWalker:
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
         # than GHF. Can actually initialise to GHF by passing single GHF with
-        # read_init. The distinction is really for back propagation when we may
-        # want to use the full expansion.
+        # initial_wavefunction. The distinction is really for back propagation
+        # when we may want to use the full expansion.
         if wfn0 == 'init':
             # Initialise walker with single determinant.
-            if trial.read_init is not None:
-                orbs = twfn.read_fortran_complex_numbers(trial.read_init)
+            if trial.initial_wavefunction != 'free_electron':
+                orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
                 self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
                                     dtype=trial.psi.dtype)
-                tmp = afqmcpy.trial_wave_function.FreeElectron(system,
+                tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
                                          trial.psi.dtype==complex, {})
                 self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
                 self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]

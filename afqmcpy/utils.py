@@ -4,7 +4,11 @@ import numpy
 import scipy.linalg
 
 def sherman_morrison(Ainv, u, vt):
-    """Sherman-Morrison update of a matrix inverse
+    r"""Sherman-Morrison update of a matrix inverse:
+
+    .. math::
+        (A + u \otimes v)^{-1} = A^{-1} - \frac{A^{-1}u v^{T} A^{-1}}
+                                               {1+v^{T}A^{-1} u}
 
     Parameters
     ----------
@@ -18,7 +22,7 @@ def sherman_morrison(Ainv, u, vt):
     Returns
     -------
     Ainv : numpy.ndarray
-        Update inverse: :math:`(A + u x vT)^{-1}`
+        Updated matrix inverse.
     """
 
     return (

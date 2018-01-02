@@ -77,16 +77,22 @@ class Estimators:
             'E': "Projected energy estimator.",
             'time': "Time per processor to complete one iteration.",
         }
+        if qmc.cplx:
+            etype = complex
+        else:
+            etype = float
         if root:
             print_key(self.key)
             print_header(self.header)
             index = estimates.get('index', 0)
-            overwrite = estimates.get('overwrite', True)
-            h5f_name =  'estimates.%s.h5'%index
-            while os.path.isfile(h5f_name) and not overwrite:
-                index = int(h5f_name.split('.')[1])
-                index = index + 1
+            h5f_name = estimates.get('filename', None)
+            if h5f_name is None:
+                overwrite = estimates.get('overwrite', True)
                 h5f_name =  'estimates.%s.h5'%index
+                while os.path.isfile(h5f_name) and not overwrite:
+                    index = int(h5f_name.split('.')[1])
+                    index = index + 1
+                    h5f_name =  'estimates.%s.h5'%index
             self.h5f = h5py.File(h5f_name, 'w')
             self.h5f.create_dataset('metadata',
                                     data=numpy.array([json_string], dtype=object),
@@ -97,7 +103,8 @@ class Estimators:
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (qmc.nsteps/qmc.nmeasure+1,
-                                            len(self.header[1:])))
+                                            len(self.header[1:])),
+                                            etype)
         else:
             self.h5f = None
         self.nestimators = len(self.header[1:])
@@ -107,7 +114,7 @@ class Estimators:
         self.back_propagation = bp is not None
         if self.back_propagation:
             self.back_prop = BackPropagation(bp, root, self.h5f,
-                                             qmc.nsteps, ghf)
+                                             qmc.nsteps, nbasis, etype, ghf)
             self.nestimators +=  len(self.back_prop.header[1:])
             self.nprop_tot = self.back_prop.nmax
         else:
@@ -115,11 +122,18 @@ class Estimators:
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
-        self.estimates = numpy.zeros(self.nestimators)
-        if self.calc_itcf:
-            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, qmc.nsteps)
+        self.estimates = numpy.zeros(self.nestimators, dtype=etype)
+        if self.back_propagation:
             self.estimates = numpy.zeros(self.nestimators +
-                                         len(self.itcf.spgf.flatten()))
+                                         len(self.back_prop.G.flatten()),
+                                         dtype=etype)
+        if self.calc_itcf:
+            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, etype,
+                             qmc.nsteps)
+            self.estimates = numpy.zeros(self.nestimators +
+                                         len(self.back_prop.G.flatten()) +
+                                         len(self.itcf.spgf.flatten()),
+                                         dtype=etype)
             self.nprop_tot = self.itcf.nmax
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
@@ -169,21 +183,24 @@ class Estimators:
         """
         es = self.estimates
         ns = self.names
-        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom])).real
-        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer].real
+        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom]))
+        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
         if self.back_propagation:
-            es[ns.evar:ns.pot+1] = self.back_prop.estimates / state.nprocs
+            endp =  ns.gbp + len(self.back_prop.G.flatten())
+            es[ns.evar:endp] = self.back_prop.estimates / state.nprocs
         es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
         if self.calc_itcf:
-            es[ns.pot+1:] = self.itcf.spgf.flatten() / state.nprocs
-        global_estimates = numpy.zeros(len(self.estimates))
+            es[endp:] = self.itcf.spgf.flatten() / state.nprocs
+        global_estimates = numpy.zeros(len(self.estimates),
+                                       dtype=self.estimates.dtype)
         comm.Reduce(es, global_estimates, op=MPI.SUM)
         global_estimates[:ns.time] = (
             global_estimates[:ns.time] / state.qmc.nmeasure
         )
+        # put these in own print routines.
         if state.root:
-            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar])))
+            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar].real)))
             self.output.push(global_estimates[:ns.evar])
             print_bp = (
                 self.back_propagation and print_bp and
@@ -191,17 +208,22 @@ class Estimators:
             )
             if print_bp:
                 self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
+                if self.back_prop.rdm:
+                    self.back_prop.dm_output.push(global_estimates[ns.gbp:endp].reshape(self.back_prop.G.shape))
 
             if step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
-                spgf = global_estimates[ns.pot+1:].reshape(self.itcf.spgf.shape)
+                spgf = global_estimates[endp:].reshape(self.itcf.spgf.shape)
                 self.itcf.to_file(self.itcf.rspace_unit, spgf)
                 if self.itcf.kspace:
                     M = state.system.nbasis
                     # FFT the real space Green's function.
                     # Todo : could just use numpy.fft.fft....
                     spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
-                                          spgf, state.system.P.conj().T).real/M
-                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                                          spgf, state.system.P.conj().T)/M
+                    if self.estimates.dtype == complex:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                    else:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
             self.h5f.flush()
 
         self.zero(state.system.nbasis)
@@ -250,6 +272,7 @@ class EstimatorEnum:
         self.evar   = 5
         self.kin    = 6
         self.pot    = 7
+        self.gbp    = 8
 
 
 class BackPropagation:
@@ -259,8 +282,10 @@ class BackPropagation:
     ----------
     bp : dict
         Input back propagation options :
-            nmax : int
-                Number of back propagation steps to perform.
+
+        - nmax : int
+            Number of back propagation steps to perform.
+
     root : bool
         True if on root/master processor.
     uuid : string
@@ -282,10 +307,12 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps, ghf=False):
+    def __init__(self, bp, root, h5f, nsteps, nbasis, dtype, ghf=False):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
-        self.estimates = numpy.zeros(len(self.header[1:]))
+        self.rdm = bp.get('rdm', False)
+        self.estimates = numpy.zeros(len(self.header[1:])+2*nbasis*nbasis)
+        self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -294,12 +321,17 @@ class BackPropagation:
             'V': "BP estimate for potential energy."
         }
         if root:
-            energies = h5f.create_group('back_propagated_energy_estimators')
+            energies = h5f.create_group('back_propagated_estimates')
             header = numpy.array(['E', 'T', 'V'], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nsteps//self.nmax, len(header)))
+                                            (nsteps//self.nmax, len(header)),
+                                            dtype)
+            if self.rdm:
+                self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
+                                                  (nsteps//self.nmax,)+self.G.shape,
+                                                  dtype)
         if ghf:
             self.update = self.update_ghf
         else:
@@ -321,13 +353,14 @@ class BackPropagation:
         """
         denominator = sum(wnm.weight for wnm in psi_nm)
         current = numpy.zeros(3)
-        GTB = [0, 0]
         nup = system.nup
         for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
-            GTB[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
-            GTB[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
-            current = current + wnm.weight*numpy.array(list(local_energy(system, GTB)))
-        self.estimates = self.estimates + current.real / denominator
+            self.G[0] = gab(wb.phi[:,:nup], wn.phi[:,:nup]).T
+            self.G[1] = gab(wb.phi[:,nup:], wn.phi[:,nup:]).T
+            energies = numpy.array(list(local_energy(system, self.G)))
+            self.estimates = (
+                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            )
 
     def update_ghf(self, system, trial, psi_nm, psi_n, psi_bp):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
@@ -401,7 +434,7 @@ class ITCF:
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, h5f, nbasis, nsteps):
+    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
@@ -413,7 +446,8 @@ class ITCF:
         # +1 in the first dimension is for the green's function at time tau = 0.
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2,
                                        nbasis,
-                                       nbasis))
+                                       nbasis),
+                                       dtype=dtype)
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
@@ -425,9 +459,11 @@ class ITCF:
                 shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
             name = 'real_space'
-            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape)
+            self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape,
+                                                 dtype)
             if self.kspace:
-                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape)
+                self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape,
+                                                     dtype)
 
     def calculate_spgf_unstable(self, state, psi_hist, psi_left):
         r"""Calculate imaginary time single-particle green's function.
@@ -499,7 +535,7 @@ class ITCF:
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in:
-            Feldbacher and Assad, Phys. Rev. B 63, 073105.
+        Feldbacher and Assad, Phys. Rev. B 63, 073105.
 
         Parameters
         ----------
@@ -603,20 +639,19 @@ class ITCF:
             group.push(numpy.array([g[mode] for g in spgf]))
 
 def local_energy(system, G):
-    """Calculate local energy of walker for the Hubbard model.
+    r"""Calculate local energy of walker for the Hubbard model.
 
     Parameters
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
     G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+        Walker's "Green's function"
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
 
     # Todo: Be less stupid
@@ -632,14 +667,15 @@ def local_energy_ghf(system, Gi, weights, denom):
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Gi : :class:`numpy.ndarray`
+        Array of Walker's "Green's function"
+    denom : float
+        Overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
     # numpy.diagonal returns a view so there should be no overhead in creating
@@ -660,14 +696,15 @@ def local_energy_multi_det(system, Gi, weights):
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    Gi : :class:`numpy.ndarray`
+        Array of Walker's "Green's function"
+    weights : :class:`numpy.ndarray`
+        Components of overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     denom = numpy.sum(weights)
     ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
@@ -681,20 +718,21 @@ def local_energy_multi_det(system, Gi, weights):
     return (ke+pe, ke, pe)
 
 def local_energy_ghf_full(system, GAB, weights):
-    """Calculate local energy of GHF walker for the Hubbard model.
+    r"""Calculate local energy of GHF walker for the Hubbard model.
 
     Parameters
     ----------
     system : :class:`Hubbard`
         System information for the Hubbard model.
-    G : :class:`numpy.ndarray`
-        Greens function (sort of) for given walker phi, i.e.,
-        :math:`G=\langle \phi_T| c_i^{\dagger}c_j | \phi\rangle`.
+    GAB : :class:`numpy.ndarray`
+        Matrix of Green's functions for different SDs A and B.
+    weights : :class:`numpy.ndarray`
+        Components of overlap of trial wavefunction with walker.
 
     Returns
     -------
-    E_L(phi) : float
-        Local energy of given walker phi.
+    (E_L, T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
     """
     denom = numpy.sum(weights)
     ke = numpy.einsum('ij,ijkl,kl->', weights, GAB, system.Text) / denom
@@ -716,8 +754,10 @@ def gab(A, B):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle =
+        [B(A^{\dagger}B)^{-1}A^{\dagger}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
@@ -749,8 +789,9 @@ def gab_multi_det(A, B, coeffs):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
@@ -802,13 +843,14 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
 
     This actually returns 1-G since it's more useful, i.e.,
+
     .. math::
-        \langle phi_A|c_i^{\dagger}c_j|phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle = [B(A^{*T}B)^{-1}A^{*T}]_{ji}
 
     where :math:`A,B` are the matrices representing the Slater determinants
     :math:`|\psi_{A,B}\rangle`.
 
-    Todo: Fix docstring
+    .. todo: Fix docstring
 
     Here we assume both A and B are multi-determinant expansions.
 
@@ -849,9 +891,13 @@ def print_key(key, print_function=print, eol='', encode=False):
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
-        String to append to output, e.g., '\n', Default : ''.
+        String to append to output, e.g., Default : ''.
     encode : bool
         In True encode output to be utf-8.
+
+    Returns
+    -------
+    None
     """
     header = (
         eol + '# Explanation of output column headers:\n' +
@@ -868,7 +914,7 @@ def print_key(key, print_function=print, eol='', encode=False):
 
 
 def print_header(header, print_function=print, eol='', encode=False):
-    """Print out header for estimators
+    r"""Print out header for estimators
 
     Parameters
     ----------
@@ -877,9 +923,13 @@ def print_header(header, print_function=print, eol='', encode=False):
     print_function : method, optional
         How to print state information, e.g. to std out or file. Default : print.
     eol : string, optional
-        String to append to output, e.g., '\n', Default : ''.
+        String to append to output, Default : ''.
     encode : bool
         In True encode output to be utf-8.
+
+    Returns
+    -------
+    None
     """
     s = afqmcpy.utils.format_fixed_width_strings(header) + eol
     if encode:
@@ -907,8 +957,8 @@ def eproj(estimates, enum):
     return (numerator/denominator).real
 
 class H5EstimatorHelper:
-    def __init__(self, h5f, name, shape):
-        self.store = h5f.create_dataset(name, shape, dtype='f')
+    def __init__(self, h5f, name, shape, dtype):
+        self.store = h5f.create_dataset(name, shape, dtype=dtype)
         dims = numpy.array(list(shape))
         self.index = 0
 

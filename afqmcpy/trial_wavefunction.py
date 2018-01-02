@@ -19,20 +19,44 @@ class FreeElectron:
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
-        self.read_init = trial.get('inititial_wavefunction', None)
+        self.initial_wavefunction = trial.get('initial_wavefunction',
+                                              'free_electron')
         (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
         if cplx:
             self.trial_type = complex
         else:
             self.trial_type = float
-        # I think this is slightly cleaner than using two separate matrices.
+        self.read_in = trial.get('read_in', None)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
-        self.psi[:,:system.nup] = self.eigv[:,:system.nup]
-        self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
-        G = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+        if self.read_in is not None:
+            print ("# Reading trial wavefunction from %s"%(self.read_in))
+            try:
+                self.psi = numpy.load(self.read_in)
+            except OSError:
+                print ("# Trial wavefunction is not in native numpy form.")
+                print ("# Assuming Fortran GHF format.")
+                orbitals = read_fortran_complex_numbers(self.read_in)
+                tmp = orbitals.reshape((2*system.nbasis, system.ne),
+                                       order='F')
+                ups = []
+                downs = []
+                for (i, c) in enumerate(tmp.T):
+                    if all(abs(c[:system.nbasis]) > 1e-10):
+                        ups.append(i)
+                    else:
+                        downs.append(i)
+                self.psi[:,:system.nup] = tmp[:system.nbasis,ups]
+                self.psi[:,system.nup:] = tmp[system.nbasis:,downs]
+        else:
+            # I think this is slightly cleaner than using two separate matrices.
+            self.psi[:,:system.nup] = self.eigv[:,:system.nup]
+            self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
+        gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
-        self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
+        gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
+                self.psi[:,system.nup:])
+        self.emin = afqmcpy.estimators.local_energy(system, [gup, gdown])[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
@@ -84,13 +108,14 @@ class UHF:
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
-        self.read_init = trial.get('initial_wavefunction', None)
+        self.initial_wavefunction = trial.get('initial_wavefunction',
+                                              'free_electron')
         if cplx:
             self.trial_type = complex
         else:
             self.trial_type = float
         # Unpack input options.
-        self.ninitial = trial.get('ninitial', 100)
+        self.ninitial = trial.get('ninitial', 10)
         self.nconv = trial.get('nconv', 5000)
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
@@ -98,10 +123,13 @@ class UHF:
         self.verbose = trial.get('verbose', False)
         # For interface compatability
         self.coeffs = 1.0
-        (self.psi, self.eigs, self.emin, self.error) = (
+        (self.psi, self.eigs, self.emin, self.error, self.nav) = (
                 self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
                                   self.nconv, self.alpha, self.deps)
         )
+        Gup = afqmcpy.estimators.gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
+        Gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
+        self.etrial = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
@@ -109,32 +137,24 @@ class UHF:
         emin = 0
         uold = system.U
         system.U = ueff
-        minima= [0] # Local minima
+        minima= [] # Local minima
         nup = system.nup
         # Search over different random starting points.
         for attempt in range(0, ninit):
             # Set up initial (random) guess for the density.
-            (trial, eold) = self.initialise(system.nbasis, system.nup,
+            (self.trial, eold) = self.initialise(system.nbasis, system.nup,
                                             system.ndown, cplx)
-            niup = self.density(trial[:,:nup])
-            nidown = self.density(trial[:,nup:])
-            niup_old = self.density(trial[:,:nup])
-            nidown_old = self.density(trial[:,nup:])
+            niup = self.density(self.trial[:,:nup])
+            nidown = self.density(self.trial[:,nup:])
+            niup_old = self.density(self.trial[:,:nup])
+            nidown_old = self.density(self.trial[:,nup:])
             for it in range(0, nit_max):
-                # mean field Hamiltonians.
-                HMFU = system.T + numpy.diag(ueff*nidown)
-                HMFD = system.T + numpy.diag(ueff*niup)
-                (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
-                (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
-                # Construct new wavefunction given new density.
-                trial[:,:system.nup] = ev_up[:,:system.nup]
-                trial[:,system.nup:] = ev_down[:,:system.ndown]
-                # Construct corresponding site densities.
-                niup = self.density(trial[:,:nup])
-                nidown = self.density(trial[:,nup:])
+                (niup, nidown, e_up, e_down) = (
+                    self.diagonalise_mean_field(system, ueff, niup, nidown)
+                )
                 # Construct Green's function to compute the energy.
-                Gup = afqmcpy.estimators.gab(trial[:,:nup], trial[:,:nup]).T
-                Gdown = afqmcpy.estimators.gab(trial[:,nup:], trial[:,nup:]).T
+                Gup = afqmcpy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
+                Gdown = afqmcpy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
                 enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
                 if self.verbose:
                     print ("# %d %f %f"%(it, enew, eold))
@@ -142,9 +162,13 @@ class UHF:
                                           nidown_old, it, deps, self.verbose)
                 if sc:
                     # Global minimum search.
-                    if all(abs(numpy.array(minima))-abs(enew) < -deps):
+                    if attempt == 0:
                         minima.append(enew)
-                        psi_accept = copy.deepcopy(trial)
+                        psi_accept = copy.deepcopy(self.trial)
+                        e_accept = numpy.append(e_up, e_down)
+                    elif all(numpy.array(minima)-enew > deps):
+                        minima.append(enew)
+                        psi_accept = copy.deepcopy(self.trial)
                         e_accept = numpy.append(e_up, e_down)
                     break
                 else:
@@ -161,11 +185,11 @@ class UHF:
         system.U = uold
         print ("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
-            return (psi_accept, e_accept, min(minima), False)
+            return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
             warnings.warn("Warning: No UHF wavefunction found."
                           "Delta E: %f"%(enew-emin))
-            return (trial, numpy.append(e_up, e_down), None, True)
+            return (trial, numpy.append(e_up, e_down), None, True, None)
 
 
     def initialise(self, nbasis, nup, ndown, cplx):
@@ -209,6 +233,20 @@ class UHF:
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
 
+    def diagonalise_mean_field(self, system, ueff, niup, nidown):
+        # mean field Hamiltonians.
+        HMFU = system.T + numpy.diag(ueff*nidown)
+        HMFD = system.T + numpy.diag(ueff*niup)
+        (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
+        (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
+        # Construct new wavefunction given new density.
+        self.trial[:,:system.nup] = ev_up[:,:system.nup]
+        self.trial[:,system.nup:] = ev_down[:,:system.ndown]
+        # Construct corresponding site densities.
+        niup = self.density(self.trial[:,:system.nup])
+        nidown = self.density(self.trial[:,system.nup:])
+        return (niup, nidown, e_up, e_down)
+
 class MultiDeterminant:
 
     def __init__(self, system, cplx, trial):
@@ -218,7 +256,8 @@ class MultiDeterminant:
         self.type = trial.get('type')
         self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])
-        self.read_init = trial.get('initial_wavefunction', None)
+        self.initial_wavefunction = trial.get('initial_wavefunction',
+                                              'free_electron')
         self.bp_wfn = trial.get('bp_wfn', 'init')
         if cplx or self.type == 'GHF':
             self.trial_type = complex
