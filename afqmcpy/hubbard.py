@@ -119,16 +119,16 @@ def kinetic(t, nbasis, nx, ny, ks):
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
                 else:
                     phase = 1.0
-                T[i, j] += -t * phase 
+                T[i, j] += -t * phase
             elif (dij==[0, ny-1]).all():
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
                 else:
                     phase = 1.0
-                T[i, j] += -t * phase 
+                T[i, j] += -t * phase
 
     # This only works because the diagonal of T is zero.
-    return T + T.conj().T
+    return numpy.array([T+T.conj().T, T+T.conj().T])
 
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.

@@ -410,8 +410,8 @@ def kinetic_real(phi, state):
     """
     nup = state.system.nup
     # Assuming that our walker is in UHF form.
-    phi[:,:nup] = state.propagators.bt2.dot(phi[:,:nup])
-    phi[:,nup:] = state.propagators.bt2.dot(phi[:,nup:])
+    phi[:,:nup] = state.propagators.bt2[0].dot(phi[:,:nup])
+    phi[:,nup:] = state.propagators.bt2[1].dot(phi[:,nup:])
 
 
 def kinetic_ghf(phi, state):
@@ -646,7 +646,11 @@ class Propagator:
     '''Base propagator class'''
 
     def __init__(self, qmc, system, trial):
-        self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T)
+        if trial.type == 'GHF':
+            self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
+        else:
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
+                                    scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
         if trial.type == 'GHF' and trial.bp_wfn is not None:
             self.BT_BP = scipy.linalg.block_diag(self.bt2, self.bt2)
             self.back_propagate = self.back_propagate_ghf

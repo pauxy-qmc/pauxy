@@ -21,7 +21,8 @@ class FreeElectron:
         self.type = "free_electron"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'free_electron')
-        (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
+        (self.eigs_up, self.eigv_up) = afqmcpy.utils.diagonalise_sorted(system.T[0])
+        (self.eigs_dn, self.eigv_dn) = afqmcpy.utils.diagonalise_sorted(system.T[1])
         if cplx:
             self.trial_type = complex
         else:
@@ -42,6 +43,7 @@ class FreeElectron:
                                        order='F')
                 ups = []
                 downs = []
+                # deal with potential inconsistency in ghf format...
                 for (i, c) in enumerate(tmp.T):
                     if all(abs(c[:system.nbasis]) > 1e-10):
                         ups.append(i)
@@ -51,8 +53,8 @@ class FreeElectron:
                 self.psi[:,system.nup:] = tmp[system.nbasis:,downs]
         else:
             # I think this is slightly cleaner than using two separate matrices.
-            self.psi[:,:system.nup] = self.eigv[:,:system.nup]
-            self.psi[:,system.nup:] = self.eigv[:,:system.ndown]
+            self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
+            self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
         gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
@@ -62,6 +64,8 @@ class FreeElectron:
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
+        self.eigs = numpy.append(self.eigs_up,self.eigs_dn)
+        self.eigs.sort()
         self.initialisation_time = time.time() - init_time
 
 
@@ -236,8 +240,8 @@ class UHF:
 
     def diagonalise_mean_field(self, system, ueff, niup, nidown):
         # mean field Hamiltonians.
-        HMFU = system.T + numpy.diag(ueff*nidown)
-        HMFD = system.T + numpy.diag(ueff*niup)
+        HMFU = system.T[0] + numpy.diag(ueff*nidown)
+        HMFD = system.T[1] + numpy.diag(ueff*niup)
         (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
         (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
         # Construct new wavefunction given new density.
@@ -274,7 +278,7 @@ class MultiDeterminant:
                                    dtype=self.trial_type)
         # For debugging purposes.
         if self.type == 'free_electron':
-            (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T)
+            (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T[0])
             psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
             psi[:,:system.nup] = self.eigv[:,:system.nup]
             psi[:,system.nup:] = self.eigv[:,:system.ndown]
