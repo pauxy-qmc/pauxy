@@ -53,9 +53,13 @@ class Hubbard:
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t,
                                                                     self.nx,
                                                                     self.ny)
-        self.T = kinetic(self.t, self.nbasis, self.nx,
-                         self.ny, self.ktwist)
-        self.Text = scipy.linalg.block_diag(self.T, self.T)
+        self.pinning = inputs.get('pinning_fields')
+        if self.pinning is not None:
+            self.T = kinetic_pinning(self.t, self.nbasis, self.nx, self.ny)
+        else:
+            self.T = kinetic(self.t, self.nbasis, self.nx,
+                             self.ny, self.ktwist)
+        self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
@@ -129,6 +133,57 @@ def kinetic(t, nbasis, nx, ny, ks):
 
     # This only works because the diagonal of T is zero.
     return numpy.array([T+T.conj().T, T+T.conj().T])
+
+def kinetic_pinning(t, nbasis, nx, n):
+    r"""Kinetic part of the Hamiltonian in our one-electron basis.
+
+    Adds pinning fields as outlined in [Qin16]_. This forces periodic boundary
+    conditions along x and open boundary conditions along y. Pinning fields are
+    applied in the y direction as:
+
+        .. math::
+            \nu_{i\uparrow} = -\nu_{i\downarrow} = (-1)^{i_x}\nu_0,
+
+    for :math:`i_y=1,L_y` and :math:`\nu_0=t/4`.
+
+    Parameters
+    ----------
+    t : float
+        Hopping parameter
+    nbasis : int
+        Number of one-electron basis functions.
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+
+    Returns
+    -------
+    T : numpy.array
+        Hopping Hamiltonian matrix.
+    """
+
+    Tup = numpy.zeros((nbasis, nbasis))
+    Tdown = numpy.zeros((nbasis, nbasis))
+    nu0 = 0.25*t
+
+    for i in range(0, nbasis):
+        # pinning field along y.
+        xy1 = decode_basis(nx, ny, i)
+        if (xy1[1] == 0 or xy1[1] == ny):
+            Tup[i, j] += (-1)**(xy1[0]) * nu0
+            Tdown[i, j] += (-1)**(xy1[0]+1) * nu0
+        for j in range(i+1, nbasis):
+            xy2 = decode_basis(nx, ny, j)
+            dij = abs(xy1-xy2)
+            if sum(dij) == 1:
+                Tup[i, j] = Tdown[i,j] = -t
+            # periodic bcs in x.
+            if (dij==[nx-1, 0]).all():
+                Tup[i, j] += -t
+                Tdown[i, j] += -t
+
+    return numpy.array([Tup+numpy.triu(Tup,1).T, Tdown+numpy.triu(Tdown, 1).T])
 
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.
