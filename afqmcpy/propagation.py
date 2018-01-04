@@ -470,8 +470,8 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     """
     bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
     bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
-    Bup = BT2.dot(bv_up).dot(BT2)
-    Bdown = BT2.dot(bv_down).dot(BT2)
+    Bup = BT2[0].dot(bv_up).dot(BT2[0])
+    Bdown = BT2[1].dot(bv_down).dot(BT2[1])
 
     if conjt:
         return [Bup.conj().T, Bdown.conj().T]
