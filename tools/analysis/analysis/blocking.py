@@ -46,6 +46,17 @@ def average_rdm(filename, skip=0):
     gf_err = gf[skip:].std(axis=0) / len(gf[skip:])**0.5
     return (gf_av, gf_err)
 
+def average_correlation(filename, skip=0):
+    data = h5py.File(filename, 'r')
+    name = 'back_propagated_estimates/single_particle_greens_function'
+    gf = data[name][:].real[skip:]
+    ni = numpy.diagonal(gf, axis1=2, axis2=3)
+    hole = 1.0 - numpy.sum(ni, axis=1)
+    hole_err = hole.std(axis=0, ddof=1) / len(hole)**0.5
+    spin = 0.5*(ni[:,0,:]-ni[:,1,:])
+    spin_err = spin.std(axis=0, ddof=1) / len(hole)**0.5
+    return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err)
+
 def average_tau(frames):
 
     data_len = frames.size()
