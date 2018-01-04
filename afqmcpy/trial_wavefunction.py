@@ -23,6 +23,7 @@ class FreeElectron:
                                               'free_electron')
         (self.eigs_up, self.eigv_up) = afqmcpy.utils.diagonalise_sorted(system.T[0])
         (self.eigs_dn, self.eigv_dn) = afqmcpy.utils.diagonalise_sorted(system.T[1])
+        self.reference = trial.get('reference', None)
         if cplx:
             self.trial_type = complex
         else:
@@ -53,8 +54,12 @@ class FreeElectron:
                 self.psi[:,system.nup:] = tmp[system.nbasis:,downs]
         else:
             # I think this is slightly cleaner than using two separate matrices.
-            self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
-            self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
+            if self.reference is not None:
+                self.psi[:,:system.nup] = self.eigv_up[:,self.reference]
+                self.psi[:,system.nup:] = self.eigv_dn[:,self.reference]
+            else:
+                self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
+                self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
         gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
