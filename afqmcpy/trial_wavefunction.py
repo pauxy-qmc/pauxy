@@ -139,7 +139,8 @@ class UHF:
         )
         Gup = afqmcpy.estimators.gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
         Gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
-        self.etrial = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
+        self.etrial = afqmcpy.estimators.local_energy(system,
+                                                      [Gup,Gdown])[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
