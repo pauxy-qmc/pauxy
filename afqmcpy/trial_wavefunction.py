@@ -64,7 +64,7 @@ class FreeElectron:
                                    self.psi[:,:system.nup])
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
                 self.psi[:,system.nup:])
-        self.emin = afqmcpy.estimators.local_energy(system, [gup, gdown])[0].real
+        self.etrial = afqmcpy.estimators.local_energy(system, [gup, gdown])[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
