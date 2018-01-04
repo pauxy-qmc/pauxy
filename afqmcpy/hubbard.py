@@ -53,8 +53,8 @@ class Hubbard:
         (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t,
                                                                     self.nx,
                                                                     self.ny)
-        self.pinning = inputs.get('pinning_fields')
-        if self.pinning is not None:
+        self.pinning = inputs.get('pinning_fields', False)
+        if self.pinning:
             self.T = kinetic_pinning(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
@@ -104,8 +104,8 @@ def kinetic(t, nbasis, nx, ny, ks):
         T = numpy.zeros((nbasis, nbasis), dtype=complex)
 
     for i in range(0, nbasis):
+        xy1 = decode_basis(nx, ny, i)
         for j in range(i+1, nbasis):
-            xy1 = decode_basis(nx, ny, i)
             xy2 = decode_basis(nx, ny, j)
             dij = abs(xy1-xy2)
             if sum(dij) == 1:
@@ -134,7 +134,7 @@ def kinetic(t, nbasis, nx, ny, ks):
     # This only works because the diagonal of T is zero.
     return numpy.array([T+T.conj().T, T+T.conj().T])
 
-def kinetic_pinning(t, nbasis, nx, n):
+def kinetic_pinning(t, nbasis, nx, ny):
     r"""Kinetic part of the Hamiltonian in our one-electron basis.
 
     Adds pinning fields as outlined in [Qin16]_. This forces periodic boundary
@@ -170,9 +170,9 @@ def kinetic_pinning(t, nbasis, nx, n):
     for i in range(0, nbasis):
         # pinning field along y.
         xy1 = decode_basis(nx, ny, i)
-        if (xy1[1] == 0 or xy1[1] == ny):
-            Tup[i, j] += (-1)**(xy1[0]) * nu0
-            Tdown[i, j] += (-1)**(xy1[0]+1) * nu0
+        if (xy1[1] == 0 or xy1[1] == ny-1):
+            Tup[i, i] += (-1.0)**(xy1[0]) * nu0
+            Tdown[i, i] += (-1.0)**(xy1[0]+1) * nu0
         for j in range(i+1, nbasis):
             xy2 = decode_basis(nx, ny, j)
             dij = abs(xy1-xy2)
@@ -183,7 +183,7 @@ def kinetic_pinning(t, nbasis, nx, n):
                 Tup[i, j] += -t
                 Tdown[i, j] += -t
 
-    return numpy.array([Tup+numpy.triu(Tup,1).T, Tdown+numpy.triu(Tdown, 1).T])
+    return numpy.array([Tup+numpy.triu(Tup,1).T, Tdown+numpy.triu(Tdown,1).T])
 
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.
