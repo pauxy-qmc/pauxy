@@ -188,6 +188,14 @@ def kinetic_pinning(t, nbasis, nx, ny):
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.
 
+    Consider a 3x3 lattice then we index lattice sites like:
+
+        (0,2) (1,2) (2,2)       6 7 8
+        (0,1) (1,1) (2,1)  ->   3 4 5
+        (0,0) (1,0) (2,0)       0 1 2
+
+    i.e., i = i_x + n_x * i_y, and i_x = i%n_x, i_y = i//nx.
+
     Parameters
     ----------
     nx : int
@@ -200,7 +208,7 @@ def decode_basis(nx, ny, i):
     if ny == 1:
         return numpy.array([i%nx])
     else:
-        return numpy.array([i//nx, i%nx])
+        return numpy.array([i%nx, i//nx])
 
 def _super_matrix(U, nbasis):
     '''Construct super-matrix from v_{ijkl}'''
