@@ -210,6 +210,27 @@ def decode_basis(nx, ny, i):
     else:
         return numpy.array([i%nx, i//nx])
 
+def encode_basis(i,j,nx):
+    """Encode 2d index to one dimensional index.
+
+    See decode basis for layout.
+
+    Parameters
+    ----------
+    i : int
+        x coordinate.
+    j : int
+        y coordinate
+    nx : int
+        Number of x lattice sites.
+
+    Returns
+    -------
+    ix : int
+        basis index.
+    """
+    return i + j*nx
+
 def _super_matrix(U, nbasis):
     '''Construct super-matrix from v_{ijkl}'''
 
