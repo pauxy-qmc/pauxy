@@ -566,9 +566,9 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                                     wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, ws) in enumerate(reversed(list(w))):
-            B = construct_propagator_matrix_ghf(system, BT2, ws.field_config,
-                                                conjt=True)
+        for (i, c) in enumerate(reversed(list(w.field_configs.configs))):
+            B = construct_propagator_matrix_ghf(system, BT2,
+                                                c, conjt=True)
             for (idet, psi_i) in enumerate(psi_bp[iw].phi):
                 # propagate each component of multi-determinant expansion
                 psi_i = B.dot(psi_i)
