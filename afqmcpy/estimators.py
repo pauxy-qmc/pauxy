@@ -112,29 +112,22 @@ class Estimators:
         # 1. Back-propagation
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
+        self.estimators = {}
         if self.back_propagation:
-            self.back_prop = BackPropagation(bp, root, self.h5f,
-                                             qmc.nsteps, nbasis, etype, ghf)
-            self.nestimators +=  len(self.back_prop.header[1:])
-            self.nprop_tot = self.back_prop.nmax
+            self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
+                                                    qmc.nsteps, nbasis,
+                                                    etype, ghf)
+            self.nprop_tot = self.estimators['back_prop'].nmax
         else:
             self.nprop_tot = 1
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators, dtype=etype)
-        if self.back_propagation:
-            self.estimates = numpy.zeros(self.nestimators +
-                                         len(self.back_prop.G.flatten()),
-                                         dtype=etype)
         if self.calc_itcf:
-            self.itcf = ITCF(itcf, qmc.dt, root, self.h5f, nbasis, etype,
-                             qmc.nsteps)
-            self.estimates = numpy.zeros(self.nestimators +
-                                         len(self.back_prop.G.flatten()) +
-                                         len(self.itcf.spgf.flatten()),
-                                         dtype=etype)
-            self.nprop_tot = self.itcf.nmax
+            self.estimators['itcf'] = (ITCF(itcf, qmc.dt, root, self.h5f,
+                                            nbasis, etype, qmc.nsteps))
+            self.nprop_tot = self.estimators['itcf'].nprop_tot
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
             # path.
@@ -142,28 +135,16 @@ class Estimators:
                                         dtype=object)
         self.names = EstimatorEnum(self.nestimators)
         # only store up component for the moment.
-        self.zero(nbasis)
+        self.zero()
 
 
-    def zero(self, nbasis):
+    def zero(self):
         """Zero estimates.
 
         On return self.estimates is zerod and the timers are reset.
-
-        Parameters
-        ----------
-        nbasis : int
-            Number of basis functions.
         """
         self.estimates[:] = 0
         self.estimates[self.names.time] = time.time()
-        if self.back_propagation:
-            self.back_prop.estimates[:] = 0
-        if self.calc_itcf:
-            self.itcf.spgf = numpy.zeros(shape=(self.itcf.nmax+1,
-                                                2, 2,
-                                                nbasis,
-                                                nbasis))
 
     def print_step(self, state, comm, step, print_bp=True, print_itcf=True):
         """Print QMC estimates.
@@ -186,12 +167,7 @@ class Estimators:
         es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom]))
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
-        if self.back_propagation:
-            endp =  ns.gbp + len(self.back_prop.G.flatten())
-            es[ns.evar:endp] = self.back_prop.estimates / state.nprocs
         es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
-        if self.calc_itcf:
-            es[endp:] = self.itcf.spgf.flatten() / state.nprocs
         global_estimates = numpy.zeros(len(self.estimates),
                                        dtype=self.estimates.dtype)
         comm.Reduce(es, global_estimates, op=MPI.SUM)
@@ -202,31 +178,11 @@ class Estimators:
         if state.root:
             print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar].real)))
             self.output.push(global_estimates[:ns.evar])
-            print_bp = (
-                self.back_propagation and print_bp and
-                step%self.back_prop.nmax == 0
-            )
-            if print_bp:
-                self.back_prop.output.push(global_estimates[ns.evar:ns.pot+1])
-                if self.back_prop.rdm:
-                    self.back_prop.dm_output.push(global_estimates[ns.gbp:endp].reshape(self.back_prop.G.shape))
-
-            if step%self.nprop_tot == 0 and self.calc_itcf and print_itcf:
-                spgf = global_estimates[endp:].reshape(self.itcf.spgf.shape)
-                self.itcf.to_file(self.itcf.rspace_unit, spgf)
-                if self.itcf.kspace:
-                    M = state.system.nbasis
-                    # FFT the real space Green's function.
-                    # Todo : could just use numpy.fft.fft....
-                    spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', state.system.P,
-                                          spgf, state.system.P.conj().T)/M
-                    if self.estimates.dtype == complex:
-                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
-                    else:
-                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
             self.h5f.flush()
+            if print_bp:
+                self.estimators['back_prop'].print(comm, state.nprocs, step)
 
-        self.zero(state.system.nbasis)
+        self.zero()
 
     def update(self, w, state):
         """Update regular estimates for walker w.
@@ -270,9 +226,6 @@ class EstimatorEnum:
         self.eproj  = 3
         self.time   = 4
         self.evar   = 5
-        self.kin    = 6
-        self.pot    = 7
-        self.gbp    = 8
 
 
 class BackPropagation:
@@ -311,7 +264,9 @@ class BackPropagation:
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
-        self.estimates = numpy.zeros(len(self.header[1:])+2*nbasis*nbasis)
+        self.nreg = len(self.header[1:])
+        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
         self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
@@ -388,6 +343,19 @@ class BackPropagation:
             current = current + wnm.weight*numpy.array(list(energies))
         self.estimates = self.estimates + current.real / denominator
 
+    def print(self, comm, nprocs, step):
+        if step%self.nmax == 0:
+            comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
+            self.output.push(self.global_estimates[:self.nreg])
+            if self.rdm:
+                rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
+                self.dm_output.push(rdm)
+            self.zero()
+
+    def zero(self):
+        self.estimates[:] = 0
+        self.global_estimates[:] = 0
+
 
 class ITCF:
     """ Container for calculating ITCFs.
@@ -434,11 +402,12 @@ class ITCF:
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps):
+    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps, nbp):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/dt)
+        self.nprop_tot = self.nmax + nbp 
         self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
         # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
@@ -448,6 +417,7 @@ class ITCF:
                                        nbasis,
                                        nbasis),
                                        dtype=dtype)
+        self.spgf_global = numpy.zeros(shape=self.spgf.shape, dtype=dtype)
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
@@ -621,6 +591,22 @@ class ITCF:
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
+    def print(self, comm, nprocs, step):
+        if step%self.nprop_tot == 0:
+            comm.Reduce(self.spgf_global, self.spgf, op=MPI.SUM)
+            self.to_file(self.rspace_unit, self.spgf_global/nprocs)
+            if self.itcf.kspace:
+                M = self.spgf.shape[-1]
+                # FFT the real space Green's function.
+                # Todo : could just use numpy.fft.fft....
+                spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', P,
+                                      spgf, P.conj().T) / M
+                if self.estimates.dtype == complex:
+                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                else:
+                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
+            self.zero()
+
     def to_file(self, group, spgf):
         """Push ITCF to hdf5 group.
 
@@ -637,6 +623,11 @@ class ITCF:
             group.push(spgf.diagonal(axis1=3, axis2=4))
         else:
             group.push(numpy.array([g[mode] for g in spgf]))
+
+    def zero(self):
+        self.itcf[:] = 0
+        self.itcf_global[:] = 0
+
 
 def local_energy(system, G):
     r"""Calculate local energy of walker for the Hubbard model.

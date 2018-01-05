@@ -53,9 +53,9 @@ def do_qmc(state, psi, estimators, comm):
         bp_step = (step-1)%estimators.nprop_tot
         if estimators.back_propagation:
             estimators.psi_hist[:,bp_step+1] = copy.deepcopy(psi)
-            if step%estimators.back_prop.nmax == 0:
+            if step%estimators.estimators['back_prop'].nmax == 0:
                 # start and end points for selecting field configurations.
-                s = bp_step - estimators.back_prop.nmax + 1
+                s = bp_step - estimators.estimators['back_prop'].nmax + 1
                 e = bp_step + 1
                 # the first entry in psi_hist (with index 0) contains the
                 # wavefunction at the step where we start to accumulate the
@@ -66,7 +66,7 @@ def do_qmc(state, psi, estimators, comm):
                 # so also add one to e.
                 psi_left = state.propagators.back_propagate(state.system,
                         estimators.psi_hist[:,s+1:e+1], state.trial)
-                estimators.back_prop.update(state.system, state.trial,
+                estimators.estimators['back_prop'].update(state.system, state.trial,
                                               estimators.psi_hist[:,e],
                                               estimators.psi_hist[:,s],
                                               psi_left)
