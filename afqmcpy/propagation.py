@@ -59,7 +59,7 @@ def propagate_walker_discrete_multi_site(walker, state):
     propagate_potential_auxf(walker, state)
     # 3. Apply kinetic projector.
     state.propagators.kinetic(walker.phi, state)
-    walker.inverse_overlap(state.trial.psi, state.system.nup)
+    walker.inverse_overlap(state.trial.psi)
     # Calculate new total overlap and update components of overlap
     ot_new = walker.calc_otrial(state.trial.psi)
     # Now apply phaseless approximation
@@ -100,10 +100,10 @@ def propagate_walker_free(walker, state):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
     kinetic_real(walker.phi, state)
-    walker.inverse_overlap(state.trial.psi, nup)
+    walker.inverse_overlap(state.trial.psi)
     # Update walker weight
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial, nup)
+    walker.greens_function(state.trial)
 
 
 def propagate_walker_free_continuous(walker, state):
@@ -137,9 +137,9 @@ def propagate_walker_free_continuous(walker, state):
     walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
     # 3. Apply kinetic projector.
     kinetic_real(walker.phi, state)
-    walker.inverse_overlap(state.trial.psi, nup)
+    walker.inverse_overlap(state.trial.psi)
     walker.ot = walker.calc_otrial(state.trial.psi)
-    walker.greens_function(state.trial, nup)
+    walker.greens_function(state.trial)
     # Constant terms are included in the walker's weight.
     walker.weight = walker.weight * c_xf
 
@@ -168,8 +168,8 @@ def propagate_walker_continuous(walker, state):
     state.propagators.kinetic(walker.phi, state)
 
     # Now apply phaseless, real local energy approximation
-    walker.inverse_overlap(state.trial.psi, state.system.nup)
-    walker.greens_function(state.trial, state.system.nup)
+    walker.inverse_overlap(state.trial.psi)
+    walker.greens_function(state.trial)
     E_L = walker.local_energy(state.system)[0].real
     # Check for large population fluctuations
     E_L = local_energy_bound(E_L, state.qmc.mean_local_energy,
@@ -279,8 +279,8 @@ def discrete_hubbard(walker, state):
             walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
             walker.update_overlap(probs, xi, state.trial.coeffs)
             walker.field_configs.push(xi)
-            walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
-            walker.greens_function(state.trial, nup)
+            walker.update_inverse_overlap(state.trial, vtup, vtdown, i)
+            walker.greens_function(state.trial)
         else:
             walker.weight = 0
             return
@@ -380,7 +380,7 @@ def kinetic_importance_sampling(walker, state):
     """
     state.propagators.kinetic(walker.phi, state)
     # Update inverse overlap
-    walker.inverse_overlap(state.trial.psi, state.system.nup)
+    walker.inverse_overlap(state.trial.psi)
     # Update walker weight
     ot_new = walker.calc_otrial(state.trial)
     ratio = (ot_new/walker.ot)
@@ -389,7 +389,7 @@ def kinetic_importance_sampling(walker, state):
         walker.weight = walker.weight * ratio.real
         walker.ot = ot_new
         # Todo : remove computation of green's function repeatedly.
-        walker.greens_function(state.trial, state.system.nup)
+        walker.greens_function(state.trial)
     else:
         walker.weight = 0.0
 
@@ -535,7 +535,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % nstblz == 0:
-                psi_bp[iw].reortho(nup)
+                psi_bp[iw].reortho()
     return psi_bp
 
 def back_propagate_ghf(system, psi, trial, nstblz, BT2):
