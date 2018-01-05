@@ -4,10 +4,9 @@ import copy
 import afqmcpy.estimators
 import afqmcpy.trial_wavefunction
 
-# Worthwhile overloading / having real and complex walker classes (Hermitian
-# conjugate)?
-
 class Walkers:
+    """Handler group of walkers which make up cpmc wavefunction."""
+
     def __init__(self, system, trial, nwalkers):
         if trial.name == 'multi_determinant':
             if trial.type== 'GHF':
@@ -29,6 +28,10 @@ class Walkers:
     def add_field_config(self, nfield, nbasis):
         for w in self.walkers:
             w.field_configs = FieldConfig(nbasis, nfield)
+
+    def copy_historic_wfn(self):
+        for (i,w) in enumerate(self.walkers):
+            numpy.copyto(self.walkers[i].phi_old, self.walkers[i].phi)
 
 class Walker:
 
@@ -342,6 +345,7 @@ class MultiGHFWalker:
                 # afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
                                                # t[:,:nup].T[:,i], vtup)
             # )
+
 class FieldConfig:
     def __init__(self, nbasis, nbp):
         self.configs = numpy.zeros(shape=(nbp, nbasis), dtype=int)

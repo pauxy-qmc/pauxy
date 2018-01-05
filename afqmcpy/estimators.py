@@ -403,7 +403,7 @@ class BackPropagation:
         psi_bp : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
-        if (step-1)%self.nmax != 0:
+        if step%self.nmax != 0:
             return
         psi_bp = afqmcpy.propagation.back_propagate(system, psi.walkers, trial,
                                                     self.nstblz, self.BT2) 
@@ -416,6 +416,7 @@ class BackPropagation:
             self.estimates = (
                 self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
             )
+        psi.copy_historic_wfn()
 
     def update_ghf(self, system, qmc, trial, psi, step):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
