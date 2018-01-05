@@ -182,6 +182,8 @@ class Mixed:
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.nreg = len(self.header[1:])
         self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.names = EstimatorEnum()
+        self.estimates[self.names.time] = time.time()
         self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
         self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
@@ -192,11 +194,10 @@ class Mixed:
             'E': "Projected energy estimator.",
             'time': "Time per processor to complete one iteration.",
         }
-        self.names = EstimatorEnum()
         if root:
             self.print_key(self.key)
             self.print_header(self.header)
-            energies = h5f.create_group('mixed_estimators')
+            energies = h5f.create_group('mixed_estimates')
             energies.create_dataset('headers',
                                     data=numpy.array(self.header[1:], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
@@ -231,7 +232,7 @@ class Mixed:
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
             if self.rdm:
-                self.estimates[self.names.time] += w.weight*w.G.flatten()
+                self.estimates[self.names.time+1:] += w.weight*w.G.flatten()
         else:
             self.estimates[self.names.enumer] += (
                     (w.weight*w.local_energy(state.system)[0]*w.ot).real
@@ -252,11 +253,12 @@ class Mixed:
             self.global_estimates[:ns.time] / nmeasure
         )
         # put these in own print routines.
-        print (afqmcpy.utils.format_fixed_width_floats([step]+list(self.global_estimates[:ns.time+1].real)))
+        print (afqmcpy.utils.format_fixed_width_floats([step]+
+                            list(self.global_estimates[:ns.time+1].real)))
         self.output.push(self.global_estimates[:ns.time+1])
         if self.rdm:
-            rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/denom
-            self.dm_output.push(rdm)
+            rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
+            self.dm_output.push(rdm/denom/nmeasure)
         self.zero()
 
     def print_key(self, key, print_function=print, eol='', encode=False):
@@ -316,6 +318,7 @@ class Mixed:
     def zero(self):
         self.estimates[:] = 0
         self.global_estimates[:] = 0
+        self.estimates[self.names.time] = time.time()
 
 class BackPropagation:
     """Container for performing back propagation.
