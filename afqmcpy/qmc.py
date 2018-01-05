@@ -31,7 +31,7 @@ def do_qmc(state, psi, estimators, comm):
     state.qmc.mean_local_energy = E_T.real
     # Calculate estimates for initial distribution of walkers.
     for w in psi:
-        estimators.update(w, state)
+        estimators.estimators['mixed'].update(w, state)
     # Print out zeroth step for convenience.
     estimators.print_step(state, comm, 0, print_bp=False, print_itcf=False)
 
@@ -45,7 +45,7 @@ def do_qmc(state, psi, estimators, comm):
             # Constant factors
             w.weight = w.weight * exp(state.qmc.dt*E_T.real)
             # Add current (propagated) walkers contribution to estimates.
-            estimators.update(w, state)
+            estimators.estimators['mixed'].update(w, state)
             if step%state.qmc.nstblz == 0:
                 detR = w.reortho(state.system.nup)
                 if not state.qmc.importance_sampling:
@@ -85,8 +85,8 @@ def do_qmc(state, psi, estimators, comm):
             estimators.psi_hist[:,0] = copy.deepcopy(psi)
         if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
-            E_T = afqmcpy.estimators.eproj(estimators.estimates,
-                                           estimators.names)
+            E_T = afqmcpy.estimators.eproj(estimators.estimators['mixed'].estimates,
+                                           estimators.estimators['mixed'].names)
             estimators.print_step(state, comm, step)
         if step < state.qmc.nequilibrate:
             # Update local energy bound.

@@ -78,12 +78,10 @@ class Estimators:
             'time': "Time per processor to complete one iteration.",
         }
         if qmc.cplx:
-            etype = complex
+            dtype = complex
         else:
-            etype = float
+            dtype = float
         if root:
-            print_key(self.key)
-            print_header(self.header)
             index = estimates.get('index', 0)
             h5f_name = estimates.get('filename', None)
             if h5f_name is None:
@@ -97,46 +95,38 @@ class Estimators:
             self.h5f.create_dataset('metadata',
                                     data=numpy.array([json_string], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
-            energies = self.h5f.create_group('basic_estimators')
-            energies.create_dataset('headers',
-                                    data=numpy.array(self.header[1:], dtype=object),
-                                    dtype=h5py.special_dtype(vlen=str))
-            self.output = H5EstimatorHelper(energies, 'energies',
-                                            (qmc.nsteps/qmc.nmeasure+1,
-                                            len(self.header[1:])),
-                                            etype)
         else:
             self.h5f = None
         self.nestimators = len(self.header[1:])
         # Sub-members:
         # 1. Back-propagation
+        mixed = estimates.get('mixed', {})
         bp = estimates.get('back_propagation', None)
         self.back_propagation = bp is not None
         self.estimators = {}
+        self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
+                                         qmc.nsteps//qmc.nmeasure+1,
+                                         nbasis, dtype)  
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
                                                     qmc.nsteps, nbasis,
-                                                    etype, ghf)
+                                                    dtype, ghf)
             self.nprop_tot = self.estimators['back_prop'].nmax
         else:
             self.nprop_tot = 1
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
-        self.estimates = numpy.zeros(self.nestimators, dtype=etype)
+        self.estimates = numpy.zeros(self.nestimators, dtype=dtype)
         if self.calc_itcf:
             self.estimators['itcf'] = (ITCF(itcf, qmc.dt, root, self.h5f,
-                                            nbasis, etype, qmc.nsteps))
+                                            nbasis, dtype, qmc.nsteps))
             self.nprop_tot = self.estimators['itcf'].nprop_tot
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
             # path.
             self.psi_hist = numpy.zeros(shape=(qmc.nwalkers, self.nprop_tot+1),
                                         dtype=object)
-        self.names = EstimatorEnum(self.nestimators)
-        # only store up component for the moment.
-        self.zero()
-
 
     def zero(self):
         """Zero estimates.
@@ -162,28 +152,62 @@ class Estimators:
         print_itcf : bool (optional)
             If True we print out estimates relating to ITCFs.
         """
-        es = self.estimates
-        ns = self.names
-        es[ns.eproj] = (state.qmc.nmeasure*es[ns.enumer]/(state.nprocs*es[ns.edenom]))
-        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
-        # Back propagated estimates
-        es[ns.time] = (time.time()-es[ns.time]) / state.nprocs
-        global_estimates = numpy.zeros(len(self.estimates),
-                                       dtype=self.estimates.dtype)
-        comm.Reduce(es, global_estimates, op=MPI.SUM)
-        global_estimates[:ns.time] = (
-            global_estimates[:ns.time] / state.qmc.nmeasure
-        )
-        # put these in own print routines.
-        if state.root:
-            print (afqmcpy.utils.format_fixed_width_floats([step]+list(global_estimates[:ns.evar].real)))
-            self.output.push(global_estimates[:ns.evar])
-            self.h5f.flush()
-            if print_bp:
-                self.estimators['back_prop'].print(comm, state.nprocs, step)
+        self.estimators['mixed'].print_step(comm, state.nprocs, step, state.qmc.nmeasure)
+        if print_bp:
+            self.estimators['back_prop'].print_step(comm, state.nprocs, step)
+        self.h5f.flush()
 
-        self.zero()
 
+class EstimatorEnum:
+    """Enum structure for help with indexing estimators array.
+
+    python's support for enums doesn't help as it indexes from 1.
+    """
+    def __init__(self):
+        # Exception for alignment of equal sign.
+        self.weight = 0
+        self.enumer = 1
+        self.edenom = 2
+        self.eproj  = 3
+        self.time   = 4
+
+class Mixed:
+    """Container for calculating mixed estimators.
+    
+    """
+
+    def __init__(self, mixed, root, h5f, nmeasure, nbasis, dtype):
+        self.rdm = mixed.get('rdm', False)
+        self.nmeasure = nmeasure
+        self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        self.nreg = len(self.header[1:])
+        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
+        self.key = {
+            'iteration': "Simulation iteration. iteration*dt = tau.",
+            'Weight': "Total walker weight.",
+            'E_num': "Numerator for projected energy estimator.",
+            'E_denom': "Denominator for projected energy estimator.",
+            'E': "Projected energy estimator.",
+            'time': "Time per processor to complete one iteration.",
+        }
+        self.names = EstimatorEnum()
+        if root:
+            self.print_key(self.key)
+            self.print_header(self.header)
+            energies = h5f.create_group('mixed_estimators')
+            energies.create_dataset('headers',
+                                    data=numpy.array(self.header[1:], dtype=object),
+                                    dtype=h5py.special_dtype(vlen=str))
+            self.output = H5EstimatorHelper(energies, 'energies',
+                                            (nmeasure,
+                                            self.nreg),
+                                            dtype)
+            if self.rdm:
+                self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
+                                                  (nmeasure,)+self.G.shape,
+                                                  dtype)
     def update(self, w, state):
         """Update regular estimates for walker w.
 
@@ -206,6 +230,8 @@ class Estimators:
                 )
             self.estimates[self.names.weight] += w.weight
             self.estimates[self.names.edenom] += w.weight
+            if self.rdm:
+                self.estimates[self.names.time] += w.weight*w.G.flatten()
         else:
             self.estimates[self.names.enumer] += (
                     (w.weight*w.local_energy(state.system)[0]*w.ot).real
@@ -213,20 +239,83 @@ class Estimators:
             self.estimates[self.names.weight] += w.weight.real
             self.estimates[self.names.edenom] += (w.weight*w.ot).real
 
-class EstimatorEnum:
-    """Enum structure for help with indexing estimators array.
+    def print_step(self, comm, nprocs, step, nmeasure):
+        es = self.estimates
+        ns = self.names
+        denom = es[ns.edenom]*nprocs / nmeasure
+        es[ns.eproj] = es[ns.enumer] / denom
+        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
+        # Back propagated estimates
+        es[ns.time] = (time.time()-es[ns.time]) / nprocs
+        comm.Reduce(es, self.global_estimates, op=MPI.SUM)
+        self.global_estimates[:ns.time] = (
+            self.global_estimates[:ns.time] / nmeasure
+        )
+        # put these in own print routines.
+        print (afqmcpy.utils.format_fixed_width_floats([step]+list(self.global_estimates[:ns.time+1].real)))
+        self.output.push(self.global_estimates[:ns.time+1])
+        if self.rdm:
+            rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/denom
+            self.dm_output.push(rdm)
+        self.zero()
 
-    python's support for enums doesn't help as it indexes from 1.
-    """
-    def __init__(self, nestimators):
-        # Exception for alignment of equal sign.
-        self.weight = 0
-        self.enumer = 1
-        self.edenom = 2
-        self.eproj  = 3
-        self.time   = 4
-        self.evar   = 5
+    def print_key(self, key, print_function=print, eol='', encode=False):
+        """Print out information about what the estimates are.
 
+        Parameters
+        ----------
+        key : dict
+            Explanation of output columns.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., Default : ''.
+        encode : bool
+            In True encode output to be utf-8.
+
+        Returns
+        -------
+        None
+        """
+        header = (
+            eol + '# Explanation of output column headers:\n' +
+            '# -------------------------------------' + eol
+        )
+        if encode:
+            header = header.encode('utf-8')
+        print_function(header)
+        for (k, v) in key.items():
+            s = '# %s : %s'%(k, v) + eol
+            if encode:
+                s = s.encode('utf-8')
+            print_function(s)
+
+    def print_header(self, header, print_function=print, eol='', encode=False):
+        r"""Print out header for estimators
+
+        Parameters
+        ----------
+        header : list
+            Output header.
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, Default : ''.
+        encode : bool
+            In True encode output to be utf-8.
+
+        Returns
+        -------
+        None
+        """
+        s = afqmcpy.utils.format_fixed_width_strings(header) + eol
+        if encode:
+            s = s.encode('utf-8')
+        print_function(s)
+
+    def zero(self):
+        self.estimates[:] = 0
+        self.global_estimates[:] = 0
 
 class BackPropagation:
     """Container for performing back propagation.
@@ -343,7 +432,7 @@ class BackPropagation:
             current = current + wnm.weight*numpy.array(list(energies))
         self.estimates = self.estimates + current.real / denominator
 
-    def print(self, comm, nprocs, step):
+    def print_step(self, comm, nprocs, step):
         if step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             self.output.push(self.global_estimates[:self.nreg])
@@ -591,7 +680,7 @@ class ITCF:
                 Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
         self.spgf = self.spgf / denom
 
-    def print(self, comm, nprocs, step):
+    def print_step(self, comm, nprocs, step):
         if step%self.nprop_tot == 0:
             comm.Reduce(self.spgf_global, self.spgf, op=MPI.SUM)
             self.to_file(self.rspace_unit, self.spgf_global/nprocs)
@@ -870,60 +959,6 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     G = numpy.einsum('ij,ijkl->kl', weights, GAB) / denom
     return G
 
-def print_key(key, print_function=print, eol='', encode=False):
-    """Print out information about what the estimates are.
-
-    Parameters
-    ----------
-    key : dict
-        Explanation of output columns.
-    print_function : method, optional
-        How to print state information, e.g. to std out or file. Default : print.
-    eol : string, optional
-        String to append to output, e.g., Default : ''.
-    encode : bool
-        In True encode output to be utf-8.
-
-    Returns
-    -------
-    None
-    """
-    header = (
-        eol + '# Explanation of output column headers:\n' +
-        '# -------------------------------------' + eol
-    )
-    if encode:
-        header = header.encode('utf-8')
-    print_function(header)
-    for (k, v) in key.items():
-        s = '# %s : %s'%(k, v) + eol
-        if encode:
-            s = s.encode('utf-8')
-        print_function(s)
-
-
-def print_header(header, print_function=print, eol='', encode=False):
-    r"""Print out header for estimators
-
-    Parameters
-    ----------
-    header : list
-        Output header.
-    print_function : method, optional
-        How to print state information, e.g. to std out or file. Default : print.
-    eol : string, optional
-        String to append to output, Default : ''.
-    encode : bool
-        In True encode output to be utf-8.
-
-    Returns
-    -------
-    None
-    """
-    s = afqmcpy.utils.format_fixed_width_strings(header) + eol
-    if encode:
-        s = s.encode('utf-8')
-    print_function(s)
 
 def eproj(estimates, enum):
     """Real projected energy.

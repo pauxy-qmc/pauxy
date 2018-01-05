@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import scipy.linalg
 import copy
 import afqmcpy.estimators
@@ -11,7 +11,7 @@ class Walker:
     def __init__(self, nw, system, trial, index):
         self.weight = nw
         if trial.initial_wavefunction == 'free_electron':
-            self.phi = np.zeros(shape=(system.nbasis,system.ne),
+            self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
                                 dtype=trial.psi.dtype)
             tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
                                      system.ktwist.all() != None, {})
@@ -21,7 +21,8 @@ class Walker:
             self.phi = copy.deepcopy(trial.psi)
         self.inv_ovlp = [0, 0]
         self.inverse_overlap(trial.psi, system.nup)
-        self.G = [0, 0]
+        self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
+                             dtype=trial.psi.dtype) 
         self.greens_function(trial, system.nup)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
@@ -30,7 +31,7 @@ class Walker:
         # walkers weight at time tau before backpropagation occurs
         self.weight_bp = nw
         # walkers auxiliary field configuration in back propagation interval
-        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+        self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial, nup):
         self.inv_ovlp[0] = scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
@@ -56,8 +57,8 @@ class Walker:
     def reortho(self, nup):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
-        signs_up = np.diag(np.sign(np.diag(Rup)))
-        signs_down = np.diag(np.sign(np.diag(Rdown)))
+        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
+        signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
         self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
@@ -86,19 +87,19 @@ class MultiDetWalker:
         # the trial wavefunction.
         up_shape = (trial.ndets, system.nup, system.nup)
         down_shape = (trial.ndets, system.ndown, system.ndown)
-        self.inv_ovlp = [np.zeros(shape=(up_shape)),
-                         np.zeros(shape=(down_shape))]
+        self.inv_ovlp = [numpy.zeros(shape=(up_shape)),
+                         numpy.zeros(shape=(down_shape))]
         self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = np.zeros(shape=(trial.ndets, 2, system.nbasis,
+        self.Gi = numpy.zeros(shape=(trial.ndets, 2, system.nbasis,
                               system.nbasis))
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
-        self.R = np.zeros(shape=(trial.ndets, 2, 2))
+        self.R = numpy.zeros(shape=(trial.ndets, 2, 2))
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = np.zeros(shape=(2, system.nbasis, system.nbasis))
-        self.ots = np.zeros(shape=(2,trial.ndets))
+        self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis))
+        self.ots = numpy.zeros(shape=(2,trial.ndets))
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
@@ -106,7 +107,7 @@ class MultiDetWalker:
         G2 = afqmcpy.estimators.gab(trial.psi[0][:,:system.nup],
                                     trial.psi[0][:,:system.nup])
         self.index = index
-        self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+        self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial, nup):
         for (indx, t) in enumerate(trial):
@@ -136,7 +137,7 @@ class MultiDetWalker:
     def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
-        self.ots = np.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
+        self.ots = numpy.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
         self.ot = sum(coeffs*self.ots[0,:]*self.ots[1,:])
 
     def reortho(self, nup):
@@ -144,8 +145,8 @@ class MultiDetWalker:
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
         # Enforce a positive diagonal for the overlap.
-        signs_up = np.diag(np.sign(np.diag(Rup)))
-        signs_down = np.diag(np.sign(np.diag(Rdown)))
+        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
+        signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
         self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
@@ -164,8 +165,8 @@ class MultiDetWalker:
             self.Gi[ix,1,:,:] = (
                 (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
-        denom = np.einsum('j,ij->i',trial.coeffs, self.ots)
-        self.G = np.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
+        denom = numpy.einsum('j,ij->i',trial.coeffs, self.ots)
+        self.G = numpy.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
         self.G[0] = self.G[0]/denom[0]
         self.G[1] = self.G[1]/denom[1]
 
@@ -199,7 +200,7 @@ class MultiGHFWalker:
                 orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
-                self.phi = np.zeros(shape=(2*system.nbasis,system.ne),
+                self.phi = numpy.zeros(shape=(2*system.nbasis,system.ne),
                                     dtype=trial.psi.dtype)
                 tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
                                          trial.psi.dtype==complex, {})
@@ -209,25 +210,25 @@ class MultiGHFWalker:
             self.phi = copy.deepcopy(trial.psi)
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        self.inv_ovlp = np.zeros(shape=(trial.ndets, system.ne, system.ne),
+        self.inv_ovlp = numpy.zeros(shape=(trial.ndets, system.ne, system.ne),
                                  dtype=self.phi.dtype)
         if weights == 'zeros':
-            self.weights = np.zeros(trial.ndets, dtype=trial.psi.dtype)
+            self.weights = numpy.zeros(trial.ndets, dtype=trial.psi.dtype)
         else:
-            self.weights = np.ones(trial.ndets, dtype=trial.psi.dtype)
+            self.weights = numpy.ones(trial.ndets, dtype=trial.psi.dtype)
         if wfn0 != 'GHF':
             self.inverse_overlap(trial.psi, system.nup)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = np.zeros(shape=(trial.ndets, 2*system.nbasis,
+        self.Gi = numpy.zeros(shape=(trial.ndets, 2*system.nbasis,
                            2*system.nbasis), dtype=self.phi.dtype)
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
-        self.R = np.zeros(shape=(trial.ndets, 2), dtype=self.phi.dtype)
+        self.R = numpy.zeros(shape=(trial.ndets, 2), dtype=self.phi.dtype)
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = np.zeros(shape=(2*system.nbasis, 2*system.nbasis),
+        self.G = numpy.zeros(shape=(2*system.nbasis, 2*system.nbasis),
                           dtype=self.phi.dtype)
-        self.ots = np.zeros(trial.ndets, dtype=self.phi.dtype)
+        self.ots = numpy.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
@@ -235,7 +236,7 @@ class MultiGHFWalker:
             self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
                                                            self.weights,
                                                            sum(self.weights))[0].real
-            self.field_config = np.zeros(shape=(system.nbasis), dtype=int)
+            self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
 
     def inverse_overlap(self, trial, nup):
@@ -267,8 +268,8 @@ class MultiGHFWalker:
         (self.phi[:self.nb,:nup], Rup) = scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
         (self.phi[self.nb:,nup:], Rdown) = scipy.linalg.qr(self.phi[self.nb:,nup:], mode='economic')
         # Enforce a positive diagonal for the overlap.
-        signs_up = np.diag(np.sign(np.diag(Rup)))
-        signs_down = np.diag(np.sign(np.diag(Rdown)))
+        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
+        signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:self.nb,:nup] = self.phi[:self.nb,:nup].dot(signs_up)
         self.phi[self.nb:,nup:] = self.phi[self.nb:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
@@ -283,7 +284,7 @@ class MultiGHFWalker:
                 (self.phi.dot(self.inv_ovlp[ix]).dot(t.conj().T)).T
             )
         denom = sum(self.weights)
-        self.G = np.einsum('i,ijk->jk', self.weights, self.Gi) / denom
+        self.G = numpy.einsum('i,ijk->jk', self.weights, self.Gi) / denom
 
     def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         for (indx, t) in enumerate(trial.psi):
