@@ -55,8 +55,10 @@ class Walker:
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
         self.weight_bp = nw
-        # walkers auxiliary field configuration in back propagation interval
-        self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
+        # Historic wavefunction for back propagation.
+        self.phi_old = copy.deepcopy(self.phi)
+        # Historic wavefunction for ITCF.
+        self.phi_begin = copy.deepcopy(self.phi)
 
     def inverse_overlap(self, trial):
         nup = self.nup
