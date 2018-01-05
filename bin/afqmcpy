@@ -41,6 +41,7 @@ def main(input_file):
                                                state.system.nbasis,
                                                state.json_string,
                                                state.trial.type=='GHF')
+    psi0.add_field_config(estimators.nprop_tot, state.system.nbasis)
     afqmcpy.cpmc.run(state, psi0, estimators, comm)
     afqmcpy.cpmc.finalise(state, estimators, init_time)
 

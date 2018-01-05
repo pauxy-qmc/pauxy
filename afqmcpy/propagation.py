@@ -278,7 +278,7 @@ def discrete_hubbard(walker, state):
             walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
             walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
             walker.update_overlap(probs, xi, state.trial.coeffs)
-            walker.field_config[i] = xi
+            walker.field_configs.push(xi)
             walker.update_inverse_overlap(state.trial, vtup, vtdown, nup, i)
             walker.greens_function(state.trial, nup)
         else:
@@ -529,9 +529,9 @@ def back_propagate(system, psi, trial, nstblz, BT2):
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, ws) in enumerate(reversed(list(w))):
-            B = construct_propagator_matrix(system, BT2, ws.field_config,
-                                            conjt=True)
+        for (i, c) in enumerate(reversed(list(w.field_configs.configs))):
+            B = construct_propagator_matrix(system, BT2,
+                                            c, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % nstblz == 0:

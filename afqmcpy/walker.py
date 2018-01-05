@@ -26,6 +26,10 @@ class Walkers:
             if not importance_sampling:
                 w.weight = detR * w.weight
 
+    def add_field_config(self, nfield, nbasis):
+        for w in self.walkers:
+            w.field_configs = FieldConfig(nbasis, nfield)
+
 class Walker:
 
     def __init__(self, nw, system, trial, index):
@@ -336,3 +340,16 @@ class MultiGHFWalker:
                 # afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
                                                # t[:,:nup].T[:,i], vtup)
             # )
+class FieldConfig:
+    def __init__(self, nbasis, nbp):
+        self.configs = numpy.zeros(shape=(nbp, nbasis), dtype=int)
+        self.step = 0
+        self.ib = 0
+        self.nbasis = nbasis
+        self.nbp = nbp
+
+    def push(self, config):
+        self.configs[self.step,self.ib] = config
+        self.ib = (self.ib + 1) % self.nbasis
+        if self.ib%self.nbasis == 0:
+            self.step = (self.step + 1) % self.nbp
