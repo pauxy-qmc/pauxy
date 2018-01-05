@@ -27,8 +27,8 @@ def comb(psi, nw, psi_history=None):
     # walker objects in memory. We don't want future changes in a given element
     # of psi having unintended consequences.
     new_psi = copy.deepcopy(psi)
-    weights = [w.weight for w in psi]
-    parent_ix = numpy.arange(len(psi))
+    weights = [w.weight for w in psi.walkers]
+    parent_ix = numpy.arange(len(psi.walkers))
     total_weight = sum(weights)
     cprobs = numpy.cumsum(weights)
 
@@ -43,8 +43,8 @@ def comb(psi, nw, psi_history=None):
     # Copy back new information
     for (i,p) in enumerate(parent_ix):
         # Todo: look at what we actually need to copy.
-        psi[i] = copy.deepcopy(new_psi[p])
-        psi[i].weight = 1.0
+        psi.walkers[i] = copy.deepcopy(new_psi.walkers[p])
+        psi.walkers[i].weight = 1.0
     # Need to be a bit careful here. When we perform population control by
     # updating psi_history using the population control map we are only copying
     # references to the walkers which are stored in memory. Since these are not

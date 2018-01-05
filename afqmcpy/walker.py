@@ -6,6 +6,26 @@ import afqmcpy.trial_wavefunction
 
 # Worthwhile overloading / having real and complex walker classes (Hermitian
 # conjugate)?
+
+class Walkers:
+    def __init__(self, system, trial, nwalkers):
+        if trial.name == 'multi_determinant':
+            if trial.type== 'GHF':
+                self.walkers = [MultiGHFWalker(1, system, trial)
+                                for w in range(nwalkers)]
+            else:
+                self.walkers = [MultiDetWalker(1, system, trial)
+                                for w in range(nwalkers)]
+        else:
+            self.walkers = [Walker(1, system, trial, w)
+                            for w in range(nwalkers)]
+
+    def orthogonalise(self, importance_sampling):
+        for w in self.walkers:
+            detR = w.reortho()
+            if not importance_sampling:
+                w.weight = detR * w.weight
+
 class Walker:
 
     def __init__(self, nw, system, trial, index):

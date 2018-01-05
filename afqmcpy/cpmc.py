@@ -64,18 +64,10 @@ def setup(options, comm=None):
                           'must be at least one walker per core set in the '
                           'input file. Exiting.')
         sys.exit()
-    if state.trial.name == 'multi_determinant':
-        if state.trial.type== 'GHF':
-            psi0 = [afqmcpy.walker.MultiGHFWalker(1, state.system, state.trial)
-                    for w in range(state.qmc.nwalkers)]
-        else:
-            psi0 = [afqmcpy.walker.MultiDetWalker(1, state.system, state.trial)
-                    for w in range(state.qmc.nwalkers)]
-    else:
-        psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial, w)
-                for w in range(state.qmc.nwalkers)]
+
+    psi = afqmcpy.walker.Walkers(state.system, state.trial, state.qmc.nwalkers)
     # TODO: Return state and psi and run from another routine.
-    return (state, psi0, comm)
+    return (state, psi, comm)
 
 def run(state, psi, estimators, comm=None):
     (state, psi) = afqmcpy.qmc.do_qmc(state, psi, estimators, comm)
