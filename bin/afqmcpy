@@ -40,6 +40,7 @@ def main(input_file):
                                                state.qmc,
                                                state.system.nbasis,
                                                state.json_string,
+                                               state.propagators.BT_BP,
                                                state.trial.type=='GHF')
     psi0.add_field_config(estimators.nprop_tot, state.system.nbasis)
     afqmcpy.cpmc.run(state, psi0, estimators, comm)
