@@ -27,16 +27,16 @@ def do_qmc(state, psi, estimators, comm):
     else:
         estimators.psi_hist = None
 
-    (E_T, ke, pe) = psi[0].local_energy(state.system)
+    (E_T, ke, pe) = psi.walkers[0].local_energy(state.system)
     state.qmc.mean_local_energy = E_T.real
     # Calculate estimates for initial distribution of walkers.
-    for w in psi:
-        estimators.estimators['mixed'].update(w, state)
+    estimators.estimators['mixed'].update(state.system, state.qmc,
+                                          state.trial, psi, 0)
     # Print out zeroth step for convenience.
-    estimators.print_step(state, comm, 0, print_bp=False, print_itcf=False)
+    estimators.estimators['mixed'].print_step(comm, state.nprocs, 0, 1)
 
     for step in range(1, state.qmc.nsteps+1):
-        for w in psi:
+        for w in psi.walkers:
             # Want to possibly allow for walkers with negative / complex weights
             # when not using a constraint. I'm not so sure about the criteria
             # for complex weighted walkers.
@@ -45,49 +45,15 @@ def do_qmc(state, psi, estimators, comm):
             # Constant factors
             w.weight = w.weight * exp(state.qmc.dt*E_T.real)
             # Add current (propagated) walkers contribution to estimates.
-            estimators.estimators['mixed'].update(w, state)
-            if step%state.qmc.nstblz == 0:
-                detR = w.reortho(state.system.nup)
-                if not state.qmc.importance_sampling:
-                    w.weight = detR * w.weight
-        bp_step = (step-1)%estimators.nprop_tot
-        if estimators.back_propagation:
-            estimators.psi_hist[:,bp_step+1] = copy.deepcopy(psi)
-            if step%estimators.estimators['back_prop'].nmax == 0:
-                # start and end points for selecting field configurations.
-                s = bp_step - estimators.estimators['back_prop'].nmax + 1
-                e = bp_step + 1
-                # the first entry in psi_hist (with index 0) contains the
-                # wavefunction at the step where we start to accumulate the
-                # auxiliary field path.  Since the propagated wavefunction,
-                # i.e., the (n+1) st wfn, contains the fields which propagate
-                # Psi_n to Psi_{n+1} we want to select the next entry in the
-                # array, i.e., s+1. Slicing excludes the endpoint which we need
-                # so also add one to e.
-                psi_left = state.propagators.back_propagate(state.system,
-                        estimators.psi_hist[:,s+1:e+1], state.trial)
-                estimators.estimators['back_prop'].update(state.system, state.trial,
-                                              estimators.psi_hist[:,e],
-                                              estimators.psi_hist[:,s],
-                                              psi_left)
-                if not estimators.calc_itcf:
-                    # New nth right-hand wfn for next estimate of ITCF.
-                    estimators.psi_hist[:,0] = copy.deepcopy(psi)
-        if estimators.calc_itcf and step%estimators.nprop_tot == 0:
-            if estimators.itcf.stable:
-                estimators.itcf.calculate_spgf(state, estimators.psi_hist,
-                                               psi_left)
-            else:
-                estimators.itcf.calculate_spgf_unstable(state,
-                                                              estimators.psi_hist,
-                                                              psi_left)
-            # New nth right-hand wfn for next estimate of ITCF.
-            estimators.psi_hist[:,0] = copy.deepcopy(psi)
+        if step%state.qmc.nstblz == 0:
+            psi.orthogonalise(state.qmc.importance_sampling)
+        # calculate estimators
+        estimators.update(state.system, state.qmc, state.trial, psi, step)
         if step%state.qmc.nmeasure == 0:
             # Todo: proj energy function
             E_T = afqmcpy.estimators.eproj(estimators.estimators['mixed'].estimates,
                                            estimators.estimators['mixed'].names)
-            estimators.print_step(state, comm, step)
+            estimators.print_step(comm, state.nprocs, step, state.qmc.nmeasure)
         if step < state.qmc.nequilibrate:
             # Update local energy bound.
             state.mean_local_energy = E_T
