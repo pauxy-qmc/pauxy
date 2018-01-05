@@ -40,10 +40,11 @@ class Walker:
         else:
             self.phi = copy.deepcopy(trial.psi)
         self.inv_ovlp = [0, 0]
-        self.inverse_overlap(trial.psi, system.nup)
+        self.nup = system.nup
+        self.inverse_overlap(trial.psi)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype) 
-        self.greens_function(trial, system.nup)
+        self.greens_function(trial)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
@@ -53,11 +54,13 @@ class Walker:
         # walkers auxiliary field configuration in back propagation interval
         self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
 
-    def inverse_overlap(self, trial, nup):
+    def inverse_overlap(self, trial):
+        nup = self.nup
         self.inv_ovlp[0] = scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         self.inv_ovlp[1] = scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
 
-    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
+    def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        nup = self.nup
         self.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
                                                           trial.psi[:,:nup].T[:,i],
                                                           vtup)
@@ -74,7 +77,8 @@ class Walker:
     def update_overlap(self, probs, xi, coeffs):
         self.ot = 2 * self.ot * probs[xi]
 
-    def reortho(self, nup):
+    def reortho(self):
+        nup = self.nup
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
@@ -85,7 +89,8 @@ class Walker:
         self.ot = self.ot / detR
         return detR
 
-    def greens_function(self, trial, nup):
+    def greens_function(self, trial):
+        nup = self.nup
         self.G[0] = (
             (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(trial.psi[:,:nup].conj().T)).T
         )
@@ -109,7 +114,7 @@ class MultiDetWalker:
         down_shape = (trial.ndets, system.ndown, system.ndown)
         self.inv_ovlp = [numpy.zeros(shape=(up_shape)),
                          numpy.zeros(shape=(down_shape))]
-        self.inverse_overlap(trial.psi, system.nup)
+        self.inverse_overlap(trial.psi)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = numpy.zeros(shape=(trial.ndets, 2, system.nbasis,
                               system.nbasis))
@@ -127,9 +132,11 @@ class MultiDetWalker:
         G2 = afqmcpy.estimators.gab(trial.psi[0][:,:system.nup],
                                     trial.psi[0][:,:system.nup])
         self.index = index
+        self.nup = system.nup
         self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
 
-    def inverse_overlap(self, trial, nup):
+    def inverse_overlap(self, trial):
+        nup = self.nup
         for (indx, t) in enumerate(trial):
             self.inv_ovlp[0][indx,:,:] = (
                 scipy.linalg.inv((t[:,:nup].conj()).T.dot(self.phi[:,:nup]))
@@ -160,7 +167,8 @@ class MultiDetWalker:
         self.ots = numpy.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
         self.ot = sum(coeffs*self.ots[0,:]*self.ots[1,:])
 
-    def reortho(self, nup):
+    def reortho(self):
+        nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
@@ -176,7 +184,8 @@ class MultiDetWalker:
         self.ots[1] = self.ots[1] / detR_down
         self.ot = self.ot / (detR_up*detR_down)
 
-    def greens_function(self, trial, nup):
+    def greens_function(self, trial):
+        nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,0,:,:] = (
@@ -190,7 +199,8 @@ class MultiDetWalker:
         self.G[0] = self.G[0]/denom[0]
         self.G[1] = self.G[1]/denom[1]
 
-    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
+    def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
@@ -258,8 +268,10 @@ class MultiGHFWalker:
                                                            sum(self.weights))[0].real
             self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
+        self.nup = system.nup
 
-    def inverse_overlap(self, trial, nup):
+    def inverse_overlap(self, trial):
+        nup = self.nup
         for (indx, t) in enumerate(trial):
             self.inv_ovlp[indx,:,:] = (
                 scipy.linalg.inv((t.conj()).T.dot(self.phi))
@@ -283,7 +295,8 @@ class MultiGHFWalker:
         self.weights = coeffs * self.ots
         self.ot = 2.0 * self.ot * probs[xi]
 
-    def reortho(self, nup):
+    def reortho(self):
+        nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
         (self.phi[:self.nb,:nup], Rup) = scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
         (self.phi[self.nb:,nup:], Rdown) = scipy.linalg.qr(self.phi[self.nb:,nup:], mode='economic')
@@ -297,7 +310,8 @@ class MultiGHFWalker:
         self.ots = self.ots / detR
         self.ot = self.ot / detR
 
-    def greens_function(self, trial, nup):
+    def greens_function(self, trial):
+        nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,:,:] = (
@@ -306,7 +320,8 @@ class MultiGHFWalker:
         denom = sum(self.weights)
         self.G = numpy.einsum('i,ijk->jk', self.weights, self.Gi) / denom
 
-    def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
+    def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        nup = self.nup
         for (indx, t) in enumerate(trial.psi):
             self.inv_ovlp[indx,:,:] = (
                 scipy.linalg.inv((t.conj()).T.dot(self.phi))
