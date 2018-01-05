@@ -101,7 +101,7 @@ class Estimators:
         # Sub-members:
         # 1. Back-propagation
         mixed = estimates.get('mixed', {})
-        bp = estimates.get('back_propagation', None)
+        bp = estimates.get('back_propagated', None)
         self.back_propagation = bp is not None
         self.estimators = {}
         self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
