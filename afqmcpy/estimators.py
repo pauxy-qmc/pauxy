@@ -154,7 +154,8 @@ class Estimators:
         """
         for k, e in self.estimators.items():
             e.print_step(comm, nprocs, step, nmeasure)
-        self.h5f.flush()
+        if comm.Get_rank() == 0:
+            self.h5f.flush()
 
     def update(self, system, qmc, trial, psi, step):
         for k, e in self.estimators.items():
@@ -256,12 +257,13 @@ class Mixed:
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=MPI.SUM)
         # put these in own print routines.
-        print (afqmcpy.utils.format_fixed_width_floats([step]+
-                    list(self.global_estimates[:ns.time+1].real/nmeasure)))
-        self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
-        if self.rdm:
-            rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
-            self.dm_output.push(rdm/denom/nmeasure)
+        if comm.Get_rank() == 0:
+            print (afqmcpy.utils.format_fixed_width_floats([step]+
+                        list(self.global_estimates[:ns.time+1].real/nmeasure)))
+            self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
+            if self.rdm:
+                rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
+                self.dm_output.push(rdm/denom/nmeasure)
         self.zero()
 
     def print_key(self, key, print_function=print, eol='', encode=False):
@@ -447,10 +449,11 @@ class BackPropagation:
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
-            self.output.push(self.global_estimates[:self.nreg])
-            if self.rdm:
-                rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
-                self.dm_output.push(rdm)
+            if comm.Get_rank() == 0:
+                self.output.push(self.global_estimates[:self.nreg])
+                if self.rdm:
+                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
+                    self.dm_output.push(rdm)
             self.zero()
 
     def zero(self):
@@ -696,19 +699,20 @@ class ITCF:
         self.spgf = self.spgf / denom
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
-        if step%self.nprop_tot == 0:
+        if step !=0 and step%self.nprop_tot == 0:
             comm.Reduce(self.spgf_global, self.spgf, op=MPI.SUM)
-            self.to_file(self.rspace_unit, self.spgf_global/nprocs)
-            if self.itcf.kspace:
-                M = self.spgf.shape[-1]
-                # FFT the real space Green's function.
-                # Todo : could just use numpy.fft.fft....
-                spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', P,
-                                      spgf, P.conj().T) / M
-                if self.estimates.dtype == complex:
-                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
-                else:
-                    self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
+            if comm.Get_rank() == 0:
+                self.to_file(self.rspace_unit, self.spgf_global/nprocs)
+                if self.itcf.kspace:
+                    M = self.spgf.shape[-1]
+                    # FFT the real space Green's function.
+                    # Todo : could just use numpy.fft.fft....
+                    spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', P,
+                                          spgf, P.conj().T) / M
+                    if self.estimates.dtype == complex:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                    else:
+                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
             self.zero()
 
     def to_file(self, group, spgf):
