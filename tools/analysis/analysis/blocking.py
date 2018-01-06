@@ -9,6 +9,7 @@ import scipy.stats
 import analysis.extraction
 import matplotlib.pyplot as pl
 import h5py
+import afqmcpy.hubbard
 
 def run_blocking_analysis(filename, start_iter):
     '''
@@ -39,23 +40,36 @@ def average_single(frame):
     columns = sorted(averaged.columns.values)
     return averaged[columns]
 
-def average_rdm(filename, skip=0):
+def average_rdm(filename, name, skip=0):
     data = h5py.File(filename, 'r')
-    gf = data['back_propagated_estimates/single_particle_greens_function'][:].real
+    conv = {'mixed': 'mixed_estimates',
+            'back_prop': 'back_propagated_estimates'}
+    gf = data[conv[name]+'/single_particle_greens_function'][:].real
     gf_av = gf[skip:].mean(axis=0)
     gf_err = gf[skip:].std(axis=0) / len(gf[skip:])**0.5
     return (gf_av, gf_err)
 
-def average_correlation(filename, skip=0):
+def average_correlation(filename, name, skip=0):
     data = h5py.File(filename, 'r')
-    name = 'back_propagated_estimates/single_particle_greens_function'
-    gf = data[name][:].real[skip:]
+    conv = {'mixed': 'mixed_estimates',
+            'back_prop': 'back_propagated_estimates'}
+    gf = data[conv[name]+'/single_particle_greens_function'][:].real[skip:]
     ni = numpy.diagonal(gf, axis1=2, axis2=3)
     hole = 1.0 - numpy.sum(ni, axis=1)
     hole_err = hole.std(axis=0, ddof=1) / len(hole)**0.5
     spin = 0.5*(ni[:,0,:]-ni[:,1,:])
     spin_err = spin.std(axis=0, ddof=1) / len(hole)**0.5
     return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err)
+
+def plot_correlations(cfunc, cfunc_err, nx, ny, stag=False):
+    iy = [i for i in range(ny)]
+    idx = [afqmcpy.hubbard.encode_basis(0,i,nx) for i in iy]
+    if stag:
+        c = [((-1)**(i))*cfunc[ib] for (i, ib) in zip(iy,idx)]
+    else:
+        c = [cfunc[ib] for ib in idx]
+    pl.errorbar(iy, c, yerr=[cfunc_err[i] for i in idx], fmt='o')
+    pl.show()
 
 def average_tau(frames):
 
@@ -123,7 +137,7 @@ def analyse_estimates(filenames, start_iteration=0):
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         norm_data.append(norm[start_iteration:nzero].apply(numpy.real))
         if bp is not None:
-            nbp = m.get('estimates').get('back_propagation').get('nback_prop')
+            nbp = m.get('estimates').get('back_propagated').get('nback_prop')
             bp['dt'] = dt
             bp['nbp'] = nbp
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
@@ -155,7 +169,7 @@ def analyse_estimates(filenames, start_iteration=0):
     if bp is not None:
         bp_data = pd.concat(bp_data)
         bp_av = analyse_back_propagation(bp_data)
-        bp_group = store.create_group('back_propagation')
+        bp_group = store.create_group('back_propagated')
         bp_group.create_dataset('estimates', data=bp_av.as_matrix())
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
@@ -167,7 +181,7 @@ def analyse_estimates(filenames, start_iteration=0):
     else:
         norm_data = pd.concat(norm_data)
         norm_av = average_single(norm_data)
-    basic = store.create_group('basic_estimators')
+    basic = store.create_group('mixed_estimators')
     basic.create_dataset('estimates', data=norm_av.as_matrix())
     basic.create_dataset('headers', data=norm_av.columns.values,
             dtype=h5py.special_dtype(vlen=str))

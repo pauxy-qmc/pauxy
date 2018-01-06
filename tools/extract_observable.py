@@ -82,10 +82,10 @@ None.
                                                             options.kspace)
     elif options.obs == 'energy':
         results = analysis.extraction.analysed_energies(options.filename[0],
-                                                        'basic_estimators')
-    elif options.obs == 'back_propagation':
+                                                        'mixed_estimators')
+    elif options.obs == 'back_propagated':
         results = analysis.extraction.analysed_energies(options.filename[0],
-                                                        'back_propagation')
+                                                        'back_propagated')
     else:
         results = None
         print ('Unknown observable')
