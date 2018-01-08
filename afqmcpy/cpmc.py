@@ -165,7 +165,7 @@ class CPMC:
             self.estimators.psi_hist = None
 
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
-        self.qmc.mean_local_energy = E_T.real
+        self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0)
