@@ -119,8 +119,9 @@ class Estimators:
         self.calc_itcf = itcf is not None
         self.estimates = numpy.zeros(self.nestimators, dtype=dtype)
         if self.calc_itcf:
-            self.estimators['itcf'] = (ITCF(itcf, qmc.dt, root, self.h5f,
-                                            nbasis, dtype, qmc.nsteps))
+            self.estimators['itcf'] = ITCF(itcf, qmc.dt, root, self.h5f,
+                                           nbasis, dtype, qmc.nsteps,
+                                           self.nprop_tot)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
@@ -177,7 +178,7 @@ class EstimatorEnum:
 
 class Mixed:
     """Container for calculating mixed estimators.
-    
+
     """
 
     def __init__(self, mixed, root, h5f, nmeasure, nbasis, dtype):
@@ -704,16 +705,17 @@ class ITCF:
             comm.Reduce(self.spgf_global, self.spgf, op=MPI.SUM)
             if comm.Get_rank() == 0:
                 self.to_file(self.rspace_unit, self.spgf_global/nprocs)
-                if self.itcf.kspace:
+                if self.kspace:
                     M = self.spgf.shape[-1]
                     # FFT the real space Green's function.
                     # Todo : could just use numpy.fft.fft....
-                    spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', P,
-                                          spgf, P.conj().T) / M
-                    if self.estimates.dtype == complex:
-                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k)
+                    # spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', self.P,
+                                          # spgf, self.P.conj().T) / M
+                    spgf_k = numpy.fft.fft2(self.spgf_global)
+                    if self.spgf.dtype == complex:
+                        self.to_file(self.kspace_unit, spgf_k)
                     else:
-                        self.itcf.to_file(self.itcf.kspace_unit, spgf_k.real)
+                        self.to_file(self.kspace_unit, spgf_k.real)
             self.zero()
 
     def to_file(self, group, spgf):
@@ -734,8 +736,8 @@ class ITCF:
             group.push(numpy.array([g[mode] for g in spgf]))
 
     def zero(self):
-        self.itcf[:] = 0
-        self.itcf_global[:] = 0
+        self.spgf[:] = 0
+        self.spgf_global[:] = 0
 
 
 def local_energy(system, G):

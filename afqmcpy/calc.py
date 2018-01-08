@@ -102,7 +102,7 @@ def setup_parallel(options, comm=None):
                                       cpmc.system.nbasis,
                                       cpmc.json_string,
                                       cpmc.propagators.BT_BP,
-                                      cpmc.trial.type=='ghf')
+                                      cpmc.trial.type=='GHF')
     )
     cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,

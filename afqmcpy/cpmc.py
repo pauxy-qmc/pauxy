@@ -5,13 +5,14 @@ import time
 import numpy
 import warnings
 import uuid
+from math import exp
+import copy
 import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
 import afqmcpy.hubbard
 import afqmcpy.utils
 import afqmcpy.pop_control
-from math import exp
 
 class CPMC:
     """CPMC driver.

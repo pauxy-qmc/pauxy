@@ -274,7 +274,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
         back propagated list of walkers.
     """
 
-    psi_bp = [walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    psi_bp = [afqmcpy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
@@ -311,7 +311,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
         back propagated list of walkers.
     """
 
-    psi_bp = [walker.MultiGHFWalker(1, system, trial, w, weights='ones',
+    psi_bp = [afqmcpy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
                                     wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
