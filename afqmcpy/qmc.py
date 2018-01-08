@@ -82,12 +82,3 @@ class QMCOpts:
         self.ffts = inputs.get('kinetic_kspace', False)
         self.cplx = ('continuous' in self.hubbard_stratonovich
                      or system.ktwist.all() != None)
-        if self.hubbard_stratonovich == 'continuous':
-            # optimal mean-field shift for the hubbard model
-            self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)
-            self.iut_fac = 1j*numpy.sqrt((system.U*self.dt))
-            self.ut_fac = self.dt*system.U
-            # Include factor of M! bad name
-            self.mf_nsq = system.nbasis * self.mf_shift**2.0
-        self.local_energy_bound = (2.0/self.dt)**0.5
-        self.mean_local_energy = 0

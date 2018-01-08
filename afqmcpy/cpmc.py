@@ -75,9 +75,14 @@ class CPMC:
                                                                      self.qmc.cplx,
                                                                      trial,
                                                                      parallel)
-        self.propagators = afqmcpy.propagation.Propagator(self.qmc,
-                                                          self.system,
-                                                          self.trial)
+        if self.qmc.hubbard_stratonovich == 'discrete':
+            self.propagators = afqmcpy.propagation.DiscreteHubbard(self.qmc,
+                                                                   self.system,
+                                                                   self.trial)
+        else:
+            self.propagators = afqmcpy.propagation.ContinuousHubbard(self.qmc,
+                                                                     self.system,
+                                                                     self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         self.json_string = self.write_json(model, qmc_opts, estimates)
         print ('# Input options:')
@@ -173,7 +178,7 @@ class CPMC:
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
                 if abs(w.weight) > 1e-8:
-                    self.propagators.propagate_walker(w, self)
+                    self.propagators.propagate_walker(w, self.system, self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt*E_T.real)
                 # Add current (propagated) walkers contribution to estimates.

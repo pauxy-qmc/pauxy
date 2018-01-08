@@ -63,10 +63,6 @@ class Hubbard:
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
-        self.gamma = numpy.arccosh(numpy.exp(0.5*dt*self.U))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-        self.auxf = self.auxf * numpy.exp(-0.5*dt*self.U)
 
 def transform_matrix(nbasis, kpoints, kc, nx, ny):
     U = numpy.zeros(shape=(nbasis, nbasis), dtype=complex)
