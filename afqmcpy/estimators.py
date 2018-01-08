@@ -185,10 +185,11 @@ class Mixed:
         self.nmeasure = nmeasure
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.nreg = len(self.header[1:])
-        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis, dtype=dtype)
         self.names = EstimatorEnum()
         self.estimates[self.names.time] = time.time()
-        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
+        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis,
+                                            dtype=dtype)
         self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -242,10 +243,10 @@ class Mixed:
         else:
             for i, w in enumerate(psi.walkers):
                 self.estimates[self.names.enumer] += (
-                        (w.weight*w.local_energy(system)[0]*w.ot).real
+                        (w.weight*w.local_energy(system)[0]*w.ot)
                 )
-                self.estimates[self.names.weight] += w.weight.real
-                self.estimates[self.names.edenom] += (w.weight*w.ot).real
+                self.estimates[self.names.weight] += w.weight
+                self.estimates[self.names.edenom] += (w.weight*w.ot)
 
     def print_step(self, comm, nprocs, step, nmeasure):
         es = self.estimates
