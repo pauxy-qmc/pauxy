@@ -77,7 +77,7 @@ class Estimators:
             'E': "Projected energy estimator.",
             'time': "Time per processor to complete one iteration.",
         }
-        if qmc.cplx:
+        if qmc.hubbard_stratonovich == "continuous" and qmc.constraint == "free":
             dtype = complex
         else:
             dtype = float
