@@ -7,7 +7,7 @@ import afqmcpy.trial_wavefunction
 class Walkers:
     """Handler group of walkers which make up cpmc wavefunction."""
 
-    def __init__(self, system, trial, nwalkers):
+    def __init__(self, system, trial, nwalkers, nprop_tot):
         if trial.name == 'multi_determinant':
             if trial.type== 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
@@ -18,6 +18,8 @@ class Walkers:
         else:
             self.walkers = [Walker(1, system, trial, w)
                             for w in range(nwalkers)]
+        if nprop_tot > 1:
+            self.add_field_config(nprop_tot, system.nbasis)
 
     def orthogonalise(self, importance_sampling):
         for w in self.walkers:

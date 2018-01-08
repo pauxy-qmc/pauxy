@@ -1,3 +1,4 @@
+"""Driver to perform CPMC calculation"""
 import sys
 import json
 import time
@@ -8,74 +9,191 @@ import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
 
-def setup(options, comm=None):
-    """Wrapper routine for initialising simulation
+class CPMC:
+    """CPMC driver.
+
+    This object contains all the instances of the classes which parse input
+    options.
 
     Parameters
     ----------
-    input_file : json file.
-        Simulation input file.
+    model : dict
+        Input parameters for model system.
+    qmc_opts : dict
+        Input options relating to qmc parameters.
+    estimates : dict
+        Input options relating to what estimator to calculate.
+    trial : dict
+        Input options relating to trial wavefunction.
 
-    Returns
-    -------
-    state : :class:`afqmcpy.state.State`
-        Simulation state.
+    Attributes
+    ----------
+    system : :class:`afqmcpy.hubbard.Hubbard` / system object in general.
+        Container for model input options.
+    qmc : :class:`afqmcpy.state.QMCOpts` object.
+        Container for qmc input options.
+    uuid : string
+        Simulation state uuid.
+    seed : int
+        RNG seed. This is set during initialisation but is useful to output in
+        json_string.
+    root : bool
+        If True we are on the root / master processor.
+    trial : :class:`afqmcpy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    propagators : :class:`afqmcpy.propagation.Projectors` object
+        Container for system specific propagation routines.
+    json_string : string
+        String containing all input options and certain derived options.
     """
+    def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
+        if model['name'] == 'Hubbard':
+            # sytem packages all generic information + model specific information.
+            self.system = hubbard.Hubbard(model, qmc_opts['dt'])
+        self.qmc = QMCOpts(qmc_opts, self.system)
+        # Store input dictionaries for the moment.
+        self.uuid = str(uuid.uuid1())
+        self.seed = qmc_opts['rng_seed']
+        # Hack - this is modified on initialisation.
+        self.root = True
+        # effective hubbard U for UHF trial wavefunction.
+        if trial['name'] == 'free_electron':
+            self.trial = afqmcpy.trial_wavefunction.FreeElectron(self.system,
+                                                                 self.qmc.cplx,
+                                                                 trial,
+                                                                 parallel)
+        if trial['name'] == 'UHF':
+            self.trial = afqmcpy.trial_wavefunction.UHF(self.system,
+                                                        self.qmc.cplx,
+                                                        trial, parallel)
+        elif trial['name'] == 'multi_determinant':
+            self.trial = afqmcpy.trial_wavefunction.MultiDeterminant(self.system,
+                                                                     self.qmc.cplx,
+                                                                     trial,
+                                                                     parallel)
+        self.propagators = afqmcpy.propagation.Propagator(self.qmc,
+                                                          self.system,
+                                                          self.trial)
+        # Handy to keep original dicts so they can be printed at run time.
+        self.json_string = self.write_json(model, qmc_opts, estimates)
+        print ('# Input options:')
+        print (self.json_string)
+        print('# End of input options.')
+        if not parallel:
+            self.estimators = (
+                afqmcpy.estimators.estimators(options.get('estimates'),
+                                              self.root,
+                                              self.uuid,
+                                              self.qmc,
+                                              self.system.nbasis,
+                                              self.json_string,
+                                              self.propagators.bt_bp,
+                                              self.trial.type=='ghf')
+            )
+            self.psi = afqmcpy.walker.walkers(self.system, self.trial,
+                                              self.qmc.nwalkers,
+                                              self.estimators.nprop_tot)
 
-    seed = options['qmc_options'].get('rng_seed', None)
-    rank = comm.Get_rank()
-    nprocs = comm.Get_size()
-    if seed is None:
-        # only set "random" part of seed on parent processor so we can reproduce
-        # results in when running in parallel.
-        if rank == 0:
-            seed = numpy.array([numpy.random.randint(0, 1e8)], dtype='i4')
-            # Can't serialise numpy arrays
-            options['qmc_options']['rng_seed'] = seed[0].item()
-        else:
-            seed = numpy.empty(1, dtype='i4')
-        comm.Bcast(seed, root=0)
-        seed = seed[0]
-    seed = seed + rank
-    numpy.random.seed(seed)
-    if rank == 0:
-        state = afqmcpy.state.State(options.get('model'),
-                                    options.get('qmc_options'),
-                                    options.get('estimates'),
-                                    options.get('trial_wavefunction'))
-    else:
-        state = None
-    state = comm.bcast(state, root=0)
-    if state.trial.error:
-        warnings.warn('Error in constructing trial wavefunction. Exiting')
-        sys.exit()
-    state.rank = rank
-    state.nprocs = nprocs
-    state.root = state.rank == 0
-    # We can't serialise '_io.BufferWriter' object, so just delay initialisation
-    # of estimators object to after MPI communication.
-    # TODO: Do this more gracefully.
-    state.qmc.nwalkers = int(state.qmc.nwalkers/nprocs)
-    if state.qmc.nwalkers == 0:
-        # This should occur on all processors so we don't need to worry about
-        # race conditions / mpi4py hanging.
-        if state.root:
-            warnings.warn('Not enough walkers for selected core count. There '
-                          'must be at least one walker per core set in the '
-                          'input file. Exiting.')
-        sys.exit()
+    # Remove - each class should have a serialiser
+    def write_json(self, model, qmc_opts, estimates):
+        r"""Print out state object information to string.
 
-    psi = afqmcpy.walker.Walkers(state.system, state.trial, state.qmc.nwalkers)
-    # TODO: Return state and psi and run from another routine.
-    return (state, psi, comm)
+        Parameters
+        ----------
+        print_function : method, optional
+            How to print state information, e.g. to std out or file. Default : print.
+        eol : string, optional
+            String to append to output, e.g., '\n', Default : ''.
+        verbose : bool, optional
+            How much information to print. Default : True.
+        """
 
-def run(state, psi, estimators, comm=None):
-    (state, psi) = afqmcpy.qmc.do_qmc(state, psi, estimators, comm)
-    return psi
+        # Combine some metadata in dicts so it can be easily printed/read.
+        calc_info =  {
+            'sha1': get_git_revision_hash(),
+            'Run time': time.asctime(),
+            'uuid': self.uuid
+        }
+        trial_wavefunction = {
+            'name': self.trial.__class__.__name__,
+            'sp_eigv': self.trial.eigs.round(6).tolist(),
+            'initialisation_time': round(self.trial.initialisation_time, 5),
+            'trial_energy': self.trial.etrial,
+        }
+        # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
+        # ugh
+        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+        info = {
+            'calculation': calc_info,
+            'model': model,
+            'qmc_options': qmc_opts,
+            'trial_wavefunction': trial_wavefunction,
+            'estimates': estimates,
+        }
+        # Note that we require python 3.6 to print dict in ordered fashion.
+        md = json.dumps(info, sort_keys=False, indent=4)
+        return (md)
 
-def finalise(state, estimators, init_time):
-    if state.root:
-        print ("# End Time: %s"%time.asctime())
-        print ("# Running time : %.6f seconds"%(time.time()-init_time))
+    def run(self, psi=None, comm=None):
+        """Perform CPMC simulation on state object.
+
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State` object
+            Model and qmc parameters.
+        psi : list of :class:`afqmcpy.walker.Walker` objects
+            Initial wavefunction / distribution of walkers.
+        comm : MPI communicator
+        """
+        if psi is not None:
+            self.psi = psi
         if estimators.back_propagation:
-            estimators.h5f.close()
+            # Easier to just keep a histroy of all walkers for population control
+            # purposes if a bit memory inefficient.
+            # TODO: just store historic fields rather than all the walkers.
+            self,estimators.psi_hist[:,0] = copy.deepcopy(psi)
+        else:
+            self.estimators.psi_hist = None
+
+        (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.state.system)
+        self.qmc.mean_local_energy = E_T.real
+        # Calculate estimates for initial distribution of walkers.
+        self.estimators.estimators['mixed'].update(self.system, self.qmc,
+                                                   self.trial, psi, 0)
+        # Print out zeroth step for convenience.
+        self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
+
+        for step in range(1, self.qmc.nsteps+1):
+            for w in self.psi.walkers:
+                # Want to possibly allow for walkers with negative / complex weights
+                # when not using a constraint. I'm not so sure about the criteria
+                # for complex weighted walkers.
+                if abs(w.weight) > 1e-8:
+                    self.propagators.propagate_walker(w, state)
+                # Constant factors
+                w.weight = w.weight * exp(self.qmc.dt*E_T.real)
+                # Add current (propagated) walkers contribution to estimates.
+            if step%self.qmc.nstblz == 0:
+                self.psi.orthogonalise(self.qmc.importance_sampling)
+            # calculate estimators
+            self.estimators.update(self.system, self.qmc,
+                                   self.trial, self.psi, step)
+            if step%self.qmc.nmeasure == 0:
+                # Todo: proj energy function
+                E_T = afqmcpy.estimators.eproj(self.estimators.estimators['mixed'].estimates,
+                                               self.estimators.estimators['mixed'].names)
+                self.estimators.print_step(comm, self.nprocs, step,
+                                           self.qmc.nmeasure)
+            if step < self.qmc.nequilibrate:
+                # Update local energy bound.
+                self.mean_local_energy = E_T
+            if step%self.qmc.npop_control == 0:
+                self.estimators.psi_hist = pop_control.comb(psi, self.qmc.nwalkers,
+                                                            self.estimators.psi_hist)
+
+    def finalise(self):
+        if self.root:
+            print ("# End Time: %s"%time.asctime())
+            print ("# Running time : %.6f seconds"%(time.time()-init_time))
+            if self.estimators.back_propagation:
+                self.estimators.h5f.close()
