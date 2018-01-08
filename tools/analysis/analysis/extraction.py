@@ -99,12 +99,12 @@ def extract_hdf5(filename):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
     estimates = metadata.get('estimates')
-    basic = data['basic_estimators/energies'][:]
-    headers = data['basic_estimators/headers'][:]
+    basic = data['mixed_estimates/energies'][:]
+    headers = data['mixed_estimates/headers'][:]
     basic = pd.DataFrame(basic)
     basic.columns = headers
     if estimates is not None:
-        bp = estimates.get('back_propagation')
+        bp = estimates.get('back_propagated')
         if bp is not None:
             bpe = data['back_propagated_estimates/energies'][:]
             headers = data['back_propagated_estimates/headers'][:]
