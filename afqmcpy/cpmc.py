@@ -200,6 +200,6 @@ class CPMC:
     def finalise(self):
         if self.root:
             print ("# End Time: %s"%time.asctime())
-            print ("# Running time : %.6f seconds"%(time.time()-init_time))
+            print ("# Running time : %.6f seconds"%(time.time()-self.init_time))
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
