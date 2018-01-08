@@ -1,0 +1,60 @@
+# Initialising AFQMCPY simulation from discrete.json
+# Running on 1 core
+# Input options:
+{
+    "calculation": {
+        "sha1": "6fc4bd4ca8c7091d433145eb5e48febe9d1642a0",
+        "Run time": "Mon Jan  8 15:39:28 2018",
+        "uuid": "2b286884-f4cd-11e7-87cd-9801a79f0295"
+    },
+    "model": {
+        "name": "Hubbard",
+        "t": 1.0,
+        "U": 4,
+        "nx": 5,
+        "ny": 1,
+        "nup": 3,
+        "ndown": 3
+    },
+    "qmc_options": {
+        "method": "CPMC",
+        "dt": 0.05,
+        "nsteps": 100,
+        "nmeasure": 10,
+        "nwalkers": 30,
+        "npop_control": 10,
+        "temperature": 0.0,
+        "hubbard_stratonovich": "discrete",
+        "importance_sampling": false,
+        "rng_seed": 7
+    },
+    "trial_wavefunction": {
+        "name": "FreeElectron",
+        "sp_eigv": [
+            -2.0,
+            -2.0,
+            -0.618034,
+            -0.618034,
+            -0.618034,
+            -0.618034,
+            1.618034,
+            1.618034,
+            1.618034,
+            1.618034
+        ],
+        "initialisation_time": 0.00113,
+        "trial_energy": 0.7278640450004197
+    },
+    "estimates": {}
+}
+# End of input options.
+# Explanation of output column headers:
+# -------------------------------------
+# iteration : Simulation iteration. iteration*dt = tau.
+# Weight : Total walker weight.
+# E_num : Numerator for projected energy estimator.
+# E_denom : Denominator for projected energy estimator.
+# E : Projected energy estimator.
+# time : Time per processor to complete one iteration.
+        iteration            Weight             E_num           E_denom                 E              time
+ 0.0000000000e+00  3.0000000000e+01  2.1835921350e+01  3.0000000000e+01  7.2786404500e-01  2.3017644882e-02
