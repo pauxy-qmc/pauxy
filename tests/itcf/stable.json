@@ -24,7 +24,7 @@
         "name": "free_electron"
     },
     "estimates": {
-        "back_propagation": {
+        "back_propagated": {
             "nback_prop": 10
         },
         "itcf": {

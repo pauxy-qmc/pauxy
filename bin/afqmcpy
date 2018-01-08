@@ -1,50 +1,21 @@
 #!/usr/bin/env python
 
 import sys
-# todo : handle more gracefully.
-try:
-    from mpi4py import MPI
-    parallel = True
-except ImportError:
-    warnings.warn('No MPI library found')
-    parallel = False
-import time
 import afqmcpy.cpmc
+import afqmcpy.calc
 import json
 
 def main(input_file):
-    init_time = time.time()
-    if parallel:
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        nprocs = comm.Get_size()
-    else:
-        comm = None
-        rank = 0
-        nprocs = 1
-    if rank == 0:
-        print('# Initialising AFQMCPY simulation from %s'%input_file)
-        with open(input_file) as inp:
-            options = json.load(inp)
-        inp.close()
-        # sometimes python is beautiful
-        print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
-    else:
-        options = None
+    (options, comm) = afqmcpy.calc.init(input_file)
     if comm is not None:
-        options = comm.bcast(options, root=0)
-    (state, psi0, comm) = afqmcpy.cpmc.setup(options, comm)
-    estimators = afqmcpy.estimators.Estimators(options.get('estimates'),
-                                               state.root,
-                                               state.uuid,
-                                               state.qmc,
-                                               state.system.nbasis,
-                                               state.json_string,
-                                               state.propagators.BT_BP,
-                                               state.trial.type=='GHF')
-    psi0.add_field_config(estimators.nprop_tot, state.system.nbasis)
-    afqmcpy.cpmc.run(state, psi0, estimators, comm)
-    afqmcpy.cpmc.finalise(state, estimators, init_time)
+        cpmc = afqmcpy.calc.setup_parallel(options, comm)
+    else:
+        cpmc = afqmcpy.cpmc.CPMC(options.get('model'),
+                                 options.get('qmc_options'),
+                                 options.get('estimates'),
+                                 options.get('trial_wavefunction'))
+    cpmc.run(comm=comm)
+    cpmc.finalise()
 
 if __name__ == '__main__':
     main(sys.argv[1])
