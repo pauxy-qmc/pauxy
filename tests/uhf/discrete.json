@@ -22,6 +22,7 @@
     },
     "trial_wavefunction": {
         "name": "UHF",
+        "initial_wavefunction": "trial",
         "ueff": 0.4,
         "ninitial": 100
     },
