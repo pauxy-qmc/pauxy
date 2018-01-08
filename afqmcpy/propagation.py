@@ -397,7 +397,7 @@ class DiscreteHubbard:
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         if constraint == 'free':
-            self.propagate_walker = self.propagate_walker_free 
+            self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
         model = system.__class__.__name__
