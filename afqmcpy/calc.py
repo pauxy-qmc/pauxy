@@ -1,14 +1,17 @@
 """Helper Routines for setting up a calculation"""
 # todo : handle more gracefully.
+import time
+import numpy
+import json
 try:
     from mpi4py import MPI
     parallel = True
 except ImportError:
     warnings.warn('No MPI library found')
     parallel = False
+import afqmcpy.cpmc
 
-def init(input_file, verbose=True): 
-    init_time = time.time()
+def init(input_file, verbose=True):
     if parallel:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -61,7 +64,7 @@ def setup_parallel(options, comm=None):
     state : :class:`afqmcpy.state.State`
         Simulation state.
     """
-    if rank == 0:
+    if comm.Get_rank() == 0:
         cpmc = afqmcpy.cpmc.CPMC(options.get('model'),
                                   options.get('qmc_options'),
                                   options.get('estimates'),
@@ -70,16 +73,17 @@ def setup_parallel(options, comm=None):
     else:
         cpmc = None
     cpmc = comm.bcast(cpmc, root=0)
+    cpmc.init_time = time.time()
     if cpmc.trial.error:
         warnings.warn('Error in constructing trial wavefunction. Exiting')
         sys.exit()
-    cpmc.rank = rank
-    cpmc.nprocs = nprocs
+    cpmc.rank = comm.Get_rank()
+    cpmc.nprocs = comm.Get_size()
     cpmc.root = cpmc.rank == 0
     # We can't serialise '_io.BufferWriter' object, so just delay initialisation
     # of estimators object to after MPI communication.
     # TODO: Do this more gracefully.
-    cpmc.qmc.nwalkers = int(cpmc.qmc.nwalkers/nprocs)
+    cpmc.qmc.nwalkers = int(cpmc.qmc.nwalkers/cpmc.nprocs)
     if cpmc.qmc.nwalkers == 0:
         # This should occur on all processors so we don't need to worry about
         # race conditions / mpi4py hanging.
@@ -91,17 +95,17 @@ def setup_parallel(options, comm=None):
 
     # TODO: Return cpmc and psi and run from another routine.
     cpmc.estimators = (
-        afqmcpy.estimators.estimators(options.get('estimates'),
+        afqmcpy.estimators.Estimators(options.get('estimates'),
                                       cpmc.root,
                                       cpmc.uuid,
                                       cpmc.qmc,
                                       cpmc.system.nbasis,
                                       cpmc.json_string,
-                                      cpmc.propagators.bt_bp,
+                                      cpmc.propagators.BT_BP,
                                       cpmc.trial.type=='ghf')
     )
-    cpmc.psi = afqmcpy.walker.walkers(cpmc.system, cpmc.trial,
+    cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,
                                       cpmc.estimators.nprop_tot)
-    return state
+    return cpmc
 

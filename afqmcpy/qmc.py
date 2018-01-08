@@ -1,12 +1,5 @@
 import numpy
-from math import exp
-import scipy.linalg
 import copy
-import random
-import afqmcpy.walker as walker
-import afqmcpy.estimators
-import afqmcpy.pop_control as pop_control
-import afqmcpy.propagation
 
 class QMCOpts:
     r"""Input options and certain constants / parameters derived from them.
@@ -98,5 +91,3 @@ class QMCOpts:
             self.mf_nsq = system.nbasis * self.mf_shift**2.0
         self.local_energy_bound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-
-

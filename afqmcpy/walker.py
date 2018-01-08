@@ -18,8 +18,7 @@ class Walkers:
         else:
             self.walkers = [Walker(1, system, trial, w)
                             for w in range(nwalkers)]
-        if nprop_tot > 1:
-            self.add_field_config(nprop_tot, system.nbasis)
+        self.add_field_config(nprop_tot, system.nbasis)
 
     def orthogonalise(self, importance_sampling):
         for w in self.walkers:

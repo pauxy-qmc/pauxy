@@ -4,10 +4,14 @@ import json
 import time
 import numpy
 import warnings
-import afqmcpy.state
+import uuid
 import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
+import afqmcpy.hubbard
+import afqmcpy.utils
+import afqmcpy.pop_control
+from math import exp
 
 class CPMC:
     """CPMC driver.
@@ -49,8 +53,8 @@ class CPMC:
     def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
-            self.system = hubbard.Hubbard(model, qmc_opts['dt'])
-        self.qmc = QMCOpts(qmc_opts, self.system)
+            self.system = afqmcpy.hubbard.Hubbard(model, qmc_opts['dt'])
+        self.qmc = afqmcpy.qmc.QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
         self.uuid = str(uuid.uuid1())
         self.seed = qmc_opts['rng_seed']
@@ -110,7 +114,7 @@ class CPMC:
 
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
-            'sha1': get_git_revision_hash(),
+            'sha1': afqmcpy.utils.get_git_revision_hash(),
             'Run time': time.asctime(),
             'uuid': self.uuid
         }
@@ -147,19 +151,19 @@ class CPMC:
         """
         if psi is not None:
             self.psi = psi
-        if estimators.back_propagation:
+        if self.estimators.back_propagation:
             # Easier to just keep a histroy of all walkers for population control
             # purposes if a bit memory inefficient.
             # TODO: just store historic fields rather than all the walkers.
-            self,estimators.psi_hist[:,0] = copy.deepcopy(psi)
+            self.estimators.psi_hist[:,0] = copy.deepcopy(psi)
         else:
             self.estimators.psi_hist = None
 
-        (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.state.system)
+        (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
         self.qmc.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
-                                                   self.trial, psi, 0)
+                                                   self.trial, self.psi, 0)
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
@@ -169,7 +173,7 @@ class CPMC:
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
                 if abs(w.weight) > 1e-8:
-                    self.propagators.propagate_walker(w, state)
+                    self.propagators.propagate_walker(w, self)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt*E_T.real)
                 # Add current (propagated) walkers contribution to estimates.
@@ -188,8 +192,10 @@ class CPMC:
                 # Update local energy bound.
                 self.mean_local_energy = E_T
             if step%self.qmc.npop_control == 0:
-                self.estimators.psi_hist = pop_control.comb(psi, self.qmc.nwalkers,
-                                                            self.estimators.psi_hist)
+                self.estimators.psi_hist = (
+                    afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers,
+                                             self.estimators.psi_hist)
+                )
 
     def finalise(self):
         if self.root:

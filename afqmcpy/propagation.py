@@ -8,7 +8,6 @@ import math
 import cmath
 import copy
 import afqmcpy.utils
-import afqmcpy.walker as walker
 
 
 def propagate_walker_discrete(walker, state):

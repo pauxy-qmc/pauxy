@@ -2,6 +2,8 @@
 
 import numpy
 import scipy.linalg
+import sys
+import subprocess
 
 def sherman_morrison(Ainv, u, vt):
     r"""Sherman-Morrison update of a matrix inverse:

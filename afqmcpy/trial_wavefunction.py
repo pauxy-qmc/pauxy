@@ -15,7 +15,7 @@ import afqmcpy.hubbard
 
 class FreeElectron:
 
-    def __init__(self, system, cplx, trial, parallel):
+    def __init__(self, system, cplx, trial, parallel=False):
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
@@ -113,7 +113,7 @@ class UHF:
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel):
+    def __init__(self, system, cplx, trial, parallel=False):
         print ("# Constructing trial wavefunction")
         init_time = time.time()
         self.name = "UHF"
@@ -263,7 +263,7 @@ class UHF:
 
 class MultiDeterminant:
 
-    def __init__(self, system, cplx, trial, parallel):
+    def __init__(self, system, cplx, trial, parallel=False):
         init_time = time.time()
         self.name = "multi_determinant"
         self.expansion = "multi_determinant"
