@@ -676,7 +676,7 @@ class ContinuousHubbard:
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * c_xf
 
-    def propagate_walker_continuous(walker, state):
+    def propagate_walker_constrained_continuous(self, walker, system, trial):
         r"""Wrapper function for propagation using continuous transformation.
 
         This applied the phaseless, local energy approximation and uses importance
@@ -695,7 +695,7 @@ class ContinuousHubbard:
         # 1. Apply kinetic projector.
         self.kinetic(walker.phi, system, self.bt2)
         # 2. Apply potential projector.
-        cxf = self.two_body(walker, system)
+        cxf = self.two_body(walker, system, trial)
         # 3. Apply kinetic projector.
         self.kinetic(walker.phi, system, self.bt2)
 

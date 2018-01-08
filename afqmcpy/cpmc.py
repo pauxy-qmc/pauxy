@@ -195,7 +195,7 @@ class CPMC:
                                            self.qmc.nmeasure)
             if step < self.qmc.nequilibrate:
                 # Update local energy bound.
-                self.mean_local_energy = E_T
+                self.propagators.mean_local_energy = E_T
             if step%self.qmc.npop_control == 0:
                 self.estimators.psi_hist = (
                     afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers,
