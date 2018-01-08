@@ -32,11 +32,15 @@ def run_blocking_analysis(filename, start_iter):
     return (reblock, useful_table)
 
 def average_single(frame):
-    short = frame.drop(['time', 'dt', 'iteration', 'E_denom', 'E_num'], axis=1)
-    means = short.mean().to_frame().T
-    err = short.sem().to_frame().T
-    averaged = means.merge(err, left_index=True, right_index=True, suffixes=('', '_error'))
+    short = frame.drop(['time', 'iteration', 'E_denom', 'E_num'], axis=1)
+    short = short.groupby('dt')
+    means = short.mean()
+    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
+    averaged = means.merge(err, left_index=True, right_index=True,
+                           suffixes=('', '_error'))
     columns = sorted(averaged.columns.values)
+    averaged.reset_index(inplace=True)
+    columns = numpy.insert(columns, 0, 'dt')
     return averaged[columns]
 
 def average_rdm(filename, skip=0):
@@ -95,8 +99,8 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
-def analyse_estimates(filenames, start_iteration=0):
-    data = analysis.extraction.extract_hdf5_data_sets(filenames)
+def analyse_estimates(files, start_time=0, multi_sim=False):
+    data = analysis.extraction.extract_hdf5_data_sets(files)
     bp_data = []
     norm_data = []
     itcf_data = []
@@ -110,18 +114,19 @@ def analyse_estimates(filenames, start_iteration=0):
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
-        norm_data.append(norm[start_iteration:nzero].apply(numpy.real))
+        start = int(start_time/(step*dt)) + 1
+        norm_data.append(norm[start:nzero].apply(numpy.real))
         if bp is not None:
             nbp = m.get('estimates').get('back_propagation').get('nback_prop')
             bp['dt'] = dt
             bp['nbp'] = nbp
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
-            skip = max(1, int(start_iteration/nbp))
+            skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero].apply(numpy.real))
         if itcf is not None:
             itcf_tmax = m.get('estimates').get('itcf').get('tmax')
-            nits = int(itcf_tmax/dt) + 1
-            skip = max([1, int(start_iteration/nits)])
+            nits = int(itcf_tmax/(step*dt)) + 1
+            skip = max([1, int(start/nits)])
             nzero = numpy.nonzero(itcf)[0][-1]
             itcf_data.append(itcf[skip:nzero])
         if itcfk is not None:
@@ -150,7 +155,7 @@ def analyse_estimates(filenames, start_iteration=0):
                 dtype=h5py.special_dtype(vlen=str))
     else:
         bp_av = None
-    if len(norm_data) > 1:
+    if multi_sim:
         norm_data = pd.concat(norm_data).groupby('iteration')
         norm_av = average_tau(norm_data)
     else:

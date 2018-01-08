@@ -12,6 +12,7 @@ sys.path.append(os.path.join(_script_dir, 'analysis'))
 import analysis.blocking
 import pyblock
 import matplotlib.pyplot as plt
+import glob
 
 
 def parse_args(args):
@@ -35,8 +36,8 @@ start_iteration : int
 '''
 
     parser = argparse.ArgumentParser(description = __doc__)
-    parser.add_argument('-s', '--start', type=int, dest='start_iteration',
-                        default=None, help='Iteration number from which to '
+    parser.add_argument('-s', '--start', type=int, dest='start_time',
+                        default=None, help='Imaginary time after which we '
                         'gather statistics.  Default: 0')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                         default=False, help='Increase verbosity of output.')
@@ -79,8 +80,13 @@ None.
 
     options = parse_args(args)
     if options.estimates:
-        (bp_av, norm) = analysis.blocking.analyse_estimates(options.filenames,
-                                                    options.start_iteration)
+        if '*' in options.filenames[0]:
+            files = glob.glob(options.filenames[0])
+        else:
+            files = options.filenames
+        (bp_av, norm) = analysis.blocking.analyse_estimates(files,
+                                                    options.start_time,
+                                                    options.loops)
         if options.plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].errorbar(data.nbp.values, data['T'].values,

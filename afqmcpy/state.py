@@ -110,7 +110,7 @@ class State:
             'name': self.trial.__class__.__name__,
             'sp_eigv': self.trial.eigs.round(6).tolist(),
             'initialisation_time': round(self.trial.initialisation_time, 5),
-            'trial_energy': self.trial.emin,
+            'trial_energy': self.trial.etrial,
         }
         # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
         # ugh
