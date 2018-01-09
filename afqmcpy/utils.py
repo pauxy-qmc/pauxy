@@ -5,7 +5,6 @@ import scipy.linalg
 import sys
 import subprocess
 import types
-import inspect
 
 def sherman_morrison(Ainv, u, vt):
     r"""Sherman-Morrison update of a matrix inverse:
@@ -145,6 +144,19 @@ def get_git_revision_hash():
     else:
         return sha1.decode('utf-8')
 
+def is_h5file(obj):
+    t = str(type(obj))
+    cond = 'h5py' in t
+    return cond
+
+def is_class(obj):
+    cond = (hasattr(obj, '__class__') and
+            (('__dict__') in dir(obj) or hasattr(obj, '__slots__'))
+            and not isinstance(obj, types.FunctionType)
+            and not is_h5file(obj))
+
+    return cond
+
 def serialise(obj, verbose=0):
 
     obj_dict = {}
@@ -154,8 +166,7 @@ def serialise(obj, verbose=0):
         items = obj.__dict__.items()
 
     for k, v in items:
-        # print (k, type(v))
-        if inspect.isclass(v):
+        if is_class(v):
             # Object
             obj_dict[k] = serialise(v, verbose)
         elif isinstance(v, dict):
@@ -171,7 +182,7 @@ def serialise(obj, verbose=0):
         elif k == 'estimates' or k == 'global_estimates':
             pass
         elif k == 'walkers':
-            obj_dict[k] = [str(x) for x in v]
+            obj_dict[k] = [str(x) for x in v][0]
         elif isinstance(v, numpy.ndarray):
             if verbose == 2:
                 if v.dtype == float or v.dtype == complex:
@@ -184,15 +195,14 @@ def serialise(obj, verbose=0):
                         obj_dict[k] = v.round(6).tolist()
                     else:
                         obj_dict[k] = v.tolist(),
-        elif k == 'h5f':
-            obj_dict[k] = str(v)
         elif k == 'store':
             obj_dict[k] = str(v)
-        elif isinstance(v, type):
-            pass
-        elif (isinstance(v, int) or isinstance(v, float) or isinstance(v, bool)
-              or isinstance(v, str)):
+        elif isinstance(v, (int, float, bool, complex, str)):
             obj_dict[k] = v
+        elif v is None:
+            obj_dict[k] = v
+        elif is_h5file(v):
+            obj_dict[k] = v.filename
         else:
             pass
 
