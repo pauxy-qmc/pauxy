@@ -409,7 +409,7 @@ class BackPropagation:
         if step%self.nmax != 0:
             return
         psi_bp = afqmcpy.propagation.back_propagate(system, psi.walkers, trial,
-                                                    self.nstblz, self.BT2) 
+                                                    self.nstblz, self.BT2)
         denominator = sum(wnm.weight for wnm in psi.walkers)
         nup = system.nup
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
@@ -451,7 +451,7 @@ class BackPropagation:
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg])
+                self.output.push(self.global_estimates[:self.nreg]/nprocs)
                 if self.rdm:
                     rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
                     self.dm_output.push(rdm)
@@ -512,16 +512,14 @@ class ITCF:
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/dt)
-        self.nprop_tot = self.nmax + nbp 
+        self.nprop_tot = self.nmax + nbp
         self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
         # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
         # function at time i.
         # +1 in the first dimension is for the green's function at time tau = 0.
-        self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2,
-                                       nbasis,
-                                       nbasis),
-                                       dtype=dtype)
+        self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2, nbasis, nbasis),
+                                dtype=dtype)
         self.spgf_global = numpy.zeros(shape=self.spgf.shape, dtype=dtype)
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
