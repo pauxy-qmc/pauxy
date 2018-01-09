@@ -151,7 +151,7 @@ class Estimators:
         """
         for k, e in self.estimators.items():
             e.print_step(comm, nprocs, step, nmeasure)
-        if comm.Get_rank() == 0:
+        if (comm is None) or (comm.Get_rank() == 0):
             self.h5f.flush()
 
     def update(self, system, qmc, trial, psi, step):
@@ -253,9 +253,12 @@ class Mixed:
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
-        comm.Reduce(es, self.global_estimates, op=MPI.SUM)
+        if comm is not None:
+            comm.Reduce(es, self.global_estimates, op=MPI.SUM)
+        else:
+            self.global_estimates[:] = es
         # put these in own print routines.
-        if comm.Get_rank() == 0:
+        if (comm is None) or (comm.Get_rank() == 0):
             print (afqmcpy.utils.format_fixed_width_floats([step]+
                         list(self.global_estimates[:ns.time+1].real/nmeasure)))
             self.output.push(self.global_estimates[:ns.time+1]/nmeasure)

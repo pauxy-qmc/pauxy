@@ -7,6 +7,7 @@ import warnings
 import uuid
 from math import exp
 import copy
+import h5py
 import afqmcpy.qmc
 import afqmcpy.walker
 import afqmcpy.estimators
@@ -62,6 +63,8 @@ class CPMC:
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
         self.root = True
+        self.nprocs = 1
+        self.init_time = time.time()
         # effective hubbard U for UHF trial wavefunction.
         if trial['name'] == 'free_electron':
             self.trial = afqmcpy.trial_wavefunction.FreeElectron(self.system,
@@ -103,12 +106,13 @@ class CPMC:
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(afqmcpy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
-            self.estimates.h5f.create_dataset('metadata',
+            self.estimators.h5f.create_dataset('metadata',
                                               data=numpy.array([json_string],
                                               dtype=object),
                                               dtype=h5py.special_dtype(vlen=str))
             print ('# Input options:')
-            print (json.dumps(afqmcpy.utils.serialise(self, verbose=0)))
+            print (json.dumps(afqmcpy.utils.serialise(self, verbose=0),
+                              sort_keys=False, indent=4))
             print('# End of input options.')
 
     # Remove - each class should have a serialiser
