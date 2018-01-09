@@ -3,6 +3,8 @@
 import time
 import numpy
 import json
+import warnings
+import h5py
 try:
     from mpi4py import MPI
     parallel = True
@@ -10,6 +12,7 @@ except ImportError:
     warnings.warn('No MPI library found')
     parallel = False
 import afqmcpy.cpmc
+import afqmcpy.utils
 
 def init(input_file, verbose=True):
     if parallel:
@@ -100,12 +103,23 @@ def setup_parallel(options, comm=None):
                                       cpmc.uuid,
                                       cpmc.qmc,
                                       cpmc.system.nbasis,
-                                      cpmc.json_string,
                                       cpmc.propagators.BT_BP,
                                       cpmc.trial.type=='GHF')
     )
     cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,
                                       cpmc.estimators.nprop_tot)
-    return cpmc
+    if comm.Get_rank() == 0:
+        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+        json_string = json.dumps(afqmcpy.utils.serialise(cpmc, verbose=1),
+                                 sort_keys=False, indent=4)
+        cpmc.estimators.h5f.create_dataset('metadata',
+                                          data=numpy.array([json_string],
+                                          dtype=object),
+                                          dtype=h5py.special_dtype(vlen=str))
+        print ('# Input options:')
+        print (json.dumps(afqmcpy.utils.serialise(cpmc, verbose=0),
+                          sort_keys=False, indent=4))
+        print('# End of input options.')
 
+    return cpmc

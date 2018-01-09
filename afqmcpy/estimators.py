@@ -66,8 +66,7 @@ class Estimators:
         and ITCF calculation.
     """
 
-    def __init__(self, estimates, root, uuid, qmc, nbasis, json_string,
-                 BT2, ghf=False):
+    def __init__(self, estimates, root, uuid, qmc, nbasis, BT2, ghf=False):
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -92,9 +91,6 @@ class Estimators:
                     index = index + 1
                     h5f_name =  'estimates.%s.h5'%index
             self.h5f = h5py.File(h5f_name, 'w')
-            self.h5f.create_dataset('metadata',
-                                    data=numpy.array([json_string], dtype=object),
-                                    dtype=h5py.special_dtype(vlen=str))
         else:
             self.h5f = None
         self.nestimators = len(self.header[1:])

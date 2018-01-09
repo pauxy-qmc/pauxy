@@ -58,6 +58,7 @@ class CPMC:
         self.qmc = afqmcpy.qmc.QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
         self.uuid = str(uuid.uuid1())
+        self.sha1 =  afqmcpy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
         self.root = True
@@ -85,24 +86,30 @@ class CPMC:
                                                                      self.system,
                                                                      self.trial)
         # Handy to keep original dicts so they can be printed at run time.
-        self.json_string = self.write_json(model, qmc_opts, estimates)
-        print ('# Input options:')
-        print (self.json_string)
-        print('# End of input options.')
+        # self.json_string = self.write_json(model, qmc_opts, estimates)
         if not parallel:
             self.estimators = (
-                afqmcpy.estimators.estimators(options.get('estimates'),
+                afqmcpy.estimators.Estimators(estimates,
                                               self.root,
                                               self.uuid,
                                               self.qmc,
                                               self.system.nbasis,
-                                              self.json_string,
-                                              self.propagators.bt_bp,
-                                              self.trial.type=='ghf')
+                                              self.propagators.BT_BP,
+                                              self.trial.type=='GHF')
             )
-            self.psi = afqmcpy.walker.walkers(self.system, self.trial,
+            self.psi = afqmcpy.walker.Walkers(self.system, self.trial,
                                               self.qmc.nwalkers,
                                               self.estimators.nprop_tot)
+            json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+            json_string = json.dumps(afqmcpy.utils.serialise(self, verbose=1),
+                                     sort_keys=False, indent=4)
+            self.estimates.h5f.create_dataset('metadata',
+                                              data=numpy.array([json_string],
+                                              dtype=object),
+                                              dtype=h5py.special_dtype(vlen=str))
+            print ('# Input options:')
+            print (json.dumps(afqmcpy.utils.serialise(self, verbose=0)))
+            print('# End of input options.')
 
     # Remove - each class should have a serialiser
     def write_json(self, model, qmc_opts, estimates):

@@ -4,6 +4,8 @@ import numpy
 import scipy.linalg
 import sys
 import subprocess
+import types
+import inspect
 
 def sherman_morrison(Ainv, u, vt):
     r"""Sherman-Morrison update of a matrix inverse:
@@ -142,3 +144,56 @@ def get_git_revision_hash():
         return sha1.decode('utf-8') + '-dirty'
     else:
         return sha1.decode('utf-8')
+
+def serialise(obj, verbose=0):
+
+    obj_dict = {}
+    if isinstance(obj, dict):
+        items = obj.items()
+    else:
+        items = obj.__dict__.items()
+
+    for k, v in items:
+        # print (k, type(v))
+        if inspect.isclass(v):
+            # Object
+            obj_dict[k] = serialise(v, verbose)
+        elif isinstance(v, dict):
+            obj_dict[k] = serialise(v)
+        elif isinstance(v, types.FunctionType):
+            # function
+            if verbose == 1:
+                obj_dict[k] = str(v)
+        elif hasattr(v, '__self__'):
+            # unbound function
+            if verbose == 1:
+                obj_dict[k] = str(v)
+        elif k == 'estimates' or k == 'global_estimates':
+            pass
+        elif k == 'walkers':
+            obj_dict[k] = [str(x) for x in v]
+        elif isinstance(v, numpy.ndarray):
+            if verbose == 2:
+                if v.dtype == float or v.dtype == complex:
+                    obj_dict[k] = v.round(6).tolist()
+                else:
+                    obj_dict[k] = v.tolist(),
+            else:
+                if len(v.shape) == 1:
+                    if v.dtype == float or v.dtype == complex:
+                        obj_dict[k] = v.round(6).tolist()
+                    else:
+                        obj_dict[k] = v.tolist(),
+        elif k == 'h5f':
+            obj_dict[k] = str(v)
+        elif k == 'store':
+            obj_dict[k] = str(v)
+        elif isinstance(v, type):
+            pass
+        elif (isinstance(v, int) or isinstance(v, float) or isinstance(v, bool)
+              or isinstance(v, str)):
+            obj_dict[k] = v
+        else:
+            pass
+
+    return obj_dict
