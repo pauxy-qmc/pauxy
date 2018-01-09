@@ -102,7 +102,7 @@ class Estimators:
         self.estimators = {}
         self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
                                          qmc.nsteps//qmc.nmeasure+1,
-                                         nbasis, dtype)  
+                                         nbasis, dtype)
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
                                                     qmc.nsteps, nbasis,
