@@ -34,9 +34,13 @@ class Walkers:
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_old, self.walkers[i].phi)
 
-    def copy_itcf_wfn(self):
+    def copy_bp_wfn(self, phi_bp):
+        for (i,(w,wbp)) in enumerate(zip(self.walkers, phi_bp)):
+            numpy.copyto(self.walkers[i].phi_bp, wbp.phi)
+
+    def copy_init_wfn(self):
         for (i,w) in enumerate(self.walkers):
-            numpy.copyto(self.walkers[i].phi_itcf, self.walkers[i].phi)
+            numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
 
 class Walker:
 
@@ -66,7 +70,9 @@ class Walker:
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
-        self.phi_begin = copy.deepcopy(self.phi)
+        self.phi_init = copy.deepcopy(self.phi)
+        # Historic wavefunction for ITCF.
+        self.phi_bp = copy.deepcopy(self.phi)
 
     def inverse_overlap(self, trial):
         nup = self.nup
