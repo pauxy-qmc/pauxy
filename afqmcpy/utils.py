@@ -207,3 +207,11 @@ def serialise(obj, verbose=0):
             pass
 
     return obj_dict
+
+
+def reortho(M):
+    (Q, R) = scipy.linalg.qr(M, mode='economic')
+    signs = numpy.diag(numpy.sign(numpy.diag(R)))
+    Q = Q.dot(signs)
+    detR = scipy.linalg.det(signs.dot(R))
+    return (Q, R)
