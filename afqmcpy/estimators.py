@@ -108,6 +108,7 @@ class Estimators:
                                                     qmc.nsteps, nbasis,
                                                     dtype, qmc.nstblz, BT2, ghf)
             self.nprop_tot = self.estimators['back_prop'].nmax
+            self.nbp = self.estimators['back_prop'].nmax
         else:
             self.nprop_tot = 1
         # 2. Imaginary time correlation functions.

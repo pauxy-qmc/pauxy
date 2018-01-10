@@ -7,7 +7,7 @@ import afqmcpy.trial_wavefunction
 class Walkers:
     """Handler group of walkers which make up cpmc wavefunction."""
 
-    def __init__(self, system, trial, nwalkers, nprop_tot):
+    def __init__(self, system, trial, nwalkers, nprop_tot, nbp):
         if trial.name == 'multi_determinant':
             if trial.type== 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
@@ -18,7 +18,7 @@ class Walkers:
         else:
             self.walkers = [Walker(1, system, trial, w)
                             for w in range(nwalkers)]
-        self.add_field_config(nprop_tot, system.nbasis)
+        self.add_field_config(nprop_tot, nbp, system.nbasis)
 
     def orthogonalise(self, importance_sampling):
         for w in self.walkers:
@@ -26,9 +26,9 @@ class Walkers:
             if not importance_sampling:
                 w.weight = detR * w.weight
 
-    def add_field_config(self, nfield, nbasis):
+    def add_field_config(self, nfield, nbp, nbasis):
         for w in self.walkers:
-            w.field_configs = FieldConfig(nbasis, nfield)
+            w.field_configs = FieldConfig(nbasis, nfield, nbp)
 
     def copy_historic_wfn(self):
         for (i,w) in enumerate(self.walkers):
@@ -348,15 +348,29 @@ class MultiGHFWalker:
             # )
 
 class FieldConfig:
-    def __init__(self, nbasis, nbp):
-        self.configs = numpy.zeros(shape=(nbp, nbasis), dtype=int)
+    def __init__(self, nbasis, nprop_tot, nbp):
+        self.configs = numpy.zeros(shape=(nprop_tot, nbasis), dtype=int)
         self.step = 0
+        # need to account for first iteration and how we iterate
+        self.block = -1
         self.ib = 0
         self.nbasis = nbasis
         self.nbp = nbp
+        self.nprop_tot = nprop_tot
+        self.nblock = nprop_tot // nbp
 
     def push(self, config):
         self.configs[self.step,self.ib] = config
         self.ib = (self.ib + 1) % self.nbasis
-        if self.ib%self.nbasis == 0:
-            self.step = (self.step + 1) % self.nbp
+        # Completed field configuration for this walker?
+        if self.ib == 0:
+            self.step = (self.step + 1) % self.nprop_tot
+            # Completed this block of back propagation steps?
+            if self.step%self.nbp == 0:
+                self.block = (self.block + 1) % self.nblock
+
+    def get_block(self):
+        """Return a view to current block for back propagation."""
+        start = self.block*self.nbp
+        end = (self.block+1)*self.nbp
+        return self.configs[start:end]

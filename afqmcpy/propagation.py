@@ -278,7 +278,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(reversed(list(w.field_configs.configs))):
+        for (i, c) in enumerate(reversed(list(w.field_configs.get_block()))):
             B = construct_propagator_matrix(system, BT2,
                                             c, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])

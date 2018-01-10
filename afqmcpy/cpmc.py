@@ -102,7 +102,8 @@ class CPMC:
             )
             self.psi = afqmcpy.walker.Walkers(self.system, self.trial,
                                               self.qmc.nwalkers,
-                                              self.estimators.nprop_tot)
+                                              self.estimators.nprop_tot,
+                                              self.estimators.nbp)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(afqmcpy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
