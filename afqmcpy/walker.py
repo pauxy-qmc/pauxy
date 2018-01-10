@@ -384,3 +384,7 @@ class FieldConfig:
         start = self.block*self.nbp
         end = (self.block+1)*self.nbp
         return self.configs[start:end]
+
+    def get_superblock(self):
+        end = self.nprop_tot - self.nbp
+        return self.configs[:end]
