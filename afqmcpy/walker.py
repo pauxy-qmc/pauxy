@@ -34,6 +34,10 @@ class Walkers:
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_old, self.walkers[i].phi)
 
+    def copy_itcf_wfn(self):
+        for (i,w) in enumerate(self.walkers):
+            numpy.copyto(self.walkers[i].phi_itcf, self.walkers[i].phi)
+
 class Walker:
 
     def __init__(self, nw, system, trial, index):

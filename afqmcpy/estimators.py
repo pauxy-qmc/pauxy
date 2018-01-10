@@ -532,7 +532,6 @@ class ITCF:
             else:
                 shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
-            name = 'real_space'
             self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape,
                                                  dtype)
             if self.kspace:
@@ -542,7 +541,7 @@ class ITCF:
     def update(self, system, qmc, trial, psi, step):
         return
 
-    def calculate_spgf_unstable(self, state, psi_hist, psi_left):
+    def calculate_spgf_unstable(self, psi):
         r"""Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
