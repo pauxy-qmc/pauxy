@@ -118,7 +118,7 @@ class Estimators:
         if self.calc_itcf:
             self.estimators['itcf'] = ITCF(itcf, qmc.dt, root, self.h5f,
                                            nbasis, dtype, qmc.nsteps,
-                                           self.nprop_tot)
+                                           self.nprop_tot, qmc.nstblz, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
         if self.calc_itcf or self.back_propagation:
             # Store for historic wavefunctions/walkers along back propagation
@@ -421,6 +421,7 @@ class BackPropagation:
                 self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
             )
         psi.copy_historic_wfn()
+        psi.copy_bp_wfn(psi_bp)
 
     def update_ghf(self, system, qmc, trial, psi, step):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
@@ -508,12 +509,15 @@ class ITCF:
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps, nbp):
+    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps, nbp, nstblz,
+                 BT2):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/dt)
         self.nprop_tot = self.nmax + nbp
+        self.nstblz = nstblz
+        self.BT2 = BT2
         self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
         # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
@@ -539,9 +543,10 @@ class ITCF:
                                                      dtype)
 
     def update(self, system, qmc, trial, psi, step):
-        return
+        if step % self.nprop_tot == 0:
+            self.calculate_spgf_unstable(system, psi)
 
-    def calculate_spgf_unstable(self, psi):
+    def calculate_spgf_unstable(self, system, psi):
         r"""Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
@@ -559,28 +564,24 @@ class ITCF:
         On return the spgf estimator array will have been updated.
         """
 
-        I = numpy.identity(state.system.nbasis)
-        nup = state.system.nup
-        denom = sum(w.weight for w in psi_hist[:,-1])
-        for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
+        I = numpy.identity(system.nbasis)
+        nup = system.nup
+        denom = sum(w.weight for w in psi.walkers)
+        for ix, w in enumerate(psi.walkers):
             # Initialise time-displaced GF for current walker.
             Ggr = [I, I]
             Gls = [I, I]
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
-            # Note we use the first itcf_nmax fields for estimating the ITCF.
-            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
-                # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
-                                                                    state.propagators.BT_BP,
-                                                                    c.field_config.configs[ic],
-                                                                    conjt=True)
-                afqmcpy.propagation.propagate_single(state, wl, B)
+            # Note we use the first nmax fields for estimating the ITCF.
+            afqmcpy.propagation.back_propagate_single(w.phi_bp, w.field_configs.get_superblock(),
+                                                      system, self.nstblz,
+                                                      self.BT2)
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            Ggr[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
-            Ggr[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
+            Ggr[0] = I - gab(w.phi_bp[:,:nup], w.phi_init[:,:nup])
+            Ggr[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
             Gls[0] = I - Ggr[0]
             Gls[1] = I - Ggr[1]
             self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Ggr[0].real
@@ -589,11 +590,10 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
-                                                                state.propagators.BT_BP,
-                                                                c.field_config.configs[ic])
+                B = afqmcpy.propagation.construct_propagator_matrix(system,
+                                                                    self.BT2, c)
                 Ggr[0] = B[0].dot(Ggr[0])
                 Ggr[1] = B[1].dot(Ggr[1])
                 Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
@@ -602,10 +602,11 @@ class ITCF:
                 self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*Ggr[1].real
                 self.spgf[ic+1,0,1] = self.spgf[ic+1,0,1] + w.weight*Gls[0].real
                 self.spgf[ic+1,1,1] = self.spgf[ic+1,1,1] + w.weight*Gls[1].real
-            # zero the counter to start accumulating fields again in the
-            # following iteration.
-            w.bp_counter = 0
         self.spgf = self.spgf / denom
+        # copy current walker distribution to initial (right hand) wavefunction
+        # for next estimate of ITCF
+        psi.copy_init_wfn()
+
 
     def calculate_spgf(self, state, psi_hist, psi_left):
         """Calculate imaginary time single-particle green's function.
@@ -699,7 +700,7 @@ class ITCF:
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step !=0 and step%self.nprop_tot == 0:
-            comm.Reduce(self.spgf_global, self.spgf, op=MPI.SUM)
+            comm.Reduce(self.spgf, self.spgf_global, op=MPI.SUM)
             if comm.Get_rank() == 0:
                 self.to_file(self.rspace_unit, self.spgf_global/nprocs)
                 if self.kspace:
@@ -710,9 +711,9 @@ class ITCF:
                                           # spgf, self.P.conj().T) / M
                     spgf_k = numpy.fft.fft2(self.spgf_global)
                     if self.spgf.dtype == complex:
-                        self.to_file(self.kspace_unit, spgf_k)
+                        self.to_file(self.kspace_unit, spgf_k/nprocs)
                     else:
-                        self.to_file(self.kspace_unit, spgf_k.real)
+                        self.to_file(self.kspace_unit, spgf_k.real/nprocs)
             self.zero()
 
     def to_file(self, group, spgf):
