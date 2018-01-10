@@ -327,6 +327,16 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                     psi_bp[iw].weights[idet] *= detR
     return psi_bp
 
+def back_propagate_single(phi_in, configs, system, nstblz, BT2):
+    nup = system.nup
+    for (i, c) in enumerate(reversed(list(configs))):
+        B = construct_propagator_matrix(system, BT2, c, conjt=True)
+        phi_in[:,:nup] = B[0].dot(phi_in[:,:nup])
+        phi_in[:,nup:] = B[1].dot(phi_in[:,nup:])
+        if i != 0 and i % nstblz == 0:
+            (phi_in[:,:nup], R) = afqmcpy.utils.reortho(phi_in[:,:nup])
+            (phi_in[:,nup:], R) = afqmcpy.utils.reortho(phi_in[:,nup:])
+
 def propagate_single(psi, system, B):
     r"""Perform backpropagation for single configuration.
 
