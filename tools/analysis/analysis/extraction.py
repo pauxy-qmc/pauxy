@@ -98,13 +98,13 @@ def extract_hdf5_data_sets(files):
 def extract_hdf5(filename):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
-    estimates = metadata.get('estimates')
+    estimates = metadata.get('estimators').get('estimators')
     basic = data['mixed_estimates/energies'][:]
     headers = data['mixed_estimates/headers'][:]
     basic = pd.DataFrame(basic)
     basic.columns = headers
     if estimates is not None:
-        bp = estimates.get('back_propagated')
+        bp = estimates.get('back_prop')
         if bp is not None:
             bpe = data['back_propagated_estimates/energies'][:]
             headers = data['back_propagated_estimates/headers'][:]
@@ -114,9 +114,9 @@ def extract_hdf5(filename):
             bp_data = None
         itcf_info = estimates.get('itcf')
         if itcf_info is not None:
-            itcf = data['single_particle_greens_function/real_space']
+            itcf = data['single_particle_greens_function/real_space'][:]
             if itcf_info['kspace']:
-                kspace_itcf = data['single_particle_greens_function/k_space']
+                kspace_itcf = data['single_particle_greens_function/k_space'][:]
             else:
                 kspace_itcf = None
         else:
@@ -176,10 +176,10 @@ def extract_test_data_hdf5(filename):
 def extract_analysed_itcf(filename, elements, spin, order, kspace):
     data = h5py.File(filename, 'r')
     md = ast.literal_eval(data['metadata'][:][0])
-    dt = md['qmc_options']['dt']
-    tmax = md['estimates']['itcf']['tmax']
+    dt = md['qmc']['dt']
+    tmax = md['estimators']['estimators']['itcf']['tmax']
     tau = numpy.arange(0, tmax+1e-8, dt)
-    mode = md['estimates']['itcf']['mode']
+    mode = md['estimators']['estimators']['itcf']['mode']
     convert = {'up': 0, 'down': 1, 'greater': 0, 'lesser': 1}
     if kspace:
         gf = data['kspace_itcf'][:]
@@ -208,7 +208,7 @@ def extract_analysed_itcf(filename, elements, spin, order, kspace):
 def analysed_energies(filename, name):
     data = h5py.File(filename, 'r')
     md = ast.literal_eval(data['metadata'][:][0])
-    dt = md['qmc_options']['dt']
+    dt = md['qmc']['dt']
     output = data[name+'/estimates'][:]
     columns = data[name+'/headers'][:]
     results = pd.DataFrame(output, columns=columns)
