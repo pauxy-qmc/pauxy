@@ -64,15 +64,6 @@ class Estimators:
     """
 
     def __init__(self, estimates, root, uuid, qmc, nbasis, BT2, ghf=False):
-        self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
-        self.key = {
-            'iteration': "Simulation iteration. iteration*dt = tau.",
-            'Weight': "Total walker weight.",
-            'E_num': "Numerator for projected energy estimator.",
-            'E_denom': "Denominator for projected energy estimator.",
-            'E': "Projected energy estimator.",
-            'time': "Time per processor to complete one iteration.",
-        }
         if qmc.hubbard_stratonovich == "continuous" and qmc.constraint == "free":
             dtype = complex
         else:
@@ -118,14 +109,6 @@ class Estimators:
                                            nbasis, dtype, qmc.nsteps,
                                            self.nprop_tot, qmc.nstblz, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
-
-    def zero(self):
-        """Zero estimates.
-
-        On return self.estimates is zerod and the timers are reset.
-        """
-        self.estimates[:] = 0
-        self.estimates[self.names.time] = time.time()
 
     def print_step(self, comm, nprocs, step, nmeasure):
         """Print QMC estimates.
@@ -988,7 +971,6 @@ def eproj(estimates, enum):
 class H5EstimatorHelper:
     def __init__(self, h5f, name, shape, dtype):
         self.store = h5f.create_dataset(name, shape, dtype=dtype)
-        dims = numpy.array(list(shape))
         self.index = 0
 
     def push(self, data):
