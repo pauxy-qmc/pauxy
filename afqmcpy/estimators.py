@@ -81,7 +81,6 @@ class Estimators:
             self.h5f = h5py.File(h5f_name, 'w')
         else:
             self.h5f = None
-        self.nestimators = len(self.header[1:])
         # Sub-members:
         # 1. Back-propagation
         mixed = estimates.get('mixed', {})
@@ -103,7 +102,6 @@ class Estimators:
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
-        self.estimates = numpy.zeros(self.nestimators, dtype=dtype)
         if self.calc_itcf:
             self.estimators['itcf'] = ITCF(itcf, qmc.dt, root, self.h5f,
                                            nbasis, dtype, qmc.nsteps,
