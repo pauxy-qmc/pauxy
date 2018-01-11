@@ -189,14 +189,15 @@ def serialise(obj, verbose=0):
                     obj_dict[k] = v.round(6).tolist()
                 else:
                     obj_dict[k] = v.tolist(),
-            else:
+            elif verbose == 1:
                 if len(v.shape) == 1:
                     if v.dtype == float or v.dtype == complex:
                         obj_dict[k] = v.round(6).tolist()
                     else:
                         obj_dict[k] = v.tolist(),
         elif k == 'store':
-            obj_dict[k] = str(v)
+            if verbose == 1:
+                obj_dict[k] = str(v)
         elif isinstance(v, (int, float, bool, str)):
             obj_dict[k] = v
         elif isinstance(v, complex):
@@ -204,7 +205,8 @@ def serialise(obj, verbose=0):
         elif v is None:
             obj_dict[k] = v
         elif is_h5file(v):
-            obj_dict[k] = v.filename
+            if verbose == 1:
+                obj_dict[k] = v.filename
         else:
             pass
 
