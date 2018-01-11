@@ -283,7 +283,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
                                             c, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
-            if i % nstblz == 0:
+            if i != 0 and i % nstblz == 0:
                 psi_bp[iw].reortho(trial)
     return psi_bp
 
@@ -312,16 +312,16 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
     """
 
     psi_bp = [afqmcpy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
-                                    wfn0='GHF') for w in range(len(psi))]
+                                            wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(reversed(list(w.field_configs.configs))):
+        for (i, c) in enumerate(reversed(list(w.field_configs.get_block()))):
             B = construct_propagator_matrix_ghf(system, BT2,
                                                 c, conjt=True)
             for (idet, psi_i) in enumerate(psi_bp[iw].phi):
                 # propagate each component of multi-determinant expansion
                 psi_i = B.dot(psi_i)
-                if i % nstblz == 0:
+                if i != 0 and i % nstblz == 0:
                     # implicitly propagating the full GHF wavefunction
                     detR = afqmcpy.utils.reortho(psi_i)
                     psi_bp[iw].weights[idet] *= detR
