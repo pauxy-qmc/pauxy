@@ -197,8 +197,10 @@ def serialise(obj, verbose=0):
                         obj_dict[k] = v.tolist(),
         elif k == 'store':
             obj_dict[k] = str(v)
-        elif isinstance(v, (int, float, bool, complex, str)):
+        elif isinstance(v, (int, float, bool, str)):
             obj_dict[k] = v
+        elif isinstance(v, complex):
+            obj_dict[k] = v.real
         elif v is None:
             obj_dict[k] = v
         elif is_h5file(v):
@@ -207,3 +209,11 @@ def serialise(obj, verbose=0):
             pass
 
     return obj_dict
+
+
+def reortho(M):
+    (Q, R) = scipy.linalg.qr(M, mode='economic')
+    signs = numpy.diag(numpy.sign(numpy.diag(R)))
+    Q = Q.dot(signs)
+    detR = scipy.linalg.det(signs.dot(R))
+    return (Q, R)

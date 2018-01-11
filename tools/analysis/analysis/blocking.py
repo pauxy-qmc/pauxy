@@ -134,22 +134,22 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
     nsim = 0
     for g in data:
         (m, norm, bp, itcf, itcfk) = g
-        dt = m.get('qmc_options').get('dt')
-        step = m.get('qmc_options').get('nmeasure')
+        dt = m.get('qmc').get('dt')
+        step = m.get('qmc').get('nmeasure')
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
         if bp is not None:
-            nbp = m.get('estimates').get('back_propagated').get('nback_prop')
+            nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
             bp['nbp'] = nbp
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero].apply(numpy.real))
         if itcf is not None:
-            itcf_tmax = m.get('estimates').get('itcf').get('tmax')
+            itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
             nits = int(itcf_tmax/(step*dt)) + 1
             skip = max([1, int(start/nits)])
             nzero = numpy.nonzero(itcf)[0][-1]

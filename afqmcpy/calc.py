@@ -108,7 +108,8 @@ def setup_parallel(options, comm=None):
     )
     cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,
-                                      cpmc.estimators.nprop_tot)
+                                      cpmc.estimators.nprop_tot,
+                                      cpmc.estimators.nbp)
     if comm.Get_rank() == 0:
         json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
         json_string = json.dumps(afqmcpy.utils.serialise(cpmc, verbose=1),
@@ -121,5 +122,7 @@ def setup_parallel(options, comm=None):
         print (json.dumps(afqmcpy.utils.serialise(cpmc, verbose=0),
                           sort_keys=False, indent=4))
         print('# End of input options.')
+        cpmc.estimators.estimators['mixed'].print_key()
+        cpmc.estimators.estimators['mixed'].print_header()
 
     return cpmc

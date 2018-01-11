@@ -102,7 +102,8 @@ class CPMC:
             )
             self.psi = afqmcpy.walker.Walkers(self.system, self.trial,
                                               self.qmc.nwalkers,
-                                              self.estimators.nprop_tot)
+                                              self.estimators.nprop_tot,
+                                              self.estimators.nbp)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(afqmcpy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
@@ -114,6 +115,8 @@ class CPMC:
             print (json.dumps(afqmcpy.utils.serialise(self, verbose=0),
                               sort_keys=False, indent=4))
             print('# End of input options.')
+            self.estimators.estimators['mixed'].print_key()
+            self.estimators.estimators['mixed'].print_header()
 
     # Remove - each class should have a serialiser
     def write_json(self, model, qmc_opts, estimates):
@@ -168,14 +171,6 @@ class CPMC:
         """
         if psi is not None:
             self.psi = psi
-        if self.estimators.back_propagation:
-            # Easier to just keep a histroy of all walkers for population control
-            # purposes if a bit memory inefficient.
-            # TODO: just store historic fields rather than all the walkers.
-            self.estimators.psi_hist[:,0] = copy.deepcopy(psi)
-        else:
-            self.estimators.psi_hist = None
-
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
         self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
@@ -209,10 +204,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step%self.qmc.npop_control == 0:
-                self.estimators.psi_hist = (
-                    afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers,
-                                             self.estimators.psi_hist)
-                )
+                afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers)
 
     def finalise(self):
         if self.root:
