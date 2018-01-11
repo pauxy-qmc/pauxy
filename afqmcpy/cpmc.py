@@ -188,11 +188,11 @@ class CPMC:
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt*E_T.real)
                 # Add current (propagated) walkers contribution to estimates.
-            if step%self.qmc.nstblz == 0:
-                self.psi.orthogonalise(self.qmc.importance_sampling)
             # calculate estimators
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step)
+            if step%self.qmc.nstblz == 0:
+                self.psi.orthogonalise(self.qmc.importance_sampling)
             if step%self.qmc.nmeasure == 0:
                 # Todo: proj energy function
                 E_T = afqmcpy.estimators.eproj(self.estimators.estimators['mixed'].estimates,
