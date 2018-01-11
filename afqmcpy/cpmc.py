@@ -171,14 +171,6 @@ class CPMC:
         """
         if psi is not None:
             self.psi = psi
-        if self.estimators.back_propagation:
-            # Easier to just keep a histroy of all walkers for population control
-            # purposes if a bit memory inefficient.
-            # TODO: just store historic fields rather than all the walkers.
-            self.estimators.psi_hist[:,0] = copy.deepcopy(psi)
-        else:
-            self.estimators.psi_hist = None
-
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
         self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
@@ -212,10 +204,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step%self.qmc.npop_control == 0:
-                self.estimators.psi_hist = (
-                    afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers,
-                                             self.estimators.psi_hist)
-                )
+                afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers)
 
     def finalise(self):
         if self.root:

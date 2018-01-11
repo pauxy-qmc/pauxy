@@ -61,9 +61,6 @@ class Estimators:
     nprop_tot : int
         Total number of auxiliary field configurations we store / use for back
         propagation and itcf calculation.
-    psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
-        Store for historic distributions of walkers used for back propagation
-        and ITCF calculation.
     """
 
     def __init__(self, estimates, root, uuid, qmc, nbasis, BT2, ghf=False):
@@ -120,11 +117,6 @@ class Estimators:
                                            nbasis, dtype, qmc.nsteps,
                                            self.nprop_tot, qmc.nstblz, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
-        if self.calc_itcf or self.back_propagation:
-            # Store for historic wavefunctions/walkers along back propagation
-            # path.
-            self.psi_hist = numpy.zeros(shape=(qmc.nwalkers, self.nprop_tot+1),
-                                        dtype=object)
 
     def zero(self):
         """Zero estimates.
@@ -555,9 +547,6 @@ class ITCF:
         ----------
         state : :class:`afqmcpy.state.State`
             state object
-        psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
-            Store for historic distributions of walkers used for back
-            propagation and ITCF calculation.
         psi_left : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
@@ -608,7 +597,7 @@ class ITCF:
         psi.copy_init_wfn()
 
 
-    def calculate_spgf(self, state, psi_hist, psi_left):
+    def calculate_spgf_stable(self, system, psi):
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in:
