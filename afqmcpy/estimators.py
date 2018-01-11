@@ -191,8 +191,6 @@ class Mixed:
             'time': "Time per processor to complete one iteration.",
         }
         if root:
-            self.print_key(self.key)
-            self.print_header(self.header)
             energies = h5f.create_group('mixed_estimates')
             energies.create_dataset('headers',
                                     data=numpy.array(self.header[1:], dtype=object),
@@ -261,7 +259,7 @@ class Mixed:
                 self.dm_output.push(rdm/denom/nmeasure)
         self.zero()
 
-    def print_key(self, key, print_function=print, eol='', encode=False):
+    def print_key(self, print_function=print, eol='', encode=False):
         """Print out information about what the estimates are.
 
         Parameters
@@ -286,13 +284,13 @@ class Mixed:
         if encode:
             header = header.encode('utf-8')
         print_function(header)
-        for (k, v) in key.items():
+        for (k, v) in self.key.items():
             s = '# %s : %s'%(k, v) + eol
             if encode:
                 s = s.encode('utf-8')
             print_function(s)
 
-    def print_header(self, header, print_function=print, eol='', encode=False):
+    def print_header(self, print_function=print, eol='', encode=False):
         r"""Print out header for estimators
 
         Parameters
@@ -310,7 +308,7 @@ class Mixed:
         -------
         None
         """
-        s = afqmcpy.utils.format_fixed_width_strings(header) + eol
+        s = afqmcpy.utils.format_fixed_width_strings(self.header) + eol
         if encode:
             s = s.encode('utf-8')
         print_function(s)
