@@ -57,23 +57,31 @@ def average_correlation(filename, name, skip=0):
     data = h5py.File(filename, 'r')
     conv = {'mixed': 'mixed_estimates',
             'back_prop': 'back_propagated_estimates'}
-    gf = data[conv[name]+'/single_particle_greens_function'][:].real[skip:]
+    gf = data[conv[name]+'/single_particle_greens_function'][:].real
+    nzero = numpy.nonzero(gf)[0][-1]
+    gf = gf[skip:nzero]
     ni = numpy.diagonal(gf, axis1=2, axis2=3)
+    mg = gf.mean(axis=0)
+    # print (sum(ni[0].mean(axis=0)), sum(ni[1].mean(axis=0)), mg.shape,
+            # mg[0].trace(), mg[1].trace(), gf[0,0].trace())
     hole = 1.0 - numpy.sum(ni, axis=1)
     hole_err = hole.std(axis=0, ddof=1) / len(hole)**0.5
     spin = 0.5*(ni[:,0,:]-ni[:,1,:])
     spin_err = spin.std(axis=0, ddof=1) / len(hole)**0.5
-    return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err)
+    return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err, gf)
 
-def plot_correlations(cfunc, cfunc_err, nx, ny, stag=False):
+def plot_correlations(cfunc, cfunc_err, ix, nx, ny, stag=False):
     iy = [i for i in range(ny)]
-    idx = [afqmcpy.hubbard.encode_basis(0,i,nx) for i in iy]
+    idx = [afqmcpy.hubbard.encode_basis(ix,i,nx) for i in iy]
     if stag:
-        c = [((-1)**(i))*cfunc[ib] for (i, ib) in zip(iy,idx)]
+        c = [((-1)**(ix+i))*cfunc[ib] for (i, ib) in zip(iy,idx)]
     else:
         c = [cfunc[ib] for ib in idx]
-    pl.errorbar(iy, c, yerr=[cfunc_err[i] for i in idx], fmt='o')
+    err = [cfunc_err[i] for i in idx]
+    frame = pd.DataFrame({'iy': iy, 'c': c, 'c_err': err})
+    pl.errorbar(iy, c, yerr=err, fmt='o')
     pl.show()
+    return frame
 
 def average_tau(frames):
 
