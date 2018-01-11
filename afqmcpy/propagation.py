@@ -556,7 +556,7 @@ class DiscreteHubbard:
         walker.weight = walker.weight * max(0, math.cos(dtheta))
         walker.ot = ot_new
 
-    def propagate_walker_free(self, walker, system):
+    def propagate_walker_free(self, walker, system, trial):
         r"""Propagate walker without imposing constraint.
 
         Uses single-site updates for potential term.
