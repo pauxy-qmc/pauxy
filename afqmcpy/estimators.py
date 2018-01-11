@@ -108,6 +108,7 @@ class Estimators:
             self.nbp = self.estimators['back_prop'].nmax
         else:
             self.nprop_tot = 1
+            self.nbp = 1
         # 2. Imaginary time correlation functions.
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
