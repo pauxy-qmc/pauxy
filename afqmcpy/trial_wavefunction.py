@@ -64,7 +64,8 @@ class FreeElectron:
                                    self.psi[:,:system.nup])
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
                 self.psi[:,system.nup:])
-        self.etrial = afqmcpy.estimators.local_energy(system, [gup, gdown])[0].real
+        self.G = numpy.array([gup,gdown])
+        self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
@@ -142,8 +143,8 @@ class UHF:
             sys.exit()
         Gup = afqmcpy.estimators.gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
         Gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
-        self.etrial = afqmcpy.estimators.local_energy(system,
-                                                      [Gup,Gdown])[0].real
+        self.G = numpy.array([Gup, Gdown])
+        self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
@@ -292,6 +293,7 @@ class MultiDeterminant:
             psi[:,:system.nup] = self.eigv[:,:system.nup]
             psi[:,system.nup:] = self.eigv[:,:system.ndown]
             self.psi = numpy.array([copy.deepcopy(psi) for i in range(0,self.ndets)])
+            self.G = numpy.zeros(2, nbasis, nbasis)
             self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
             self.coeffs = numpy.ones(self.ndets)
         else:
@@ -311,10 +313,10 @@ class MultiDeterminant:
                                                           order='F')
                 start = end
                 end += skip
-            afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
+            self.G = afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
                                                   self.coeffs, self.coeffs,
                                                   self.GAB, self.weights)
-            self.emin = (
+            self.trial = (
                 afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
                                                          self.weights)[0].real
             )

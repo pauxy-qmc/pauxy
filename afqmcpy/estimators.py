@@ -63,7 +63,7 @@ class Estimators:
         propagation and itcf calculation.
     """
 
-    def __init__(self, estimates, root, uuid, qmc, nbasis, BT2, ghf=False):
+    def __init__(self, estimates, root, qmc, system, trial, BT2):
         if qmc.hubbard_stratonovich == "continuous" and qmc.constraint == "free":
             dtype = complex
         else:
@@ -88,12 +88,10 @@ class Estimators:
         self.back_propagation = bp is not None
         self.estimators = {}
         self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
-                                         qmc.nsteps//qmc.nmeasure+1,
-                                         nbasis, dtype)
+                                         qmc, trial, dtype)
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
-                                                    qmc.nsteps, nbasis,
-                                                    dtype, qmc.nstblz, BT2, ghf)
+                                                           qmc, trial, dtype, BT2)
             self.nprop_tot = self.estimators['back_prop'].nmax
             self.nbp = self.estimators['back_prop'].nmax
         else:
@@ -103,9 +101,9 @@ class Estimators:
         itcf = estimates.get('itcf', None)
         self.calc_itcf = itcf is not None
         if self.calc_itcf:
-            self.estimators['itcf'] = ITCF(itcf, qmc.dt, root, self.h5f,
-                                           nbasis, dtype, qmc.nsteps,
-                                           self.nprop_tot, qmc.nstblz, BT2)
+            self.estimators['itcf'] = ITCF(itcf, qmc, trial, root, self.h5f,
+                                           system.nbasis, dtype,
+                                           self.nprop_tot, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
 
     def print_step(self, comm, nprocs, step, nmeasure):
@@ -152,17 +150,17 @@ class Mixed:
 
     """
 
-    def __init__(self, mixed, root, h5f, nmeasure, nbasis, dtype):
+    def __init__(self, mixed, root, h5f, qmc, trial, dtype):
         self.rdm = mixed.get('rdm', False)
-        self.nmeasure = nmeasure
+        self.nmeasure = qmc.nsteps // qmc.nmeasure 
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
         self.nreg = len(self.header[1:])
-        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis, dtype=dtype)
+        self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
+        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=dtype)
         self.names = EstimatorEnum()
         self.estimates[self.names.time] = time.time()
-        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis,
+        self.global_estimates = numpy.zeros(self.nreg+self.G.size,
                                             dtype=dtype)
-        self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
             'Weight': "Total walker weight.",
@@ -177,12 +175,11 @@ class Mixed:
                                     data=numpy.array(self.header[1:], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nmeasure,
-                                            self.nreg),
+                                            (self.nmeasure, self.nreg),
                                             dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                                  (nmeasure,)+self.G.shape,
+                                                  (self.nmeasure,)+self.G.shape,
                                                   dtype)
 
     def update(self, system, qmc, trial, psi, step):
@@ -209,7 +206,7 @@ class Mixed:
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
-                    self.estimates[self.names.time+1:] += w.weight*w.G.flatten()
+                    self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
         else:
             for i, w in enumerate(psi.walkers):
                 self.estimates[self.names.enumer] += (
@@ -331,15 +328,15 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, nsteps, nbasis, dtype, nstblz, BT2, ghf=False):
+    def __init__(self, bp, root, h5f, qmc, trial, dtype, BT2):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
-        self.estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
-        self.global_estimates = numpy.zeros(self.nreg+2*nbasis*nbasis)
-        self.G = numpy.zeros((2, nbasis, nbasis), dtype=dtype)
-        self.nstblz = nstblz
+        self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
+        self.estimates = numpy.zeros(self.nreg+self.G.size)
+        self.global_estimates = numpy.zeros(self.nreg+self.G.size)
+        self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
@@ -354,13 +351,13 @@ class BackPropagation:
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (nsteps//self.nmax, len(header)),
+                                            (qmc.nsteps//self.nmax, len(header)),
                                             dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                                  (nsteps//self.nmax,)+self.G.shape,
+                                                  (qmc.nsteps//self.nmax,)+self.G.shape,
                                                   dtype)
-        if ghf:
+        if trial.type == 'GHF':
             self.update = self.update_ghf
         else:
             self.update = self.update_uhf
@@ -481,14 +478,13 @@ class ITCF:
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, dt, root, h5f, nbasis, dtype, nsteps, nbp, nstblz,
-                 BT2):
+    def __init__(self, itcf, qmc, trial, root, h5f, nbasis, dtype, nbp, BT2):
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/dt)
         self.nprop_tot = self.nmax + nbp
-        self.nstblz = nstblz
+        self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
@@ -496,8 +492,9 @@ class ITCF:
         # function at time i.
         # +1 in the first dimension is for the green's function at time tau = 0.
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2, nbasis, nbasis),
-                                dtype=dtype)
-        self.spgf_global = numpy.zeros(shape=self.spgf.shape, dtype=dtype)
+                                dtype=trial.G.dtype)
+        self.spgf_global = numpy.zeros(shape=self.spgf.shape,
+                                       dtype=trial.G.dtype)
         if self.stable:
             self.calculate_spgf = self.calculate_spgf_stable
         else:
@@ -506,11 +503,11 @@ class ITCF:
         # I don't like list indexing so stick with numpy.
         if root:
             if self.mode == 'full':
-                shape = (nsteps//(self.nmax),) + self.spgf.shape
+                shape = (qmc.nsteps//(self.nmax),) + self.spgf.shape
             elif self.mode == 'diagonal':
-                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, nbasis)
+                shape = (qmc.nsteps//(self.nmax), self.nmax+1, 2, 2, nbasis)
             else:
-                shape = (nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
+                shape = (qmc.nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
             self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape,
                                                  dtype)

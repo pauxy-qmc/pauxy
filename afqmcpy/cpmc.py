@@ -94,11 +94,10 @@ class CPMC:
             self.estimators = (
                 afqmcpy.estimators.Estimators(estimates,
                                               self.root,
-                                              self.uuid,
                                               self.qmc,
-                                              self.system.nbasis,
-                                              self.propagators.BT_BP,
-                                              self.trial.type=='GHF')
+                                              self.system,
+                                              self.trial,
+                                              self.propagators.BT_BP)
             )
             self.psi = afqmcpy.walker.Walkers(self.system, self.trial,
                                               self.qmc.nwalkers,

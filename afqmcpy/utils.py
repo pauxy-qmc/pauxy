@@ -185,14 +185,14 @@ def serialise(obj, verbose=0):
             obj_dict[k] = [str(x) for x in v][0]
         elif isinstance(v, numpy.ndarray):
             if verbose == 2:
-                if v.dtype == float or v.dtype == complex:
-                    obj_dict[k] = v.round(6).tolist()
+                if v.dtype == complex:
+                    obj_dict[k] = [v.real.tolist(),v.imag.tolist()]
                 else:
                     obj_dict[k] = v.tolist(),
             elif verbose == 1:
                 if len(v.shape) == 1:
-                    if v.dtype == float or v.dtype == complex:
-                        obj_dict[k] = v.round(6).tolist()
+                    if v.dtype == complex:
+                        obj_dict[k] = [[v.real.tolist(),v.imag.tolist()]]
                     else:
                         obj_dict[k] = v.tolist(),
         elif k == 'store':

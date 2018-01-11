@@ -100,11 +100,10 @@ def setup_parallel(options, comm=None):
     cpmc.estimators = (
         afqmcpy.estimators.Estimators(options.get('estimates'),
                                       cpmc.root,
-                                      cpmc.uuid,
                                       cpmc.qmc,
-                                      cpmc.system.nbasis,
-                                      cpmc.propagators.BT_BP,
-                                      cpmc.trial.type=='GHF')
+                                      cpmc.system,
+                                      cpmc.trial,
+                                      cpmc.propagators.BT_BP)
     )
     cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,
