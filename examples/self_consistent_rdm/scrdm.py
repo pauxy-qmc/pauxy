@@ -98,7 +98,7 @@ if comm is not None:
 # Options
 # -------
 # stochastic error bar in density
-rdm_delta = 2e-2
+rdm_delta = 4e-2
 nself_consist = 10
 
 energies = numpy.zeros(nself_consist)
@@ -122,7 +122,7 @@ if rank == 0:
 wfn_file = 'uopt_trial_wfn.0.npy'
 if rank == 0:
     rdm, err = analysis.blocking.average_rdm('estimates.0.h5', skip=2)
-    (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 1, index=0,
+    (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10, index=0,
                                    dtype=psi0[0].phi.dtype)
     # print (psi_opt)
     numpy.save(wfn_file, psi_opt)
@@ -135,7 +135,7 @@ for isc in range(1, nself_consist):
         generate_qmc_rdm(state, options, comm, rdm_delta, isc)
     )
     if rank == 0:
-        (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 1,
+        (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10,
                                          index=isc, dtype=psi0[0].phi.dtype)
         # write psi to file.
         wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
