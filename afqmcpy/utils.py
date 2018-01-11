@@ -197,8 +197,10 @@ def serialise(obj, verbose=0):
                         obj_dict[k] = v.tolist(),
         elif k == 'store':
             obj_dict[k] = str(v)
-        elif isinstance(v, (int, float, bool, complex, str)):
+        elif isinstance(v, (int, float, bool, str)):
             obj_dict[k] = v
+        elif isinstance(v, complex):
+            obj_dict[k] = v.real
         elif v is None:
             obj_dict[k] = v
         elif is_h5file(v):
