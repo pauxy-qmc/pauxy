@@ -334,8 +334,8 @@ class BackPropagation:
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
-        self.estimates = numpy.zeros(self.nreg+self.G.size)
-        self.global_estimates = numpy.zeros(self.nreg+self.G.size)
+        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
+        self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.key = {
@@ -406,25 +406,33 @@ class BackPropagation:
         psi_bp : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
-        denominator = sum(wnm.weight for wnm in psi_nm)
-        current = numpy.zeros(3)
-        for i, (wnm, wn, wb) in enumerate(zip(psi_nm, psi_n, psi_bp)):
-            construct_multi_ghf_gab(wb.phi, wn.phi, trial.coeffs, wb.Gi, wb.ots)
+        if step%self.nmax != 0:
+            return
+        psi_bp = afqmcpy.propagation.back_propagate_ghf(system, psi.walkers, trial,
+                                                        self.nstblz, self.BT2)
+        denominator = sum(wnm.weight for wnm in psi.walkers)
+        nup = system.nup
+        for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
+            construct_multi_ghf_gab(wb.phi, wnm.phi_old, wb.weights, wb.Gi, wb.ots)
             # note that we are abusing the weights variable from the multighf
             # walker to store the reorthogonalisation factors.
-            # todo : consistent conjugation
-            weights = numpy.conj(wb.weights) * trial.coeffs * wb.ots
-            energies = local_energy_ghf(system, wb.Gi, weights, sum(weights))
-            current = current + wnm.weight*numpy.array(list(energies))
-        self.estimates = self.estimates + current.real / denominator
+            weights = wb.weights * trial.coeffs * wb.ots
+            denom = sum(weights)
+            energies = numpy.array(list(local_energy_ghf(system, wb.Gi, weights, denom)))
+            self.G = numpy.einsum('i,ijk->jk', weights, wb.Gi) / denom
+            self.estimates = (
+                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            )
+        psi.copy_historic_wfn()
+        psi.copy_bp_wfn(psi_bp)
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg]/nprocs)
+                self.output.push(self.global_estimates[:self.nreg].real/nprocs)
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
+                    rdm = self.global_estimates[self.nreg:].real.reshape(self.G.shape)/nprocs
                     self.dm_output.push(rdm)
             self.zero()
 

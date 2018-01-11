@@ -288,6 +288,12 @@ class MultiGHFWalker:
                                                            self.weights,
                                                            sum(self.weights))[0].real
         self.nb = system.nbasis
+        # Historic wavefunction for back propagation.
+        self.phi_old = copy.deepcopy(self.phi)
+        # Historic wavefunction for ITCF.
+        self.phi_init = copy.deepcopy(self.phi)
+        # Historic wavefunction for ITCF.
+        self.phi_bp = copy.deepcopy(trial.psi)
 
     def inverse_overlap(self, trial):
         nup = self.nup
