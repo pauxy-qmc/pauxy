@@ -122,5 +122,7 @@ def setup_parallel(options, comm=None):
         print (json.dumps(afqmcpy.utils.serialise(cpmc, verbose=0),
                           sort_keys=False, indent=4))
         print('# End of input options.')
+        cpmc.estimators.estimators['mixed'].print_key()
+        cpmc.estimators.estimators['mixed'].print_header()
 
     return cpmc

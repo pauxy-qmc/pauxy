@@ -115,6 +115,8 @@ class CPMC:
             print (json.dumps(afqmcpy.utils.serialise(self, verbose=0),
                               sort_keys=False, indent=4))
             print('# End of input options.')
+            self.estimators.estimators['mixed'].print_key()
+            self.estimators.estimators['mixed'].print_header()
 
     # Remove - each class should have a serialiser
     def write_json(self, model, qmc_opts, estimates):
