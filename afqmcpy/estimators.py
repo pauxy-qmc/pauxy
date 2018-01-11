@@ -175,11 +175,11 @@ class Mixed:
                                     data=numpy.array(self.header[1:], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (self.nmeasure, self.nreg),
+                                            (self.nmeasure+1, self.nreg),
                                             dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                                  (self.nmeasure,)+self.G.shape,
+                                                  (self.nmeasure+1,)+self.G.shape,
                                                   dtype)
 
     def update(self, system, qmc, trial, psi, step):
