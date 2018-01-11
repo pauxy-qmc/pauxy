@@ -326,8 +326,9 @@ class MultiGHFWalker:
         self.phi[self.nb:,nup:] = self.phi[self.nb:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
         detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
-        self.ots = self.ots / detR
-        self.ot = self.ot / detR
+        self.ots = detR*self.ots
+        self.weights = detR * self.weights
+        self.ot = detR*self.ot
 
     def greens_function(self, trial):
         nup = self.nup
