@@ -284,7 +284,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i % nstblz == 0:
-                psi_bp[iw].reortho()
+                psi_bp[iw].reortho(trial)
     return psi_bp
 
 def back_propagate_ghf(system, psi, trial, nstblz, BT2):

@@ -20,9 +20,9 @@ class Walkers:
                             for w in range(nwalkers)]
         self.add_field_config(nprop_tot, nbp, system.nbasis)
 
-    def orthogonalise(self, importance_sampling):
+    def orthogonalise(self, trial, importance_sampling):
         for w in self.walkers:
-            detR = w.reortho()
+            detR = w.reortho(trial)
             if not importance_sampling:
                 w.weight = detR * w.weight
 
@@ -97,7 +97,7 @@ class Walker:
     def update_overlap(self, probs, xi, coeffs):
         self.ot = 2 * self.ot * probs[xi]
 
-    def reortho(self):
+    def reortho(self, trial):
         nup = self.nup
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
         (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
@@ -187,7 +187,7 @@ class MultiDetWalker:
         self.ots = numpy.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
         self.ot = sum(coeffs*self.ots[0,:]*self.ots[1,:])
 
-    def reortho(self):
+    def reortho(self, trial):
         nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
@@ -314,7 +314,7 @@ class MultiGHFWalker:
         self.weights = coeffs * self.ots
         self.ot = 2.0 * self.ot * probs[xi]
 
-    def reortho(self):
+    def reortho(self, trial):
         nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
         (self.phi[:self.nb,:nup], Rup) = scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
@@ -326,9 +326,7 @@ class MultiGHFWalker:
         self.phi[self.nb:,nup:] = self.phi[self.nb:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
         detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
-        self.ots = detR*self.ots
-        self.weights = detR * self.weights
-        self.ot = detR*self.ot
+        trial.coeffs *= detR
 
     def greens_function(self, trial):
         nup = self.nup
