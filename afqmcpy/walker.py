@@ -244,6 +244,7 @@ class MultiGHFWalker:
         # than GHF. Can actually initialise to GHF by passing single GHF with
         # initial_wavefunction. The distinction is really for back propagation
         # when we may want to use the full expansion.
+        self.nup = system.nup
         if wfn0 == 'init':
             # Initialise walker with single determinant.
             if trial.initial_wavefunction != 'free_electron':
@@ -267,7 +268,7 @@ class MultiGHFWalker:
         else:
             self.weights = numpy.ones(trial.ndets, dtype=trial.psi.dtype)
         if wfn0 != 'GHF':
-            self.inverse_overlap(trial.psi, system.nup)
+            self.inverse_overlap(trial.psi)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = numpy.zeros(shape=(trial.ndets, 2*system.nbasis,
                            2*system.nbasis), dtype=self.phi.dtype)
@@ -282,13 +283,11 @@ class MultiGHFWalker:
         # Contains overlaps of the current walker with the trial wavefunction.
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
-            self.greens_function(trial, system.nup)
+            self.greens_function(trial)
             self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
                                                            self.weights,
                                                            sum(self.weights))[0].real
-            self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
         self.nb = system.nbasis
-        self.nup = system.nup
 
     def inverse_overlap(self, trial):
         nup = self.nup
