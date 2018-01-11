@@ -327,8 +327,9 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                     psi_bp[iw].weights[idet] *= detR
     return psi_bp
 
-def back_propagate_single(phi_in, configs, system, nstblz, BT2):
+def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
     nup = system.nup
+    psi_store = []
     for (i, c) in enumerate(reversed(list(configs))):
         B = construct_propagator_matrix(system, BT2, c, conjt=True)
         phi_in[:,:nup] = B[0].dot(phi_in[:,:nup])
@@ -336,6 +337,11 @@ def back_propagate_single(phi_in, configs, system, nstblz, BT2):
         if i != 0 and i % nstblz == 0:
             (phi_in[:,:nup], R) = afqmcpy.utils.reortho(phi_in[:,:nup])
             (phi_in[:,nup:], R) = afqmcpy.utils.reortho(phi_in[:,nup:])
+        if store:
+            psi_store.append(copy.deepcopy(phi_in))
+
+    return psi_store
+
 
 def propagate_single(psi, system, B):
     r"""Perform backpropagation for single configuration.
@@ -346,14 +352,14 @@ def propagate_single(psi, system, B):
     ---------
     state : :class:`afqmcpy.state.State`
         state object
-    psi : list of :class:`afqmcpy.walker.Walker` objects
-        Initial states to back propagate.
+    psi : :class:`numpy.ndarray`
+        Input wavefunction to propagate.
     B : numpy array
         Propagation matrix.
     """
     nup = system.nup
-    psi.phi[:,:nup] = B[0].dot(psi.phi[:,:nup])
-    psi.phi[:,nup:] = B[1].dot(psi.phi[:,nup:])
+    psi[:,:nup] = B[0].dot(psi[:,:nup])
+    psi[:,nup:] = B[1].dot(psi[:,nup:])
 
 
 def kinetic_kspace(psi, system, btk):

@@ -517,6 +517,10 @@ class ITCF:
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2, nbasis, nbasis),
                                 dtype=dtype)
         self.spgf_global = numpy.zeros(shape=self.spgf.shape, dtype=dtype)
+        if self.stable:
+            self.calculate_spgf = self.calculate_spgf_stable
+        else:
+            self.calculate_spgf = self.calculate_spgf_unstable
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
@@ -535,7 +539,7 @@ class ITCF:
 
     def update(self, system, qmc, trial, psi, step):
         if step % self.nprop_tot == 0:
-            self.calculate_spgf_unstable(system, psi)
+            self.calculate_spgf(system, psi)
 
     def calculate_spgf_unstable(self, system, psi):
         r"""Calculate imaginary time single-particle green's function.
@@ -606,59 +610,48 @@ class ITCF:
         ----------
         state : :class:`afqmcpy.state.State`
             state object
-        psi_hist : :class:`numpy.ndarray` of :class:`afqmcpy.walker.Walker` objects
-            Store for historic distributions of walkers used for back
-            propagation and ITCF calculation.
         psi_left : list of :class:`afqmcpy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
         On return the spgf estimator array will have been updated.
         """
 
-        I = numpy.identity(state.system.nbasis)
+        I = numpy.identity(system.nbasis)
         Gnn = [I, I]
         Bi = [I, I]
         # Be careful not to modify right hand wavefunctions field
         # configurations.
-        nup = state.system.nup
-        denom = sum(w.weight for w in psi_hist[:,-1])
-        for ix, (w, wr, wl) in enumerate(zip(psi_hist[:,-1], psi_hist[:,0], psi_left)):
+        nup = system.nup
+        denom = sum(w.weight for w in psi.walkers)
+        for ix, w in enumerate(psi.walkers):
             # Initialise time-displaced less and greater GF for current walker.
             Gls = [I, I]
             Ggr = [I, I]
-            # Store for intermediate back propagated left-hand wavefunctions.
-            # This leads to more stable equal time green's functions compared to
-            # by multiplying psi_L^n by B^{-1}(x^(n)) factors.
-            psi_Ls = []
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
-            for (ic, c) in reversed(list(enumerate(psi_hist[ix,1:self.nmax+1]))):
-                # propagators should be applied in reverse order
-                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
-                                                                    state.propagators.BT_BP,
-                                                                    c.field_config.configs[ic],
-                                                                    conjt=True)
-                afqmcpy.propagation.propagate_single(state, wl, B)
-                if ic % state.qmc.nstblz == 0:
-                    wl.reortho(nup)
-                psi_Ls.append(copy.deepcopy(wl))
+            # We store for intermediate back propagated left-hand wavefunctions.
+            # This leads to more stable equal time green's functions compared to
+            # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
+            psi_Ls = afqmcpy.propagation.back_propagate_single(w.phi_bp,
+                                              w.field_configs.get_superblock(),
+                                              system, self.nstblz,
+                                              self.BT2, store=True)
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
-            Gnn[0] = I - gab(wl.phi[:,:nup], wr.phi[:,:nup])
-            Gnn[1] = I - gab(wl.phi[:,nup:], wr.phi[:,nup:])
+            Gnn[0] = I - gab(w.phi_bp[:,:nup], w.phi_init[:,:nup])
+            Gnn[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
             self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Gnn[0].real
             self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Gnn[1].real
             self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*(I-Gnn[0]).real
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(psi_hist[ix,1:self.nmax+1]):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(state.system,
-                                                                state.propagators.BT_BP,
-                                                                c.field_config.configs[ic])
+                B = afqmcpy.propagation.construct_propagator_matrix(system,
+                                                                    self.BT2, c)
                 Bi[0] = scipy.linalg.inv(B[0])
                 Bi[1] = scipy.linalg.inv(B[1])
                 # G is the cumulative product of stabilised short-time ITCFs.
@@ -679,12 +672,16 @@ class ITCF:
                 # |psi_L> along the path, so we don't need to remove the
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
-                afqmcpy.propagation.propagate_single(state, wr, B)
-                if ic % state.qmc.nstblz == 0:
-                    wr.reortho(nup)
-                Gnn[0] = I - gab(L.phi[:,:nup], wr.phi[:,:nup])
-                Gnn[1] = I - gab(L.phi[:,nup:], wr.phi[:,nup:])
+                afqmcpy.propagation.propagate_single(w.phi_init, system, B)
+                if ic != 0 and ic % self.nstblz == 0:
+                    (w.phi_init[:,:nup], R) = afqmcpy.utils.reortho(w.phi_init[:,:nup])
+                    (w.phi_init[:,nup:], R) = afqmcpy.utils.reortho(w.phi_init[:,nup:])
+                Gnn[0] = I - gab(L[:,:nup], w.phi_init[:,:nup])
+                Gnn[1] = I - gab(L[:,nup:], w.phi_init[:,nup:])
         self.spgf = self.spgf / denom
+        # copy current walker distribution to initial (right hand) wavefunction
+        # for next estimate of ITCF
+        psi.copy_init_wfn()
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step !=0 and step%self.nprop_tot == 0:
