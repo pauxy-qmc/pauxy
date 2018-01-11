@@ -168,7 +168,7 @@ def extract_test_data_hdf5(filename):
     if (bp is not None) and itcf is None:
         data = bp
     elif itcf is not None:
-        data = pandas.DataFrame(itcf.reshape(itcf.shape[0], -1))
+        data = pd.DataFrame(itcf.reshape(itcf.shape[0], -1))
         if kitcf is not None:
             data.append(kitcf.reshape(kitcf.shape[0], -1))
     return data[::8].to_dict(orient='list')
