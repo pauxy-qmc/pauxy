@@ -278,7 +278,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(reversed(list(w.field_configs.get_block()))):
+        for (i, c) in enumerate(w.field_configs.get_block()[::-1]):
             B = construct_propagator_matrix(system, BT2,
                                             c, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
@@ -315,7 +315,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                                             wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(reversed(list(w.field_configs.get_block()))):
+        for (i, c) in enumerate(w.field_configs.get_block()[::-1]):
             B = construct_propagator_matrix_ghf(system, BT2,
                                                 c, conjt=True)
             for (idet, psi_i) in enumerate(psi_bp[iw].phi):
@@ -330,7 +330,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
 def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
-    for (i, c) in enumerate(reversed(list(configs))):
+    for (i, c) in enumerate(configs[::-1]):
         B = construct_propagator_matrix(system, BT2, c, conjt=True)
         phi_in[:,:nup] = B[0].dot(phi_in[:,:nup])
         phi_in[:,nup:] = B[1].dot(phi_in[:,nup:])
