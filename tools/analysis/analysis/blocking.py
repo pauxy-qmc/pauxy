@@ -34,7 +34,7 @@ def run_blocking_analysis(filename, start_iter):
 
 def average_single(frame):
     short = frame.drop(['time', 'iteration', 'E_denom', 'E_num'], axis=1)
-    short = short.groupby('dt')
+    short = short.groupby(['dt','ndets'])
     means = short.mean()
     err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
     averaged = means.merge(err, left_index=True, right_index=True,
@@ -42,6 +42,7 @@ def average_single(frame):
     columns = sorted(averaged.columns.values)
     averaged.reset_index(inplace=True)
     columns = numpy.insert(columns, 0, 'dt')
+    columns = numpy.insert(columns, 0, 'ndets')
     return averaged[columns]
 
 def average_rdm(filename, name, skip=0):
@@ -146,6 +147,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
         step = m.get('qmc').get('nmeasure')
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
+        norm['ndets'] = m.get('trial').get('ndets')
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
