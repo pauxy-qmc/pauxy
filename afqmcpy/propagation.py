@@ -320,10 +320,10 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                                                 c, conjt=True)
             for (idet, psi_i) in enumerate(psi_bp[iw].phi):
                 # propagate each component of multi-determinant expansion
-                psi_i = B.dot(psi_i)
+                psi_bp[iw].phi[idet] = B.dot(psi_bp[iw].phi[idet])
                 if i != 0 and i % nstblz == 0:
                     # implicitly propagating the full GHF wavefunction
-                    detR = afqmcpy.utils.reortho(psi_i)
+                    (psi_bp[iw].phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
                     psi_bp[iw].weights[idet] *= detR
     return psi_bp
 

@@ -218,4 +218,4 @@ def reortho(M):
     signs = numpy.diag(numpy.sign(numpy.diag(R)))
     Q = Q.dot(signs)
     detR = scipy.linalg.det(signs.dot(R))
-    return (Q, R)
+    return (Q, detR)
