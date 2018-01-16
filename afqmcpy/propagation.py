@@ -442,9 +442,6 @@ class DiscreteHubbard:
         udown = walker.phi[i,nup:]
         q = numpy.dot(walker.inv_ovlp[1], vdown)
         walker.G[1][i,i] = numpy.dot(udown, q)
-        # print ("1", walker.G[0][i,i], walker.G[1][i,i])
-        # walker.greens_function(trial)
-        # print ("2", walker.G[0][i,i], walker.G[1][i,i])
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         walker.greens_function(trial)
@@ -471,8 +468,6 @@ class DiscreteHubbard:
         if abs(phase) < 0.5*math.pi:
             walker.weight = walker.weight * ratio.real
             walker.ot = ot_new
-            # Todo : remove computation of green's function repeatedly.
-            walker.greens_function(trial)
         else:
             walker.weight = 0.0
 
