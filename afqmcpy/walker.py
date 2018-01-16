@@ -81,12 +81,16 @@ class Walker:
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
         nup = self.nup
-        self.inv_ovlp[0] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
-                                                          trial.psi[:,:nup].T[:,i],
-                                                          vtup)
-        self.inv_ovlp[1] = afqmcpy.utils.sherman_morrison(self.inv_ovlp[1],
-                                                          trial.psi[:,nup:].T[:,i],
-                                                          vtdown)
+        self.inv_ovlp[0] = (
+            afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
+                                           trial.psi[i,:nup].conj(),
+                                           vtup)
+        )
+        self.inv_ovlp[1] = (
+            afqmcpy.utils.sherman_morrison(self.inv_ovlp[1],
+                                           trial.psi[i,nup:].conj(),
+                                           vtdown)
+        )
 
     def calc_otrial(self, trial):
         # The importance function, i.e. <phi_T|phi>. We do 1 over this because
@@ -224,11 +228,11 @@ class MultiDetWalker:
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
-                                               t[:,:nup].T[:,i], vtup)
+                                               t[i,:nup].conj(), vtup)
             )
             self.inv_ovlp[1][ix] = (
                 afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
-                    t[:,nup:].T[:,i], vtdown)
+                    t[i,nup:].conj(), vtdown)
             )
     def local_energy(self, system):
         return afqmcpy.estimators.local_energy_multi_det(system,
