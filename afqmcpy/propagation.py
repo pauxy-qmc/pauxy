@@ -421,15 +421,33 @@ class DiscreteHubbard:
             if trial.type == 'GHF':
                 self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
                 self.kinetic = kinetic_ghf
+                self.update_greens_function = self.update_greens_function_ghf
             else:
                 self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
                 self.kinetic = kinetic_real
         else:
             self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
+            self.update_greens_function = self.update_greens_function_uhf
             if qmc.ffts:
                 self.kinetic = kinetic_kspace
             else:
                 self.kinetic = kinetic_real
+
+    def update_greens_function_uhf(self, walker, trial, i, nup):
+        vup = trial.psi.conj()[i,:nup]
+        uup = walker.phi[i,:nup]
+        q = numpy.dot(walker.inv_ovlp[0], vup)
+        walker.G[0][i,i] = numpy.dot(uup, q)
+        vdown = trial.psi.conj()[i,nup:]
+        udown = walker.phi[i,nup:]
+        q = numpy.dot(walker.inv_ovlp[1], vdown)
+        walker.G[1][i,i] = numpy.dot(udown, q)
+        # print ("1", walker.G[0][i,i], walker.G[1][i,i])
+        # walker.greens_function(trial)
+        # print ("2", walker.G[0][i,i], walker.G[1][i,i])
+
+    def update_greens_function_ghf(self, walker, trial, i, nup):
+        walker.greens_function(trial)
 
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
@@ -475,6 +493,7 @@ class DiscreteHubbard:
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
         for i in range(0, system.nbasis):
+            self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
             # issues here with complex numbers?
@@ -496,7 +515,6 @@ class DiscreteHubbard:
                 walker.update_overlap(probs, xi, trial.coeffs)
                 walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
-                walker.greens_function(trial)
             else:
                 walker.weight = 0
                 return
