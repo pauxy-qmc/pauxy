@@ -490,7 +490,7 @@ class ITCF:
         self.stable = itcf.get('stable', True)
         self.tmax = itcf.get('tmax', 0.0)
         self.mode = itcf.get('mode', 'full')
-        self.nmax = int(self.tmax/dt)
+        self.nmax = int(self.tmax/qmc.dt)
         self.nprop_tot = self.nmax + nbp
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
