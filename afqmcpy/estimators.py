@@ -197,6 +197,7 @@ class Mixed:
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
+                w.greens_function(trial)
                 if 'continuous' in qmc.hubbard_stratonovich:
                     self.estimates[self.names.enumer] += w.weight * w.E_L.real
                 else:
@@ -209,6 +210,7 @@ class Mixed:
                     self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
         else:
             for i, w in enumerate(psi.walkers):
+                w.greens_function(trial)
                 self.estimates[self.names.enumer] += (
                         (w.weight*w.local_energy(system)[0]*w.ot)
                 )
