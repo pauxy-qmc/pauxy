@@ -324,7 +324,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                 if i != 0 and i % nstblz == 0:
                     # implicitly propagating the full GHF wavefunction
                     (psi_bp[iw].phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
-                    psi_bp[iw].weights[idet] *= detR
+                    psi_bp[iw].weights[idet] *= detR.conjugate()
     return psi_bp
 
 def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
