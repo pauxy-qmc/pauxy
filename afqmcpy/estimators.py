@@ -520,10 +520,10 @@ class ITCF:
                 shape = (qmc.nsteps//(self.nmax), self.nmax+1, 2, 2, len(self.mode))
             spgfs = h5f.create_group('single_particle_greens_function')
             self.rspace_unit = H5EstimatorHelper(spgfs, 'real_space', shape,
-                                                 dtype)
+                                                 self.spgf.dtype)
             if self.kspace:
                 self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape,
-                                                     dtype)
+                                                     self.spgf.dtype)
 
     def update(self, system, qmc, trial, psi, step):
         if step % self.nprop_tot == 0:
