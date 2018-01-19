@@ -1028,13 +1028,52 @@ class H5EstimatorHelper:
         self.index = self.index + 1
 
 def local_energy_generic(system, G):
+    """Local energy for generic two-body Hamiltonian"""
     e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
           numpy.einsum('ij,ji->', system.T[1], G[1]))
-    euu = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[0]) -
-               numpy.einsum('prqs,ps,qr->', system.h2e, G[0], G[0]))
-    edd = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[1]) -
-               numpy.einsum('prqs,ps,qr->', system.h2e, G[1], G[1]))
-    eud = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[1])
-    edu = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[0])
+    euu = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[0]) -
+               numpy.einsum('pqrs,ps,qr->', system.h2e, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[1]) -
+               numpy.einsum('pqrs,ps,qr->', system.h2e, G[1], G[1]))
+    eud = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[1])
+    edu = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)
+
+def local_energy_generic_cholesky(system, G):
+    """Local energy for generic two-body (cholesky decomposed) Hamiltonian"""
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]))
+    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[0], G[1])
+    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)
+
+def local_energy_generic_cholesky_opt(system, Theta, L):
+    """Local energy for generic two-body (cholesky decomposed) Hamiltonian"""
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]))
+    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[0], G[1])
+    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[1], G[0])
     e2 = euu + edd + eud + edu
     return (e1+e2+system.ecore, e1+system.ecore, e2)
