@@ -147,10 +147,13 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
         step = m.get('qmc').get('nmeasure')
         norm['dt'] = dt
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
-        norm['ndets'] = m.get('trial').get('ndets')
+        ndets = m.get('trial').get('ndets')
+        if ndets is not None:
+            norm['ndets'] = 1
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
+        print (norm_data[0].head())
         if bp is not None:
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
