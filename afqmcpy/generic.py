@@ -17,6 +17,7 @@ class Generic:
         self.verbose = inputs.get('verbose', False)
         (self.T, self.h2e, self.ecore) = self.read_integrals() 
         (self.h1e_mod, self.chol_vecs) = self.construct_decomposition()
+        self.nchol_vec = self.chol_vecs.shape[0]
 
     def read_integrals(self):
         f = open(self.integral_file)
@@ -66,7 +67,7 @@ class Generic:
     def construct_decomposition(self, subtract_mf=False):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
-        h1e_mod = self.T - 0.5*numpy.einsum('ijjl->il', self.h2e)
+        h1e_mod = self.T[0] - 0.5*numpy.einsum('ijjl->il', self.h2e)
         h1e_mod = numpy.array([h1e_mod, h1e_mod]) 
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
         V = numpy.transpose(self.h2e, (0,2,1,3)).reshape(self.nbasis**2,
@@ -75,4 +76,5 @@ class Generic:
             print ("Warning: Supermatrix is not symmetric")
         chol_vecs = afqmcpy.utils.modified_cholesky(V, self.threshold,
                                                     verbose=self.verbose)
-        return (h1e_mod, chol_vecs)
+        return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
+                                            self.nbasis)))
