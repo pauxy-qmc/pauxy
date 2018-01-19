@@ -186,7 +186,7 @@ class CPMC:
                 if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system, self.trial)
                 # Constant factors
-                w.weight = w.weight * exp(self.qmc.dt*E_T.real)
+                w.weight = w.weight*exp(-self.qmc.dt*(self.system.ecore-E_T.real))
                 # Add current (propagated) walkers contribution to estimates.
             # calculate estimators
             self.estimators.update(self.system, self.qmc,
