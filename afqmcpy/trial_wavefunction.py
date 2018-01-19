@@ -68,6 +68,7 @@ class FreeElectron:
         self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # For interface compatability
         self.coeffs = 1.0
+        self.ndets = 1
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
         self.eigs = numpy.append(self.eigs_up,self.eigs_dn)
@@ -134,6 +135,7 @@ class UHF:
         self.verbose = trial.get('verbose', False)
         # For interface compatability
         self.coeffs = 1.0
+        self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
                 self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
                                   self.nconv, self.alpha, self.deps)
