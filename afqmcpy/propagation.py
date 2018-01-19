@@ -905,7 +905,7 @@ class ContinuousGeneric:
         walker.inverse_overlap(trial.psi)
         ot_new = walker.calc_otrial(trial.psi)
         # Walker's phase.
-        importance_function = cxf*cfb*ot_new/walker.ot
+        importance_function = cxf*cfb*ot_new / walker.ot
         dtheta = cmath.phase(importance_function)
         walker.weight *= abs(importance_function) * max(0, math.cos(dtheta)))
         walker.ot = ot_new
