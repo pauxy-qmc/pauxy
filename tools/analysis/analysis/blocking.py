@@ -149,11 +149,12 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
         norm['iteration'] = numpy.arange(0, step*len(norm), step)
         ndets = m.get('trial').get('ndets')
         if ndets is not None:
+            norm['ndets'] = ndets
+        else:
             norm['ndets'] = 1
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
-        print (norm_data[0].head())
         if bp is not None:
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
