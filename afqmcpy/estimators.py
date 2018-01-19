@@ -991,3 +991,15 @@ class H5EstimatorHelper:
     def push(self, data):
         self.store[self.index] = data
         self.index = self.index + 1
+
+def local_energy_generic(system, G):
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[0]) -
+               numpy.einsum('prqs,ps,qr->', system.h2e, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[1]) -
+               numpy.einsum('prqs,ps,qr->', system.h2e, G[1], G[1]))
+    eud = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[1])
+    edu = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)

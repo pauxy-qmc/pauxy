@@ -65,7 +65,12 @@ class FreeElectron:
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
                 self.psi[:,system.nup:])
         self.G = numpy.array([gup,gdown])
-        self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        if system.__class__.__name__ == "Hubbard":
+            self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        elif system.__class__.__name__ == "Generic":
+            self.etrial = afqmcpy.estimators.local_energy_generic(system, self.G)
+            print (self.etrial)
+            self.etrial = self.etrial[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.ndets = 1
