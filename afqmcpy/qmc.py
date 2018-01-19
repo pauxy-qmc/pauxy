@@ -82,3 +82,4 @@ class QMCOpts:
         self.ffts = inputs.get('kinetic_kspace', False)
         self.cplx = ('continuous' in self.hubbard_stratonovich
                      or system.ktwist.all() != None)
+        self.exp_nmax = inputs.get('expansion_order', 6)
