@@ -185,7 +185,7 @@ def kinetic_pinning(t, nbasis, nx, ny):
     applied in the y direction as:
 
         .. math::
-            \nu_{i\uparrow} = -\nu_{i\downarrow} = (-1)^{i_x}\nu_0,
+            \nu_{i\uparrow} = -\nu_{i\downarrow} = (-1)^{i_x+i_y}\nu_0,
 
     for :math:`i_y=1,L_y` and :math:`\nu_0=t/4`.
 
@@ -214,8 +214,8 @@ def kinetic_pinning(t, nbasis, nx, ny):
         # pinning field along y.
         xy1 = decode_basis(nx, ny, i)
         if (xy1[1] == 0 or xy1[1] == ny-1):
-            Tup[i, i] += (-1.0)**(xy1[0]) * nu0
-            Tdown[i, i] += (-1.0)**(xy1[0]+1) * nu0
+            Tup[i, i] += (-1.0)**(xy1[0]+xy1[1]) * nu0
+            Tdown[i, i] += (-1.0)**(xy1[0]+xy1[1]+1) * nu0
         for j in range(i+1, nbasis):
             xy2 = decode_basis(nx, ny, j)
             dij = abs(xy1-xy2)
