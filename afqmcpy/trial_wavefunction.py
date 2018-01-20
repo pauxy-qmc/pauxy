@@ -121,7 +121,7 @@ class UHF:
         self.name = "UHF"
         self.type = "UHF"
         self.initial_wavefunction = trial.get('initial_wavefunction',
-                                              'free_electron')
+                                              'trial')
         if cplx:
             self.trial_type = complex
         else:
