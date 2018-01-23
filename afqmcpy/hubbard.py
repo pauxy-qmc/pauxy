@@ -69,6 +69,13 @@ class Hubbard:
         self.auxf = self.auxf * numpy.exp(-0.5*dt*self.U)
 
     def fcidump(self, to_string=False):
+        """Dump 1- and 2-electron integrals to file.
+
+        Parameters
+        ----------
+        to_string : bool
+            Return fcidump as string. Default print to stdout.
+        """
         header = afqmcpy.utils.fcidump_header(self.ne, self.nbasis,
                                               self.nup-self.ndown)
         for i in range(1, self.nbasis+1):
@@ -76,22 +83,29 @@ class Hubbard:
                 fmt = "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n"
                 line = fmt.format(self.U.real, self.U.imag, i, i, i, i)
             else:
-                line = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n".format(self.U, i, i, i, i)
+                fmt = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n"
+                line = fmt.format(self.U, i, i, i, i)
             header += line
         for i in range(0, self.nbasis):
             for j in range(i+1, self.nbasis):
                 integral = self.T[0][i,j]
                 if (abs(integral) > 1e-8):
                     if self.T.dtype == complex:
-                        fmt = "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n"
-                        line = fmt.format(integral.real, integral.imag, i+1, j+1, 0, 0)
+                        fmt = (
+                            "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n"
+                        )
+                        line = fmt.format(integral.real, integral.imag,
+                                          i+1, j+1, 0, 0)
                     else:
-                        line = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n".format(integral, i+1, j+1, 0, 0)
+                        fmt = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n"
+                        line = fmt.format(integral, i+1, j+1, 0, 0)
                     header += line
         if self.T.dtype == complex:
-            header += "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n".format(0, 0, 0, 0, 0, 0)
+            fmt = "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n"
+            header += fmt.format(0, 0, 0, 0, 0, 0)
         else:
-            header += "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n".format(0, 0, 0, 0, 0)
+            fmt = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n"
+            header += fmt.format(0, 0, 0, 0, 0)
         if to_string:
             print (header)
         else:
