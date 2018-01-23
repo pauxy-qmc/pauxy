@@ -143,7 +143,9 @@ class EstimatorEnum:
         self.enumer = 1
         self.edenom = 2
         self.eproj  = 3
-        self.time   = 4
+        self.ekin   = 4
+        self.epot   = 5
+        self.time   = 6
 
 class Mixed:
     """Container for calculating mixed estimators.
@@ -152,8 +154,9 @@ class Mixed:
 
     def __init__(self, mixed, root, h5f, qmc, trial, dtype):
         self.rdm = mixed.get('rdm', False)
-        self.nmeasure = qmc.nsteps // qmc.nmeasure 
-        self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E', 'time']
+        self.nmeasure = qmc.nsteps // qmc.nmeasure
+        self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
+                       'EKin', 'EPot', 'time']
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
         self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=dtype)
@@ -167,6 +170,8 @@ class Mixed:
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
             'E': "Projected energy estimator.",
+            'EKin': "Mixed kinetic energy estimator.",
+            'EPot': "Mixed potential energy estimator.",
             'time': "Time per processor to complete one iteration.",
         }
         if root:
@@ -201,8 +206,12 @@ class Mixed:
                 if 'continuous' in qmc.hubbard_stratonovich:
                     self.estimates[self.names.enumer] += w.weight * w.E_L.real
                 else:
+                    E, T, V = w.local_energy(system)
                     self.estimates[self.names.enumer] += (
-                            w.weight*w.local_energy(system)[0].real
+                            w.weight*E.real
+                    )
+                    self.estimates[self.names.ekin:self.names.epot+1] += (
+                            w.weight*numpy.array([T,V]).real
                     )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
@@ -222,6 +231,7 @@ class Mixed:
         ns = self.names
         denom = es[ns.edenom]*nprocs / nmeasure
         es[ns.eproj] = es[ns.enumer] / denom
+        es[ns.ekin:ns.epot+1] /= denom
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
