@@ -212,10 +212,21 @@ def serialise(obj, verbose=0):
 
     return obj_dict
 
-
 def reortho(M):
     (Q, R) = scipy.linalg.qr(M, mode='economic')
     signs = numpy.diag(numpy.sign(numpy.diag(R)))
     Q = Q.dot(signs)
     detR = scipy.linalg.det(signs.dot(R))
     return (Q, detR)
+
+def fcidump_header(nel, norb, spin):
+    header = (
+        "&FCI\n" +
+        "NORB=%d,\n"%int(norb) +
+        "NELEC=%d,\n"%int(nel) +
+        "MS2=%d,\n"%int(spin) +
+        "UHF=.FALSE.,\n" +
+        "ORBSYM=" + ",".join([str(1)]*norb) + ",\n"
+        "&END\n"
+    )
+    return header
