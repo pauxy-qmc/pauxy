@@ -750,13 +750,13 @@ class ContinuousGeneric:
         # Mean field shifts (2,nchol_vec).
         self.mf_shift = 1j*numpy.einsum('lpq,spq->sl', system.chol_vecs, trial.G)
         # Mean field shifted one-body propagator
-        self.construct_one_body_propagator(self, qmc.dt, system.chol_vecs,
+        self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
                                            system.h1e_mod)
         # Don't need spin dependent term any more
         self.mf_shift = numpy.einsum('sl,sl->l', self.mf_shift, self.mf_shift)
         # Constant core contribution modified by mean field shift.
         self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
-        self.BT_BP = self.bt2
+        self.BH1_BP = self.BH1
         self.exp_nmax = qmc.exp_nmax
         # self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
@@ -768,14 +768,15 @@ class ContinuousGeneric:
         self.isqrt_dt = 1j*qmc.dt**0.5
         self.sqrt_dt = qmc.dt**0.5
         # Rotated cholesky vectors.
-        self.rchol_vecs = numpy.zeros((2,)+chol_vecs.shape,
-                                      dtype=chol_vecs.dtype)
+        # shape is wrong, do we need the 2?
+        self.rchol_vecs = numpy.zeros((2,)+,
+                                      dtype=system.chol_vecs.dtype)
         self.rchol_vecs[0] = numpy.einsum('rp,lpq->lrq',
-                                          psi[:,:system.nup].conj().T,
-                                          chol_vecs)
+                                          trial.psi[:,:system.nup].conj().T,
+                                          system.chol_vecs)
         self.rchol_vecs[1] = numpy.einsum('rp,lpq->lrq',
-                                          psi[:,system.nup:].conj().T,
-                                          chol_vecs)
+                                          trial.psi[:,system.nup:].conj().T,
+                                          system.chol_vecs)
         # Include factor of M! bad name
         self.mf_nsq = system.nbasis * self.mf_shift**2.0
         self.ebound = (2.0/self.dt)**0.5
@@ -907,5 +908,5 @@ class ContinuousGeneric:
         # Walker's phase.
         importance_function = cxf*cfb*ot_new / walker.ot
         dtheta = cmath.phase(importance_function)
-        walker.weight *= abs(importance_function) * max(0, math.cos(dtheta)))
+        walker.weight *= abs(importance_function) * max(0, math.cos(dtheta))
         walker.ot = ot_new
