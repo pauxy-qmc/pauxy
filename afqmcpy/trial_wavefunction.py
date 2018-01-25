@@ -356,7 +356,7 @@ class HartreeFock:
                 self.psi[:,system.nup:])
         self.G = numpy.array([gup,gdown])
         self.etrial = afqmcpy.estimators.local_energy_generic(system,
-                                                              self.G)
+                                                              self.G)[0].real
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False

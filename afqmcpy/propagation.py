@@ -747,6 +747,9 @@ class GenericContinuous:
     '''Base propagator class'''
 
     def __init__(self, qmc, system, trial):
+        self.dt = qmc.dt
+        self.sqrt_dt = qmc.dt**0.5
+        self.isqrt_dt = 1j*self.sqrt_dt
         # Mean field shifts (2,nchol_vec).
         self.mf_shift = 1j*numpy.einsum('lpq,spq->sl', system.chol_vecs, trial.G)
         # Mean field shifted one-body propagator
@@ -755,8 +758,11 @@ class GenericContinuous:
         # Don't need spin dependent term any more
         self.mf_shift = self.mf_shift[0] + self.mf_shift[1]
         # Constant core contribution modified by mean field shift.
-        self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
+        mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
+        self.mf_const_fac = cmath.exp(-self.dt*mf_core)
+        # todo : ?
         self.BT_BP = self.BH1
+        # todo : propagator dict.
         self.exp_nmax = qmc.exp_nmax
         # self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
@@ -764,9 +770,6 @@ class GenericContinuous:
         hs_type = qmc.hubbard_stratonovich
         constraint = qmc.constraint
         model = system.__class__.__name__
-        self.dt = qmc.dt
-        self.isqrt_dt = 1j*qmc.dt**0.5
-        self.sqrt_dt = qmc.dt**0.5
         # Temporary array for matrix exponentiation.
         self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
                                 dtype=trial.psi.dtype)
@@ -779,11 +782,11 @@ class GenericContinuous:
                                     trial.psi[:,system.nup:].conj().T,
                                     system.chol_vecs)
         self.rchol_vecs = numpy.array([rotated_up, rotated_down])
+        # todo : remove
         self.chol_vecs = system.chol_vecs
-        # Include factor of M! bad name
-        self.mf_nsq = system.nbasis * self.mf_shift**2.0
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
+        # todo : change name
         if constraint == 'free':
             self.propagate_walker = self.propagate_walker_free
         else:
@@ -794,7 +797,7 @@ class GenericContinuous:
         shift = 1j*numpy.einsum('sl,lpq->spq', self.mf_shift, chol_vecs)
         H1 = h1e_mod - shift
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
-                                scipy.linalg.expm(-0.5*dt*H1[0])])
+                                scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def construct_force_bias_opt(self, Gmod):
         vbias = 1j*numpy.einsum('slrp,spr->l', self.rchol_vecs, Gmod)
@@ -844,7 +847,7 @@ class GenericContinuous:
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
         nup = system.nup
         # Apply propagator
-        self.apply_exponential(walker.phi[:,:nup], VHS, True)
+        self.apply_exponential(walker.phi[:,:nup], VHS)
         self.apply_exponential(walker.phi[:,nup:], VHS)
 
         return (c_xf, c_fb)
@@ -860,7 +863,7 @@ class GenericContinuous:
         if debug:
             print ("DIFF: {: 10.8e}".format((c2-phi).sum()/c2.size))
 
-    def propagate_walker_free_continuous(self, walker, system, trial):
+    def propagate_walker_free(self, walker, system, trial):
         r"""Free projection for continuous HS transformation.
 
         TODO: update if ever adapted to other model types.
@@ -924,7 +927,7 @@ class GenericContinuous:
         walker.inverse_overlap(trial.psi)
         ot_new = walker.calc_otrial(trial.psi)
         # Walker's phase.
-        importance_function = cxf*cfb*ot_new / walker.ot
+        importance_function = self.mf_const_fac*cxf*cfb*ot_new / walker.ot
         dtheta = cmath.phase(importance_function)
         walker.weight *= abs(importance_function) * max(0, math.cos(dtheta))
         walker.ot = ot_new

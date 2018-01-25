@@ -203,7 +203,7 @@ class Mixed:
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                if 'continuous' in qmc.hubbard_stratonovich:
+                if qmc.hubbard_stratonovich == 'continuous':
                     self.estimates[self.names.enumer] += w.weight * w.E_L.real
                 else:
                     E, T, V = w.local_energy(system)
