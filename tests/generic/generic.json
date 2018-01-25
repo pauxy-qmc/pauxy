@@ -1,0 +1,27 @@
+{
+    "model": {
+        "name": "Generic",
+        "atom": "Neon",
+        "nup": 5,
+        "ndown": 5,
+        "integrals": "fcidump.ascii"
+    },
+    "qmc_options": {
+        "method": "CPMC",
+        "dt": 0.05,
+        "nsteps": 100,
+        "nmeasure": 5,
+        "nwalkers": 30,
+        "npop_control": 10,
+        "temperature": 0.0,
+        "hubbard_stratonovich": "generic_continuous",
+        "expansion_order": 6,
+        "importance_sampling": true,
+        "rng_seed": 7
+    },
+    "trial_wavefunction": {
+        "name": "hartree_fock"
+    },
+    "estimates": {
+    }
+}
