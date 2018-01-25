@@ -91,7 +91,8 @@ class Estimators:
                                          qmc, trial, dtype)
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
-                                                           qmc, trial, dtype, BT2)
+                                                           qmc, system, trial,
+                                                           dtype, BT2)
             self.nprop_tot = self.estimators['back_prop'].nmax
             self.nbp = self.estimators['back_prop'].nmax
         else:
@@ -340,7 +341,7 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, qmc, trial, dtype, BT2):
+    def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
         self.nmax = bp.get('nback_prop', 0)
         self.header = ['iteration', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
@@ -350,6 +351,7 @@ class BackPropagation:
         self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
+        self.restore_weights = bp.get('restore_weights', None)
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -371,8 +373,16 @@ class BackPropagation:
                                                   dtype)
         if trial.type == 'GHF':
             self.update = self.update_ghf
+            if system.name == "Generic":
+                self.back_propagate = afqmcpy.propagation.back_propagate_generic_uhf
+            else:
+                self.back_propagate = afqmcpy.propagation.back_propagate_ghf
         else:
             self.update = self.update_uhf
+            if system.name == "Generic":
+                self.back_propagate = afqmcpy.propagation.back_propagate_generic
+            else:
+                self.back_propagate = afqmcpy.propagation.back_propagate
 
     def update_uhf(self, system, qmc, trial, psi, step):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
@@ -390,17 +400,23 @@ class BackPropagation:
         """
         if step%self.nmax != 0:
             return
-        psi_bp = afqmcpy.propagation.back_propagate(system, psi.walkers, trial,
-                                                    self.nstblz, self.BT2)
-        denominator = sum(wnm.weight for wnm in psi.walkers)
+        psi_bp = self.back_propagate(system, psi.walkers, trial,
+                                     self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
+        denominator = 0
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
             self.G[0] = gab(wb.phi[:,:nup], wnm.phi_old[:,:nup]).T
             self.G[1] = gab(wb.phi[:,nup:], wnm.phi_old[:,nup:]).T
             energies = numpy.array(list(local_energy(system, self.G)))
+            if self.restore_weights is not None:
+                weight = wnm.weight * self.calculate_weight_factor(wnm)
+            else:
+                weight = wnm.weight
+            denominator += weight
             self.estimates = (
-                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+                self.estimates + weight*numpy.append(energies,self.G.flatten())
             )
+        self.estimates /= denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
@@ -437,6 +453,15 @@ class BackPropagation:
             )
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
+
+    def calculate_weight_factor(self, walker):
+        configs, cos_fac, weight_fac = walker.field_configs.get_block()
+        factor = 1.0 + 0j
+        for (w, c) in zip(weight_fac, cos_fac):
+            factor *= w
+            if (self.restore_weights == "full"):
+                factor /= c
+        return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
@@ -564,7 +589,7 @@ class ITCF:
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first nmax fields for estimating the ITCF.
-            afqmcpy.propagation.back_propagate_single(w.phi_bp, w.field_configs.get_superblock(),
+            afqmcpy.propagation.back_propagate_single(w.phi_bp, w.field_configs.get_superblock()[0],
                                                       system, self.nstblz,
                                                       self.BT2)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -580,7 +605,7 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(w.field_configs.get_superblock()):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(system,
                                                                     self.BT2, c)
@@ -632,7 +657,7 @@ class ITCF:
             # This leads to more stable equal time green's functions compared to
             # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
             psi_Ls = afqmcpy.propagation.back_propagate_single(w.phi_bp,
-                                              w.field_configs.get_superblock(),
+                                              w.field_configs.get_superblock()[0],
                                               system, self.nstblz,
                                               self.BT2, store=True)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -646,7 +671,7 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(w.field_configs.get_superblock()):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(system,
                                                                     self.BT2, c)
