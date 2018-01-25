@@ -32,7 +32,7 @@ def run_blocking_analysis(filename, start_iter):
     return (reblock, useful_table)
 
 def average_single(frame):
-    short = frame.drop(['time', 'iteration', 'E_denom', 'E_num'], axis=1)
+    short = frame.drop(['time', 'iteration', 'E_denom', 'E_num', 'Weight'], axis=1)
     short = short.groupby(['dt','ndets'])
     means = short.mean()
     err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
