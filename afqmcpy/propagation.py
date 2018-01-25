@@ -98,7 +98,7 @@ def generic_continuous(walker, state):
     # Reshape so we can apply to MxN Slater determinant.
     V_HS = numpy.reshape(V_HS, (M,M))
     for n in range(1, nmax_exp+1):
-        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V)/numpy.factorial(n)
+        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V)/math.factorial(n)
     walker.phi[:nup] = numpy.dot(EXP_V, walker.phi[:nup])
     walker.phi[nup:] = numpy.dot(EXP_V, walker.phi[:nup])
 
@@ -753,7 +753,7 @@ class ContinuousGeneric:
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
                                            system.h1e_mod)
         # Don't need spin dependent term any more
-        self.mf_shift = numpy.einsum('sl,sl->l', self.mf_shift, self.mf_shift)
+        self.mf_shift = self.mf_shift[0] + self.mf_shift[1]
         # Constant core contribution modified by mean field shift.
         self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.BH1_BP = self.BH1
@@ -767,28 +767,27 @@ class ContinuousGeneric:
         self.dt = qmc.dt
         self.isqrt_dt = 1j*qmc.dt**0.5
         self.sqrt_dt = qmc.dt**0.5
+        # Temporary array for matrix exponentiation.
+        self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
+                                dtype=trial.psi.dtype)
         # Rotated cholesky vectors.
-        # shape is wrong, do we need the 2?
-        self.rchol_vecs = numpy.zeros((2,)+,
-                                      dtype=system.chol_vecs.dtype)
-        self.rchol_vecs[0] = numpy.einsum('rp,lpq->lrq',
-                                          trial.psi[:,:system.nup].conj().T,
-                                          system.chol_vecs)
-        self.rchol_vecs[1] = numpy.einsum('rp,lpq->lrq',
-                                          trial.psi[:,system.nup:].conj().T,
-                                          system.chol_vecs)
+        # Assuming nup = ndown here
+        rotated_up = numpy.einsum('rp,lpq->lrq',
+                                  trial.psi[:,:system.nup].conj().T,
+                                  system.chol_vecs)
+        rotated_down = numpy.einsum('rp,lpq->lrq',
+                                    trial.psi[:,system.nup:].conj().T,
+                                    system.chol_vecs)
+        self.rchol_vecs = numpy.array([rotated_up, rotated_down])
+        self.chol_vecs = system.chol_vecs
         # Include factor of M! bad name
         self.mf_nsq = system.nbasis * self.mf_shift**2.0
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         if constraint == 'free':
-            self.propagate_walker = self.propagate_walker_free_continuous
+            self.propagate_walker = self.propagate_walker_free
         else:
-            self.propagate_walker = self.propagate_walker_constrained_continuous
-        if qmc.ffts:
-            self.kinetic = kinetic_kspace
-        else:
-            self.kinetic = kinetic_real
+            self.propagate_walker = self.propagate_walker_phaseless
 
 
     def construct_one_body_propagator(self, dt, chol_vecs, h1e_mod):
@@ -797,14 +796,14 @@ class ContinuousGeneric:
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[0])])
 
-    def construct_force_bias(self, Gmod):
-        vbias = numpy.einsum('slpq,spq->l', self.rchol_vecs, Gmod)
-        return - self.isqrt_dt * (vbias-self.mf_shift)
+    def construct_force_bias_opt(self, Gmod):
+        vbias = 1j*numpy.einsum('slrp,spr->l', self.rchol_vecs, Gmod)
+        return - self.sqrt_dt * (vbias-self.mf_shift)
 
-    def construct_two_body_propagator(self, chol_vecs, xshifted):
-        for n in range(1, self.exp_nmax+1):
-            EXP_VHS = EXP_VHS + numpy.dot(VHS, EXP_VHS) / numpy.factorial(n)
-        return EXP_VHS
+    def construct_force_bias(self, G):
+        vbias = numpy.einsum('lpq,pq->l', self.chol_vecs, G[0])
+        vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
+        return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def two_body(self, walker, system, trial):
         r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
@@ -821,26 +820,45 @@ class ContinuousGeneric:
             Simulation state.
         """
         # Construct walker modified Green's function.
-        walker.gab_mod()
+        # walker.rotated_greens_function()
+        walker.inverse_overlap(trial.psi)
+        walker.greens_function(trial)
+        walker.rotated_greens_function()
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
         # Optimal force bias.
-        xbar = self.construct_force_bias(walker.Gmod)
+        xbar = self.construct_force_bias_opt(walker.Gmod)
+        # xbar2 = self.construct_force_bias(walker.G)
+        # print ("CHOL: ", self.dt**0.5*self.chol_vecs[0].flatten())
+        # print ("DIFF XBAR: ", (xbar))
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
         c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        # print ("CXF: ", c_xf)
         # Constant factor arising from shifting the propability distribution.
         c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        # print (xbar)
+        # print ("CFB: ", c_fb, xi.dot(xbar), xbar.dot(xbar))
+        # print ("vmf: ", self.dt**0.5*self.mf_shift)
         # Operator terms contributing to propagator.
-        VHS = self.isqrt_dt * numpy.einsum('i,ipq->pq', shifted, system.chol_vecs)
+        VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
         nup = system.nup
         # Apply propagator
-        for n in range(1, self.exp_nmax+1):
-            denom = numpy.factorial(n)
-            walker.phi[:,:nup] += VHS.dot(walker.phi[:,:nup]) / denom
-            walker.phi[:,nup:] += VHS.dot(walker.phi[:,nup:]) / denom
+        self.apply_exponential(walker.phi[:,:nup], VHS, True)
+        self.apply_exponential(walker.phi[:,nup:], VHS)
 
         return (c_xf, c_fb)
+
+    def apply_exponential(self, phi, VHS, debug=False):
+        if debug:
+            copy = numpy.copy(phi)
+            c2 = scipy.linalg.expm(VHS).dot(copy)
+        numpy.copyto(self.Temp, phi)
+        for n in range(1, self.exp_nmax+1):
+            self.Temp = VHS.dot(self.Temp) / n
+            phi += self.Temp
+        if debug:
+            print ("DIFF: {: 10.8e}".format((c2-phi).sum()/c2.size))
 
     def propagate_walker_free_continuous(self, walker, system, trial):
         r"""Free projection for continuous HS transformation.
@@ -896,11 +914,11 @@ class ContinuousGeneric:
         """
 
         # 1. Apply one_body propagator.
-        self.one_body(walker.phi, system, self.bt2)
+        kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
         (cxf, cfb) = self.two_body(walker, system, trial)
         # 3. Apply one_body propagator.
-        self.one_body(walker.phi, system, self.bt2)
+        kinetic_real(walker.phi, system, self.BH1)
 
         # Now apply hybrid phaseless approximation
         walker.inverse_overlap(trial.psi)

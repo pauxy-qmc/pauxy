@@ -8,6 +8,7 @@ class Generic:
     
     """
     def __init__(self, inputs, dt):
+        self.name = "Generic"
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
         self.ne = self.nup + self.ndown
