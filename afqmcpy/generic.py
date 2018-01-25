@@ -19,6 +19,8 @@ class Generic:
         (self.T, self.h2e, self.ecore) = self.read_integrals() 
         (self.h1e_mod, self.chol_vecs) = self.construct_decomposition()
         self.nchol_vec = self.chol_vecs.shape[0]
+        # Number of field configurations per walker.
+        self.nfields = self.nchol_vec
 
     def read_integrals(self):
         f = open(self.integral_file)

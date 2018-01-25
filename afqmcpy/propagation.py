@@ -842,7 +842,7 @@ class GenericContinuous:
         self.apply_exponential(walker.phi[:,:nup], VHS)
         self.apply_exponential(walker.phi[:,nup:], VHS)
 
-        return (c_xf, c_fb)
+        return (c_xf, c_fb, shifted)
 
     def apply_exponential(self, phi, VHS, debug=False):
         if debug:
@@ -911,7 +911,7 @@ class GenericContinuous:
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb) = self.two_body(walker, system, trial)
+        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
@@ -921,5 +921,8 @@ class GenericContinuous:
         # Walker's phase.
         importance_function = self.mf_const_fac*cxf*cfb*ot_new / walker.ot
         dtheta = cmath.phase(importance_function)
-        walker.weight *= abs(importance_function) * max(0, math.cos(dtheta))
+        cfac = max(0, math.cos(dtheta))
+        rweight = abs(importance_function)
+        walker.weight *= rweight * cfac
         walker.ot = ot_new
+        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)

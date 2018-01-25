@@ -69,6 +69,8 @@ class Hubbard:
         self.auxf = self.auxf * numpy.exp(-0.5*dt*self.U)
         # For interface consistency.
         self.ecore = 0.0
+        # Number of field configurations per walker.
+        self.nfields = self.nbasis
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.
