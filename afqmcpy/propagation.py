@@ -751,12 +751,10 @@ class GenericContinuous:
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         # Mean field shifts (2,nchol_vec).
-        self.mf_shift = 1j*numpy.einsum('lpq,spq->sl', system.chol_vecs, trial.G)
+        self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
         # Mean field shifted one-body propagator
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
                                            system.h1e_mod)
-        # Don't need spin dependent term any more
-        self.mf_shift = self.mf_shift[0] + self.mf_shift[1]
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
@@ -794,8 +792,8 @@ class GenericContinuous:
 
 
     def construct_one_body_propagator(self, dt, chol_vecs, h1e_mod):
-        shift = 1j*numpy.einsum('sl,lpq->spq', self.mf_shift, chol_vecs)
-        H1 = h1e_mod - shift
+        shift = 1j*numpy.einsum('l,lpq->pq', self.mf_shift, chol_vecs)
+        H1 = h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
@@ -832,17 +830,11 @@ class GenericContinuous:
         # Optimal force bias.
         xbar = self.construct_force_bias_opt(walker.Gmod)
         # xbar2 = self.construct_force_bias(walker.G)
-        # print ("CHOL: ", self.dt**0.5*self.chol_vecs[0].flatten())
-        # print ("DIFF XBAR: ", (xbar))
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
         c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
-        # print ("CXF: ", c_xf)
         # Constant factor arising from shifting the propability distribution.
         c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-        # print (xbar)
-        # print ("CFB: ", c_fb, xi.dot(xbar), xbar.dot(xbar))
-        # print ("vmf: ", self.dt**0.5*self.mf_shift)
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
         nup = system.nup
