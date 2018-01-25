@@ -720,8 +720,18 @@ class ITCF:
         self.spgf[:] = 0
         self.spgf_global[:] = 0
 
-
 def local_energy(system, G):
+    ghf = (G.shape[-1] == 2*system.nbasis)
+    if system.name == "Hubbard":
+        if ghf:
+            return local_energy_ghf(system, G)
+        else:
+            return local_energy(system, G)
+    else:
+        return local_energy_generic(system, G)
+
+
+def local_energy_hubbard(system, G):
     r"""Calculate local energy of walker for the Hubbard model.
 
     Parameters
