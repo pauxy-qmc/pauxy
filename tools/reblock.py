@@ -47,6 +47,8 @@ start_iteration : int
                         default=False, help='Short output.')
     parser.add_argument('-i', '--input', dest='input', action='store_true',
                         default=False, help='Extract input file.')
+    parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
+                        default=False, help='Extract correlation functions.')
     parser.add_argument('-e', '--estimates', dest='estimates', action='store_true',
                         default=False, help='Analyse all estimators in hdf5 output.')
     parser.add_argument('-p', '--plot', dest='plot', action='store_true',
@@ -85,8 +87,9 @@ None.
         else:
             files = options.filenames
         (bp_av, norm) = analysis.blocking.analyse_estimates(files,
-                                                    options.start_time,
-                                                    options.loops)
+                                                    start_time=options.start_time,
+                                                    multi_sim=options.loops,
+                                                    cfunc=options.cfunc)
         if options.plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].errorbar(data.nbp.values, data['T'].values,

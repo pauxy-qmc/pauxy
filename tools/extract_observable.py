@@ -74,6 +74,7 @@ None.
 '''
 
     options = parse_args(args)
+    print_index = False
     if options.obs == 'itcf':
         results = analysis.extraction.extract_analysed_itcf(options.filename[0],
                                                             options.elements,
@@ -86,11 +87,17 @@ None.
     elif options.obs == 'back_propagated':
         results = analysis.extraction.analysed_energies(options.filename[0],
                                                         'back_propagated')
+    elif 'correlation' in options.obs:
+        ctype = options.obs.replace('_correlation', '')
+        results = analysis.extraction.correlation_function(options.filename[0],
+                                                           ctype,
+                                                           options.elements)
+        print_index = True
     else:
         results = None
         print ('Unknown observable')
 
-    print (results.to_string(index=False))
+    print (results.to_string(index=print_index))
 
 if __name__ == '__main__':
 

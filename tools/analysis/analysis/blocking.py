@@ -9,7 +9,6 @@ import scipy.stats
 import analysis.extraction
 import matplotlib.pyplot as pl
 import h5py
-import afqmcpy.hubbard
 
 def run_blocking_analysis(filename, start_iter):
     '''
@@ -54,17 +53,11 @@ def average_rdm(filename, name, skip=0):
     gf_err = gf[skip:].std(axis=0) / len(gf[skip:])**0.5
     return (gf_av, gf_err)
 
-def average_correlation(filename, name, skip=0):
-    data = h5py.File(filename, 'r')
-    conv = {'mixed': 'mixed_estimates',
-            'back_prop': 'back_propagated_estimates'}
-    gf = data[conv[name]+'/single_particle_greens_function'][:].real
+def average_correlation(gf, skip=0):
     nzero = numpy.nonzero(gf)[0][-1]
     gf = gf[skip:nzero]
     ni = numpy.diagonal(gf, axis1=2, axis2=3)
     mg = gf.mean(axis=0)
-    # print (sum(ni[0].mean(axis=0)), sum(ni[1].mean(axis=0)), mg.shape,
-            # mg[0].trace(), mg[1].trace(), gf[0,0].trace())
     hole = 1.0 - numpy.sum(ni, axis=1)
     hole_err = hole.std(axis=0, ddof=1) / len(hole)**0.5
     spin = 0.5*(ni[:,0,:]-ni[:,1,:])
@@ -72,17 +65,12 @@ def average_correlation(filename, name, skip=0):
     return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err, gf)
 
 def plot_correlations(cfunc, cfunc_err, ix, nx, ny, stag=False):
-    iy = [i for i in range(ny)]
-    idx = [afqmcpy.hubbard.encode_basis(ix,i,nx) for i in iy]
-    if stag:
-        c = [((-1)**(ix+i))*cfunc[ib] for (i, ib) in zip(iy,idx)]
-    else:
-        c = [cfunc[ib] for ib in idx]
-    err = [cfunc_err[i] for i in idx]
+    c, err = get_strip(cfunc, cfunc_err, ix, nx, ny, stag)
     frame = pd.DataFrame({'iy': iy, 'c': c, 'c_err': err})
     pl.errorbar(iy, c, yerr=err, fmt='o')
     pl.show()
     return frame
+
 
 def average_tau(frames):
 
@@ -133,7 +121,7 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
-def analyse_estimates(files, start_time=0, multi_sim=False):
+def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
     data = analysis.extraction.extract_hdf5_data_sets(files)
     bp_data = []
     norm_data = []
@@ -142,7 +130,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
     mds = []
     nsim = 0
     for g in data:
-        (m, norm, bp, itcf, itcfk) = g
+        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
         dt = m.get('qmc').get('dt')
         step = m.get('qmc').get('nmeasure')
         norm['dt'] = dt
@@ -155,6 +143,8 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
+        if mixed_rdm is not None and cfunc:
+            (m_hole, m_hole_err, m_spin, m_spin_err, m_gf) = average_correlation(mixed_rdm, start)
         if bp is not None:
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
@@ -162,6 +152,8 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero].apply(numpy.real))
+            if bp_rdm is not None:
+                (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm, start)
         if itcf is not None:
             itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
             nits = int(itcf_tmax/(step*dt)) + 1
@@ -192,6 +184,10 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
         bp_group.create_dataset('estimates', data=bp_av.as_matrix())
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
+        if bp_rdm is not None and cfunc:
+            bp_group.create_dataset('correlation',
+                                    data=numpy.array([bp_hole, bp_hole_err,
+                                                      bp_spin, bp_spin_err]))
     else:
         bp_av = None
     if multi_sim:
@@ -200,10 +196,14 @@ def analyse_estimates(files, start_time=0, multi_sim=False):
     else:
         norm_data = pd.concat(norm_data)
         norm_av = average_single(norm_data)
-    basic = store.create_group('mixed_estimators')
+    basic = store.create_group('mixed')
     basic.create_dataset('estimates', data=norm_av.as_matrix())
     basic.create_dataset('headers', data=norm_av.columns.values,
             dtype=h5py.special_dtype(vlen=str))
+    if mixed_rdm is not None and cfunc:
+        basic.create_dataset('correlation',
+                             data=numpy.array([m_hole, m_hole_err, m_spin,
+                                               m_spin_err]))
     store.close()
 
     return (bp_av, norm_av)
