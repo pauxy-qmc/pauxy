@@ -343,10 +343,7 @@ class HartreeFock:
         self.type = "hartree_fock"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        self.trial_type = complex
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         occup = numpy.identity(system.nup)
