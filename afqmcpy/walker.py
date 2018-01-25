@@ -48,7 +48,7 @@ class Walker:
         self.weight = nw
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
-                                dtype=trial.psi.dtype)
+                                   dtype=trial.psi.dtype)
             tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
                                      system.ktwist.all() != None, {})
             self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
@@ -59,7 +59,9 @@ class Walker:
         self.nup = system.nup
         self.inverse_overlap(trial.psi)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
-                             dtype=trial.psi.dtype) 
+                             dtype=trial.psi.dtype)
+        self.Gmod = numpy.zeros(shape=(2, system.nbasis, system.nup),
+                                dtype=trial.psi.dtype)
         self.greens_function(trial)
         self.ot = 1.0
         self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
@@ -120,6 +122,15 @@ class Walker:
         )
         self.G[1] = (
             (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(trial.psi[:,nup:].conj().T)).T
+        )
+
+    def rotated_greens_function(self):
+        nup = self.nup
+        self.Gmod[0] = (
+            (self.phi[:,:nup].dot(self.inv_ovlp[0]))
+        )
+        self.Gmod[1] = (
+            (self.phi[:,nup:].dot(self.inv_ovlp[1]))
         )
 
     def local_energy(self, system):
