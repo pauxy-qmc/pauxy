@@ -274,3 +274,12 @@ def modified_cholesky(M, kappa, verbose=False):
             print ("# iteration %d: delta_max = %f"%(nchol, delta_max))
 
     return numpy.array(chol_vecs)
+
+def exponentiate_matrix(M, order=6):
+    """Taylor series approximation for matrix exponential"""
+    T = numpy.copy(M)
+    EXPM = numpy.zeros(M.shape, dtype=M.dtype)
+    for n in range(1, order+1):
+        T = M.dot(T) / n
+        EXPM += T
+    return EXPM

@@ -227,6 +227,30 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     else:
         return [Bup, Bdown]
 
+def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
+    """Construct the full projector from a configuration of auxiliary fields.
+
+    Parameters
+    ----------
+    config : numpy array
+        Auxiliary field configuration.
+
+    Returns
+    -------
+    B : :class:`numpy.ndarray`
+        Full projector matrix.
+    """
+    VHS = 1j*dt**0.5*numpy.einsum('l,lpq->pq', config, system.chol_vecs)
+    EXP_VHS = afqmcpy.utils.exponentiate_matrix(VHS)
+    Bup = BT2[0].dot(EXP_VHS).dot(BT2[0])
+    Bdown = BT2[1].dot(EXP_VHS).dot(BT2[1])
+
+    if conjt:
+        return [Bup.conj().T, Bdown.conj().T]
+    else:
+        return [Bup, Bdown]
+
+
 def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
@@ -250,7 +274,7 @@ def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
     else:
         return B
 
-def back_propagate(system, psi, trial, nstblz, BT2):
+def back_propagate(system, psi, trial, nstblz, BT2, dt):
     r"""Perform back propagation for UHF style wavefunction.
 
     todo: Explanation.
@@ -278,7 +302,7 @@ def back_propagate(system, psi, trial, nstblz, BT2):
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(w.field_configs.get_block()[::-1]):
+        for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
             B = construct_propagator_matrix(system, BT2,
                                             c, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
@@ -287,7 +311,44 @@ def back_propagate(system, psi, trial, nstblz, BT2):
                 psi_bp[iw].reortho(trial)
     return psi_bp
 
-def back_propagate_ghf(system, psi, trial, nstblz, BT2):
+def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
+    r"""Perform back propagation for UHF style wavefunction.
+
+    todo: Explanation.
+
+    parameters
+    ---------
+    state : :class:`afqmcpy.state.state`
+        state object
+    psi_n : list of :class:`afqmcpy.walker.walker` objects
+        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
+        output the walker's auxiliary field counter will be set to zero if we
+        are not also calculating an itcf.
+    step : int
+        simulation step (modulo total number of fields to save). this is
+        necessary when estimating an itcf for imaginary times >> back
+        propagation time.
+
+    returns
+    -------
+    psi_bp : list of :class:`afqmcpy.walker.walker` objects
+        back propagated list of walkers.
+    """
+
+    psi_bp = [afqmcpy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    nup = system.nup
+    for (iw, w) in enumerate(psi):
+        # propagators should be applied in reverse order
+        for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
+            B = construct_propagator_matrix_generic(system, BT2,
+                                            c, dt, conjt=True)
+            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
+            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
+            if i != 0 and i % nstblz == 0:
+                psi_bp[iw].reortho(trial)
+    return psi_bp
+
+def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     r"""perform backpropagation.
 
     todo: explanation and disentangle measurement from act.
@@ -315,7 +376,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2):
                                             wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
-        for (i, c) in enumerate(w.field_configs.get_block()[::-1]):
+        for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
             B = construct_propagator_matrix_ghf(system, BT2,
                                                 c, conjt=True)
             for (idet, psi_i) in enumerate(psi_bp[iw].phi):
