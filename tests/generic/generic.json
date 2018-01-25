@@ -13,7 +13,7 @@
         "nmeasure": 5,
         "nwalkers": 30,
         "npop_control": 1,
-        "nstabalise": 1,
+        "nstabilise": 1,
         "temperature": 0.0,
         "hubbard_stratonovich": "generic_continuous",
         "expansion_order": 6,
