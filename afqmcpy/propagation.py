@@ -743,7 +743,7 @@ class ContinuousHubbard:
         walker.E_L = E_L
         walker.ot = ot_new
 
-class ContinuousGeneric:
+class GenericContinuous:
     '''Base propagator class'''
 
     def __init__(self, qmc, system, trial):
@@ -756,7 +756,7 @@ class ContinuousGeneric:
         self.mf_shift = self.mf_shift[0] + self.mf_shift[1]
         # Constant core contribution modified by mean field shift.
         self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
-        self.BH1_BP = self.BH1
+        self.BT_BP = self.BH1
         self.exp_nmax = qmc.exp_nmax
         # self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
@@ -822,7 +822,7 @@ class ContinuousGeneric:
         # Construct walker modified Green's function.
         # walker.rotated_greens_function()
         walker.inverse_overlap(trial.psi)
-        walker.greens_function(trial)
+        # walker.greens_function(trial)
         walker.rotated_greens_function()
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
