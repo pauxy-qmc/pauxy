@@ -38,7 +38,9 @@ def average_single(frame):
     err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
     averaged = means.merge(err, left_index=True, right_index=True,
                            suffixes=('', '_error'))
-    columns = sorted(averaged.columns.values)
+    columns = [c for c in averaged.columns.values if '_error' not in c]
+    columns = [[c, c+'_error'] for c in columns]
+    columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
     columns = numpy.insert(columns, 0, 'dt')
     columns = numpy.insert(columns, 0, 'ndets')
