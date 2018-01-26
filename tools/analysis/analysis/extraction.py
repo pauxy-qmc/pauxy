@@ -105,7 +105,7 @@ def extract_hdf5(filename):
     basic = pd.DataFrame(basic)
     basic.columns = headers
     if estimates is not None:
-        if estimates.get('mixed').get('rdm') is not None:
+        if estimates.get('mixed').get('rdm'):
             mixed_rdm = data['mixed_estimates/single_particle_greens_function'][:]
         else:
             mixed_rdm = None
@@ -115,7 +115,7 @@ def extract_hdf5(filename):
             headers = data['back_propagated_estimates/headers'][:]
             bp_data = pd.DataFrame(bpe)
             bp_data.columns = headers
-            if bp['rdm'] is not None:
+            if bp['rdm']:
                 bp_rdm = data['back_propagated_estimates/single_particle_greens_function'][:]
             else:
                 bp_rdm = None
