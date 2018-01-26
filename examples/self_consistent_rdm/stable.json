@@ -20,12 +20,14 @@
         "rng_seed": 7
     },
     "trial_wavefunction": {
-        "name": "free_electron"
+        "name": "free_electron",
+        "initial_wavefunction": "trial"
     },
     "estimates": {
         "filename": "estimates.0.h5",
-        "back_propagation": {
-            "nback_prop": 40
+        "back_propagated": {
+            "nback_prop": 40,
+            "rdm": true
         }
     }
 }

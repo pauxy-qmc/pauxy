@@ -10,26 +10,30 @@ import matplotlib.pyplot as pl
 import afqmcpy.cpmc
 import analysis.extraction
 
-def generate_qmc_rdm(state, options, comm, rdm_delta, index=0):
+def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
     # 1. Generate psi
     data = 'estimates.' + str(index) + '.h5'
     estimate_opts = options.get('estimates')
     estimate_opts['filename'] = data
-    estimators = afqmcpy.estimators.Estimators(estimate_opts,
-                                               state.root,
-                                               state.uuid,
-                                               state.qmc,
-                                               state.system.nbasis,
-                                               state.json_string,
-                                               state.trial.type=='GHF')
-    psi0 = [afqmcpy.walker.Walker(1, state.system, state.trial, w)
-            for w in range(state.qmc.nwalkers)]
-    psi = afqmcpy.cpmc.run(state, psi0, estimators, comm)
-    afqmcpy.cpmc.finalise(state, estimators, start)
+    if index != 0:
+        estimators = afqmcpy.estimators.Estimators(estimate_opts,
+                                                   cpmc.root,
+                                                   cpmc.qmc,
+                                                   cpmc.system,
+                                                   cpmc.trial,
+                                                   cpmc.propagators.BT_BP)
+        cpmc.estimators = estimators
+    psi0 = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
+                                  cpmc.qmc.nwalkers,
+                                  cpmc.estimators.nprop_tot,
+                                  cpmc.estimators.nbp)
+    cpmc.run(psi=psi0, comm=comm)
+    cpmc.finalise()
     # 2. Extract initial 1RDM
-    if state.root:
-        rdm, err = analysis.blocking.average_rdm(data, skip=2)
-        bp_av, norm_av = analysis.blocking.analyse_estimates([data], 4)
+    if cpmc.root:
+        start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
+        rdm, err = analysis.blocking.average_rdm(data, 'back_prop', skip=start)
+        bp_av, norm_av = analysis.blocking.analyse_estimates([data], start_time=4)
         # check quality.
         mean_err = err.diagonal().mean()
         print ("# Mean error in CPMC RDM: %f"%mean_err)
@@ -43,7 +47,7 @@ def generate_qmc_rdm(state, options, comm, rdm_delta, index=0):
         warnings.warn("Exiting now.")
         sys.exit()
     else:
-        if state.root:
+        if cpmc.root:
             return (rdm, err, norm_av.E, norm_av.E_error)
         else:
             return (None, None, None, None)
@@ -82,19 +86,15 @@ nprocs = comm.Get_size()
 # 1. Perform initial CPMC calculation
 start = time.time()
 input_file = 'stable.json'
-if rank == 0:
-    print('# Initialising AFQMCPY simulation from %s'%input_file)
-    with open(input_file) as inp:
-        options = json.load(inp)
-    inp.close()
-    # sometimes python is beautiful
-    print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
-else:
-    options = None
-if comm is not None:
-    options = comm.bcast(options, root=0)
-(state, psi0, comm) = afqmcpy.cpmc.setup(options, comm)
 
+(options, comm) = afqmcpy.calc.init(input_file)
+if comm is not None:
+    cpmc = afqmcpy.calc.setup_parallel(options, comm)
+else:
+    cpmc = afqmcpy.cpmc.CPMC(options.get('model'),
+                             options.get('qmc_options'),
+                             options.get('estimates'),
+                             options.get('trial_wavefunction'))
 # Options
 # -------
 # stochastic error bar in density
@@ -104,7 +104,7 @@ nself_consist = 10
 energies = numpy.zeros(nself_consist)
 errors = numpy.zeros(nself_consist)
 uopt = numpy.zeros(nself_consist)
-system = state.system
+system = cpmc.system
 uhf_input = {
     "name": "UHF",
     "ueff": 0.5,
@@ -117,32 +117,33 @@ uhf_input = {
 if rank == 0:
     print ("# Self consistency cycle %d of %d"%(0, nself_consist))
 (rdm, rdm_err, energies[0], errors[0]) = (
-    generate_qmc_rdm(state, options, comm, rdm_delta, 0)
+    generate_qmc_rdm(cpmc, options, comm, rdm_delta, 0)
 )
 wfn_file = 'uopt_trial_wfn.0.npy'
 if rank == 0:
-    rdm, err = analysis.blocking.average_rdm('estimates.0.h5', skip=2)
+    start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
+    rdm, err = analysis.blocking.average_rdm('estimates.0.h5', 'back_prop', skip=start)
     (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10, index=0,
-                                   dtype=psi0[0].phi.dtype)
+                                   dtype=cpmc.psi.walkers[0].phi.dtype)
     # print (psi_opt)
     numpy.save(wfn_file, psi_opt)
 comm.Barrier()
-state.trial.psi = numpy.load(wfn_file)
+cpmc.trial.psi = numpy.load(wfn_file)
 for isc in range(1, nself_consist):
     if rank == 0:
         print ("# Self consistency cycle %d of %d"%(isc+1, nself_consist))
     (rdm, rdm_err, energies[isc], errors[isc]) = (
-        generate_qmc_rdm(state, options, comm, rdm_delta, isc)
+        generate_qmc_rdm(cpmc, options, comm, rdm_delta, isc)
     )
     if rank == 0:
         (uopt[isc], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10,
-                                         index=isc, dtype=psi0[0].phi.dtype)
+                                         index=isc, dtype=cpmc.psi.walkers[0].phi.dtype)
         # write psi to file.
         wfn_file = 'uopt_trial_wfn.'+str(isc)+'.npy'
         # overkill
         numpy.save(wfn_file, psi_opt)
     comm.Barrier()
-    state.trial.psi = numpy.load(wfn_file)
+    cpmc.trial.psi = numpy.load(wfn_file)
 
 if rank == 0:
     pl.errorbar(range(1,nself_consist+1), energies, yerr=errors, fmt='o')
