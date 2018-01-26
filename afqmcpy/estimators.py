@@ -347,7 +347,7 @@ class BackPropagation:
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
-        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
+        self.estimates = numpy.zeros(1+self.nreg+self.G.size, dtype=trial.G.dtype)
         self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
@@ -413,10 +413,10 @@ class BackPropagation:
             else:
                 weight = wnm.weight
             denominator += weight
-            self.estimates = (
-                self.estimates + weight*numpy.append(energies,self.G.flatten())
+            self.estimates[1:] = (
+                self.estimates[1:] + weight*numpy.append(energies,self.G.flatten())
             )
-        self.estimates /= denominator
+        self.estimates[0] += denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
@@ -448,9 +448,10 @@ class BackPropagation:
             denom = sum(weights)
             energies = numpy.array(list(local_energy_ghf(system, wb.Gi, weights, denom)))
             self.G = numpy.einsum('i,ijk->jk', weights, wb.Gi) / denom
-            self.estimates = (
-                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            self.estimates[1:]= (
+                self.estimates[1:] + wnm.weight*numpy.append(energies,self.G.flatten())
             )
+            self.estimates[1] += denom
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
@@ -467,9 +468,9 @@ class BackPropagation:
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg]/nprocs)
+                self.output.push(self.global_estimates[1:self.nreg+1]/(self.global_estimates[0]*nprocs)
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
+                    rdm = self.global_estimates[self.nreg+1:].reshape(self.G.shape)/(self.global_estimates[0]*nprocs)
                     self.dm_output.push(rdm)
             self.zero()
 
