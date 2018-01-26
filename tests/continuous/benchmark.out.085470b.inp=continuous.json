@@ -1,0 +1,141 @@
+# Initialising AFQMCPY simulation from continuous.json
+# Running on 1 core
+# Input options:
+{
+    "system": {
+        "nup": 5,
+        "ndown": 5,
+        "ne": 10,
+        "t": 1.0,
+        "U": 4,
+        "nx": 4,
+        "ny": 4,
+        "nbasis": 16,
+        "pinning": false,
+        "super": null,
+        "gamma": 0.45470308514053565,
+        "ecore": 0.0,
+        "nfields": 16,
+        "name": "Hubbard"
+    },
+    "qmc": {
+        "method": "CPMC",
+        "nwalkers": 30,
+        "dt": 0.05,
+        "nsteps": 100,
+        "nmeasure": 5,
+        "nstblz": 10,
+        "npop_control": 10,
+        "temp": 0.0,
+        "nequilibrate": 20,
+        "importance_sampling": true,
+        "constraint": "constrained",
+        "hubbard_stratonovich": "continuous",
+        "ffts": false,
+        "cplx": true,
+        "exp_nmax": 6
+    },
+    "uuid": "bd3790ba-02ea-11e8-b6f8-7c04d0c7d4f8",
+    "sha1": "085470b260ce2cddbcb659f38684f88fd699776a",
+    "seed": 7,
+    "root": true,
+    "nprocs": 1,
+    "init_time": 1517006785.514841,
+    "trial": {
+        "name": "free_electron",
+        "type": "free_electron",
+        "initial_wavefunction": "free_electron",
+        "reference": null,
+        "read_in": null,
+        "etrial": -17.75,
+        "coeffs": 1.0,
+        "ndets": 1,
+        "bp_wfn": null,
+        "error": false,
+        "initialisation_time": 0.0013918876647949219
+    },
+    "propagators": {
+        "nstblz": 10,
+        "dt": 0.05,
+        "mf_shift": 0.625,
+        "iut_fac": 0.0,
+        "ut_fac": 0.2,
+        "mf_nsq": 6.25,
+        "ebound": 6.324555320336759,
+        "mean_local_energy": 0
+    },
+    "rank": 0,
+    "estimators": {
+        "back_propagation": false,
+        "estimators": {
+            "mixed": {
+                "rdm": false,
+                "nmeasure": 20,
+                "nreg": 7,
+                "names": {
+                    "weight": 0,
+                    "enumer": 1,
+                    "edenom": 2,
+                    "eproj": 3,
+                    "ekin": 4,
+                    "epot": 5,
+                    "time": 6
+                },
+                "key": {
+                    "iteration": "Simulation iteration. iteration*dt = tau.",
+                    "Weight": "Total walker weight.",
+                    "E_num": "Numerator for projected energy estimator.",
+                    "E_denom": "Denominator for projected energy estimator.",
+                    "E": "Projected energy estimator.",
+                    "EKin": "Mixed kinetic energy estimator.",
+                    "EPot": "Mixed potential energy estimator.",
+                    "time": "Time per processor to complete one iteration."
+                },
+                "output": {
+                    "index": 0
+                }
+            }
+        },
+        "nprop_tot": 1,
+        "nbp": 1,
+        "calc_itcf": false
+    },
+    "psi": {
+        "walkers": "<afqmcpy.walker.Walker object at 0x10e418b70>"
+    }
+}
+# End of input options.
+# Explanation of output column headers:
+# -------------------------------------
+# iteration : Simulation iteration. iteration*dt = tau.
+# Weight : Total walker weight.
+# E_num : Numerator for projected energy estimator.
+# E_denom : Denominator for projected energy estimator.
+# E : Projected energy estimator.
+# EKin : Mixed kinetic energy estimator.
+# EPot : Mixed potential energy estimator.
+# time : Time per processor to complete one iteration.
+        iteration            Weight             E_num           E_denom                 E              EKin              EPot              time
+ 0.0000000000e+00  3.0000000000e+01 -5.3250000000e+02  3.0000000000e+01 -1.7750000000e+01  0.0000000000e+00  0.0000000000e+00  3.3402681351e-02
+ 5.0000000000e+00  3.2900533551e+01 -6.1696926455e+02  3.2900533551e+01 -1.8752561067e+01  0.0000000000e+00  0.0000000000e+00  1.2479591370e-02
+ 1.0000000000e+01  3.6236508271e+01 -6.9842775484e+02  3.6236508271e+01 -1.9274146107e+01  0.0000000000e+00  0.0000000000e+00  1.6199350357e-02
+ 1.5000000000e+01  2.9379499541e+01 -5.7759410552e+02  2.9379499541e+01 -1.9659766659e+01  0.0000000000e+00  0.0000000000e+00  1.8564414978e-02
+ 2.0000000000e+01  2.7378876740e+01 -5.3060018400e+02  2.7378876740e+01 -1.9379910616e+01  0.0000000000e+00  0.0000000000e+00  1.3780784607e-02
+ 2.5000000000e+01  2.7939502299e+01 -5.4195576508e+02  2.7939502299e+01 -1.9397473845e+01  0.0000000000e+00  0.0000000000e+00  1.5817165375e-02
+ 3.0000000000e+01  2.5105187714e+01 -4.9170745453e+02  2.5105187714e+01 -1.9585890379e+01  0.0000000000e+00  0.0000000000e+00  1.4623594284e-02
+ 3.5000000000e+01  2.7411106429e+01 -5.3217413580e+02  2.7411106429e+01 -1.9414544144e+01  0.0000000000e+00  0.0000000000e+00  1.3882827759e-02
+ 4.0000000000e+01  2.3643931629e+01 -4.6694404133e+02  2.3643931629e+01 -1.9749001505e+01  0.0000000000e+00  0.0000000000e+00  1.5927982330e-02
+ 4.5000000000e+01  2.9380622673e+01 -5.8166678196e+02  2.9380622673e+01 -1.9797632897e+01  0.0000000000e+00  0.0000000000e+00  1.5345001221e-02
+ 5.0000000000e+01  2.4894141608e+01 -4.8888786365e+02  2.4894141608e+01 -1.9638671272e+01  0.0000000000e+00  0.0000000000e+00  1.5860462189e-02
+ 5.5000000000e+01  2.6761474840e+01 -5.2234162532e+02  2.6761474840e+01 -1.9518416995e+01  0.0000000000e+00  0.0000000000e+00  1.5609359741e-02
+ 6.0000000000e+01  2.3142567887e+01 -4.5155524860e+02  2.3142567887e+01 -1.9511890418e+01  0.0000000000e+00  0.0000000000e+00  1.4001226425e-02
+ 6.5000000000e+01  2.8750613796e+01 -5.7440584571e+02  2.8750613796e+01 -1.9978907226e+01  0.0000000000e+00  0.0000000000e+00  1.5007877350e-02
+ 7.0000000000e+01  2.4309914724e+01 -4.8241066365e+02  2.4309914724e+01 -1.9844193989e+01  0.0000000000e+00  0.0000000000e+00  1.6034364700e-02
+ 7.5000000000e+01  2.6790624721e+01 -5.3064589682e+02  2.6790624721e+01 -1.9807149043e+01  0.0000000000e+00  0.0000000000e+00  1.3512563705e-02
+ 8.0000000000e+01  2.2428314125e+01 -4.4189421928e+02  2.2428314125e+01 -1.9702516061e+01  0.0000000000e+00  0.0000000000e+00  1.4229059219e-02
+ 8.5000000000e+01  2.6190188498e+01 -5.1049399572e+02  2.6190188498e+01 -1.9491803038e+01  0.0000000000e+00  0.0000000000e+00  1.7384767532e-02
+ 9.0000000000e+01  2.2940358631e+01 -4.4811278623e+02  2.2940358631e+01 -1.9533817820e+01  0.0000000000e+00  0.0000000000e+00  1.6723775864e-02
+ 9.5000000000e+01  2.8143816013e+01 -5.4947527810e+02  2.8143816013e+01 -1.9523837061e+01  0.0000000000e+00  0.0000000000e+00  1.4161968231e-02
+ 1.0000000000e+02  2.3577615172e+01 -4.5940427936e+02  2.3577615172e+01 -1.9484764511e+01  0.0000000000e+00  0.0000000000e+00  1.4331960678e-02
+# End Time: Fri Jan 26 14:46:27 2018
+# Running time : 1.561609 seconds

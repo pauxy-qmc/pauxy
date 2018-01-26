@@ -1,0 +1,147 @@
+# Initialising AFQMCPY simulation from generic.json
+# Running on 1 core
+# Input options:
+{
+    "system": {
+        "name": "Generic",
+        "nup": 5,
+        "ndown": 5,
+        "ne": 10,
+        "integral_file": "fcidump.ascii",
+        "decomopsition": "eigenvalue",
+        "threshold": 1e-05,
+        "verbose": false,
+        "nbasis": 14,
+        "ecore": 0.0,
+        "nchol_vec": 74,
+        "nfields": 74
+    },
+    "qmc": {
+        "method": "CPMC",
+        "nwalkers": 10,
+        "dt": 0.05,
+        "nsteps": 100,
+        "nmeasure": 10,
+        "nstblz": 1,
+        "npop_control": 1,
+        "temp": 0.0,
+        "nequilibrate": 20,
+        "importance_sampling": true,
+        "constraint": "constrained",
+        "hubbard_stratonovich": "generic_continuous",
+        "ffts": false,
+        "cplx": true,
+        "exp_nmax": 6
+    },
+    "uuid": "c445531c-02ea-11e8-bdaf-7c04d0c7d4f8",
+    "sha1": "085470b260ce2cddbcb659f38684f88fd699776a",
+    "seed": 7,
+    "root": true,
+    "nprocs": 1,
+    "init_time": 1517006797.3541608,
+    "trial": {
+        "name": "hartree_fock",
+        "type": "hartree_fock",
+        "initial_wavefunction": "hartree_fock",
+        "energy": -128.48877555174073,
+        "e1b": -182.6160999222207,
+        "e2b": 54.12732437047998,
+        "coeffs": 1.0,
+        "bp_wfn": null,
+        "error": false,
+        "initialisation_time": 0.002624034881591797
+    },
+    "propagators": {
+        "dt": 0.05,
+        "sqrt_dt": 0.22360679774997896,
+        "isqrt_dt": 0.0,
+        "mf_const_fac": 27.457619783389678,
+        "exp_nmax": 6,
+        "nstblz": 1,
+        "ebound": 6.324555320336759,
+        "mean_local_energy": 0
+    },
+    "rank": 0,
+    "estimators": {
+        "back_propagation": true,
+        "estimators": {
+            "mixed": {
+                "rdm": false,
+                "nmeasure": 10,
+                "nreg": 7,
+                "names": {
+                    "weight": 0,
+                    "enumer": 1,
+                    "edenom": 2,
+                    "eproj": 3,
+                    "ekin": 4,
+                    "epot": 5,
+                    "time": 6
+                },
+                "key": {
+                    "iteration": "Simulation iteration. iteration*dt = tau.",
+                    "Weight": "Total walker weight.",
+                    "E_num": "Numerator for projected energy estimator.",
+                    "E_denom": "Denominator for projected energy estimator.",
+                    "E": "Projected energy estimator.",
+                    "EKin": "Mixed kinetic energy estimator.",
+                    "EPot": "Mixed potential energy estimator.",
+                    "time": "Time per processor to complete one iteration."
+                },
+                "output": {
+                    "index": 0
+                }
+            },
+            "back_prop": {
+                "nmax": 20,
+                "rdm": true,
+                "nreg": 4,
+                "nstblz": 1,
+                "restore_weights": null,
+                "key": {
+                    "iteration": "Simulation iteration when back-propagation measurement occured.",
+                    "E_var": "BP estimate for internal energy.",
+                    "T": "BP estimate for kinetic energy.",
+                    "V": "BP estimate for potential energy."
+                },
+                "output": {
+                    "index": 0
+                },
+                "dm_output": {
+                    "index": 0
+                }
+            }
+        },
+        "nprop_tot": 20,
+        "nbp": 20,
+        "calc_itcf": false
+    },
+    "psi": {
+        "walkers": "<afqmcpy.walker.Walker object at 0x10509fda0>"
+    }
+}
+# End of input options.
+# Explanation of output column headers:
+# -------------------------------------
+# iteration : Simulation iteration. iteration*dt = tau.
+# Weight : Total walker weight.
+# E_num : Numerator for projected energy estimator.
+# E_denom : Denominator for projected energy estimator.
+# E : Projected energy estimator.
+# EKin : Mixed kinetic energy estimator.
+# EPot : Mixed potential energy estimator.
+# time : Time per processor to complete one iteration.
+        iteration            Weight             E_num           E_denom                 E              EKin              EPot              time
+ 0.0000000000e+00  1.0000000000e+01 -1.2848877555e+03  1.0000000000e+01 -1.2848877555e+02 -1.8261609992e+02  5.4127324370e+01  4.9250125885e-02
+ 1.0000000000e+01  1.0129034560e+01 -1.3027711294e+03  1.0129034560e+01 -1.2861750265e+02 -1.8254176337e+02  5.3924260716e+01  2.8382062912e-02
+ 2.0000000000e+01  1.0023096834e+01 -1.2893455530e+03  1.0023096834e+01 -1.2863744353e+02 -1.8254741900e+02  5.3909975470e+01  4.2322587967e-02
+ 3.0000000000e+01  1.0095202531e+01 -1.2985860219e+03  1.0095202531e+01 -1.2863397420e+02 -1.8244919016e+02  5.3815215952e+01  2.9770803452e-02
+ 4.0000000000e+01  1.0109231338e+01 -1.3008168435e+03  1.0109231338e+01 -1.2867613769e+02 -1.8256610267e+02  5.3889964989e+01  3.9573407173e-02
+ 5.0000000000e+01  9.9879169848e+00 -1.2852612838e+03  9.9879169848e+00 -1.2868161457e+02 -1.8269354070e+02  5.4011926136e+01  2.7860307693e-02
+ 6.0000000000e+01  1.0049062237e+01 -1.2929675578e+03  1.0049062237e+01 -1.2866549408e+02 -1.8246366171e+02  5.3798167629e+01  4.0092515945e-02
+ 7.0000000000e+01  9.9626348751e+00 -1.2819863331e+03  9.9626348751e+00 -1.2867944567e+02 -1.8256085648e+02  5.3881410816e+01  2.7972507477e-02
+ 8.0000000000e+01  9.9716401951e+00 -1.2833723037e+03  9.9716401951e+00 -1.2870222738e+02 -1.8254209513e+02  5.3839867750e+01  3.9200901985e-02
+ 9.0000000000e+01  9.9707355789e+00 -1.2827823883e+03  9.9707355789e+00 -1.2865473948e+02 -1.8258150821e+02  5.3926768735e+01  2.7747988701e-02
+ 1.0000000000e+02  9.9792043952e+00 -1.2843661685e+03  9.9792043952e+00 -1.2870426515e+02 -1.8271017197e+02  5.4005906822e+01  4.1454195976e-02
+# End Time: Fri Jan 26 14:46:40 2018
+# Running time : 3.499690 seconds

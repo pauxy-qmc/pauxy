@@ -56,6 +56,8 @@ class CPMC:
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
             self.system = afqmcpy.hubbard.Hubbard(model, qmc_opts['dt'])
+        elif model['name'] == 'Generic':
+            self.system = afqmcpy.generic.Generic(model, qmc_opts['dt'])
         self.qmc = afqmcpy.qmc.QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
         self.uuid = str(uuid.uuid1())
@@ -80,12 +82,21 @@ class CPMC:
                                                                      self.qmc.cplx,
                                                                      trial,
                                                                      parallel)
+        elif trial['name'] == 'hartree_fock':
+            self.trial = afqmcpy.trial_wavefunction.HartreeFock(self.system,
+                                                                self.qmc.cplx,
+                                                                trial,
+                                                                parallel)
         if self.qmc.hubbard_stratonovich == 'discrete':
             self.propagators = afqmcpy.propagation.DiscreteHubbard(self.qmc,
                                                                    self.system,
                                                                    self.trial)
-        else:
+        elif self.qmc.hubbard_stratonovich == "continuous":
             self.propagators = afqmcpy.propagation.ContinuousHubbard(self.qmc,
+                                                                     self.system,
+                                                                     self.trial)
+        elif self.qmc.hubbard_stratonovich  == "generic_continuous":
+            self.propagators = afqmcpy.propagation.GenericContinuous(self.qmc,
                                                                      self.system,
                                                                      self.trial)
         # Handy to keep original dicts so they can be printed at run time.
@@ -186,7 +197,7 @@ class CPMC:
                 if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system, self.trial)
                 # Constant factors
-                w.weight = w.weight * exp(self.qmc.dt*E_T.real)
+                w.weight = w.weight*exp(self.qmc.dt*E_T.real)
                 # Add current (propagated) walkers contribution to estimates.
             # calculate estimators
             self.estimators.update(self.system, self.qmc,

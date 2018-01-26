@@ -61,9 +61,9 @@ class FreeElectron:
                 self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
                 self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
         gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
-                                   self.psi[:,:system.nup])
+                                     self.psi[:,:system.nup]).T
         gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
-                self.psi[:,system.nup:])
+                                       self.psi[:,system.nup:]).T
         self.G = numpy.array([gup,gdown])
         self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
         # For interface compatability
@@ -334,3 +334,29 @@ def read_fortran_complex_numbers(filename):
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
     return numpy.array(orbs)
+
+class HartreeFock:
+
+    def __init__(self, system, cplx, trial, parallel=False):
+        init_time = time.time()
+        self.name = "hartree_fock"
+        self.type = "hartree_fock"
+        self.initial_wavefunction = trial.get('initial_wavefunction',
+                                              'hartree_fock')
+        self.trial_type = complex
+        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                               dtype=self.trial_type)
+        occup = numpy.identity(system.nup)
+        occdown = numpy.identity(system.ndown)
+        self.psi[:system.nup,:system.nup] = occup
+        self.psi[:system.ndown,system.nup:] = occdown
+        gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+                                   self.psi[:,:system.nup])
+        gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
+                self.psi[:,system.nup:])
+        self.G = numpy.array([gup,gdown])
+        (self.energy, self.e1b, self.e2b) = afqmcpy.estimators.local_energy_generic(system, self.G)
+        self.coeffs = 1.0
+        self.bp_wfn = trial.get('bp_wfn', None)
+        self.error = False
+        self.initialisation_time = time.time() - init_time

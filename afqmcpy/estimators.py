@@ -91,7 +91,8 @@ class Estimators:
                                          qmc, trial, dtype)
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
-                                                           qmc, trial, dtype, BT2)
+                                                           qmc, system, trial,
+                                                           dtype, BT2)
             self.nprop_tot = self.estimators['back_prop'].nmax
             self.nbp = self.estimators['back_prop'].nmax
         else:
@@ -203,7 +204,7 @@ class Mixed:
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                if 'continuous' in qmc.hubbard_stratonovich:
+                if qmc.hubbard_stratonovich == 'continuous':
                     self.estimates[self.names.enumer] += w.weight * w.E_L.real
                 else:
                     E, T, V = w.local_energy(system)
@@ -340,9 +341,9 @@ class BackPropagation:
         Output file for back propagated estimates.
     """
 
-    def __init__(self, bp, root, h5f, qmc, trial, dtype, BT2):
+    def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
         self.nmax = bp.get('nback_prop', 0)
-        self.header = ['iteration', 'E', 'T', 'V']
+        self.header = ['iteration', 'weight', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
@@ -350,6 +351,7 @@ class BackPropagation:
         self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
+        self.restore_weights = bp.get('restore_weights', None)
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -359,20 +361,28 @@ class BackPropagation:
         }
         if root:
             energies = h5f.create_group('back_propagated_estimates')
-            header = numpy.array(['E', 'T', 'V'], dtype=object)
+            header = numpy.array(self.header[1:], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (qmc.nsteps//self.nmax, len(header)),
-                                            dtype)
+                                            (qmc.nsteps//self.nmax, self.nreg),
+                                            trial.G.dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
                                                   (qmc.nsteps//self.nmax,)+self.G.shape,
-                                                  dtype)
+                                                  trial.G.dtype)
         if trial.type == 'GHF':
             self.update = self.update_ghf
+            if system.name == "Generic":
+                self.back_propagate = afqmcpy.propagation.back_propagate_generic_uhf
+            else:
+                self.back_propagate = afqmcpy.propagation.back_propagate_ghf
         else:
             self.update = self.update_uhf
+            if system.name == "Generic":
+                self.back_propagate = afqmcpy.propagation.back_propagate_generic
+            else:
+                self.back_propagate = afqmcpy.propagation.back_propagate
 
     def update_uhf(self, system, qmc, trial, psi, step):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
@@ -390,17 +400,23 @@ class BackPropagation:
         """
         if step%self.nmax != 0:
             return
-        psi_bp = afqmcpy.propagation.back_propagate(system, psi.walkers, trial,
-                                                    self.nstblz, self.BT2)
-        denominator = sum(wnm.weight for wnm in psi.walkers)
+        psi_bp = self.back_propagate(system, psi.walkers, trial,
+                                     self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
+        denominator = 0
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
             self.G[0] = gab(wb.phi[:,:nup], wnm.phi_old[:,:nup]).T
             self.G[1] = gab(wb.phi[:,nup:], wnm.phi_old[:,nup:]).T
             energies = numpy.array(list(local_energy(system, self.G)))
-            self.estimates = (
-                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            if self.restore_weights is not None:
+                weight = wnm.weight * self.calculate_weight_factor(wnm)
+            else:
+                weight = wnm.weight
+            denominator += weight
+            self.estimates[1:] = (
+                self.estimates[1:] + weight*numpy.append(energies,self.G.flatten())
             )
+        self.estimates[0] += denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
@@ -432,19 +448,29 @@ class BackPropagation:
             denom = sum(weights)
             energies = numpy.array(list(local_energy_ghf(system, wb.Gi, weights, denom)))
             self.G = numpy.einsum('i,ijk->jk', weights, wb.Gi) / denom
-            self.estimates = (
-                self.estimates + wnm.weight*numpy.append(energies,self.G.flatten()) / denominator
+            self.estimates[1:]= (
+                self.estimates[1:] + wnm.weight*numpy.append(energies,self.G.flatten())
             )
+            self.estimates[1] += denom
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
+
+    def calculate_weight_factor(self, walker):
+        configs, cos_fac, weight_fac = walker.field_configs.get_block()
+        factor = 1.0 + 0j
+        for (w, c) in zip(weight_fac, cos_fac):
+            factor *= w[0]
+            if (self.restore_weights == "full"):
+                factor /= c[0]
+        return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg].real/nprocs)
+                self.output.push(self.global_estimates[:self.nreg]/(nprocs))
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg:].real.reshape(self.G.shape)/nprocs
+                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/(nprocs)
                     self.dm_output.push(rdm)
             self.zero()
 
@@ -564,7 +590,7 @@ class ITCF:
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first nmax fields for estimating the ITCF.
-            afqmcpy.propagation.back_propagate_single(w.phi_bp, w.field_configs.get_superblock(),
+            afqmcpy.propagation.back_propagate_single(w.phi_bp, w.field_configs.get_superblock()[0],
                                                       system, self.nstblz,
                                                       self.BT2)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -580,7 +606,7 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(w.field_configs.get_superblock()):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(system,
                                                                     self.BT2, c)
@@ -632,7 +658,7 @@ class ITCF:
             # This leads to more stable equal time green's functions compared to
             # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
             psi_Ls = afqmcpy.propagation.back_propagate_single(w.phi_bp,
-                                              w.field_configs.get_superblock(),
+                                              w.field_configs.get_superblock()[0],
                                               system, self.nstblz,
                                               self.BT2, store=True)
             # 2. Calculate G(n,n). This is the equal time Green's function at
@@ -646,7 +672,7 @@ class ITCF:
             self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(w.field_configs.get_superblock()):
+            for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
                 B = afqmcpy.propagation.construct_propagator_matrix(system,
                                                                     self.BT2, c)
@@ -720,8 +746,18 @@ class ITCF:
         self.spgf[:] = 0
         self.spgf_global[:] = 0
 
-
 def local_energy(system, G):
+    ghf = (G.shape[-1] == 2*system.nbasis)
+    if system.name == "Hubbard":
+        if ghf:
+            return local_energy_ghf(system, G)
+        else:
+            return local_energy_hubbard(system, G)
+    else:
+        return local_energy_generic(system, G)
+
+
+def local_energy_hubbard(system, G):
     r"""Calculate local energy of walker for the Hubbard model.
 
     Parameters
@@ -866,6 +902,41 @@ def gab(A, B):
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
 
+def gab_mod(A, B):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+
+    .. math::
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle =
+        [B(A^{\dagger}B)^{-1}A^{\dagger}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    For example, usually A would represent (an element of) the trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Matrix representation of the bra used to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    # Todo: check energy evaluation at later point, i.e., if this needs to be
+    # transposed. Shouldn't matter for Hubbard model.
+    inv_O = scipy.linalg.inv((A.conj().T).dot(B))
+    GAB = B.dot(inv_O)
+    return GAB
+
 def gab_multi_det(A, B, coeffs):
     r"""One-particle Green's function.
 
@@ -991,3 +1062,54 @@ class H5EstimatorHelper:
     def push(self, data):
         self.store[self.index] = data
         self.index = self.index + 1
+
+def local_energy_generic(system, G):
+    """Local energy for generic two-body Hamiltonian"""
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[0]) -
+               numpy.einsum('pqrs,ps,qr->', system.h2e, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[1]) -
+               numpy.einsum('pqrs,ps,qr->', system.h2e, G[1], G[1]))
+    eud = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[1])
+    edu = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)
+
+def local_energy_generic_cholesky(system, G):
+    """Local energy for generic two-body (cholesky decomposed) Hamiltonian"""
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]))
+    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[0], G[1])
+    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)
+
+def local_energy_generic_cholesky_opt(system, Theta, L):
+    """Local energy for generic two-body (cholesky decomposed) Hamiltonian"""
+    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
+          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]) -
+               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
+                            system.chol_vecs, G[1], G[1]))
+    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[0], G[1])
+    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
+                           system.chol_vecs, G[1], G[0])
+    e2 = euu + edd + eud + edu
+    return (e1+e2+system.ecore, e1+system.ecore, e2)

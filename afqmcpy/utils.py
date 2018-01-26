@@ -230,3 +230,56 @@ def fcidump_header(nel, norb, spin):
         "&END\n"
     )
     return header
+
+def modified_cholesky(M, kappa, verbose=False):
+    """Modified cholesky decomposition of matrix.
+
+    See, e.g. [Motta17]_
+
+    Parameters
+    ----------
+    M : :class:`numpy.ndarray`
+        Positive semi-definite, symmetric matrix.
+    kappa : float
+        Accuracy desired.
+    verbose : bool
+        If true print out convergence progress.
+
+    Returns
+    -------
+    chol_vecs : :class:`numpy.ndarray`
+        Matrix of cholesky vectors.
+    """
+    # matrix of residuals.
+    delta = numpy.copy(M)
+    # index of largest diagonal element of residual matrix.
+    nu = numpy.argmax(delta.diagonal())
+    delta_max = delta[nu,nu]
+    if verbose:
+        print ("# iteration %d: delta_max = %f"%(0, delta_max))
+    # Store for current approximation to input matrix.
+    Mapprox = numpy.zeros(M.shape)
+    chol_vecs = []
+    nchol = 0
+    while abs(delta_max) > kappa:
+        # Update cholesky vector
+        L = (numpy.copy(delta[:,nu])/(delta_max)**0.5)
+        chol_vecs.append(L)
+        Mapprox += numpy.einsum('i,j->ij', L, L)
+        delta = M - Mapprox
+        nu = numpy.argmax(delta.diagonal())
+        delta_max = delta[nu,nu]
+        nchol += 1
+        if verbose:
+            print ("# iteration %d: delta_max = %f"%(nchol, delta_max))
+
+    return numpy.array(chol_vecs)
+
+def exponentiate_matrix(M, order=6):
+    """Taylor series approximation for matrix exponential"""
+    T = numpy.copy(M)
+    EXPM = numpy.identity(M.shape[0], dtype=M.dtype)
+    for n in range(1, order+1):
+        EXPM += T
+        T = M.dot(T) / (n+1)
+    return EXPM

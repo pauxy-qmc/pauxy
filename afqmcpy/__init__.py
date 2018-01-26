@@ -12,6 +12,7 @@ import afqmcpy.qmc
 import afqmcpy.calc
 import afqmcpy.walker
 import afqmcpy.hubbard
+import afqmcpy.generic
 import afqmcpy.estimators
 import afqmcpy.trial_wavefunction
 import afqmcpy.propagation
