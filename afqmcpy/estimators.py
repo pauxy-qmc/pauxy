@@ -403,7 +403,7 @@ class BackPropagation:
         psi_bp = self.back_propagate(system, psi.walkers, trial,
                                      self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
-        denominator = 0 + 0j
+        denominator = 0
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
             self.G[0] = gab(wb.phi[:,:nup], wnm.phi_old[:,:nup]).T
             self.G[1] = gab(wb.phi[:,nup:], wnm.phi_old[:,nup:]).T
