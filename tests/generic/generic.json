@@ -10,8 +10,8 @@
         "method": "CPMC",
         "dt": 0.05,
         "nsteps": 100,
-        "nmeasure": 5,
-        "nwalkers": 30,
+        "nmeasure": 10,
+        "nwalkers": 10,
         "npop_control": 1,
         "nstabilise": 1,
         "temperature": 0.0,
@@ -24,5 +24,9 @@
         "name": "hartree_fock"
     },
     "estimates": {
+        "back_propagated": {
+            "rdm": true,
+            "nback_prop": 20
+        }
     }
 }

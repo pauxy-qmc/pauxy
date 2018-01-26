@@ -5,8 +5,9 @@
 [free/]
 [itcf/]
 [twisted_boundary_conditions/]
+[generic/]
 
 # Form job categories.
 [categories]
 
-_default_ = uhf continuous discrete free itcf twisted_boundary_conditions
+_default_ = uhf continuous discrete free itcf twisted_boundary_conditions generic
