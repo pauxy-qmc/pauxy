@@ -366,11 +366,11 @@ class BackPropagation:
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (qmc.nsteps//self.nmax, len(header)),
-                                            dtype)
+                                            trial.G.dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
                                                   (qmc.nsteps//self.nmax,)+self.G.shape,
-                                                  dtype)
+                                                  trial.G.dtype)
         if trial.type == 'GHF':
             self.update = self.update_ghf
             if system.name == "Generic":
