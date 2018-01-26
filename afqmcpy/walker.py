@@ -424,5 +424,4 @@ class FieldConfig:
 
     def get_superblock(self):
         end = self.nprop_tot - self.nbp
-        return (self.configs[:end], self.cos_fac[start:end],
-                self.weight_fac[start:end])
+        return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
