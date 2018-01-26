@@ -83,7 +83,7 @@ None.
                                                             options.kspace)
     elif options.obs == 'energy':
         results = analysis.extraction.analysed_energies(options.filename[0],
-                                                        'mixed_estimators')
+                                                        'mixed')
     elif options.obs == 'back_propagated':
         results = analysis.extraction.analysed_energies(options.filename[0],
                                                         'back_propagated')
