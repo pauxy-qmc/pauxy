@@ -44,13 +44,9 @@ def average_single(frame):
     columns = numpy.insert(columns, 0, 'ndets')
     return averaged[columns]
 
-def average_rdm(filename, name, skip=0):
-    data = h5py.File(filename, 'r')
-    conv = {'mixed': 'mixed_estimates',
-            'back_prop': 'back_propagated_estimates'}
-    gf = data[conv[name]+'/single_particle_greens_function'][:].real
-    gf_av = gf[skip:].mean(axis=0)
-    gf_err = gf[skip:].std(axis=0) / len(gf[skip:])**0.5
+def average_rdm(gf):
+    gf_av = gf.mean(axis=0)
+    gf_err = gf.std(axis=0) / len(gf)**0.5
     return (gf_av, gf_err)
 
 def average_correlation(gf, skip=0):
@@ -153,7 +149,8 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
             skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero].apply(numpy.real))
             if bp_rdm is not None:
-                (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm, start)
+                (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm[skip:nzero], start)
+                rdm, rdm_err = average_rdm(bp_rdm[skip:nzero])
         if itcf is not None:
             itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
             nits = int(itcf_tmax/(step*dt)) + 1
@@ -184,10 +181,12 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         bp_group.create_dataset('estimates', data=bp_av.as_matrix())
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
-        if bp_rdm is not None and cfunc:
-            bp_group.create_dataset('correlation',
-                                    data=numpy.array([bp_hole, bp_hole_err,
-                                                      bp_spin, bp_spin_err]))
+        if bp_rdm is not None:
+            bp_group.create_dataset('rdm', data=numpy.array([rdm, rdm_err]))
+            if cfunc:
+                bp_group.create_dataset('correlation',
+                                        data=numpy.array([bp_hole, bp_hole_err,
+                                                          bp_spin, bp_spin_err]))
     else:
         bp_av = None
     if multi_sim:

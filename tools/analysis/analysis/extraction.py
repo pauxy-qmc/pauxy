@@ -121,6 +121,7 @@ def extract_hdf5(filename):
                 bp_rdm = None
         else:
             bp_data = None
+            bp_rdm = None
         itcf_info = estimates.get('itcf')
         if itcf_info is not None:
             itcf = data['single_particle_greens_function/real_space'][:]
