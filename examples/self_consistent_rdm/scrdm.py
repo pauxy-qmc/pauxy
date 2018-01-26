@@ -85,7 +85,7 @@ nprocs = comm.Get_size()
 
 # 1. Perform initial CPMC calculation
 start = time.time()
-input_file = 'stable.json'
+input_file = sys.argv[1]
 
 (options, comm) = afqmcpy.calc.init(input_file)
 if comm is not None:
@@ -98,8 +98,8 @@ else:
 # Options
 # -------
 # stochastic error bar in density
-rdm_delta = 4e-2
-nself_consist = 10
+rdm_delta = float(sys.argv[2])
+nself_consist = int(sys.argv[3])
 
 energies = numpy.zeros(nself_consist)
 errors = numpy.zeros(nself_consist)
