@@ -343,11 +343,11 @@ class BackPropagation:
 
     def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
         self.nmax = bp.get('nback_prop', 0)
-        self.header = ['iteration', 'E', 'T', 'V']
+        self.header = ['iteration', 'weight', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
-        self.estimates = numpy.zeros(1+self.nreg+self.G.size, dtype=trial.G.dtype)
+        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
@@ -361,11 +361,11 @@ class BackPropagation:
         }
         if root:
             energies = h5f.create_group('back_propagated_estimates')
-            header = numpy.array(['E', 'T', 'V'], dtype=object)
+            header = numpy.array(self.header[1:], dtype=object)
             energies.create_dataset('headers', data=header,
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (qmc.nsteps//self.nmax, len(header)),
+                                            (qmc.nsteps//self.nmax, self.nreg),
                                             trial.G.dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
@@ -403,7 +403,7 @@ class BackPropagation:
         psi_bp = self.back_propagate(system, psi.walkers, trial,
                                      self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
-        denominator = 0
+        denominator = 0+0j
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
             self.G[0] = gab(wb.phi[:,:nup], wnm.phi_old[:,:nup]).T
             self.G[1] = gab(wb.phi[:,nup:], wnm.phi_old[:,nup:]).T
@@ -459,18 +459,18 @@ class BackPropagation:
         configs, cos_fac, weight_fac = walker.field_configs.get_block()
         factor = 1.0 + 0j
         for (w, c) in zip(weight_fac, cos_fac):
-            factor *= w
+            factor *= w[0]
             if (self.restore_weights == "full"):
-                factor /= c
+                factor /= c[0]
         return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[1:self.nreg+1]/(self.global_estimates[0]*nprocs)
+                self.output.push(self.global_estimates[:self.nreg]/(nprocs))
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg+1:].reshape(self.G.shape)/(self.global_estimates[0]*nprocs)
+                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/(nprocs)
                     self.dm_output.push(rdm)
             self.zero()
 
