@@ -465,11 +465,11 @@ class BackPropagation:
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step%self.nmax == 0:
-            comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
+            comm.Reduce([self.estimates, MPI.COMPLEX], self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg].real/nprocs)
+                self.output.push(self.global_estimates[:self.nreg]/nprocs)
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg:].real.reshape(self.G.shape)/nprocs
+                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/nprocs
                     self.dm_output.push(rdm)
             self.zero()
 
