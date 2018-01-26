@@ -15,3 +15,4 @@ benchmark*
 *.npy
 *.nfs*
 FCIDUMP
+*dump*
