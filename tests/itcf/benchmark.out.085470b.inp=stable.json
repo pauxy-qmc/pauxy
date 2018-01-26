@@ -1,0 +1,166 @@
+# Initialising AFQMCPY simulation from stable.json
+# Running on 1 core
+# Input options:
+{
+    "system": {
+        "nup": 3,
+        "ndown": 3,
+        "ne": 6,
+        "t": 1.0,
+        "U": 4,
+        "nx": 5,
+        "ny": 1,
+        "nbasis": 5,
+        "pinning": false,
+        "super": null,
+        "gamma": 0.45470308514053565,
+        "ecore": 0.0,
+        "nfields": 5,
+        "name": "Hubbard"
+    },
+    "qmc": {
+        "method": "CPMC",
+        "nwalkers": 20,
+        "dt": 0.05,
+        "nsteps": 100,
+        "nmeasure": 5,
+        "nstblz": 10,
+        "npop_control": 10,
+        "temp": 0.0,
+        "nequilibrate": 20,
+        "importance_sampling": true,
+        "constraint": "constrained",
+        "hubbard_stratonovich": "discrete",
+        "ffts": false,
+        "cplx": false,
+        "exp_nmax": 6
+    },
+    "uuid": "c6cb33e2-02ea-11e8-ad33-7c04d0c7d4f8",
+    "sha1": "085470b260ce2cddbcb659f38684f88fd699776a",
+    "seed": 7,
+    "root": true,
+    "nprocs": 1,
+    "init_time": 1517006801.584945,
+    "trial": {
+        "name": "free_electron",
+        "type": "free_electron",
+        "initial_wavefunction": "free_electron",
+        "reference": null,
+        "read_in": null,
+        "etrial": 0.7278640450004206,
+        "coeffs": 1.0,
+        "ndets": 1,
+        "bp_wfn": null,
+        "error": false,
+        "initialisation_time": 0.0011677742004394531
+    },
+    "propagators": {
+        "nstblz": 10,
+        "gamma": 0.45470308514053565
+    },
+    "rank": 0,
+    "estimators": {
+        "back_propagation": true,
+        "estimators": {
+            "mixed": {
+                "rdm": false,
+                "nmeasure": 20,
+                "nreg": 7,
+                "names": {
+                    "weight": 0,
+                    "enumer": 1,
+                    "edenom": 2,
+                    "eproj": 3,
+                    "ekin": 4,
+                    "epot": 5,
+                    "time": 6
+                },
+                "key": {
+                    "iteration": "Simulation iteration. iteration*dt = tau.",
+                    "Weight": "Total walker weight.",
+                    "E_num": "Numerator for projected energy estimator.",
+                    "E_denom": "Denominator for projected energy estimator.",
+                    "E": "Projected energy estimator.",
+                    "EKin": "Mixed kinetic energy estimator.",
+                    "EPot": "Mixed potential energy estimator.",
+                    "time": "Time per processor to complete one iteration."
+                },
+                "output": {
+                    "index": 0
+                }
+            },
+            "back_prop": {
+                "nmax": 10,
+                "rdm": false,
+                "nreg": 4,
+                "nstblz": 10,
+                "restore_weights": null,
+                "key": {
+                    "iteration": "Simulation iteration when back-propagation measurement occured.",
+                    "E_var": "BP estimate for internal energy.",
+                    "T": "BP estimate for kinetic energy.",
+                    "V": "BP estimate for potential energy."
+                },
+                "output": {
+                    "index": 0
+                }
+            },
+            "itcf": {
+                "stable": true,
+                "tmax": 2,
+                "mode": "diagonal",
+                "nmax": 40,
+                "nprop_tot": 50,
+                "nstblz": 10,
+                "kspace": true,
+                "rspace_unit": {
+                    "index": 0
+                },
+                "kspace_unit": {
+                    "index": 0
+                }
+            }
+        },
+        "nprop_tot": 50,
+        "nbp": 10,
+        "calc_itcf": true
+    },
+    "psi": {
+        "walkers": "<afqmcpy.walker.Walker object at 0x1136d88d0>"
+    }
+}
+# End of input options.
+# Explanation of output column headers:
+# -------------------------------------
+# iteration : Simulation iteration. iteration*dt = tau.
+# Weight : Total walker weight.
+# E_num : Numerator for projected energy estimator.
+# E_denom : Denominator for projected energy estimator.
+# E : Projected energy estimator.
+# EKin : Mixed kinetic energy estimator.
+# EPot : Mixed potential energy estimator.
+# time : Time per processor to complete one iteration.
+        iteration            Weight             E_num           E_denom                 E              EKin              EPot              time
+ 0.0000000000e+00  2.0000000000e+01  1.4557280900e+01  2.0000000000e+01  7.2786404500e-01 -6.4721359550e+00  7.2000000000e+00  2.5201797485e-02
+ 5.0000000000e+00  2.1389211393e+01  2.8294769499e+00  2.1389211393e+01  1.3228523941e-01 -6.4721359550e+00  6.6044211944e+00  1.5197992325e-02
+ 1.0000000000e+01  2.3889223799e+01 -6.8466523333e+00  2.3889223799e+01 -2.8660003317e-01 -6.4721359550e+00  6.1855359218e+00  2.5322008133e-02
+ 1.5000000000e+01  2.0399947071e+01 -8.6729404960e+00  2.0399947071e+01 -4.2514524502e-01 -6.4721359550e+00  6.0469907100e+00  1.7966175079e-02
+ 2.0000000000e+01  2.0413446046e+01 -7.1117674962e+00  2.0413446046e+01 -3.4838642531e-01 -6.4721359550e+00  6.1237495297e+00  2.0148801804e-02
+ 2.5000000000e+01  2.0256609340e+01 -9.6317349166e+00  2.0256609340e+01 -4.7548603791e-01 -6.4721359550e+00  5.9966499171e+00  1.5683221817e-02
+ 3.0000000000e+01  2.0355086939e+01 -6.9707891355e+00  2.0355086939e+01 -3.4245931528e-01 -6.4721359550e+00  6.1296766397e+00  2.1803569794e-02
+ 3.5000000000e+01  1.9842085335e+01 -5.5931768795e+00  1.9842085335e+01 -2.8188452902e-01 -6.4721359550e+00  6.1902514260e+00  2.2301387787e-02
+ 4.0000000000e+01  1.9509452011e+01 -4.5906430585e+00  1.9509452011e+01 -2.3530353676e-01 -6.4721359550e+00  6.2368324182e+00  2.0464992523e-02
+ 4.5000000000e+01  2.0223110697e+01 -6.9874884222e+00  2.0223110697e+01 -3.4551996113e-01 -6.4721359550e+00  6.1266159939e+00  2.0205640793e-02
+ 5.0000000000e+01  2.0741608059e+01 -8.5988149491e+00  2.0741608059e+01 -4.1456838469e-01 -6.4721359550e+00  6.0575675703e+00  9.4597387314e-02
+ 5.5000000000e+01  1.9950136107e+01 -6.5411291456e+00  1.9950136107e+01 -3.2787391077e-01 -6.4721359550e+00  6.1442620442e+00  1.7343616486e-02
+ 6.0000000000e+01  1.9734079532e+01 -6.1981194850e+00  1.9734079532e+01 -3.1408201609e-01 -6.4721359550e+00  6.1580539389e+00  2.4450397491e-02
+ 6.5000000000e+01  1.9766281083e+01 -5.2944033810e+00  1.9766281083e+01 -2.6785025259e-01 -6.4721359550e+00  6.2042857024e+00  1.7531394958e-02
+ 7.0000000000e+01  1.9807753294e+01 -3.4699007101e+00  1.9807753294e+01 -1.7517891397e-01 -6.4721359550e+00  6.2969570410e+00  2.2410774231e-02
+ 7.5000000000e+01  1.9982616050e+01 -4.7916073314e+00  1.9982616050e+01 -2.3978879039e-01 -6.4721359550e+00  6.2323471646e+00  1.6638422012e-02
+ 8.0000000000e+01  2.0092228273e+01 -4.5586732545e+00  2.0092228273e+01 -2.2688739111e-01 -6.4721359550e+00  6.2452485639e+00  2.3166036606e-02
+ 8.5000000000e+01  2.0376318084e+01 -7.4807768652e+00  2.0376318084e+01 -3.6713094261e-01 -6.4721359550e+00  6.1050050124e+00  1.6554594040e-02
+ 9.0000000000e+01  2.0567185824e+01 -6.0929556522e+00  2.0567185824e+01 -2.9624644346e-01 -6.4721359550e+00  6.1758895115e+00  2.1768379211e-02
+ 9.5000000000e+01  1.9787631722e+01 -4.8875585085e+00  1.9787631722e+01 -2.4700068089e-01 -6.4721359550e+00  6.2251352741e+00  1.9268226624e-02
+ 1.0000000000e+02  1.9833035742e+01 -4.9344454986e+00  1.9833035742e+01 -2.4879930449e-01 -6.4721359550e+00  6.2233366505e+00  9.2400979996e-02
+# End Time: Fri Jan 26 14:46:44 2018
+# Running time : 2.766135 seconds
