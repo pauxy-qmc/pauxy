@@ -752,7 +752,7 @@ def local_energy(system, G):
         if ghf:
             return local_energy_ghf(system, G)
         else:
-            return local_energy(system, G)
+            return local_energy_hubbard(system, G)
     else:
         return local_energy_generic(system, G)
 

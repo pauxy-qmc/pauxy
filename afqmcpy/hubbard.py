@@ -71,6 +71,7 @@ class Hubbard:
         self.ecore = 0.0
         # Number of field configurations per walker.
         self.nfields = self.nbasis
+        self.name = "Hubbard"
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.

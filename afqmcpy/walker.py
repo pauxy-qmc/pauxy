@@ -397,8 +397,6 @@ class FieldConfig:
 
     def push(self, config):
         self.configs[self.step,self.ib] = config
-        self.cos_fac[self.step,self.ib] = cfac
-        self.weight_fac[self.step,self.ib] = wfac
         self.ib = (self.ib + 1) % self.nfields
         # Completed field configuration for this walker?
         if self.ib == 0:
