@@ -9,7 +9,7 @@ import afqmcpy.kpoints
 class Hubbard:
     """Hubbard model system class.
 
-    Only consider 1 and 2 case with nearest neighbour hopping.
+    1 and 2 case with nearest neighbour hopping.
 
     Parameters
     ----------

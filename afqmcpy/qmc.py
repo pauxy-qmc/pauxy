@@ -38,7 +38,8 @@ class QMCOpts:
         - discrete : Use the discrete Hirsch spin transformation.
         - opt_continuous : Use the continuous transformation for the Hubbard
           model.
-        - generic : Use the generic transformation. Not currently implemented.
+        - generic : Use the generic transformation. To be used with Generic
+          system class.
 
     ffts : boolean
         Use FFTS to diagonalise the kinetic energy propagator? Default False.
