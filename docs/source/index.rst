@@ -4,10 +4,10 @@
    contain the root `toctree` directive.
 
 PAUXY
-=======
+=====
 
-Simple test code implementing the constrained path algorithm in the auxilliary field
-quantum Monte Carlo framework.
+PAUXY implements the Phaseless AUXilliarY field quantum Monte Carlo algorithm in python.
+
 
 .. toctree::
    :maxdepth: 2
