@@ -23,6 +23,12 @@ def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
                                                    cpmc.trial,
                                                    cpmc.propagators.BT_BP)
         cpmc.estimators = estimators
+        json_string = json.dumps(afqmcpy.utils.serialise(cpmc, verbose=1),
+                                 sort_keys=False, indent=4)
+        cpmc.estimators.h5f.create_dataset('metadata',
+                                           data=numpy.array([json_string],
+                                           dtype=object),
+                                           dtype=h5py.special_dtype(vlen=str))
     psi0 = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
                                   cpmc.qmc.nwalkers,
                                   cpmc.estimators.nprop_tot,
@@ -35,6 +41,7 @@ def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
         rdm_data = est['back_propagated_estimates/single_particle_greens_function'][:]
         start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
         rdm, err = analysis.blocking.average_rdm(rdm_data[start:])
+        est.close()
         bp_av, norm_av = analysis.blocking.analyse_estimates([data], start_time=4)
         # check quality.
         mean_err = err.diagonal().mean()
@@ -124,7 +131,11 @@ if rank == 0:
 wfn_file = 'uopt_trial_wfn.0.npy'
 if rank == 0:
     start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
-    rdm, err = analysis.blocking.average_rdm('estimates.0.h5', 'back_prop', skip=start)
+    est = h5py.File('estimates.0.h5', 'r')
+    rdm_data = est['back_propagated_estimates/single_particle_greens_function'][:]
+    start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
+    rdm, err = analysis.blocking.average_rdm(rdm_data[start:])
+    est.close()
     (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10, index=0,
                                    dtype=cpmc.psi.walkers[0].phi.dtype)
     # print (psi_opt)
