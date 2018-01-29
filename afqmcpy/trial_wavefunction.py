@@ -172,7 +172,8 @@ class UHF:
                 # Construct Green's function to compute the energy.
                 Gup = afqmcpy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
                 Gdown = afqmcpy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
-                enew = afqmcpy.estimators.local_energy(system, [Gup,Gdown])[0].real
+                enew = afqmcpy.estimators.local_energy(system,
+                                                       numpy.array([Gup,Gdown]))[0].real
                 if self.verbose:
                     print ("# %d %f %f"%(it, enew, eold))
                 sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
