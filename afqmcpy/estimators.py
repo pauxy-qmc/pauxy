@@ -304,6 +304,11 @@ class Mixed:
             s = s.encode('utf-8')
         print_function(s)
 
+    def projected_energy(self):
+        numerator = self.estimates[self.names.enumer]
+        denominator = self.estimates[self.names.edenom]
+        return (numerator/denominator).real
+
     def zero(self):
         self.estimates[:] = 0
         self.global_estimates[:] = 0

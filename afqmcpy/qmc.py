@@ -71,6 +71,7 @@ class QMCOpts:
         self.nmeasure = inputs.get('nmeasure', 10)
         self.nstblz = inputs.get('nstabilise', 10)
         self.npop_control = inputs.get('npop_control', 10)
+        self.nupdate_shift = inputs.get('nupdate_shift', 10)
         self.temp = inputs.get('temperature', None)
         self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
         self.importance_sampling = inputs.get('importance_sampling', True)

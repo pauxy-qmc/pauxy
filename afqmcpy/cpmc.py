@@ -204,10 +204,10 @@ class CPMC:
                                    self.trial, self.psi, step)
             if step%self.qmc.nstblz == 0:
                 self.psi.orthogonalise(self.trial, self.qmc.importance_sampling)
-            if step%self.qmc.nmeasure == 0:
+            if step%self.qmc.nupdate_shift == 0:
                 # Todo: proj energy function
-                E_T = afqmcpy.estimators.eproj(self.estimators.estimators['mixed'].estimates,
-                                               self.estimators.estimators['mixed'].names)
+                E_T = self.estimators.estimators['mixed'].projected_energy()
+            if step%self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
             if step < self.qmc.nequilibrate:
