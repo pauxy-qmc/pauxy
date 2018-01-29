@@ -17,7 +17,7 @@ class Generic:
     decomposition : string
         Method by which to decompose two-electron integrals. Options:
 
-            - cholesky : Use cholesky decomposition. Default.
+            - cholesky: Use cholesky decomposition. Default.
             - eigenvalue: Use eigenvalue decomposition. Not implemented.
 
     threshold : float

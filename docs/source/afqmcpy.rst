@@ -4,6 +4,14 @@ afqmcpy package
 Submodules
 ----------
 
+afqmcpy\.calc module
+--------------------
+
+.. automodule:: afqmcpy.calc
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 afqmcpy\.cpmc module
 --------------------
 
@@ -20,10 +28,10 @@ afqmcpy\.estimators module
     :undoc-members:
     :show-inheritance:
 
-afqmcpy\.hs\_transform module
------------------------------
+afqmcpy\.generic module
+-----------------------
 
-.. automodule:: afqmcpy.hs_transform
+.. automodule:: afqmcpy.generic
     :members:
     :undoc-members:
     :show-inheritance:
@@ -64,14 +72,6 @@ afqmcpy\.qmc module
 -------------------
 
 .. automodule:: afqmcpy.qmc
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-afqmcpy\.state module
----------------------
-
-.. automodule:: afqmcpy.state
     :members:
     :undoc-members:
     :show-inheritance:

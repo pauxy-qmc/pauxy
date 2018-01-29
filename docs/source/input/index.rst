@@ -16,7 +16,8 @@ A standard input file for afqmcpy is made up of a json dict like that below:
         "qmc_options": { },
         "trial_wavefunction": { },
         "estimates": {
-            "back_propagation": { },
+            "mixed": { },
+            "back_propagated": { },
             "itcf": { }
         }
     }
@@ -24,16 +25,20 @@ A standard input file for afqmcpy is made up of a json dict like that below:
 Model Options
 ^^^^^^^^^^^^^
 
-Currently we can only simulate the fermionic Hubbard model in one or two dimensions and
-thus this restricts the discussion to the following input options.
+Currently it is only possible to simulate the Hubbard model (1d or 2d), or a generic
+system specified by a file containing the necessary one- and two-electron integrals.
 
+Common Options
+--------------
 
 ``name``
     type: string
 
-    Required.
+    Name of model. Options: `Hubbard` or `Generic`.
 
-    Name of model. Currently the only allowed value is `Hubbard`.
+
+Hubbard Model
+-------------
 
 ``t``
     type: float
@@ -62,6 +67,48 @@ thus this restricts the discussion to the following input options.
     Required.
 
     Number of lattice sites in y direction.
+
+``nup``
+    type: int
+
+    Required.
+
+    Number of spin up electrons.
+
+``ndown``
+    type: int
+
+    Required.
+
+    Number of spin down electrons.
+
+
+Generic
+-------
+
+``integrals``
+    type: string
+
+    Required.
+
+    Path to file containing one- and two-electron integrals. We assume an ascii FCIDUMP
+    format as outlined, for example, `here <https://github.com/hande-qmc/fcidump/>`_. Note
+    that we currently only can treat real integrals.
+
+``decomposition``
+    type: string
+
+    Optional.
+
+    Method by which we decompose two-electron integrals. Options:
+
+        - ``cholesky`` Use cholesky decomposition. Default.
+        - ``eigenvalue`` Use eigenvalue decomposition. Not implemented.
+
+    threshold : float
+        Cutoff for cholesky decomposition or minimum eigenvalue.
+    verbose : bool
+        Print extra information.
 
 ``nup``
     type: int
@@ -146,17 +193,32 @@ QMC options
 
 Trial Wavefunction Options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Currently we support three types of trial wavefunctions: `free_electron` which employs a
-free electron trial wavefunction found by diagonalising the corresponding mean field or
-free electron part of the Hamiltonian, `UHF` which constructs a trial wavefunction from
-the UHF solution, or `multi_determinant` which reads a multi-determinant expansion in from
-an input file. The type of trial wavefunction is specified through the `name` parameter in
-the `trial_wavefunction` json dict.
+
+The trial wavefunction controls the constraint in CPMC and phaseless AFQMC and can
+considerably affect results.
 
 Common Options
 --------------
 
 The following options are common to all types of trial wavefunction.
+
+``name``
+    type: string
+
+    Required.
+
+    Currently we support the following options:
+
+        - ``free_electron`` trial wavefunction found by diagonalising the corresponding
+          one-electron part of the Hamiltonian.
+        - ``UHF`` Constructs the trial wavefunction from the UHF solution to the Hubbard
+          model. Only implemented for the Hubbard model.
+        - ``multi_determinant`` Reads a multi-determinant trial wavefunction from an
+          input file.
+        - ``hartree_fock`` Constructs Hartree--Fock trial wavefunction assuming our
+          one-electron basis is a set of molecular Hartree--Fock orbitals. Note this is
+          the recommended (over the free_electron) option when simulating a generic model
+          system.
 
 ``initial_wavefunction``
     type: string
@@ -166,6 +228,10 @@ The following options are common to all types of trial wavefunction.
     Specifies whether or not to use the trial wavefunction as the initial walker's Slater
     Determinant or to use a free-electron like state. Options `free_electron` or `trial`.
     Default `free_electron`.
+
+
+Free Electron Options
+---------------------
 
 ``read_in``
     type: string
@@ -251,9 +317,10 @@ Multi-Determinant options
 Estimator Options
 ^^^^^^^^^^^^^^^^^
 
-By default we estimate basic (projected) estimators. More sophisticated estimators can be
-calculated using the optional ``back_propagation`` and ``itcf`` dictionaries through which we can
-estimate back propagated quantities and imaginary time correlation functions.
+By default we estimate basic (mixed) estimators. More sophisticated estimators can be
+calculated using the optional ``mixed``, ``back_propagated`` and ``itcf`` dictionaries
+through which we can estimate mixed estimates, back propagated quantities and imaginary
+time correlation functions.
 
 Common Options
 --------------
@@ -276,8 +343,17 @@ Common Options
     the default output file. If false then output will be written to a file whose index is
     one greater than the most recent output file. Default: true.
 
-Back Propagation Options
-------------------------
+Mixed
+-----
+``rdm``
+    type: bool
+
+    Optional
+
+    If true then the one-particle green's function is output to file. Default: false.
+
+Back Propagated Options
+-----------------------
 ``nback_prop``
     type: int
 
