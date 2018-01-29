@@ -5,6 +5,7 @@ import numpy
 import json
 import warnings
 import h5py
+import sys
 try:
     from mpi4py import MPI
     parallel = True
