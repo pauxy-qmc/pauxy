@@ -31,8 +31,10 @@ def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
     cpmc.finalise()
     # 2. Extract initial 1RDM
     if cpmc.root:
+        est = h5py.File(data, 'r')
+        rdm_data = est['back_propagated_estimates/single_particle_greens_function'][:]
         start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
-        rdm, err = analysis.blocking.average_rdm(data, 'back_prop', skip=start)
+        rdm, err = analysis.blocking.average_rdm(rdm_data[start:])
         bp_av, norm_av = analysis.blocking.analyse_estimates([data], start_time=4)
         # check quality.
         mean_err = err.diagonal().mean()
