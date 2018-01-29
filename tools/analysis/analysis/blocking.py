@@ -147,12 +147,14 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
             bp['nbp'] = nbp
+            weights = bp['weight'].values
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero].apply(numpy.real))
             if bp_rdm is not None:
                 (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm[skip:nzero], start)
-                rdm, rdm_err = average_rdm(bp_rdm[skip:nzero])
+                # free projection / weight restoration..
+                rdm, rdm_err = average_rdm(bp_rdm[skip:nzero]/weights[skip:nzero,None,None,None])
         if itcf is not None:
             itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
             nits = int(itcf_tmax/(step*dt)) + 1
