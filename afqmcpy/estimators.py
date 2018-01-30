@@ -357,6 +357,7 @@ class BackPropagation:
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.restore_weights = bp.get('restore_weights', None)
+        self.dt = qmc.dt
         self.key = {
             'iteration': "Simulation iteration when back-propagation "
                          "measurement occured.",
@@ -442,7 +443,8 @@ class BackPropagation:
         if step%self.nmax != 0:
             return
         psi_bp = afqmcpy.propagation.back_propagate_ghf(system, psi.walkers, trial,
-                                                        self.nstblz, self.BT2)
+                                                        self.nstblz, self.BT2,
+                                                        self.dt)
         denominator = sum(wnm.weight for wnm in psi.walkers)
         nup = system.nup
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
@@ -570,9 +572,9 @@ class ITCF:
 
     def update(self, system, qmc, trial, psi, step):
         if step % self.nprop_tot == 0:
-            self.calculate_spgf(system, psi)
+            self.calculate_spgf(system, psi, trial)
 
-    def calculate_spgf_unstable(self, system, psi):
+    def calculate_spgf_unstable(self, system, psi, trial):
         r"""Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
@@ -630,7 +632,7 @@ class ITCF:
         # for next estimate of ITCF
         psi.copy_init_wfn()
 
-    def calculate_spgf_unstable_ghf(self, system, psi):
+    def calculate_spgf_unstable_ghf(self, system, psi, trial):
         r"""Calculate imaginary time single-particle green's function.
 
         This uses the naive unstable algorithm.
@@ -650,6 +652,7 @@ class ITCF:
         denom = sum(w.weight for w in psi.walkers)
         Ggr = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
         Gls = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        M = system.nbasis
         for ix, w in enumerate(psi.walkers):
             # Initialise time-displaced GF for current walker.
             # 1. Construct psi_left for first step in algorithm by back
@@ -682,10 +685,10 @@ class ITCF:
                 B = afqmcpy.propagation.construct_propagator_matrix_ghf(system,
                                                                         self.BT2,
                                                                         c)
-                Ggr[0] = B[0].dot(Ggr[0])
-                Ggr[1] = B[1].dot(Ggr[1])
-                Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
-                Gls[1] = Gls[1].dot(scipy.linalg.inv(B[1]))
+                Ggr[0] = B[:M,:M].dot(Ggr[0])
+                Ggr[1] = B[M:,M:].dot(Ggr[1])
+                Gls[0] = Gls[0].dot(scipy.linalg.inv(B[:M,:M]))
+                Gls[1] = Gls[1].dot(scipy.linalg.inv(B[M:,M:]))
                 self.spgf[ic+1,0,0] += w.weight*Ggr[0].real
                 self.spgf[ic+1,1,0] += w.weight*Ggr[1].real
                 self.spgf[ic+1,0,1] += w.weight*Gls[0].real
@@ -695,7 +698,7 @@ class ITCF:
         # for next estimate of ITCF
         psi.copy_init_wfn()
 
-    def calculate_spgf_stable(self, system, psi):
+    def calculate_spgf_stable(self, system, psi, trial):
         """Calculate imaginary time single-particle green's function.
 
         This uses the stable algorithm as outlined in:
@@ -1049,19 +1052,19 @@ def gab_multi_det(A, B, coeffs):
     return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
 
 def construct_multi_ghf_gab_back_prop(A, B, coeffs, bp_weights):
-    M = A.shape[0] // 2
+    M = A.shape[1] // 2
     Gi, overlaps = construct_multi_ghf_gab(A, B, coeffs)
     full_weights = bp_weights * coeffs * overlaps
-    denom = sum(weights)
-    G = numpy.einsum('i,ijk->jk', full_weights, wb.Gi) / denom
-    return numpy.array([G[:M,:M], G[M:,M:]])
+    denom = sum(full_weights)
+    G = numpy.einsum('i,ijk->jk', full_weights, Gi) / denom
 
+    return numpy.array([G[:M,:M], G[M:,M:]])
 
 def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
     if Gi is None:
-        Gi = numpy.zeros(A.shape)
+        Gi = numpy.zeros(shape=(A.shape[0],A.shape[1],A.shape[1]), dtype=A.dtype)
     if overlaps is None:
-        overlaps = numpy.zeros(A.shape[1])
+        overlaps = numpy.zeros(A.shape[0], dtype=A.dtype)
     for (ix, Aix) in enumerate(A):
         # construct "local" green's functions for each component of A
         # Todo: list comprehension here.
