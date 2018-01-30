@@ -403,20 +403,20 @@ def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
 
     return psi_store
 
-def back_propagate_single_ghf(walker, configs, system, nstblz, BT2, store=False):
+def back_propagate_single_ghf(phi, configs, weights, system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
         B = construct_propagator_matrix_ghf(system, BT2, c, conjt=True)
-        for (idet, psi_i) in enumerate(walker.phi):
+        for (idet, psi_i) in enumerate(phi):
             # propagate each component of multi-determinant expansion
-            walker.phi[idet] = B.dot(walker.phi[idet])
+            phi[idet] = B.dot(phi[idet])
             if i != 0 and i % nstblz == 0:
                 # implicitly propagating the full GHF wavefunction
-                (walker.phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
-                walker.weights[idet] *= detR.conjugate()
+                (phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
+                weights[idet] *= detR.conjugate()
         if store:
-            psi_store.append(copy.deepcopy(walker))
+            psi_store.append(copy.deepcopy(phi))
 
     return psi_store
 

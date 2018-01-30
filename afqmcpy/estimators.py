@@ -550,6 +550,8 @@ class ITCF:
             self.calculate_spgf = self.calculate_spgf_stable
         else:
             self.calculate_spgf = self.calculate_spgf_unstable
+        if trial.type = "GHF":
+            self.calculate_spgf = self.calculate_spgf_unstable_ghf
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
         if root:
@@ -628,6 +630,63 @@ class ITCF:
         # for next estimate of ITCF
         psi.copy_init_wfn()
 
+    def calculate_spgf_unstable_ghf(self, system, psi):
+        r"""Calculate imaginary time single-particle green's function.
+
+        This uses the naive unstable algorithm.
+
+        Parameters
+        ----------
+        state : :class:`afqmcpy.state.State`
+            state object
+        psi_left : list of :class:`afqmcpy.walker.Walker` objects
+            backpropagated walkers projected to :math:`\tau_{bp}`.
+
+        On return the spgf estimator array will have been updated.
+        """
+
+        I = numpy.identity(system.nbasis)
+        nup = system.nup
+        denom = sum(w.weight for w in psi.walkers)
+        Ggr = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        Gls = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        for ix, w in enumerate(psi.walkers):
+            # Initialise time-displaced GF for current walker.
+            # 1. Construct psi_left for first step in algorithm by back
+            # propagating the input back propagated left hand wfn.
+            # Note we use the first nmax fields for estimating the ITCF.
+            afqmcpy.propagation.back_propagate_single_ghf(w.phi_bp, w.field_configs.get_superblock()[0],
+                                                          w.weights, system, self.nstblz,
+                                                          self.BT2)
+            # 2. Calculate G(n,n). This is the equal time Green's function at
+            # the step where we began saving auxilary fields (constructed with
+            # psi_left back propagated along this path.)
+            Ggr[0] = I - gab(w.phi_bp[:,:nup], w.phi_init[:,:nup])
+            Ggr[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
+            Gls[0] = I - Ggr[0]
+            Gls[1] = I - Ggr[1]
+            self.spgf[0,0,0] += w.weight*Ggr[0].real
+            self.spgf[0,1,0] += w.weight*Ggr[1].real
+            self.spgf[0,0,1] += w.weight*Gls[0].real
+            self.spgf[0,1,1] += w.weight*Gls[1].real
+            # 3. Construct ITCF by moving forwards in imaginary time from time
+            # slice n along our auxiliary field path.
+            for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
+                # B takes the state from time n to time n+1.
+                B = afqmcpy.propagation.construct_propagator_matrix(system,
+                                                                    self.BT2, c)
+                Ggr[0] = B[0].dot(Ggr[0])
+                Ggr[1] = B[1].dot(Ggr[1])
+                Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
+                Gls[1] = Gls[1].dot(scipy.linalg.inv(B[1]))
+                self.spgf[ic+1,0,0] += w.weight*Ggr[0].real
+                self.spgf[ic+1,1,0] += w.weight*Ggr[1].real
+                self.spgf[ic+1,0,1] += w.weight*Gls[0].real
+                self.spgf[ic+1,1,1] += w.weight*Gls[1].real
+        self.spgf = self.spgf / denom
+        # copy current walker distribution to initial (right hand) wavefunction
+        # for next estimate of ITCF
+        psi.copy_init_wfn()
 
     def calculate_spgf_stable(self, system, psi):
         """Calculate imaginary time single-particle green's function.
