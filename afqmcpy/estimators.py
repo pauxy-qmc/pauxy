@@ -588,10 +588,10 @@ class ITCF:
         I = numpy.identity(system.nbasis)
         nup = system.nup
         denom = sum(w.weight for w in psi.walkers)
+        Ggr = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        Gls = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
         for ix, w in enumerate(psi.walkers):
             # Initialise time-displaced GF for current walker.
-            Ggr = [I, I]
-            Gls = [I, I]
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first nmax fields for estimating the ITCF.
@@ -605,10 +605,10 @@ class ITCF:
             Ggr[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
             Gls[0] = I - Ggr[0]
             Gls[1] = I - Ggr[1]
-            self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Ggr[0].real
-            self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Ggr[1].real
-            self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*Gls[0].real
-            self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*Gls[1].real
+            self.spgf[0,0,0] += w.weight*Ggr[0].real
+            self.spgf[0,1,0] += w.weight*Ggr[1].real
+            self.spgf[0,0,1] += w.weight*Gls[0].real
+            self.spgf[0,1,1] += w.weight*Gls[1].real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
@@ -619,10 +619,10 @@ class ITCF:
                 Ggr[1] = B[1].dot(Ggr[1])
                 Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
                 Gls[1] = Gls[1].dot(scipy.linalg.inv(B[1]))
-                self.spgf[ic+1,0,0] = self.spgf[ic+1,0,0] + w.weight*Ggr[0].real
-                self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*Ggr[1].real
-                self.spgf[ic+1,0,1] = self.spgf[ic+1,0,1] + w.weight*Gls[0].real
-                self.spgf[ic+1,1,1] = self.spgf[ic+1,1,1] + w.weight*Gls[1].real
+                self.spgf[ic+1,0,0] += w.weight*Ggr[0].real
+                self.spgf[ic+1,1,0] += w.weight*Ggr[1].real
+                self.spgf[ic+1,0,1] += w.weight*Gls[0].real
+                self.spgf[ic+1,1,1] += w.weight*Gls[1].real
         self.spgf = self.spgf / denom
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
@@ -646,23 +646,22 @@ class ITCF:
         """
 
         I = numpy.identity(system.nbasis)
-        Gnn = [I, I]
-        Bi = [I, I]
+        Gnn = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        Bi = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
         # Be careful not to modify right hand wavefunctions field
         # configurations.
         nup = system.nup
         denom = sum(w.weight for w in psi.walkers)
+        Ggr = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
+        Gls = numpy.zeros(shape=(2,)+I.shape, dtype=psi.walkers[0].phi.dtype)
         for ix, w in enumerate(psi.walkers):
-            # Initialise time-displaced less and greater GF for current walker.
-            Gls = [I, I]
-            Ggr = [I, I]
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
             # We store for intermediate back propagated left-hand wavefunctions.
             # This leads to more stable equal time green's functions compared to
             # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
-            psi_Ls = afqmcpy.propagation.back_propagate_single(w.phi_bp,
+            psi_Ls = self.back_propagate_single(w.phi_bp,
                                               w.field_configs.get_superblock()[0],
                                               system, self.nstblz,
                                               self.BT2, store=True)
@@ -671,16 +670,15 @@ class ITCF:
             # psi_L back propagated along this path.)
             Gnn[0] = I - gab(w.phi_bp[:,:nup], w.phi_init[:,:nup])
             Gnn[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
-            self.spgf[0,0,0] = self.spgf[0,0,0] + w.weight*Gnn[0].real
-            self.spgf[0,1,0] = self.spgf[0,1,0] + w.weight*Gnn[1].real
-            self.spgf[0,0,1] = self.spgf[0,0,1] + w.weight*(I-Gnn[0]).real
-            self.spgf[0,1,1] = self.spgf[0,1,1] + w.weight*(I-Gnn[1]).real
+            self.spgf[0,0,0] += w.weight*Gnn[0].real
+            self.spgf[0,1,0] += w.weight*Gnn[1].real
+            self.spgf[0,0,1] += w.weight*(I-Gnn[0]).real
+            self.spgf[0,1,1] += w.weight*(I-Gnn[1]).real
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(system,
-                                                                    self.BT2, c)
+                B = self.construct_propagator_matrix(system, self.BT2, c)
                 Bi[0] = scipy.linalg.inv(B[0])
                 Bi[1] = scipy.linalg.inv(B[1])
                 # G is the cumulative product of stabilised short-time ITCFs.
@@ -690,13 +688,13 @@ class ITCF:
                 Ggr[1] = (B[1].dot(Gnn[1])).dot(Ggr[1])
                 Gls[0] = ((I-Gnn[0]).dot(Bi[0])).dot(Gls[0])
                 Gls[1] = ((I-Gnn[1]).dot(Bi[1])).dot(Gls[1])
-                self.spgf[ic+1,0,0] = self.spgf[ic+1,0,0] + w.weight*Ggr[0].real
-                self.spgf[ic+1,1,0] = self.spgf[ic+1,1,0] + w.weight*Ggr[1].real
-                self.spgf[ic+1,0,1] = self.spgf[ic+1,0,1] + w.weight*Gls[0].real
-                self.spgf[ic+1,1,1] = self.spgf[ic+1,1,1] + w.weight*Gls[1].real
+                self.spgf[ic+1,0,0] += w.weight*Ggr[0].real
+                self.spgf[ic+1,1,0] += w.weight*Ggr[1].real
+                self.spgf[ic+1,0,1] += w.weight*Gls[0].real
+                self.spgf[ic+1,1,1] += w.weight*Gls[1].real
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
-                # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_L>, where c
+                # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_R>, where c
                 # is the current configution in this loop. Note that we store
                 # |psi_L> along the path, so we don't need to remove the
                 # propagator matrices.
