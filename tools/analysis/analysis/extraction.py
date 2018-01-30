@@ -185,7 +185,7 @@ def extract_test_data_hdf5(filename):
 
 def extract_analysed_itcf(filename, elements, spin, order, kspace):
     data = h5py.File(filename, 'r')
-    md = ast.literal_eval(data['metadata'][:][0])
+    md = json.loads(data['metadata'][:][0])
     dt = md['qmc']['dt']
     tmax = md['estimators']['estimators']['itcf']['tmax']
     tau = numpy.arange(0, tmax+1e-8, dt)
@@ -231,7 +231,7 @@ def correlation_function(filename, name, iy):
 
 def analysed_energies(filename, name):
     data = h5py.File(filename, 'r')
-    md = ast.literal_eval(data['metadata'][:][0])
+    md = json.loads(data['metadata'][:][0])
     dt = md['qmc']['dt']
     output = data[name+'/estimates'][:]
     columns = data[name+'/headers'][:]

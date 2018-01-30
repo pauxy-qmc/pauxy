@@ -99,6 +99,7 @@ def average_tau(frames):
 
 def analyse_back_propagation(frames):
     frames[['E', 'T', 'V']] = frames[['E','T','V']].div(frames.weight, axis=0)
+    frames = frames.apply(numpy.real)
     frames = frames.groupby(['nbp','dt'])
     data_len = frames.size()
     means = frames.mean().reset_index()
@@ -153,9 +154,15 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
             weights = bp['weight'].values.real
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start*step/nbp))
-            bp_data.append(bp[skip:nzero:2].apply(numpy.real))
+            bp_data.append(bp[skip:nzero:2])
             if bp_rdm is not None:
-                bp_rdm = bp_rdm[skip:nzero] / weights[skip:nzero,None,None,None]
+                if len(bp_rdm.shape) == 3:
+                    # GHF format
+                    w = weights[skip:nzero,None,None]
+                else:
+                    # UHF format
+                    w = weights[skip:nzero,None,None,None]
+                bp_rdm = bp_rdm[skip:nzero] / w
                 rdm, rdm_err = average_rdm(bp_rdm[skip:nzero])
                 bp_rdms.append(numpy.array([rdm,rdm_err]))
                 if cfunc:
