@@ -458,7 +458,7 @@ class BackPropagation:
             self.estimates[1:]= (
                 self.estimates[1:] + wnm.weight*numpy.append(energies,self.G.flatten())
             )
-            self.estimates[1] += denom
+        self.estimates[0] += denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
