@@ -550,7 +550,7 @@ class ITCF:
             self.calculate_spgf = self.calculate_spgf_stable
         else:
             self.calculate_spgf = self.calculate_spgf_unstable
-        if trial.type = "GHF":
+        if trial.type == "GHF":
             self.calculate_spgf = self.calculate_spgf_unstable_ghf
         self.keys = [['up', 'down'], ['greater', 'lesser']]
         # I don't like list indexing so stick with numpy.
@@ -661,8 +661,14 @@ class ITCF:
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            Ggr[0] = I - gab(w.phi_bp[:,:nup], w.phi_init[:,:nup])
-            Ggr[1] = I - gab(w.phi_bp[:,nup:], w.phi_init[:,nup:])
+            GAB = (
+                afqmcpy.estimators.construct_multi_ghf_gab_back_prop(w.phi_bp,
+                                                                     w.phi_init,
+                                                                     trial.coeffs,
+                                                                     w.weights)
+            )
+            Ggr[0] = I - GAB[0]
+            Ggr[1] = I - GAB[0]
             Gls[0] = I - Ggr[0]
             Gls[1] = I - Ggr[1]
             self.spgf[0,0,0] += w.weight*Ggr[0].real
@@ -673,8 +679,9 @@ class ITCF:
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(w.field_configs.get_superblock()[0]):
                 # B takes the state from time n to time n+1.
-                B = afqmcpy.propagation.construct_propagator_matrix(system,
-                                                                    self.BT2, c)
+                B = afqmcpy.propagation.construct_propagator_matrix_ghf(system,
+                                                                        self.BT2,
+                                                                        c)
                 Ggr[0] = B[0].dot(Ggr[0])
                 Ggr[1] = B[1].dot(Ggr[1])
                 Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
@@ -1041,6 +1048,15 @@ def gab_multi_det(A, B, coeffs):
     denom = numpy.dot(coeffs, overlaps)
     return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
 
+def construct_multi_ghf_gab_back_prop(A, B, coeffs, bp_weights):
+    M = A.shape[0] // 2
+    Gi, overlaps = construct_multi_ghf_gab(A, B, coeffs)
+    full_weights = bp_weights * coeffs * overlaps
+    denom = sum(weights)
+    G = numpy.einsum('i,ijk->jk', full_weights, wb.Gi) / denom
+    return numpy.array([G[:M,:M], G[M:,M:]])
+
+
 def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
     if Gi is None:
         Gi = numpy.zeros(A.shape)
@@ -1052,6 +1068,7 @@ def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
         inv_O = scipy.linalg.inv((Aix.conj().T).dot(B))
         Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T))).T
         overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
+    return (Gi, overlaps)
 
 def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.
