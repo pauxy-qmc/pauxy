@@ -624,14 +624,14 @@ class ITCF:
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            self.accumulate(w.weight, Ggr, Gls, M)
+            self.accumulate(0, w.weight, Ggr, Gls, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(configs):
                 # B takes the state from time n to time n+1.
                 B = self.construct_propagator_matrix(system, self.BT2, c)
                 self.increment_tau(Ggr, Gls, B)
-                self.accumulate(w.weight, Ggr, Gls, M)
+                self.accumulate(ic+1, w.weight, Ggr, Gls, M)
         self.spgf = self.spgf / denom
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
@@ -676,7 +676,7 @@ class ITCF:
                                                             w.phi_init,
                                                             trial, nup,
                                                             w.weights)
-            self.accumulate(w.weight, Ggr_nn, Gls_nn, M)
+            self.accumulate(0, w.weight, Ggr_nn, Gls_nn, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             for (ic, c) in enumerate(configs):
@@ -686,7 +686,7 @@ class ITCF:
                 # The first term in brackets is the G(n+1,n) which should be
                 # well conditioned.
                 self.increment_tau(Ggr, Gls, B, Ggr_nn, Gls_nn)
-                self.accumulate(w.weight, Ggr, Gls, M)
+                self.accumulate(ic+1, w.weight, Ggr, Gls, M)
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
                 # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_R>, where c
@@ -719,17 +719,17 @@ class ITCF:
         Gls = self.I - Ggr
         return (Ggr, Gls)
 
-    def accumulate_uhf(self, weight, Ggr, Gls, nbasis):
-        self.spgf[0,0,0] += weight*Ggr[0].real
-        self.spgf[0,1,0] += weight*Ggr[1].real
-        self.spgf[0,0,1] += weight*Gls[0].real
-        self.spgf[0,1,1] += weight*Gls[1].real
+    def accumulate_uhf(self, idx, weight, Ggr, Gls, nbasis):
+        self.spgf[idx,0,0] += weight*Ggr[0].real
+        self.spgf[idx,1,0] += weight*Ggr[1].real
+        self.spgf[idx,0,1] += weight*Gls[0].real
+        self.spgf[idx,1,1] += weight*Gls[1].real
 
-    def accumulate_ghf(self, weight, Ggr, Gls, nbasis):
-        self.spgf[0,0,0] += weight*Ggr[:nbasis,:nbasis].real
-        self.spgf[0,1,0] += weight*Ggr[nbasis:,nbasis:].real
-        self.spgf[0,0,1] += weight*Gls[:nbasis,:nbasis].real
-        self.spgf[0,1,1] += weight*Gls[nbasis:,nbasis:].real
+    def accumulate_ghf(self, idx, weight, Ggr, Gls, nbasis):
+        self.spgf[idx,0,0] += weight*Ggr[:nbasis,:nbasis].real
+        self.spgf[idx,1,0] += weight*Ggr[nbasis:,nbasis:].real
+        self.spgf[idx,0,1] += weight*Gls[:nbasis,:nbasis].real
+        self.spgf[idx,1,1] += weight*Gls[nbasis:,nbasis:].real
 
     def increment_tau_ghf_unstable(self, Ggr, Gls, B, Gnn_gr=None, Gnn_ls=None):
         Ggr = B.dot(Ggr)
