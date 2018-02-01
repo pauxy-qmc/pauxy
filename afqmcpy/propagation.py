@@ -435,8 +435,13 @@ def propagate_single(psi, system, B):
         Propagation matrix.
     """
     nup = system.nup
-    psi[:,:nup] = B[0].dot(psi[:,:nup])
-    psi[:,nup:] = B[1].dot(psi[:,nup:])
+    if len(B.shape) == 3:
+        psi[:,:nup] = B[0].dot(psi[:,:nup])
+        psi[:,nup:] = B[1].dot(psi[:,nup:])
+    else:
+        M = system.nbasis
+        psi[:M,:nup] = B[:M,:M].dot(psi[:M,:nup])
+        psi[M:,nup:] = B[M:,M:].dot(psi[M:,nup:])
 
 
 def kinetic_kspace(psi, system, btk):
