@@ -630,7 +630,7 @@ class ITCF:
             for (ic, c) in enumerate(configs):
                 # B takes the state from time n to time n+1.
                 B = self.construct_propagator_matrix(system, self.BT2, c)
-                self.increment_tau(Ggr, Gls, B)
+                (Ggr, Gls) = self.increment_tau(Ggr, Gls, B)
                 self.accumulate(ic+1, w.weight, Ggr, Gls, M)
         self.spgf = self.spgf / denom
         # copy current walker distribution to initial (right hand) wavefunction
@@ -685,7 +685,7 @@ class ITCF:
                 # G is the cumulative product of stabilised short-time ITCFs.
                 # The first term in brackets is the G(n+1,n) which should be
                 # well conditioned.
-                self.increment_tau(Ggr, Gls, B, Ggr_nn, Gls_nn)
+                (Ggr, Gls) = self.increment_tau(Ggr, Gls, B, Ggr_nn, Gls_nn)
                 self.accumulate(ic+1, w.weight, Ggr, Gls, M)
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
@@ -734,22 +734,26 @@ class ITCF:
     def increment_tau_ghf_unstable(self, Ggr, Gls, B, Gnn_gr=None, Gnn_ls=None):
         Ggr = B.dot(Ggr)
         Gls = Gls.dot(scipy.linalg.inv(B))
+        return Ggr, Gls
 
     def increment_tau_uhf_unstable(self, Ggr, Gls, B, Gnn_gr=None, Gnn_ls=None):
         Ggr[0] = B[0].dot(Ggr[0])
         Ggr[1] = B[1].dot(Ggr[1])
         Gls[0] = Gls[0].dot(scipy.linalg.inv(B[0]))
         Gls[1] = Gls[1].dot(scipy.linalg.inv(B[1]))
+        return Ggr, Gls
 
     def increment_tau_uhf_stable(self, Ggr, Gls, B, Gnn_gr, Gnn_ls):
         Ggr[0] = (B[0].dot(Gnn_gr[0])).dot(Ggr[0])
         Ggr[1] = (B[1].dot(Gnn_gr[1])).dot(Ggr[1])
         Gls[0] = (Gnn_ls[0].dot(scipy.linalg.inv(B[0]))).dot(Gls[0])
         Gls[1] = (Gnn_ls[1].dot(scipy.linalg.inv(B[1]))).dot(Gls[1])
+        return Ggr, Gls
 
     def increment_tau_ghf_stable(self, Ggr, Gls, B, Gnn_gr, Gnn_ls):
         Ggr = (B.dot(Gnn_gr)).dot(Ggr)
         Gls = (Gnn_ls.dot(scipy.linalg.inv(B))).dot(Gls)
+        return Ggr, Gls
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step !=0 and step%self.nprop_tot == 0:
