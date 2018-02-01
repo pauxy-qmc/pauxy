@@ -223,9 +223,9 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     Bdown = BT2[1].dot(bv_down).dot(BT2[1])
 
     if conjt:
-        return [Bup.conj().T, Bdown.conj().T]
+        return numpy.array([Bup.conj().T, Bdown.conj().T])
     else:
-        return [Bup, Bdown]
+        return numpy.array([Bup, Bdown])
 
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
@@ -388,7 +388,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
                     psi_bp[iw].weights[idet] *= detR.conjugate()
     return psi_bp
 
-def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
+def back_propagate_single(phi_in, configs, weights, system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):

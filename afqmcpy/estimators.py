@@ -559,15 +559,15 @@ class ITCF:
             else:
                 self.increment_tau = self.increment_tau_ghf_unstable
         else:
-            self.I = numpy.identity(trial.psi.shape[0], dtype=trial.psi.dtype) 
+            self.I = numpy.identity(trial.psi.shape[0], dtype=trial.psi.dtype)
             self.initial_greens_function = self.initial_greens_function_uhf
             self.accumulate = self.accumulate_uhf
             self.back_propagate_single = afqmcpy.propagation.back_propagate_single
-            self.construct_propagator_matrix = afqmc.propagation.construct_propagator_matrix
+            self.construct_propagator_matrix = afqmcpy.propagation.construct_propagator_matrix
             if self.stable:
-                self.increment = self.increment_uhf_stable
+                self.increment_tau = self.increment_tau_uhf_stable
             else:
-                self.increment = self.increment_uhf_unstable
+                self.increment_tau = self.increment_tau_uhf_unstable
         if self.stable:
             self.calculate_spgf = self.calculate_spgf_stable
         else:

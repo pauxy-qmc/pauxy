@@ -79,6 +79,7 @@ class Walker:
         self.phi_init = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
         self.phi_bp = copy.deepcopy(self.phi)
+        self.weights = numpy.array([1])
 
     def inverse_overlap(self, trial):
         nup = self.nup
