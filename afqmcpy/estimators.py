@@ -656,9 +656,9 @@ class ITCF:
         nup = system.nup
         denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
-        Ggr = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
-        Gls = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
         for ix, w in enumerate(psi.walkers):
+            Ggr = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
+            Gls = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
