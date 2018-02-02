@@ -11,9 +11,9 @@ import h5py
 import pauxy.qmc
 import pauxy.walker
 import pauxy.estimators
-import pauxy.hubbard
 import pauxy.utils
 import pauxy.pop_control
+import pauxy.systems
 
 class CPMC:
     """CPMC driver.
@@ -53,11 +53,7 @@ class CPMC:
         String containing all input options and certain derived options.
     """
     def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
-        if model['name'] == 'Hubbard':
-            # sytem packages all generic information + model specific information.
-            self.system = pauxy.hubbard.Hubbard(model, qmc_opts['dt'])
-        elif model['name'] == 'Generic':
-            self.system = pauxy.generic.Generic(model, qmc_opts['dt'])
+        self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
         self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
         self.uuid = str(uuid.uuid1())
@@ -103,16 +99,16 @@ class CPMC:
         if not parallel:
             self.estimators = (
                 pauxy.estimators.Estimators(estimates,
-                                              self.root,
-                                              self.qmc,
-                                              self.system,
-                                              self.trial,
-                                              self.propagators.BT_BP)
+                                            self.root,
+                                            self.qmc,
+                                            self.system,
+                                            self.trial,
+                                            self.propagators.BT_BP)
             )
             self.psi = pauxy.walker.Walkers(self.system, self.trial,
-                                              self.qmc.nwalkers,
-                                              self.estimators.nprop_tot,
-                                              self.estimators.nbp)
+                                            self.qmc.nwalkers,
+                                            self.estimators.nprop_tot,
+                                            self.estimators.nbp)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
