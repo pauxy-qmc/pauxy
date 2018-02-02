@@ -24,8 +24,15 @@
         "name": "free_electron"
     },
     "estimates": {
-        "back_propagation": {
+        "overwrite": false,
+        "back_propagated": {
             "nback_prop": 10
+        },
+        "itcf": {
+            "stable": false,
+            "tmax": 2,
+            "mode": "diagonal",
+            "kspace": true
         }
     }
 }

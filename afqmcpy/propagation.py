@@ -223,9 +223,9 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     Bdown = BT2[1].dot(bv_down).dot(BT2[1])
 
     if conjt:
-        return [Bup.conj().T, Bdown.conj().T]
+        return numpy.array([Bup.conj().T, Bdown.conj().T])
     else:
-        return [Bup, Bdown]
+        return numpy.array([Bup, Bdown])
 
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
@@ -388,7 +388,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
                     psi_bp[iw].weights[idet] *= detR.conjugate()
     return psi_bp
 
-def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
+def back_propagate_single(phi_in, configs, weights, system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
@@ -403,6 +403,22 @@ def back_propagate_single(phi_in, configs, system, nstblz, BT2, store=False):
 
     return psi_store
 
+def back_propagate_single_ghf(phi, configs, weights, system, nstblz, BT2, store=False):
+    nup = system.nup
+    psi_store = []
+    for (i, c) in enumerate(configs[::-1]):
+        B = construct_propagator_matrix_ghf(system, BT2, c, conjt=True)
+        for (idet, psi_i) in enumerate(phi):
+            # propagate each component of multi-determinant expansion
+            phi[idet] = B.dot(phi[idet])
+            if i != 0 and i % nstblz == 0:
+                # implicitly propagating the full GHF wavefunction
+                (phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
+                weights[idet] *= detR.conjugate()
+        if store:
+            psi_store.append(copy.deepcopy(phi))
+
+    return psi_store
 
 def propagate_single(psi, system, B):
     r"""Perform backpropagation for single configuration.
@@ -419,8 +435,13 @@ def propagate_single(psi, system, B):
         Propagation matrix.
     """
     nup = system.nup
-    psi[:,:nup] = B[0].dot(psi[:,:nup])
-    psi[:,nup:] = B[1].dot(psi[:,nup:])
+    if len(B.shape) == 3:
+        psi[:,:nup] = B[0].dot(psi[:,:nup])
+        psi[:,nup:] = B[1].dot(psi[:,nup:])
+    else:
+        M = system.nbasis
+        psi[:M,:nup] = B[:M,:M].dot(psi[:M,:nup])
+        psi[M:,nup:] = B[M:,M:].dot(psi[M:,nup:])
 
 
 def kinetic_kspace(psi, system, btk):
