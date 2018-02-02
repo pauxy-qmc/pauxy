@@ -38,7 +38,7 @@ def get_trial_wavefunction(options, system, cplx, parallel):
     elif options['name'] == 'multi_determinant':
         trial = MultiDeterminant(system, cplx, options, parallel)
     elif options['name'] == 'hartree_fock':
-        trial = HartreeFock(self.system, self.qmc.cplx, trial, parallel)
+        trial = HartreeFock(system, cplx, options, parallel)
     else:
         trial = None
 

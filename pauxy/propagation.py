@@ -13,11 +13,11 @@ def get_propagator(qmc, system, trial):
 
     Parameters
     ----------
-    qmc : :class:`pauxy.qmc.QMCOpts` class 
+    qmc : :class:`pauxy.qmc.QMCOpts` class
         Trial wavefunction input options.
     system : class
         System class.
-    trial : class 
+    trial : class
         Trial wavefunction object.
 
     Returns
