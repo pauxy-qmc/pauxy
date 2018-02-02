@@ -3,7 +3,16 @@ PAUXY
 =====
 
 PAUXY implements the Phaseless AUXilliarY field quantum Monte Carlo algorithm in python.
-The focus is on simplicity rather than speed.
+The focus is on simplicity and transparency rather than speed.
+
+Features
+--------
+Pauxy can currently calculate:
+
+- ground state properties of model systems (Hubbard model or a generic system via an FCIDUMP).
+- arbitrary expectation values and correlation functions using back propagation.
+- imaginary time correlation functions.
+- all of the above with multi-determinant in both UHF and GHF format.
 
 Installation
 ------------
@@ -35,11 +44,13 @@ Running the Test Suite
 First change to the test directory and run
 
 ::
+
     $ ~/path/to/testcode/bin/testcode.py
 
 If python3 is not your default python interpreter then run
 
 ::
+
     $ ~/path/to/testcode/bin/testcode.py -p 1 --user-option pauxy launch_parallel python3
 
 Currently only serial tests exist.
