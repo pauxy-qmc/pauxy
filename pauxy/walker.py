@@ -24,10 +24,10 @@ class Walkers:
             dtype = int
         self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
 
-    def orthogonalise(self, trial, importance_sampling):
+    def orthogonalise(self, trial, free_projection):
         for w in self.walkers:
             detR = w.reortho(trial)
-            if not importance_sampling:
+            if free_projection:
                 w.weight = detR * w.weight
 
     def add_field_config(self, nprop_tot, nbp, nfields, dtype):

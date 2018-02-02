@@ -64,10 +64,6 @@ class Estimators:
     """
 
     def __init__(self, estimates, root, qmc, system, trial, BT2):
-        if qmc.hubbard_stratonovich == "continuous" and qmc.constraint == "free":
-            dtype = complex
-        else:
-            dtype = float
         if root:
             index = estimates.get('index', 0)
             h5f_name = estimates.get('filename', None)
@@ -87,6 +83,7 @@ class Estimators:
         bp = estimates.get('back_propagated', None)
         self.back_propagation = bp is not None
         self.estimators = {}
+        dtype = complex
         self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
                                          qmc, trial, dtype)
         if self.back_propagation:
@@ -128,9 +125,9 @@ class Estimators:
         if (comm is None) or (comm.Get_rank() == 0):
             self.h5f.flush()
 
-    def update(self, system, qmc, trial, psi, step):
+    def update(self, system, qmc, trial, psi, step, free_projection=False):
         for k, e in self.estimators.items():
-            e.update(system, qmc, trial, psi, step)
+            e.update(system, qmc, trial, psi, step, free_projection)
 
 
 class EstimatorEnum:
@@ -188,7 +185,7 @@ class Mixed:
                                                   (self.nmeasure+1,)+self.G.shape,
                                                   dtype)
 
-    def update(self, system, qmc, trial, psi, step):
+    def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update regular estimates for walker w.
 
         Parameters
@@ -198,22 +195,19 @@ class Mixed:
         state : :class:`pauxy.state.State`
             system parameters as well as current 'state' of the simulation.
         """
-        if qmc.importance_sampling:
+        if not free_projection:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                if qmc.hubbard_stratonovich == 'continuous':
-                    self.estimates[self.names.enumer] += w.weight * w.E_L.real
-                else:
-                    E, T, V = w.local_energy(system)
-                    self.estimates[self.names.enumer] += (
-                            w.weight*E.real
-                    )
-                    self.estimates[self.names.ekin:self.names.epot+1] += (
-                            w.weight*numpy.array([T,V]).real
-                    )
+                E, T, V = w.local_energy(system)
+                self.estimates[self.names.enumer] += (
+                        w.weight*E.real
+                )
+                self.estimates[self.names.ekin:self.names.epot+1] += (
+                        w.weight*numpy.array([T,V]).real
+                )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
@@ -386,7 +380,7 @@ class BackPropagation:
             else:
                 self.back_propagate = pauxy.propagation.back_propagate
 
-    def update_uhf(self, system, qmc, trial, psi, step):
+    def update_uhf(self, system, qmc, trial, psi, step, free_projection=False):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
@@ -422,7 +416,7 @@ class BackPropagation:
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
-    def update_ghf(self, system, qmc, trial, psi, step):
+    def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
@@ -584,7 +578,7 @@ class ITCF:
                 self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape,
                                                      self.spgf.dtype)
 
-    def update(self, system, qmc, trial, psi, step):
+    def update(self, system, qmc, trial, psi, step, free_projection=False):
         if step % self.nprop_tot == 0:
             self.calculate_spgf(system, psi, trial)
 

@@ -55,6 +55,7 @@ class Generic:
         (self.h1e_mod, self.chol_vecs) = self.construct_decomposition()
         self.nchol_vec = self.chol_vecs.shape[0]
         self.nfields = self.nchol_vec
+        self.ktwist = numpy.array(inputs.get('ktwist'))
 
     def read_integrals(self):
         """Read in integrals from file.

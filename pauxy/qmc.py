@@ -74,14 +74,4 @@ class QMCOpts:
         self.nupdate_shift = inputs.get('nupdate_shift', 10)
         self.temp = inputs.get('temperature', None)
         self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
-        self.importance_sampling = inputs.get('importance_sampling', True)
-        if self.importance_sampling:
-            self.constraint = 'constrained'
-        else:
-            self.constraint = 'free'
-        self.hubbard_stratonovich = inputs.get('hubbard_stratonovich',
-                                                'discrete')
         self.ffts = inputs.get('kinetic_kspace', False)
-        self.cplx = ('continuous' in self.hubbard_stratonovich
-                     or system.ktwist.all() != None)
-        self.exp_nmax = inputs.get('expansion_order', 6)

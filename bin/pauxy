@@ -13,7 +13,8 @@ def main(input_file):
         cpmc = pauxy.cpmc.CPMC(options.get('model'),
                                options.get('qmc_options'),
                                options.get('estimates'),
-                               options.get('trial_wavefunction'))
+                               options.get('trial_wavefunction'),
+                               options.get('propagator', {}))
     cpmc.run(comm=comm)
     cpmc.finalise()
 
