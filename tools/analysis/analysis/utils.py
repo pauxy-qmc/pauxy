@@ -1,4 +1,4 @@
-import afqmcpy.hubbard
+import pauxy.hubbard
 
 def get_strip(cfunc, cfunc_err, ix, nx, ny, stag=False):
     iy = [i for i in range(ny)]
