@@ -9,7 +9,6 @@ import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
 import analysis.blocking
-import pyblock
 import matplotlib.pyplot as plt
 
 
