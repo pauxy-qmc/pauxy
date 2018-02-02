@@ -174,9 +174,13 @@ def extract_test_data(filename):
     return data[::8].to_dict(orient='list')
 
 def extract_test_data_hdf5(filename):
-    (md, data, bp, itcf, kitcf) = extract_hdf5(filename)
-    if (bp is not None) and itcf is None:
+    (md, data, bp, itcf, kitcf, mrdm, bprdm) = extract_hdf5(filename)
+    if (bp is not None):
         data = bp
+    elif mrdm is not None:
+        data = mrdm
+    elif bprdm is not None:
+        data = pmrdm
     elif itcf is not None:
         data = pd.DataFrame(itcf.reshape(itcf.shape[0], -1))
         if kitcf is not None:
