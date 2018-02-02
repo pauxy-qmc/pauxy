@@ -516,7 +516,7 @@ class DiscreteHubbard:
             self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        self.hs_type = 'discrete_hubbard'
+        self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
