@@ -2,8 +2,8 @@
 PAUXY
 =====
 
-PAUXY implements the **P**\ haseless **AUX**\ illiar\ **Y** field quantum Monte Carlo algorithm in python.
-The focus is on simplicity and transparency rather than speed.
+PAUXY implements **P**\ haseless **AUX**\ illiar\ **Y** field quantum Monte Carlo -like
+algorithms in python.  The focus is on simplicity and transparency rather than speed.
 
 Features
 --------
