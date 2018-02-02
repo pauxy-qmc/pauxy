@@ -11,9 +11,9 @@ import h5py
 import pauxy.qmc
 import pauxy.walker
 import pauxy.estimators
-import pauxy.hubbard
 import pauxy.utils
 import pauxy.pop_control
+import pauxy.systems
 
 class CPMC:
     """CPMC driver.
@@ -53,13 +53,7 @@ class CPMC:
         String containing all input options and certain derived options.
     """
     def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
-        if model['name'] == 'Hubbard':
-            # sytem packages all generic information + model specific information.
-            self.system = pauxy.hubbard.Hubbard(model, qmc_opts['dt'])
-        elif model['name'] == 'Generic':
-            self.system = pauxy.generic.Generic(model, qmc_opts['dt'])
-        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
-        # Store input dictionaries for the moment.
+        # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 =  pauxy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
@@ -67,52 +61,32 @@ class CPMC:
         self.root = True
         self.nprocs = 1
         self.init_time = time.time()
-        # effective hubbard U for UHF trial wavefunction.
-        if trial['name'] == 'free_electron':
-            self.trial = pauxy.trial_wavefunction.FreeElectron(self.system,
-                                                                 self.qmc.cplx,
-                                                                 trial,
-                                                                 parallel)
-        if trial['name'] == 'UHF':
-            self.trial = pauxy.trial_wavefunction.UHF(self.system,
-                                                        self.qmc.cplx,
-                                                        trial, parallel)
-        elif trial['name'] == 'multi_determinant':
-            self.trial = pauxy.trial_wavefunction.MultiDeterminant(self.system,
-                                                                     self.qmc.cplx,
-                                                                     trial,
-                                                                     parallel)
-        elif trial['name'] == 'hartree_fock':
-            self.trial = pauxy.trial_wavefunction.HartreeFock(self.system,
-                                                                self.qmc.cplx,
-                                                                trial,
-                                                                parallel)
-        if self.qmc.hubbard_stratonovich == 'discrete':
-            self.propagators = pauxy.propagation.DiscreteHubbard(self.qmc,
-                                                                   self.system,
-                                                                   self.trial)
-        elif self.qmc.hubbard_stratonovich == "continuous":
-            self.propagators = pauxy.propagation.ContinuousHubbard(self.qmc,
-                                                                     self.system,
-                                                                     self.trial)
-        elif self.qmc.hubbard_stratonovich  == "generic_continuous":
-            self.propagators = pauxy.propagation.GenericContinuous(self.qmc,
-                                                                     self.system,
-                                                                     self.trial)
+        # 2. Calculation attributes.
+        self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
+        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
+        # Store input dictionaries for the moment.
+        self.trial = (
+            pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
+                                                            self.qmc.cplx,
+                                                            parallel)
+        )
+        self.propagators = pauxy.propagation.get_propagator(self.qmc,
+                                                            self.system,
+                                                            self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         if not parallel:
             self.estimators = (
                 pauxy.estimators.Estimators(estimates,
-                                              self.root,
-                                              self.qmc,
-                                              self.system,
-                                              self.trial,
-                                              self.propagators.BT_BP)
+                                            self.root,
+                                            self.qmc,
+                                            self.system,
+                                            self.trial,
+                                            self.propagators.BT_BP)
             )
             self.psi = pauxy.walker.Walkers(self.system, self.trial,
-                                              self.qmc.nwalkers,
-                                              self.estimators.nprop_tot,
-                                              self.estimators.nbp)
+                                            self.qmc.nwalkers,
+                                            self.estimators.nprop_tot,
+                                            self.estimators.nbp)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
