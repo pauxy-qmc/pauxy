@@ -8,7 +8,7 @@ speed.
 
 Features
 --------
-Pauxy can currently:
+PAUXY can currently:
 
 - estimate ground state properties of model systems (Hubbard models and generic
   systems defined by (real) FCIDUMPs).
