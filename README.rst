@@ -2,7 +2,7 @@
 PAUXY
 =====
 
-PAUXY implements the Phaseless AUXilliarY field quantum Monte Carlo algorithm in python.
+PAUXY implements the **P**\ haseless **AUX**\ illiar **Y** field quantum Monte Carlo algorithm in python.
 The focus is on simplicity and transparency rather than speed.
 
 Features
