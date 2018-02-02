@@ -8,6 +8,6 @@ output = estimates.0.h5
 
 [user]
 diff = vimdiff
-benchmark =
+benchmark = 27509a2
 tolerance = (1e-8, 1e-6, None, False)
 
