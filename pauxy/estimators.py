@@ -250,15 +250,13 @@ class Mixed:
                 self.dm_output.push(rdm/denom/nmeasure)
         self.zero()
 
-    def print_key(self, print_function=print, eol='', encode=False):
+    def print_key(self, eol='', encode=False):
         """Print out information about what the estimates are.
 
         Parameters
         ----------
         key : dict
             Explanation of output columns.
-        print_function : method, optional
-            How to print state information, e.g. to std out or file. Default : print.
         eol : string, optional
             String to append to output, e.g., Default : ''.
         encode : bool
@@ -274,22 +272,20 @@ class Mixed:
         )
         if encode:
             header = header.encode('utf-8')
-        print_function(header)
+        print(header)
         for (k, v) in self.key.items():
             s = '# %s : %s'%(k, v) + eol
             if encode:
                 s = s.encode('utf-8')
-            print_function(s)
+            print(s)
 
-    def print_header(self, print_function=print, eol='', encode=False):
+    def print_header(self, eol='', encode=False):
         r"""Print out header for estimators
 
         Parameters
         ----------
         header : list
             Output header.
-        print_function : method, optional
-            How to print state information, e.g. to std out or file. Default : print.
         eol : string, optional
             String to append to output, Default : ''.
         encode : bool
@@ -302,7 +298,7 @@ class Mixed:
         s = pauxy.utils.format_fixed_width_strings(self.header) + eol
         if encode:
             s = s.encode('utf-8')
-        print_function(s)
+        print(s)
 
     def projected_energy(self):
         numerator = self.estimates[self.names.enumer]
