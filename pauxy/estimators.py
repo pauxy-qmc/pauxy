@@ -380,7 +380,7 @@ class BackPropagation:
             else:
                 self.back_propagate = pauxy.propagation.back_propagate
 
-    def update_uhf(self, system, qmc, trial, psi, step):
+    def update_uhf(self, system, qmc, trial, psi, step, free_projection=False):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
@@ -416,7 +416,7 @@ class BackPropagation:
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
-    def update_ghf(self, system, qmc, trial, psi, step):
+    def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
@@ -578,7 +578,7 @@ class ITCF:
                 self.kspace_unit = H5EstimatorHelper(spgfs, 'k_space', shape,
                                                      self.spgf.dtype)
 
-    def update(self, system, qmc, trial, psi, step):
+    def update(self, system, qmc, trial, psi, step, free_projection=False):
         if step % self.nprop_tot == 0:
             self.calculate_spgf(system, psi, trial)
 
