@@ -1,7 +1,5 @@
 """Routines for performing propagation of a walker"""
 
-# TODO: refactor to avoid code repetition between similar routines.
-
 import numpy
 import scipy.linalg
 import math
@@ -9,6 +7,34 @@ import cmath
 import copy
 import pauxy.utils
 
+
+def get_propagator(qmc, system, trial):
+    """Wrapper to select propagator class.
+
+    Parameters
+    ----------
+    qmc : :class:`pauxy.qmc.QMCOpts` class 
+        Trial wavefunction input options.
+    system : class
+        System class.
+    trial : class 
+        Trial wavefunction object.
+
+    Returns
+    -------
+    propagator : class or None
+        Propagator object.
+    """
+    if qmc.hubbard_stratonovich == 'discrete':
+        propagator = DiscreteHubbard(qmc, system, trial)
+    elif qmc.hubbard_stratonovich == "continuous":
+        propagator = ContinuousHubbard(qmc, system, trial)
+    elif qmc.hubbard_stratonovich  == "generic_continuous":
+        propagator = GenericContinuous(qmc, system, trial)
+    else:
+        propagator = None
+
+    return propagator
 
 def local_energy_bound(local_energy, mean, threshold):
     """Try to suppress rare population events by imposing local energy bound.

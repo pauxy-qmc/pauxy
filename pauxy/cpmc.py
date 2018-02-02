@@ -70,18 +70,9 @@ class CPMC:
                                                             self.qmc.cplx,
                                                             parallel)
         )
-        if self.qmc.hubbard_stratonovich == 'discrete':
-            self.propagators = pauxy.propagation.DiscreteHubbard(self.qmc,
-                                                                   self.system,
-                                                                   self.trial)
-        elif self.qmc.hubbard_stratonovich == "continuous":
-            self.propagators = pauxy.propagation.ContinuousHubbard(self.qmc,
-                                                                     self.system,
-                                                                     self.trial)
-        elif self.qmc.hubbard_stratonovich  == "generic_continuous":
-            self.propagators = pauxy.propagation.GenericContinuous(self.qmc,
-                                                                     self.system,
-                                                                     self.trial)
+        self.propagators = pauxy.propagation.get_propagator(self.qmc,
+                                                            self.system,
+                                                            self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         if not parallel:
             self.estimators = (
