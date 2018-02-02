@@ -17,6 +17,8 @@ PAUXY can currently:
 - calculate imaginary time correlation functions.
 - control the sign problem using a variety of trial wavefunctions including free-electron,
   UHF and GHF, all in single- or multi-determinant form.
+- perform simple data analysis.
+
 Installation
 ------------
 
