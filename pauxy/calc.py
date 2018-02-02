@@ -12,8 +12,8 @@ try:
 except ImportError:
     warnings.warn('No MPI library found')
     parallel = False
-import afqmcpy.cpmc
-import afqmcpy.utils
+import pauxy.cpmc
+import pauxy.utils
 
 def init(input_file, verbose=True):
     if parallel:
@@ -65,11 +65,11 @@ def setup_parallel(options, comm=None):
 
     Returns
     -------
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     """
     if comm.Get_rank() == 0:
-        cpmc = afqmcpy.cpmc.CPMC(options.get('model'),
+        cpmc = pauxy.cpmc.CPMC(options.get('model'),
                                   options.get('qmc_options'),
                                   options.get('estimates'),
                                   options.get('trial_wavefunction'),
@@ -99,27 +99,27 @@ def setup_parallel(options, comm=None):
 
     # TODO: Return cpmc and psi and run from another routine.
     cpmc.estimators = (
-        afqmcpy.estimators.Estimators(options.get('estimates'),
+        pauxy.estimators.Estimators(options.get('estimates'),
                                       cpmc.root,
                                       cpmc.qmc,
                                       cpmc.system,
                                       cpmc.trial,
                                       cpmc.propagators.BT_BP)
     )
-    cpmc.psi = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
+    cpmc.psi = pauxy.walker.Walkers(cpmc.system, cpmc.trial,
                                       cpmc.qmc.nwalkers,
                                       cpmc.estimators.nprop_tot,
                                       cpmc.estimators.nbp)
     if comm.Get_rank() == 0:
         json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        json_string = json.dumps(afqmcpy.utils.serialise(cpmc, verbose=1),
+        json_string = json.dumps(pauxy.utils.serialise(cpmc, verbose=1),
                                  sort_keys=False, indent=4)
         cpmc.estimators.h5f.create_dataset('metadata',
                                           data=numpy.array([json_string],
                                           dtype=object),
                                           dtype=h5py.special_dtype(vlen=str))
         print ('# Input options:')
-        print (json.dumps(afqmcpy.utils.serialise(cpmc, verbose=0),
+        print (json.dumps(pauxy.utils.serialise(cpmc, verbose=0),
                           sort_keys=False, indent=4))
         print('# End of input options.')
         cpmc.estimators.estimators['mixed'].print_key()

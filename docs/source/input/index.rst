@@ -7,7 +7,7 @@ Here we will describe the input options necessary in both cases.
 Input File
 ^^^^^^^^^^
 
-A standard input file for afqmcpy is made up of a json dict like that below:
+A standard input file for pauxy is made up of a json dict like that below:
 
 .. code-block:: json
 

@@ -1,7 +1,7 @@
-afqmcpy
-=======
+pauxy
+=====
 
 .. toctree::
    :maxdepth: 4
 
-   afqmcpy
+   pauxy

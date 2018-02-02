@@ -1,7 +1,7 @@
 import sys
 import numpy
 import scipy.linalg
-import afqmcpy.utils
+import pauxy.utils
 
 class Generic:
     """Generic system class (integrals read from fcidump)
@@ -131,7 +131,7 @@ class Generic:
                                                          self.nbasis**2)
         if (numpy.sum(V-V.T) != 0):
             print ("Warning: Supermatrix is not symmetric")
-        chol_vecs = afqmcpy.utils.modified_cholesky(V, self.threshold,
+        chol_vecs = pauxy.utils.modified_cholesky(V, self.threshold,
                                                     verbose=self.verbose)
         return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
                                             self.nbasis)))

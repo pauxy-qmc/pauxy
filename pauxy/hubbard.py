@@ -4,7 +4,7 @@ import numpy
 import cmath
 import math
 import scipy.linalg
-import afqmcpy.kpoints
+import pauxy.kpoints
 
 class Hubbard:
     """Hubbard model system class.
@@ -50,7 +50,7 @@ class Hubbard:
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
-        (self.kpoints, self.kc, self.eks) = afqmcpy.kpoints.kpoints(self.t,
+        (self.kpoints, self.kc, self.eks) = pauxy.kpoints.kpoints(self.t,
                                                                     self.nx,
                                                                     self.ny)
         self.pinning = inputs.get('pinning_fields', False)
@@ -81,7 +81,7 @@ class Hubbard:
         to_string : bool
             Return fcidump as string. Default print to stdout.
         """
-        header = afqmcpy.utils.fcidump_header(self.ne, self.nbasis,
+        header = pauxy.utils.fcidump_header(self.ne, self.nbasis,
                                               self.nup-self.ndown)
         for i in range(1, self.nbasis+1):
             if self.T.dtype == complex:

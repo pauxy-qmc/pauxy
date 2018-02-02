@@ -8,12 +8,12 @@ import uuid
 from math import exp
 import copy
 import h5py
-import afqmcpy.qmc
-import afqmcpy.walker
-import afqmcpy.estimators
-import afqmcpy.hubbard
-import afqmcpy.utils
-import afqmcpy.pop_control
+import pauxy.qmc
+import pauxy.walker
+import pauxy.estimators
+import pauxy.hubbard
+import pauxy.utils
+import pauxy.pop_control
 
 class CPMC:
     """CPMC driver.
@@ -34,9 +34,9 @@ class CPMC:
 
     Attributes
     ----------
-    system : :class:`afqmcpy.hubbard.Hubbard` / system object in general.
+    system : :class:`pauxy.hubbard.Hubbard` / system object in general.
         Container for model input options.
-    qmc : :class:`afqmcpy.state.QMCOpts` object.
+    qmc : :class:`pauxy.state.QMCOpts` object.
         Container for qmc input options.
     uuid : string
         Simulation state uuid.
@@ -45,9 +45,9 @@ class CPMC:
         json_string.
     root : bool
         If True we are on the root / master processor.
-    trial : :class:`afqmcpy.trial_wavefunction.X' object
+    trial : :class:`pauxy.trial_wavefunction.X' object
         Trial wavefunction class.
-    propagators : :class:`afqmcpy.propagation.Projectors` object
+    propagators : :class:`pauxy.propagation.Projectors` object
         Container for system specific propagation routines.
     json_string : string
         String containing all input options and certain derived options.
@@ -55,13 +55,13 @@ class CPMC:
     def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
         if model['name'] == 'Hubbard':
             # sytem packages all generic information + model specific information.
-            self.system = afqmcpy.hubbard.Hubbard(model, qmc_opts['dt'])
+            self.system = pauxy.hubbard.Hubbard(model, qmc_opts['dt'])
         elif model['name'] == 'Generic':
-            self.system = afqmcpy.generic.Generic(model, qmc_opts['dt'])
-        self.qmc = afqmcpy.qmc.QMCOpts(qmc_opts, self.system)
+            self.system = pauxy.generic.Generic(model, qmc_opts['dt'])
+        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
         # Store input dictionaries for the moment.
         self.uuid = str(uuid.uuid1())
-        self.sha1 =  afqmcpy.utils.get_git_revision_hash()
+        self.sha1 =  pauxy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
         self.root = True
@@ -69,60 +69,60 @@ class CPMC:
         self.init_time = time.time()
         # effective hubbard U for UHF trial wavefunction.
         if trial['name'] == 'free_electron':
-            self.trial = afqmcpy.trial_wavefunction.FreeElectron(self.system,
+            self.trial = pauxy.trial_wavefunction.FreeElectron(self.system,
                                                                  self.qmc.cplx,
                                                                  trial,
                                                                  parallel)
         if trial['name'] == 'UHF':
-            self.trial = afqmcpy.trial_wavefunction.UHF(self.system,
+            self.trial = pauxy.trial_wavefunction.UHF(self.system,
                                                         self.qmc.cplx,
                                                         trial, parallel)
         elif trial['name'] == 'multi_determinant':
-            self.trial = afqmcpy.trial_wavefunction.MultiDeterminant(self.system,
+            self.trial = pauxy.trial_wavefunction.MultiDeterminant(self.system,
                                                                      self.qmc.cplx,
                                                                      trial,
                                                                      parallel)
         elif trial['name'] == 'hartree_fock':
-            self.trial = afqmcpy.trial_wavefunction.HartreeFock(self.system,
+            self.trial = pauxy.trial_wavefunction.HartreeFock(self.system,
                                                                 self.qmc.cplx,
                                                                 trial,
                                                                 parallel)
         if self.qmc.hubbard_stratonovich == 'discrete':
-            self.propagators = afqmcpy.propagation.DiscreteHubbard(self.qmc,
+            self.propagators = pauxy.propagation.DiscreteHubbard(self.qmc,
                                                                    self.system,
                                                                    self.trial)
         elif self.qmc.hubbard_stratonovich == "continuous":
-            self.propagators = afqmcpy.propagation.ContinuousHubbard(self.qmc,
+            self.propagators = pauxy.propagation.ContinuousHubbard(self.qmc,
                                                                      self.system,
                                                                      self.trial)
         elif self.qmc.hubbard_stratonovich  == "generic_continuous":
-            self.propagators = afqmcpy.propagation.GenericContinuous(self.qmc,
+            self.propagators = pauxy.propagation.GenericContinuous(self.qmc,
                                                                      self.system,
                                                                      self.trial)
         # Handy to keep original dicts so they can be printed at run time.
         # self.json_string = self.write_json(model, qmc_opts, estimates)
         if not parallel:
             self.estimators = (
-                afqmcpy.estimators.Estimators(estimates,
+                pauxy.estimators.Estimators(estimates,
                                               self.root,
                                               self.qmc,
                                               self.system,
                                               self.trial,
                                               self.propagators.BT_BP)
             )
-            self.psi = afqmcpy.walker.Walkers(self.system, self.trial,
+            self.psi = pauxy.walker.Walkers(self.system, self.trial,
                                               self.qmc.nwalkers,
                                               self.estimators.nprop_tot,
                                               self.estimators.nbp)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-            json_string = json.dumps(afqmcpy.utils.serialise(self, verbose=1),
+            json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
             self.estimators.h5f.create_dataset('metadata',
                                               data=numpy.array([json_string],
                                               dtype=object),
                                               dtype=h5py.special_dtype(vlen=str))
             print ('# Input options:')
-            print (json.dumps(afqmcpy.utils.serialise(self, verbose=0),
+            print (json.dumps(pauxy.utils.serialise(self, verbose=0),
                               sort_keys=False, indent=4))
             print('# End of input options.')
             self.estimators.estimators['mixed'].print_key()
@@ -144,7 +144,7 @@ class CPMC:
 
         # Combine some metadata in dicts so it can be easily printed/read.
         calc_info =  {
-            'sha1': afqmcpy.utils.get_git_revision_hash(),
+            'sha1': pauxy.utils.get_git_revision_hash(),
             'Run time': time.asctime(),
             'uuid': self.uuid
         }
@@ -173,9 +173,9 @@ class CPMC:
 
         Parameters
         ----------
-        state : :class:`afqmcpy.state.State` object
+        state : :class:`pauxy.state.State` object
             Model and qmc parameters.
-        psi : list of :class:`afqmcpy.walker.Walker` objects
+        psi : list of :class:`pauxy.walker.Walker` objects
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
         """
@@ -214,7 +214,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step%self.qmc.npop_control == 0:
-                afqmcpy.pop_control.comb(self.psi, self.qmc.nwalkers)
+                pauxy.pop_control.comb(self.psi, self.qmc.nwalkers)
 
     def finalise(self):
         if self.root:

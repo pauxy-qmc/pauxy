@@ -1,13 +1,13 @@
-.. AFQMCPY documentation master file, created by
+.. PAUXY documentation master file, created by
    sphinx-quickstart on Tue Nov 14 15:04:33 2017.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-AFQMCPY
-=======
+PAUXY
+=====
 
-Simple test code implementing the constrained path algorithm in the auxilliary field
-quantum Monte Carlo framework.
+PAUXY implements the Phaseless AUXilliarY field quantum Monte Carlo algorithm in python.
+
 
 .. toctree::
    :maxdepth: 2

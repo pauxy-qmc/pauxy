@@ -14,8 +14,8 @@ except ImportError:
 import scipy.linalg
 import os
 import h5py
-import afqmcpy.utils
-import afqmcpy.propagation
+import pauxy.utils
+import pauxy.propagation
 
 class Estimators:
     """Container for qmc estimates of observables.
@@ -49,14 +49,14 @@ class Estimators:
         Number of estimators.
     estimates : :class:`numpy.ndarray`
         Array containing accumulated estimates.
-        See afqmcpy.estimators.Estimates.key for description.
+        See pauxy.estimators.Estimates.key for description.
     back_propagation : bool
         True if doing back propagation, specified in estimates dict.
-    back_prop : :class:`afqmcpy.estimators.BackPropagation` object
+    back_prop : :class:`pauxy.estimators.BackPropagation` object
         Class containing attributes and routines pertaining to back propagation.
     calc_itcf : bool
         True if calculating imaginary time correlation functions (ITCFs).
-    itcf : :class:`afqmcpy.estimators.ITCF` object
+    itcf : :class:`pauxy.estimators.ITCF` object
         Class containing attributes and routines pertaining to back propagation.
     nprop_tot : int
         Total number of auxiliary field configurations we store / use for back
@@ -112,7 +112,7 @@ class Estimators:
 
         Parameters
         ----------
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             Simulation state.
         comm :
             MPI communicator.
@@ -193,9 +193,9 @@ class Mixed:
 
         Parameters
         ----------
-        w : :class:`afqmcpy.walker.Walker`
+        w : :class:`pauxy.walker.Walker`
             current walker
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             system parameters as well as current 'state' of the simulation.
         """
         if qmc.importance_sampling:
@@ -242,7 +242,7 @@ class Mixed:
             self.global_estimates[:] = es
         # put these in own print routines.
         if (comm is None) or (comm.Get_rank() == 0):
-            print (afqmcpy.utils.format_fixed_width_floats([step]+
+            print (pauxy.utils.format_fixed_width_floats([step]+
                         list(self.global_estimates[:ns.time+1].real/nmeasure)))
             self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
             if self.rdm:
@@ -299,7 +299,7 @@ class Mixed:
         -------
         None
         """
-        s = afqmcpy.utils.format_fixed_width_strings(self.header) + eol
+        s = pauxy.utils.format_fixed_width_strings(self.header) + eol
         if encode:
             s = s.encode('utf-8')
         print_function(s)
@@ -380,28 +380,28 @@ class BackPropagation:
         if trial.type == 'GHF':
             self.update = self.update_ghf
             if system.name == "Generic":
-                self.back_propagate = afqmcpy.propagation.back_propagate_generic_uhf
+                self.back_propagate = pauxy.propagation.back_propagate_generic_uhf
             else:
-                self.back_propagate = afqmcpy.propagation.back_propagate_ghf
+                self.back_propagate = pauxy.propagation.back_propagate_ghf
         else:
             self.update = self.update_uhf
             if system.name == "Generic":
-                self.back_propagate = afqmcpy.propagation.back_propagate_generic
+                self.back_propagate = pauxy.propagation.back_propagate_generic
             else:
-                self.back_propagate = afqmcpy.propagation.back_propagate
+                self.back_propagate = pauxy.propagation.back_propagate
 
     def update_uhf(self, system, qmc, trial, psi, step):
         r"""Calculate back-propagated "local" energy for given walker/determinant.
 
         Parameters
         ----------
-        psi_nm : list of :class:`afqmcpy.walker.Walker` objects
+        psi_nm : list of :class:`pauxy.walker.Walker` objects
             current distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        psi_n : list of :class:`afqmcpy.walker.Walker` objects
+        psi_n : list of :class:`pauxy.walker.Walker` objects
             previous distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau`.
-        psi_bp : list of :class:`afqmcpy.walker.Walker` objects
+        psi_bp : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
         if step%self.nmax != 0:
@@ -431,18 +431,18 @@ class BackPropagation:
 
         Parameters
         ----------
-        psi_nm : list of :class:`afqmcpy.walker.Walker` objects
+        psi_nm : list of :class:`pauxy.walker.Walker` objects
             current distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        psi_n : list of :class:`afqmcpy.walker.Walker` objects
+        psi_n : list of :class:`pauxy.walker.Walker` objects
             previous distribution of walkers, i.e., at the current iteration in the
             simulation corresponding to :math:`\tau`.
-        psi_bp : list of :class:`afqmcpy.walker.Walker` objects
+        psi_bp : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
         if step%self.nmax != 0:
             return
-        psi_bp = afqmcpy.propagation.back_propagate_ghf(system, psi.walkers, trial,
+        psi_bp = pauxy.propagation.back_propagate_ghf(system, psi.walkers, trial,
                                                         self.nstblz, self.BT2,
                                                         self.dt)
         denominator = sum(wnm.weight for wnm in psi.walkers)
@@ -552,8 +552,8 @@ class ITCF:
             self.I = numpy.identity(trial.psi.shape[1], dtype=trial.psi.dtype) 
             self.initial_greens_function = self.initial_greens_function_ghf
             self.accumulate = self.accumulate_ghf
-            self.back_propagate_single = afqmcpy.propagation.back_propagate_single_ghf
-            self.construct_propagator_matrix = afqmcpy.propagation.construct_propagator_matrix_ghf
+            self.back_propagate_single = pauxy.propagation.back_propagate_single_ghf
+            self.construct_propagator_matrix = pauxy.propagation.construct_propagator_matrix_ghf
             if self.stable:
                 self.increment_tau = self.increment_tau_ghf_stable
             else:
@@ -562,8 +562,8 @@ class ITCF:
             self.I = numpy.identity(trial.psi.shape[0], dtype=trial.psi.dtype)
             self.initial_greens_function = self.initial_greens_function_uhf
             self.accumulate = self.accumulate_uhf
-            self.back_propagate_single = afqmcpy.propagation.back_propagate_single
-            self.construct_propagator_matrix = afqmcpy.propagation.construct_propagator_matrix
+            self.back_propagate_single = pauxy.propagation.back_propagate_single
+            self.construct_propagator_matrix = pauxy.propagation.construct_propagator_matrix
             if self.stable:
                 self.increment_tau = self.increment_tau_uhf_stable
             else:
@@ -599,9 +599,9 @@ class ITCF:
 
         Parameters
         ----------
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             state object
-        psi_left : list of :class:`afqmcpy.walker.Walker` objects
+        psi_left : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
         On return the spgf estimator array will have been updated.
@@ -645,9 +645,9 @@ class ITCF:
 
         Parameters
         ----------
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             state object
-        psi_left : list of :class:`afqmcpy.walker.Walker` objects
+        psi_left : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers projected to :math:`\tau_{bp}`.
 
         On return the spgf estimator array will have been updated.
@@ -694,10 +694,10 @@ class ITCF:
                 # |psi_L> along the path, so we don't need to remove the
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
-                afqmcpy.propagation.propagate_single(w.phi_init, system, B)
+                pauxy.propagation.propagate_single(w.phi_init, system, B)
                 if ic != 0 and ic % self.nstblz == 0:
-                    (w.phi_init[:,:nup], R) = afqmcpy.utils.reortho(w.phi_init[:,:nup])
-                    (w.phi_init[:,nup:], R) = afqmcpy.utils.reortho(w.phi_init[:,nup:])
+                    (w.phi_init[:,:nup], R) = pauxy.utils.reortho(w.phi_init[:,:nup])
+                    (w.phi_init[:,nup:], R) = pauxy.utils.reortho(w.phi_init[:,nup:])
                 (Ggr_nn, Gls_nn) = self.initial_greens_function(L, w.phi_init,
                                                                 trial, nup,
                                                                 w.weights)
@@ -1101,7 +1101,7 @@ def eproj(estimates, enum):
     ----------
     estimates : numpy.array
         Array containing estimates averaged over all processors.
-    enum : :class:`afqmcpy.estimators.EstimatorEnum` object
+    enum : :class:`pauxy.estimators.EstimatorEnum` object
         Enumerator class outlining indices of estimates array elements.
 
     Returns

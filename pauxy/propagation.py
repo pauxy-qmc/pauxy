@@ -7,7 +7,7 @@ import scipy.linalg
 import math
 import cmath
 import copy
-import afqmcpy.utils
+import pauxy.utils
 
 
 def local_energy_bound(local_energy, mean, threshold):
@@ -78,11 +78,11 @@ def generic_continuous(walker, state):
 
     Parameters
     ----------
-    walker : :class:`afqmcpy.walker.Walker`
+    walker : :class:`pauxy.walker.Walker`
         walker object to be updated. on output we have acted on
         :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
         updates inplace.
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     """
 
@@ -120,11 +120,11 @@ def kinetic_importance_sampling(walker, state):
 
     Parameters
     ----------
-    walker : :class:`afqmcpy.walker.Walker`
+    walker : :class:`pauxy.walker.Walker`
         Walker object to be updated. on output we have acted on
         :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
         appropriately.  updates inplace.
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     """
     self.propagators.kinetic(walker.phi, state)
@@ -150,11 +150,11 @@ def kinetic_real(phi, system, bt2):
 
     Parameters
     ----------
-    walker : :class:`afqmcpy.walker.Walker`
+    walker : :class:`pauxy.walker.Walker`
         Walker object to be updated. on output we have acted on
         :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
         appropriately.  updates inplace.
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     """
     nup = system.nup
@@ -170,11 +170,11 @@ def kinetic_ghf(phi, system, bt2):
 
     Parameters
     ----------
-    walker : :class:`afqmcpy.walker.Walker`
+    walker : :class:`pauxy.walker.Walker`
         Walker object to be updated. on output we have acted on
         :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
         appropriately.  updates inplace.
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     """
     nup = system.nup
@@ -193,7 +193,7 @@ def propagate_potential_auxf(phi, state, field_config):
     ----------
     phi : :class:`numpy.ndarray`
         Walker's slater determinant to be updated.
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         Simulation state.
     field_config : numpy array
         Auxiliary field configurations to apply to walker.
@@ -241,7 +241,7 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
         Full projector matrix.
     """
     VHS = 1j*dt**0.5*numpy.einsum('l,lpq->pq', config, system.chol_vecs)
-    EXP_VHS = afqmcpy.utils.exponentiate_matrix(VHS)
+    EXP_VHS = pauxy.utils.exponentiate_matrix(VHS)
     Bup = BT2[0].dot(EXP_VHS).dot(BT2[0])
     Bdown = BT2[1].dot(EXP_VHS).dot(BT2[1])
 
@@ -281,9 +281,9 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
 
     parameters
     ---------
-    state : :class:`afqmcpy.state.state`
+    state : :class:`pauxy.state.state`
         state object
-    psi_n : list of :class:`afqmcpy.walker.walker` objects
+    psi_n : list of :class:`pauxy.walker.walker` objects
         current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
         output the walker's auxiliary field counter will be set to zero if we
         are not also calculating an itcf.
@@ -294,11 +294,11 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
 
     returns
     -------
-    psi_bp : list of :class:`afqmcpy.walker.walker` objects
+    psi_bp : list of :class:`pauxy.walker.walker` objects
         back propagated list of walkers.
     """
 
-    psi_bp = [afqmcpy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    psi_bp = [pauxy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
@@ -318,9 +318,9 @@ def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
 
     parameters
     ---------
-    state : :class:`afqmcpy.state.state`
+    state : :class:`pauxy.state.state`
         state object
-    psi_n : list of :class:`afqmcpy.walker.walker` objects
+    psi_n : list of :class:`pauxy.walker.walker` objects
         current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
         output the walker's auxiliary field counter will be set to zero if we
         are not also calculating an itcf.
@@ -331,11 +331,11 @@ def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
 
     returns
     -------
-    psi_bp : list of :class:`afqmcpy.walker.walker` objects
+    psi_bp : list of :class:`pauxy.walker.walker` objects
         back propagated list of walkers.
     """
 
-    psi_bp = [afqmcpy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    psi_bp = [pauxy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
@@ -355,9 +355,9 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
 
     parameters
     ---------
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         state object
-    psi_n : list of :class:`afqmcpy.walker.Walker` objects
+    psi_n : list of :class:`pauxy.walker.Walker` objects
         current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
         output the walker's auxiliary field counter will be set to zero if we
         are not also calculating an itcf.
@@ -368,11 +368,11 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
 
     returns
     -------
-    psi_bp : list of :class:`afqmcpy.walker.Walker` objects
+    psi_bp : list of :class:`pauxy.walker.Walker` objects
         back propagated list of walkers.
     """
 
-    psi_bp = [afqmcpy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
+    psi_bp = [pauxy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
                                             wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
@@ -384,7 +384,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
                 psi_bp[iw].phi[idet] = B.dot(psi_bp[iw].phi[idet])
                 if i != 0 and i % nstblz == 0:
                     # implicitly propagating the full GHF wavefunction
-                    (psi_bp[iw].phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
+                    (psi_bp[iw].phi[idet], detR) = pauxy.utils.reortho(psi_i)
                     psi_bp[iw].weights[idet] *= detR.conjugate()
     return psi_bp
 
@@ -396,8 +396,8 @@ def back_propagate_single(phi_in, configs, weights, system, nstblz, BT2, store=F
         phi_in[:,:nup] = B[0].dot(phi_in[:,:nup])
         phi_in[:,nup:] = B[1].dot(phi_in[:,nup:])
         if i != 0 and i % nstblz == 0:
-            (phi_in[:,:nup], R) = afqmcpy.utils.reortho(phi_in[:,:nup])
-            (phi_in[:,nup:], R) = afqmcpy.utils.reortho(phi_in[:,nup:])
+            (phi_in[:,:nup], R) = pauxy.utils.reortho(phi_in[:,:nup])
+            (phi_in[:,nup:], R) = pauxy.utils.reortho(phi_in[:,nup:])
         if store:
             psi_store.append(copy.deepcopy(phi_in))
 
@@ -413,7 +413,7 @@ def back_propagate_single_ghf(phi, configs, weights, system, nstblz, BT2, store=
             phi[idet] = B.dot(phi[idet])
             if i != 0 and i % nstblz == 0:
                 # implicitly propagating the full GHF wavefunction
-                (phi[idet], detR) = afqmcpy.utils.reortho(psi_i)
+                (phi[idet], detR) = pauxy.utils.reortho(psi_i)
                 weights[idet] *= detR.conjugate()
         if store:
             psi_store.append(copy.deepcopy(phi))
@@ -427,7 +427,7 @@ def propagate_single(psi, system, B):
 
     Parameters
     ---------
-    state : :class:`afqmcpy.state.State`
+    state : :class:`pauxy.state.State`
         state object
     psi : :class:`numpy.ndarray`
         Input wavefunction to propagate.
@@ -451,9 +451,9 @@ def kinetic_kspace(psi, system, btk):
     """
     s = system
     # Transform psi to kspace by fft-ing its columns.
-    tup = afqmcpy.utils.fft_wavefunction(psi[:,:s.nup], s.nx, s.ny,
+    tup = pauxy.utils.fft_wavefunction(psi[:,:s.nup], s.nx, s.ny,
                                          s.nup, psi[:,:s.nup].shape)
-    tdown = afqmcpy.utils.fft_wavefunction(psi[:,s.nup:], s.nx, s.ny,
+    tdown = pauxy.utils.fft_wavefunction(psi[:,s.nup:], s.nx, s.ny,
                                            s.ndown, psi[:,s.nup:].shape)
     # Kinetic enery operator is diagonal in momentum space.
     # Note that multiplying by diagonal btk in this way is faster than using
@@ -461,8 +461,8 @@ def kinetic_kspace(psi, system, btk):
     tup = (btk*tup.T).T
     tdown = (btk*tdown.T).T
     # Transform psi to kspace by fft-ing its columns.
-    tup = afqmcpy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
-    tdown = afqmcpy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
+    tup = pauxy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
+    tdown = pauxy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
     if psi.dtype == float:
         psi[:,:s.nup] = tup.astype(float)
         psi[:,s.nup:] = tdown.astype(float)
@@ -533,11 +533,11 @@ class DiscreteHubbard:
 
         Parameters
         ----------
-        walker : :class:`afqmcpy.walker.Walker`
+        walker : :class:`pauxy.walker.Walker`
             Walker object to be updated. on output we have acted on
             :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
             appropriately.  updates inplace.
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             Simulation state.
         """
         self.kinetic(walker.phi, system, self.bt2)
@@ -558,11 +558,11 @@ class DiscreteHubbard:
 
         Parameters
         ----------
-        walker : :class:`afqmcpy.walker.Walker`
+        walker : :class:`pauxy.walker.Walker`
             Walker object to be updated. on output we have acted on
             :math:`|\phi_i\rangle` by :math:`b_V` and updated the weight appropriately.
             updates inplace.
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             Simulation state.
         """
         # Construct random auxilliary field.
@@ -724,11 +724,11 @@ class ContinuousHubbard:
 
         Parameters
         ----------
-        walker : :class:`afqmcpy.walker.Walker`
+        walker : :class:`pauxy.walker.Walker`
             walker object to be updated. on output we have acted on
             :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
             updates inplace.
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             Simulation state.
         """
 
@@ -895,11 +895,11 @@ class GenericContinuous:
 
         Parameters
         ----------
-        walker : :class:`afqmcpy.walker.Walker`
+        walker : :class:`pauxy.walker.Walker`
             walker object to be updated. on output we have acted on
             :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
             updates inplace.
-        state : :class:`afqmcpy.state.State`
+        state : :class:`pauxy.state.State`
             Simulation state.
         """
         # Construct walker modified Green's function.
