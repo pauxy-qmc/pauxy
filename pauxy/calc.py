@@ -118,10 +118,6 @@ def setup_parallel(options, comm=None):
                                           data=numpy.array([json_string],
                                           dtype=object),
                                           dtype=h5py.special_dtype(vlen=str))
-        print ('# Input options:')
-        print (json.dumps(pauxy.utils.serialise(cpmc, verbose=0),
-                          sort_keys=False, indent=4))
-        print('# End of input options.')
         cpmc.estimators.estimators['mixed'].print_key()
         cpmc.estimators.estimators['mixed'].print_header()
 

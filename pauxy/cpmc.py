@@ -100,7 +100,6 @@ class CPMC:
                                                                      self.system,
                                                                      self.trial)
         # Handy to keep original dicts so they can be printed at run time.
-        # self.json_string = self.write_json(model, qmc_opts, estimates)
         if not parallel:
             self.estimators = (
                 pauxy.estimators.Estimators(estimates,
@@ -118,13 +117,9 @@ class CPMC:
             json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
             self.estimators.h5f.create_dataset('metadata',
-                                              data=numpy.array([json_string],
-                                              dtype=object),
-                                              dtype=h5py.special_dtype(vlen=str))
-            print ('# Input options:')
-            print (json.dumps(pauxy.utils.serialise(self, verbose=0),
-                              sort_keys=False, indent=4))
-            print('# End of input options.')
+                                               data=numpy.array([json_string],
+                                               dtype=object),
+                                               dtype=h5py.special_dtype(vlen=str))
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
