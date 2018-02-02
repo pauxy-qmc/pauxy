@@ -2,11 +2,12 @@
 exe = ../bin/afqmcpy
 inputs_args = ('*.json', '')
 vcs = git
-extract_fn = ../tools/analysis analysis.extraction.extract_test_data
+extract_fn = ../tools/analysis analysis.extraction.extract_test_data_hdf5
 ignore_fields = iteration time
+output = estimates.0.h5
 
 [user]
 diff = vimdiff
-benchmark = 085470b e069cca e210540 e1f1607 6fc4bd4 fd045e7 e3d2669 546be5b
+benchmark = 27509a2
 tolerance = (1e-8, 1e-6, None, False)
 
