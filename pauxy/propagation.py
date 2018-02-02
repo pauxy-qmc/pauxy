@@ -892,8 +892,7 @@ class GenericContinuous:
         self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-        # todo : change name
-        if constraint == 'free':
+        if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_phaseless
