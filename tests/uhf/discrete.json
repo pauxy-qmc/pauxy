@@ -16,8 +16,6 @@
         "nwalkers": 30,
         "npop_control": 10,
         "temperature": 0.0,
-        "hubbard_stratonovich": "discrete",
-        "importance_sampling": true,
         "rng_seed": 7
     },
     "trial_wavefunction": {
@@ -25,6 +23,9 @@
         "initial_wavefunction": "trial",
         "ueff": 0.4,
         "ninitial": 100
+    },
+    "propagator": {
+        "hubbard_stratonovich": "discrete"
     },
     "estimates": {
     }

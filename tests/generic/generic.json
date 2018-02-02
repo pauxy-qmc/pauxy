@@ -15,13 +15,15 @@
         "npop_control": 1,
         "nstabilise": 1,
         "temperature": 0.0,
-        "hubbard_stratonovich": "generic_continuous",
-        "expansion_order": 6,
-        "importance_sampling": true,
         "rng_seed": 7
     },
     "trial_wavefunction": {
         "name": "hartree_fock"
+    },
+    "propagator": {
+        "hubbard_stratonovich": "continuous",
+        "expansion_order": 6,
+        "free_projection": false
     },
     "estimates": {
         "back_propagated": {

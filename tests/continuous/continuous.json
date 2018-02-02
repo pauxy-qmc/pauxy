@@ -16,12 +16,13 @@
         "nwalkers": 30,
         "npop_control": 10,
         "temperature": 0.0,
-        "hubbard_stratonovich": "continuous",
-        "importance_sampling": true,
         "rng_seed": 7
     },
     "trial_wavefunction": {
         "name": "free_electron"
+    },
+    "propagator": {
+        "hubbard_stratonovich": "hubbard_continuous"
     },
     "estimates": {}
 }
