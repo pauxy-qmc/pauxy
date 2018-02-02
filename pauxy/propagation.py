@@ -8,11 +8,13 @@ import copy
 import pauxy.utils
 
 
-def get_propagator(qmc, system, trial):
+def get_propagator(options, qmc, system, trial):
     """Wrapper to select propagator class.
 
     Parameters
     ----------
+    options : dict
+        Propagator input options.
     qmc : :class:`pauxy.qmc.QMCOpts` class
         Trial wavefunction input options.
     system : class
@@ -25,12 +27,13 @@ def get_propagator(qmc, system, trial):
     propagator : class or None
         Propagator object.
     """
-    if qmc.hubbard_stratonovich == 'discrete':
-        propagator = DiscreteHubbard(qmc, system, trial)
-    elif qmc.hubbard_stratonovich == "continuous":
-        propagator = ContinuousHubbard(qmc, system, trial)
-    elif qmc.hubbard_stratonovich  == "generic_continuous":
-        propagator = GenericContinuous(qmc, system, trial)
+    hs_type = options.get('hubbard_stratonovich', 'discrete')
+    if hs_type == 'discrete':
+        propagator = DiscreteHubbard(options, qmc, system, trial)
+    elif hs_type == "hubbard_continuous":
+        propagator = ContinuousHubbard(options, qmc, system, trial)
+    elif hs_type == "continuous":
+        propagator = GenericContinuous(options, qmc, system, trial)
     else:
         propagator = None
 
@@ -498,7 +501,7 @@ def kinetic_kspace(psi, system, btk):
 
 class DiscreteHubbard:
 
-    def __init__(self, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial):
 
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
@@ -513,18 +516,17 @@ class DiscreteHubbard:
             self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        hs_type = qmc.hubbard_stratonovich
-        constraint = qmc.constraint
+        self.hs_type = 'discrete_hubbard'
+        self.free_projection = options.get('free_projection', False)
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
-        if constraint == 'free':
+        if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
-        model = system.__class__.__name__
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
@@ -715,15 +717,15 @@ class DiscreteHubbard:
 class ContinuousHubbard:
     '''Base propagator class'''
 
-    def __init__(self, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial):
+        self.hs_type = 'hubbard_continuous'
+        self.free_projection = 'free_projection'
         self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
                                 scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
         self.BT_BP = self.bt2
         self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        hs_type = qmc.hubbard_stratonovich
-        constraint = qmc.constraint
         model = system.__class__.__name__
         self.dt = qmc.dt
         # optimal mean-field shift for the hubbard model
@@ -734,7 +736,7 @@ class ContinuousHubbard:
         self.mf_nsq = system.nbasis * self.mf_shift**2.0
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-        if constraint == 'free':
+        if self.free_projection:
             self.propagate_walker = self.propagate_walker_free_continuous
         else:
             self.propagate_walker = self.propagate_walker_constrained_continuous
@@ -854,7 +856,12 @@ class ContinuousHubbard:
 class GenericContinuous:
     '''Base propagator class'''
 
-    def __init__(self, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial):
+        # Input options
+        self.hs_type = 'continuous'
+        self.free_projection = options.get('free_projection', False)
+        self.exp_nmax = options.get('expansion_order', 6)
+        # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
@@ -868,14 +875,7 @@ class GenericContinuous:
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
         # todo : ?
         self.BT_BP = self.BH1
-        # todo : propagator dict.
-        self.exp_nmax = qmc.exp_nmax
-        # self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
-        # self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        hs_type = qmc.hubbard_stratonovich
-        constraint = qmc.constraint
-        model = system.__class__.__name__
         # Temporary array for matrix exponentiation.
         self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
                                 dtype=trial.psi.dtype)

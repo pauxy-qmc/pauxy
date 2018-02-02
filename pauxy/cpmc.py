@@ -52,7 +52,7 @@ class CPMC:
     json_string : string
         String containing all input options and certain derived options.
     """
-    def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
+    def __init__(self, model, qmc_opts, estimates, trial, propagator, parallel=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 =  pauxy.utils.get_git_revision_hash()
@@ -64,13 +64,15 @@ class CPMC:
         # 2. Calculation attributes.
         self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
         self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
+        cplx = determine_dtype(propagator, self.system)
         # Store input dictionaries for the moment.
         self.trial = (
             pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
-                                                            self.qmc.cplx,
+                                                            cplx,
                                                             parallel)
         )
-        self.propagators = pauxy.propagation.get_propagator(self.qmc,
+        self.propagators = pauxy.propagation.get_propagator(propagator,
+                                                            self.qmc,
                                                             self.system,
                                                             self.trial)
         # Handy to keep original dicts so they can be printed at run time.
@@ -154,7 +156,8 @@ class CPMC:
         self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
-                                                   self.trial, self.psi, 0)
+                                                   self.trial, self.psi, 0,
+                                                   self.propagators.free_projection)
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
@@ -170,9 +173,11 @@ class CPMC:
                 # Add current (propagated) walkers contribution to estimates.
             # calculate estimators
             self.estimators.update(self.system, self.qmc,
-                                   self.trial, self.psi, step)
+                                   self.trial, self.psi, step,
+                                   self.propagators.free_projection)
             if step%self.qmc.nstblz == 0:
-                self.psi.orthogonalise(self.trial, self.qmc.importance_sampling)
+                self.psi.orthogonalise(self.trial,
+                                       self.propagators.free_projection)
             if step%self.qmc.nupdate_shift == 0:
                 # Todo: proj energy function
                 E_T = self.estimators.estimators['mixed'].projected_energy()
@@ -191,3 +196,10 @@ class CPMC:
             print ("# Running time : %.6f seconds"%(time.time()-self.init_time))
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
+
+def determine_dtype(propagator, system):
+    hs_type = propagator.get('hubbard_stratonovich', 'discrete')
+    continuous = 'continuous' in hs_type
+    twist = system.ktwist.all() is None
+
+    return continuous or twist

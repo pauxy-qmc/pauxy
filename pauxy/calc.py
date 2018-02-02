@@ -70,10 +70,11 @@ def setup_parallel(options, comm=None):
     """
     if comm.Get_rank() == 0:
         cpmc = pauxy.cpmc.CPMC(options.get('model'),
-                                  options.get('qmc_options'),
-                                  options.get('estimates'),
-                                  options.get('trial_wavefunction'),
-                                  parallel=True)
+                               options.get('qmc_options'),
+                               options.get('estimates'),
+                               options.get('trial_wavefunction'),
+                               options.get('propagator', {}),
+                               parallel=True)
     else:
         cpmc = None
     cpmc = comm.bcast(cpmc, root=0)
