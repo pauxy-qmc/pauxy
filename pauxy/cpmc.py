@@ -63,26 +63,11 @@ class CPMC:
         self.root = True
         self.nprocs = 1
         self.init_time = time.time()
-        # effective hubbard U for UHF trial wavefunction.
-        if trial['name'] == 'free_electron':
-            self.trial = pauxy.trial_wavefunction.FreeElectron(self.system,
-                                                                 self.qmc.cplx,
-                                                                 trial,
-                                                                 parallel)
-        if trial['name'] == 'UHF':
-            self.trial = pauxy.trial_wavefunction.UHF(self.system,
-                                                        self.qmc.cplx,
-                                                        trial, parallel)
-        elif trial['name'] == 'multi_determinant':
-            self.trial = pauxy.trial_wavefunction.MultiDeterminant(self.system,
-                                                                     self.qmc.cplx,
-                                                                     trial,
-                                                                     parallel)
-        elif trial['name'] == 'hartree_fock':
-            self.trial = pauxy.trial_wavefunction.HartreeFock(self.system,
-                                                                self.qmc.cplx,
-                                                                trial,
-                                                                parallel)
+        self.trial = (
+            pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
+                                                            self.qmc.cplx,
+                                                            parallel)
+        )
         if self.qmc.hubbard_stratonovich == 'discrete':
             self.propagators = pauxy.propagation.DiscreteHubbard(self.qmc,
                                                                    self.system,
