@@ -1,8 +1,8 @@
 import numpy
 import scipy.linalg
 import copy
-import afqmcpy.estimators
-import afqmcpy.trial_wavefunction
+import pauxy.estimators
+import pauxy.trial_wavefunction
 
 class Walkers:
     """Handler group of walkers which make up cpmc wavefunction."""
@@ -53,7 +53,7 @@ class Walker:
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
                                    dtype=trial.psi.dtype)
-            tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
+            tmp = pauxy.trial_wavefunction.FreeElectron(system,
                                      system.ktwist.all() != None, {})
             self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
             self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
@@ -68,7 +68,7 @@ class Walker:
                                 dtype=trial.psi.dtype)
         self.greens_function(trial)
         self.ot = 1.0
-        self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        self.E_L = pauxy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
@@ -89,12 +89,12 @@ class Walker:
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
         nup = self.nup
         self.inv_ovlp[0] = (
-            afqmcpy.utils.sherman_morrison(self.inv_ovlp[0],
+            pauxy.utils.sherman_morrison(self.inv_ovlp[0],
                                            trial.psi[i,:nup].conj(),
                                            vtup)
         )
         self.inv_ovlp[1] = (
-            afqmcpy.utils.sherman_morrison(self.inv_ovlp[1],
+            pauxy.utils.sherman_morrison(self.inv_ovlp[1],
                                            trial.psi[i,nup:].conj(),
                                            vtdown)
         )
@@ -139,7 +139,7 @@ class Walker:
         )
 
     def local_energy(self, system):
-        return afqmcpy.estimators.local_energy(system, self.G)
+        return pauxy.estimators.local_energy(system, self.G)
 
 
 class MultiDetWalker:
@@ -168,8 +168,8 @@ class MultiDetWalker:
         # Contains overlaps of the current walker with the trial wavefunction.
         self.ot = self.calc_otrial(trial)
         self.greens_function(trial, system.nup)
-        self.E_L = afqmcpy.estimators.local_energy(system, self.G)[0].real
-        G2 = afqmcpy.estimators.gab(trial.psi[0][:,:system.nup],
+        self.E_L = pauxy.estimators.local_energy(system, self.G)[0].real
+        G2 = pauxy.estimators.gab(trial.psi[0][:,:system.nup],
                                     trial.psi[0][:,:system.nup])
         self.index = index
         self.nup = system.nup
@@ -243,15 +243,15 @@ class MultiDetWalker:
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
-                afqmcpy.utils.sherman_morrison(self.inv_ovlp[0][ix],
+                pauxy.utils.sherman_morrison(self.inv_ovlp[0][ix],
                                                t[i,:nup].conj(), vtup)
             )
             self.inv_ovlp[1][ix] = (
-                afqmcpy.utils.sherman_morrison(self.inv_ovlp[1][ix],
+                pauxy.utils.sherman_morrison(self.inv_ovlp[1][ix],
                     t[i,nup:].conj(), vtdown)
             )
     def local_energy(self, system):
-        return afqmcpy.estimators.local_energy_multi_det(system,
+        return pauxy.estimators.local_energy_multi_det(system,
                                                          self.Gi,
                                                          self.weights)
 
@@ -268,12 +268,12 @@ class MultiGHFWalker:
         if wfn0 == 'init':
             # Initialise walker with single determinant.
             if trial.initial_wavefunction != 'free_electron':
-                orbs = afqmcpy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
+                orbs = pauxy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
                 self.phi = numpy.zeros(shape=(2*system.nbasis,system.ne),
                                     dtype=trial.psi.dtype)
-                tmp = afqmcpy.trial_wavefunction.FreeElectron(system,
+                tmp = pauxy.trial_wavefunction.FreeElectron(system,
                                          trial.psi.dtype==complex, {})
                 self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
                 self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
@@ -304,7 +304,7 @@ class MultiGHFWalker:
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
             self.greens_function(trial)
-            self.E_L = afqmcpy.estimators.local_energy_ghf(system, self.Gi,
+            self.E_L = pauxy.estimators.local_energy_ghf(system, self.Gi,
                                                            self.weights,
                                                            sum(self.weights))[0].real
         self.nb = system.nbasis
@@ -373,12 +373,12 @@ class MultiGHFWalker:
             )
 
     def local_energy(self, system):
-        return afqmcpy.estimators.local_energy_ghf(system, self.Gi,
+        return pauxy.estimators.local_energy_ghf(system, self.Gi,
                                                    self.weights, self.ot)
     # def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
         # for (ix, t) in enumerate(trial.psi):
             # self.inv_ovlp[ix] = (
-                # afqmcpy.utils.sherman_morrison(self.inv_ovlp[ix],
+                # pauxy.utils.sherman_morrison(self.inv_ovlp[ix],
                                                # t[:,:nup].T[:,i], vtup)
             # )
 

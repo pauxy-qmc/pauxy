@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# AFQMCPY documentation build configuration file, created by
+# PAUXY documentation build configuration file, created by
 # sphinx-quickstart on Tue Nov 14 15:04:33 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -53,7 +53,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'AFQMCPY'
+project = 'PAUXY'
 copyright = '2017, Fionn Malone'
 author = 'Fionn Malone'
 
@@ -122,7 +122,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'AFQMCPYdoc'
+htmlhelp_basename = 'PAUXYdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -149,7 +149,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'AFQMCPY.tex', 'AFQMCPY Documentation',
+    (master_doc, 'PAUXY.tex', 'PAUXY Documentation',
      'Fionn Malone', 'manual'),
 ]
 
@@ -159,7 +159,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'afqmcpy', 'AFQMCPY Documentation',
+    (master_doc, 'pauxy', 'PAUXY Documentation',
      [author], 1)
 ]
 
@@ -170,8 +170,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'AFQMCPY', 'AFQMCPY Documentation',
-     author, 'AFQMCPY', 'One line description of project.',
+    (master_doc, 'PAUXY', 'PAUXY Documentation',
+     author, 'PAUXY', 'One line description of project.',
      'Miscellaneous'),
 ]
 

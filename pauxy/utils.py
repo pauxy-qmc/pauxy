@@ -131,13 +131,13 @@ def get_git_revision_hash():
         git hash with -dirty appended if uncommitted changes.
     """
 
-    src = [s for s in sys.path if 'afqmcpy' in s][-1]
+    src = [s for s in sys.path if 'pauxy' in s][-1]
 
     sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                    cwd=src).strip()
     suffix = subprocess.check_output(['git', 'status',
                                      '--porcelain',
-                                     './afqmcpy'],
+                                     './pauxy'],
                                      cwd=src).strip()
     if suffix:
         return sha1.decode('utf-8') + '-dirty'

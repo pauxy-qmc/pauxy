@@ -14,7 +14,7 @@ def comb(psi, nw):
 
     Parameters
     ----------
-    psi : list of :class:`afqmcpy.walker.Walker` objects
+    psi : list of :class:`pauxy.walker.Walker` objects
         current distribution of walkers, i.e., at the current iteration in the
         simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
     nw : int

@@ -8,9 +8,9 @@ import time
 import copy
 import sys
 import ast
-import afqmcpy.utils
-import afqmcpy.estimators
-import afqmcpy.hubbard
+import pauxy.utils
+import pauxy.estimators
+import pauxy.hubbard
 
 
 class FreeElectron:
@@ -21,8 +21,8 @@ class FreeElectron:
         self.type = "free_electron"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'free_electron')
-        (self.eigs_up, self.eigv_up) = afqmcpy.utils.diagonalise_sorted(system.T[0])
-        (self.eigs_dn, self.eigv_dn) = afqmcpy.utils.diagonalise_sorted(system.T[1])
+        (self.eigs_up, self.eigv_up) = pauxy.utils.diagonalise_sorted(system.T[0])
+        (self.eigs_dn, self.eigv_dn) = pauxy.utils.diagonalise_sorted(system.T[1])
         self.reference = trial.get('reference', None)
         if cplx:
             self.trial_type = complex
@@ -60,12 +60,12 @@ class FreeElectron:
             else:
                 self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
                 self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
-        gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+        gup = pauxy.estimators.gab(self.psi[:,:system.nup],
                                      self.psi[:,:system.nup]).T
-        gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
+        gdown = pauxy.estimators.gab(self.psi[:,system.nup:],
                                        self.psi[:,system.nup:]).T
         self.G = numpy.array([gup,gdown])
-        self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        self.etrial = pauxy.estimators.local_energy(system, self.G)[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.ndets = 1
@@ -98,7 +98,7 @@ class UHF:
 
     Parameters
     ----------
-    system : :class:`afqmcpy.Hubbard` object
+    system : :class:`pauxy.Hubbard` object
         System parameters.
     cplx : bool
         True if the trial wavefunction etc is complex.
@@ -143,10 +143,10 @@ class UHF:
         if self.error and not parallel:
             warnings.warn('Error in constructing trial wavefunction. Exiting')
             sys.exit()
-        Gup = afqmcpy.estimators.gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
-        Gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
+        Gup = pauxy.estimators.gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
+        Gdown = pauxy.estimators.gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
         self.G = numpy.array([Gup, Gdown])
-        self.etrial = afqmcpy.estimators.local_energy(system, self.G)[0].real
+        self.etrial = pauxy.estimators.local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
@@ -170,9 +170,9 @@ class UHF:
                     self.diagonalise_mean_field(system, ueff, niup, nidown)
                 )
                 # Construct Green's function to compute the energy.
-                Gup = afqmcpy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
-                Gdown = afqmcpy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
-                enew = afqmcpy.estimators.local_energy(system,
+                Gup = pauxy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
+                Gdown = pauxy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
+                enew = pauxy.estimators.local_energy(system,
                                                        numpy.array([Gup,Gdown]))[0].real
                 if self.verbose:
                     print ("# %d %f %f"%(it, enew, eold))
@@ -229,7 +229,7 @@ class UHF:
     def random_starting_point(self, nbasis):
         random = numpy.random.random((nbasis, nbasis))
         random = 0.5*(random + random.T)
-        (energies, eigv) = afqmcpy.utils.diagonalise_sorted(random)
+        (energies, eigv) = pauxy.utils.diagonalise_sorted(random)
         return (energies, eigv)
 
     def density(self, wfn):
@@ -255,8 +255,8 @@ class UHF:
         # mean field Hamiltonians.
         HMFU = system.T[0] + numpy.diag(ueff*nidown)
         HMFD = system.T[1] + numpy.diag(ueff*niup)
-        (e_up, ev_up) = afqmcpy.utils.diagonalise_sorted(HMFU)
-        (e_down, ev_down) = afqmcpy.utils.diagonalise_sorted(HMFD)
+        (e_up, ev_up) = pauxy.utils.diagonalise_sorted(HMFU)
+        (e_down, ev_down) = pauxy.utils.diagonalise_sorted(HMFD)
         # Construct new wavefunction given new density.
         self.trial[:,:system.nup] = ev_up[:,:system.nup]
         self.trial[:,system.nup:] = ev_down[:,:system.ndown]
@@ -291,7 +291,7 @@ class MultiDeterminant:
                                    dtype=self.trial_type)
         # For debugging purposes.
         if self.type == 'free_electron':
-            (self.eigs, self.eigv) = afqmcpy.utils.diagonalise_sorted(system.T[0])
+            (self.eigs, self.eigv) = pauxy.utils.diagonalise_sorted(system.T[0])
             psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
             psi[:,:system.nup] = self.eigv[:,:system.nup]
             psi[:,system.nup:] = self.eigv[:,:system.ndown]
@@ -316,11 +316,11 @@ class MultiDeterminant:
                                                           order='F')
                 start = end
                 end += skip
-            self.G = afqmcpy.estimators.gab_multi_det_full(self.psi, self.psi,
+            self.G = pauxy.estimators.gab_multi_det_full(self.psi, self.psi,
                                                   self.coeffs, self.coeffs,
                                                   self.GAB, self.weights)
             self.trial = (
-                afqmcpy.estimators.local_energy_ghf_full(system, self.GAB,
+                pauxy.estimators.local_energy_ghf_full(system, self.GAB,
                                                          self.weights)[0].real
             )
         self.error = False
@@ -351,12 +351,12 @@ class HartreeFock:
         occdown = numpy.identity(system.ndown)
         self.psi[:system.nup,:system.nup] = occup
         self.psi[:system.ndown,system.nup:] = occdown
-        gup = afqmcpy.estimators.gab(self.psi[:,:system.nup],
+        gup = pauxy.estimators.gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
-        gdown = afqmcpy.estimators.gab(self.psi[:,system.nup:],
+        gdown = pauxy.estimators.gab(self.psi[:,system.nup:],
                 self.psi[:,system.nup:])
         self.G = numpy.array([gup,gdown])
-        (self.energy, self.e1b, self.e2b) = afqmcpy.estimators.local_energy_generic(system, self.G)
+        (self.energy, self.e1b, self.e2b) = pauxy.estimators.local_energy_generic(system, self.G)
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
