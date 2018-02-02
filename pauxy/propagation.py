@@ -719,7 +719,7 @@ class ContinuousHubbard:
 
     def __init__(self, options, qmc, system, trial):
         self.hs_type = 'hubbard_continuous'
-        self.free_projection = 'free_projection'
+        self.free_projection = options.get('free_projection', False)
         self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
                                 scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
         self.BT_BP = self.bt2
