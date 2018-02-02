@@ -8,16 +8,15 @@ speed.
 
 Features
 --------
-Pauxy can currently do:
+Pauxy can currently:
 
-- estimation of ground state properties of model systems (Hubbard model or a generic
-  system via an FCIDUMP).
-- phaseless, constrained path and free projection AFQMC. 
+- estimate ground state properties of model systems (Hubbard models and generic
+  systems defined by (real) FCIDUMPs).
+- phaseless, constrained path and free projection AFQMC.
 - calculate expectation values and correlation functions using back propagation.
 - calculate imaginary time correlation functions.
 - control the sign problem using a variety of trial wavefunctions including free-electron,
   UHF and GHF, all in single- or multi-determinant form.
-
 Installation
 ------------
 
