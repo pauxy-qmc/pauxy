@@ -53,9 +53,7 @@ class CPMC:
         String containing all input options and certain derived options.
     """
     def __init__(self, model, qmc_opts, estimates, trial, parallel=False):
-        self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
-        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
-        # Store input dictionaries for the moment.
+        # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 =  pauxy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
@@ -63,6 +61,10 @@ class CPMC:
         self.root = True
         self.nprocs = 1
         self.init_time = time.time()
+        # 2. Calculation attributes.
+        self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
+        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
+        # Store input dictionaries for the moment.
         self.trial = (
             pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
                                                             self.qmc.cplx,
