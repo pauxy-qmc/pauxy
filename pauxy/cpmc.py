@@ -64,11 +64,11 @@ class CPMC:
         # 2. Calculation attributes.
         self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
         self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
-        cplx = determine_dtype(propagator, self.system)
+        self.cplx = determine_dtype(propagator, self.system)
         # Store input dictionaries for the moment.
         self.trial = (
             pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
-                                                            cplx,
+                                                            self.cplx,
                                                             parallel)
         )
         self.propagators = pauxy.propagation.get_propagator(propagator,
@@ -200,6 +200,6 @@ class CPMC:
 def determine_dtype(propagator, system):
     hs_type = propagator.get('hubbard_stratonovich', 'discrete')
     continuous = 'continuous' in hs_type
-    twist = system.ktwist.all() is None
+    twist = system.ktwist.all() is not None
 
     return continuous or twist
