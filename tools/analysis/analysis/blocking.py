@@ -122,7 +122,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         if mixed_rdm is not None:
             mrdm, mrdm_err = average_rdm(mixed_rdm[start:nzero])
             if cfunc:
-                (m_hole, m_hole_err, m_spin, m_spin_err, m_gf) = average_correlation(mixed_rdm, start)
+                (m_hole, m_hole_err, m_spin, m_spin_err, m_gf) = average_correlation(mixed_rdm[start:nzero])
         if bp is not None:
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
@@ -142,7 +142,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
                 rdm, rdm_err = average_rdm(bp_rdm[skip:nzero])
                 bp_rdms.append(numpy.array([rdm,rdm_err]))
                 if cfunc:
-                    (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm)
+                    (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm[skip:nzero])
                 # free projection / weight restoration..
         if itcf is not None:
             itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
