@@ -7,7 +7,7 @@ import pandas as pd
 import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
-import pauxy.analysis.blocking
+from pauxy.analysis.blocking import analyse_estimates
 import glob
 
 
@@ -33,8 +33,11 @@ start_iteration : int
 
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--start', type=int, dest='start_time',
-                        default=None, help='Imaginary time after which we '
+                        default=0, help='Imaginary time after which we '
                         'gather statistics.  Default: 0')
+    parser.add_argument('-l', '--multi-sim', action='store_true',
+                        dest='multi_sim', default=False,
+                        help='Average over multiple simulations')
     parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
                         default=False, help='Extract correlation functions.')
     parser.add_argument('-f', nargs='+', dest='filenames',
@@ -69,10 +72,9 @@ None.
         files = glob.glob(options.filenames[0])
     else:
         files = options.filenames
-    (bp_av, norm) = analysis.blocking.analyse_estimates(files,
-                                                start_time=options.start_time,
-                                                multi_sim=options.loops,
-                                                cfunc=options.cfunc)
+    (bp_av, norm) = analyse_estimates(files, start_time=options.start_time,
+                                      multi_sim=options.multi_sim,
+                                      cfunc=options.cfunc)
 if __name__ == '__main__':
 
     main(sys.argv[1:])
