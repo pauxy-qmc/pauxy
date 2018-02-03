@@ -12,6 +12,7 @@ import pauxy.utils
 import pauxy.estimators
 import pauxy.hubbard
 
+
 def get_trial_wavefunction(options, system, cplx, parallel):
     """Wrapper to select trial wavefunction class.
 
@@ -44,6 +45,7 @@ def get_trial_wavefunction(options, system, cplx, parallel):
 
     return trial
 
+
 class FreeElectron:
 
     def __init__(self, system, cplx, trial, parallel=False):
@@ -68,8 +70,8 @@ class FreeElectron:
                 self.psi = numpy.load(self.read_in)
                 self.psi = self.psi.astype(self.trial_type)
             except OSError:
-                print ("# Trial wavefunction is not in native numpy form.")
-                print ("# Assuming Fortran GHF format.")
+                print("# Trial wavefunction is not in native numpy form.")
+                print("# Assuming Fortran GHF format.")
                 orbitals = read_fortran_complex_numbers(self.read_in)
                 tmp = orbitals.reshape((2*system.nbasis, system.ne),
                                        order='F')
@@ -81,28 +83,29 @@ class FreeElectron:
                         ups.append(i)
                     else:
                         downs.append(i)
-                self.psi[:,:system.nup] = tmp[:system.nbasis,ups]
-                self.psi[:,system.nup:] = tmp[system.nbasis:,downs]
+                self.psi[:, :system.nup] = tmp[:system.nbasis, ups]
+                self.psi[:, system.nup:] = tmp[system.nbasis:, downs]
         else:
-            # I think this is slightly cleaner than using two separate matrices.
+            # I think this is slightly cleaner than using two separate
+            # matrices.
             if self.reference is not None:
-                self.psi[:,:system.nup] = self.eigv_up[:,self.reference]
-                self.psi[:,system.nup:] = self.eigv_dn[:,self.reference]
+                self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
+                self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
             else:
-                self.psi[:,:system.nup] = self.eigv_up[:,:system.nup]
-                self.psi[:,system.nup:] = self.eigv_dn[:,:system.ndown]
-        gup = pauxy.estimators.gab(self.psi[:,:system.nup],
-                                     self.psi[:,:system.nup]).T
-        gdown = pauxy.estimators.gab(self.psi[:,system.nup:],
-                                       self.psi[:,system.nup:]).T
-        self.G = numpy.array([gup,gdown])
+                self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
+                self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+        gup = pauxy.estimators.gab(self.psi[:, :system.nup],
+                                   self.psi[:, :system.nup]).T
+        gdown = pauxy.estimators.gab(self.psi[:, system.nup:],
+                                     self.psi[:, system.nup:]).T
+        self.G = numpy.array([gup, gdown])
         self.etrial = pauxy.estimators.local_energy(system, self.G)[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.ndets = 1
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
-        self.eigs = numpy.append(self.eigs_up,self.eigs_dn)
+        self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
 
@@ -147,7 +150,7 @@ class UHF:
     """
 
     def __init__(self, system, cplx, trial, parallel=False):
-        print ("# Constructing trial wavefunction")
+        print("# Constructing trial wavefunction")
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
@@ -168,8 +171,8 @@ class UHF:
         self.coeffs = 1.0
         self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
-                self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
-                                  self.nconv, self.alpha, self.deps)
+            self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
+                              self.nconv, self.alpha, self.deps)
         )
         if self.error and not parallel:
             warnings.warn('Error in constructing trial wavefunction. Exiting')
@@ -181,11 +184,12 @@ class UHF:
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit, nit_max, alpha, deps=1e-8):
+    def find_uhf_wfn(self, system, cplx, ueff, ninit,
+                     nit_max, alpha, deps=1e-8):
         emin = 0
         uold = system.U
         system.U = ueff
-        minima= [] # Local minima
+        minima = []  # Local minima
         nup = system.nup
         # Search over different random starting points.
         for attempt in range(0, ninit):
@@ -204,9 +208,9 @@ class UHF:
                 Gup = pauxy.estimators.gab(self.trial[:,:nup], self.trial[:,:nup]).T
                 Gdown = pauxy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
                 enew = pauxy.estimators.local_energy(system,
-                                                       numpy.array([Gup,Gdown]))[0].real
+                                                     numpy.array([Gup, Gdown]))[0].real
                 if self.verbose:
-                    print ("# %d %f %f"%(it, enew, eold))
+                    print("# %d %f %f" % (it, enew, eold))
                 sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
                                           nidown_old, it, deps, self.verbose)
                 if sc:
@@ -215,7 +219,7 @@ class UHF:
                         minima.append(enew)
                         psi_accept = copy.deepcopy(self.trial)
                         e_accept = numpy.append(e_up, e_down)
-                    elif all(numpy.array(minima)-enew > deps):
+                    elif all(numpy.array(minima) - enew > deps):
                         minima.append(enew)
                         psi_accept = copy.deepcopy(self.trial)
                         e_accept = numpy.append(e_up, e_down)
@@ -228,18 +232,17 @@ class UHF:
                     niup = mixup
                     nidown = mixdown
                     eold = enew
-            print ("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
-                    " energy found is: {: 8f}".format(attempt, it, eold))
+            print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
+                  " energy found is: {: 8f}".format(attempt, it, eold))
 
         system.U = uold
-        print ("# Minimum energy found: {: 8f}".format(min(minima)))
+        print("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
             warnings.warn("Warning: No UHF wavefunction found."
-                          "Delta E: %f"%(enew-emin))
+                          "Delta E: %f" % (enew - emin))
             return (trial, numpy.append(e_up, e_down), None, True, None)
-
 
     def initialise(self, nbasis, nup, ndown, cplx):
         (e_up, ev_up) = self.random_starting_point(nbasis)
@@ -259,7 +262,7 @@ class UHF:
 
     def random_starting_point(self, nbasis):
         random = numpy.random.random((nbasis, nbasis))
-        random = 0.5*(random + random.T)
+        random = 0.5 * (random + random.T)
         (energies, eigv) = pauxy.utils.diagonalise_sorted(random)
         return (energies, eigv)
 
@@ -348,17 +351,18 @@ class MultiDeterminant:
                 start = end
                 end += skip
             self.G = pauxy.estimators.gab_multi_det_full(self.psi, self.psi,
-                                                  self.coeffs, self.coeffs,
-                                                  self.GAB, self.weights)
+                                                         self.coeffs, self.coeffs,
+                                                         self.GAB, self.weights)
             self.trial = (
                 pauxy.estimators.local_energy_ghf_full(system, self.GAB,
-                                                         self.weights)[0].real
+                                                       self.weights)[0].real
             )
         self.error = False
         self.initialisation_time = time.time() - init_time
 
+
 def read_fortran_complex_numbers(filename):
-    with open (filename) as f:
+    with open(filename) as f:
         content = f.readlines()
     # Converting fortran complex numbers to python. ugh
     # Be verbose for clarity.
@@ -366,6 +370,7 @@ def read_fortran_complex_numbers(filename):
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
     return numpy.array(orbs)
+
 
 class HartreeFock:
 

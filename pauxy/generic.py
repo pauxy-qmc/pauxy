@@ -3,6 +3,7 @@ import numpy
 import scipy.linalg
 import pauxy.utils
 
+
 class Generic:
     """Generic system class (integrals read from fcidump)
 
@@ -42,6 +43,7 @@ class Generic:
     nfields : int
         Number of field configurations per walker for back propagation.
     """
+
     def __init__(self, inputs, dt):
         self.name = "Generic"
         self.nup = inputs['nup']
@@ -80,7 +82,7 @@ class Generic:
                 elif 'NELEC' in i:
                     nelec = int(i.split('=')[1])
                     if nelec != self.ne:
-                        print ("Number of electrons is inconsistent")
+                        print("Number of electrons is inconsistent")
                         sys.exit()
         h1e = numpy.zeros((self.nbasis, self.nbasis))
         h2e = numpy.zeros((self.nbasis, self.nbasis, self.nbasis, self.nbasis))
@@ -92,7 +94,7 @@ class Generic:
             # Note (ik|jl) = <ij|kl>.
             # Assuming real integrals
             integral = float(s[0])
-            i,k,j,l = [int(x) for x in s[1:]]
+            i, k, j, l = [int(x) for x in s[1:]]
             if i == j == k == l == 0:
                 ecore = integral
             elif j == 0 and l == 0:
@@ -111,7 +113,7 @@ class Generic:
                 h2e[i-1,l-1,k-1,j-1] = integral
                 h2e[j-1,k-1,l-1,i-1] = integral
 
-        return (numpy.array([h1e,h1e]), h2e, ecore)
+        return (numpy.array([h1e, h1e]), h2e, ecore)
 
     def construct_decomposition(self):
         """Decompose two-electron integrals.
@@ -125,14 +127,14 @@ class Generic:
         """
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
-        h1e_mod = self.T[0] - 0.5*numpy.einsum('ijjl->il', self.h2e)
+        h1e_mod = self.T[0] - 0.5 * numpy.einsum('ijjl->il', self.h2e)
         h1e_mod = numpy.array([h1e_mod, h1e_mod])
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
-        V = numpy.transpose(self.h2e, (0,2,1,3)).reshape(self.nbasis**2,
-                                                         self.nbasis**2)
-        if (numpy.sum(V-V.T) != 0):
-            print ("Warning: Supermatrix is not symmetric")
+        V = numpy.transpose(self.h2e, (0, 2, 1, 3)).reshape(self.nbasis**2,
+                                                            self.nbasis**2)
+        if (numpy.sum(V - V.T) != 0):
+            print("Warning: Supermatrix is not symmetric")
         chol_vecs = pauxy.utils.modified_cholesky(V, self.threshold,
-                                                    verbose=self.verbose)
+                                                  verbose=self.verbose)
         return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
                                             self.nbasis)))

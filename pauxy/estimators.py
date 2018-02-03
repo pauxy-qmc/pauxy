@@ -17,6 +17,7 @@ import h5py
 import pauxy.utils
 import pauxy.propagation
 
+
 class Estimators:
     """Container for qmc estimates of observables.
 
@@ -69,11 +70,11 @@ class Estimators:
             h5f_name = estimates.get('filename', None)
             if h5f_name is None:
                 overwrite = estimates.get('overwrite', True)
-                h5f_name =  'estimates.%s.h5'%index
+                h5f_name = 'estimates.%s.h5' % index
                 while os.path.isfile(h5f_name) and not overwrite:
                     index = int(h5f_name.split('.')[1])
                     index = index + 1
-                    h5f_name =  'estimates.%s.h5'%index
+                    h5f_name = 'estimates.%s.h5' % index
             self.h5f = h5py.File(h5f_name, 'w')
         else:
             self.h5f = None
@@ -135,15 +136,17 @@ class EstimatorEnum:
 
     python's support for enums doesn't help as it indexes from 1.
     """
+
     def __init__(self):
         # Exception for alignment of equal sign.
         self.weight = 0
         self.enumer = 1
         self.edenom = 2
-        self.eproj  = 3
-        self.ekin   = 4
-        self.epot   = 5
-        self.time   = 6
+        self.eproj = 3
+        self.ekin = 4
+        self.epot = 5
+        self.time = 6
+
 
 class Mixed:
     """Container for calculating mixed estimators.
@@ -157,10 +160,10 @@ class Mixed:
                        'EKin', 'EPot', 'time']
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
-        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=dtype)
+        self.estimates = numpy.zeros(self.nreg + self.G.size, dtype=dtype)
         self.names = EstimatorEnum()
         self.estimates[self.names.time] = time.time()
-        self.global_estimates = numpy.zeros(self.nreg+self.G.size,
+        self.global_estimates = numpy.zeros(self.nreg + self.G.size,
                                             dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -175,15 +178,17 @@ class Mixed:
         if root:
             energies = h5f.create_group('mixed_estimates')
             energies.create_dataset('headers',
-                                    data=numpy.array(self.header[1:], dtype=object),
+                                    data=numpy.array(
+                                        self.header[1:], dtype=object),
                                     dtype=h5py.special_dtype(vlen=str))
             self.output = H5EstimatorHelper(energies, 'energies',
-                                            (self.nmeasure+1, self.nreg),
+                                            (self.nmeasure + 1, self.nreg),
                                             dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
-                                                  (self.nmeasure+1,)+self.G.shape,
-                                                  dtype)
+                                                   (self.nmeasure + 1,) +
+                                                   self.G.shape,
+                                                   dtype)
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update regular estimates for walker w.
@@ -268,7 +273,7 @@ class Mixed:
             header = header.encode('utf-8')
         print(header)
         for (k, v) in self.key.items():
-            s = '# %s : %s'%(k, v) + eol
+            s = '# %s : %s' % (k, v) + eol
             if encode:
                 s = s.encode('utf-8')
             print(s)
@@ -297,12 +302,13 @@ class Mixed:
     def projected_energy(self):
         numerator = self.estimates[self.names.enumer]
         denominator = self.estimates[self.names.edenom]
-        return (numerator/denominator).real
+        return (numerator / denominator).real
 
     def zero(self):
         self.estimates[:] = 0
         self.global_estimates[:] = 0
         self.estimates[self.names.time] = time.time()
+
 
 class BackPropagation:
     """Container for performing back propagation.
@@ -342,8 +348,11 @@ class BackPropagation:
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
-        self.estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
-        self.global_estimates = numpy.zeros(self.nreg+self.G.size, dtype=trial.G.dtype)
+        self.estimates = numpy.zeros(
+            self.nreg + self.G.size,
+            dtype=trial.G.dtype)
+        self.global_estimates = numpy.zeros(
+            self.nreg + self.G.size, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.restore_weights = bp.get('restore_weights', None)
@@ -394,7 +403,7 @@ class BackPropagation:
         psi_bp : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
-        if step%self.nmax != 0:
+        if step % self.nmax != 0:
             return
         psi_bp = self.back_propagate(system, psi.walkers, trial,
                                      self.nstblz, self.BT2, qmc.dt)
@@ -430,11 +439,11 @@ class BackPropagation:
         psi_bp : list of :class:`pauxy.walker.Walker` objects
             backpropagated walkers at time :math:`\tau_{bp}`.
         """
-        if step%self.nmax != 0:
+        if step % self.nmax != 0:
             return
         psi_bp = pauxy.propagation.back_propagate_ghf(system, psi.walkers, trial,
-                                                        self.nstblz, self.BT2,
-                                                        self.dt)
+                                                      self.nstblz, self.BT2,
+                                                      self.dt)
         denominator = sum(wnm.weight for wnm in psi.walkers)
         nup = system.nup
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
@@ -462,7 +471,7 @@ class BackPropagation:
         return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
-        if step != 0 and step%self.nmax == 0:
+        if step != 0 and step % self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
             if comm.Get_rank() == 0:
                 self.output.push(self.global_estimates[:self.nreg]/(nprocs))
@@ -746,7 +755,7 @@ class ITCF:
         return Ggr, Gls
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
-        if step !=0 and step%self.nprop_tot == 0:
+        if step != 0 and step % self.nprop_tot == 0:
             comm.Reduce(self.spgf, self.spgf_global, op=MPI.SUM)
             if comm.Get_rank() == 0:
                 self.to_file(self.rspace_unit, self.spgf_global/nprocs)
@@ -755,7 +764,7 @@ class ITCF:
                     # FFT the real space Green's function.
                     # Todo : could just use numpy.fft.fft....
                     # spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', self.P,
-                                          # spgf, self.P.conj().T) / M
+                    # spgf, self.P.conj().T) / M
                     spgf_k = numpy.fft.fft2(self.spgf_global)
                     if self.spgf.dtype == complex:
                         self.to_file(self.kspace_unit, spgf_k/nprocs)
@@ -810,10 +819,12 @@ def local_energy_hubbard(system, G):
     (E_L(phi), T, V): tuple
         Local, kinetic and potential energies of given walker phi.
     """
-    ke = numpy.sum(system.T[0]*G[0] + system.T[1]*G[1])
-    pe = sum(system.U*G[0][i][i]*G[1][i][i] for i in range(0, system.nbasis))
+    ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
+    pe = sum(system.U * G[0][i][i] * G[1][i][i]
+             for i in range(0, system.nbasis))
 
     return (ke + pe, ke, pe)
+
 
 def local_energy_ghf(system, Gi, weights, denom):
     """Calculate local energy of GHF walker for the Hubbard model.
@@ -940,6 +951,7 @@ def gab(A, B):
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
 
+
 def gab_mod(A, B):
     r"""One-particle Green's function.
 
@@ -974,6 +986,7 @@ def gab_mod(A, B):
     inv_O = scipy.linalg.inv((A.conj().T).dot(B))
     GAB = B.dot(inv_O)
     return GAB
+
 
 def gab_multi_det(A, B, coeffs):
     r"""One-particle Green's function.
@@ -1017,6 +1030,7 @@ def gab_multi_det(A, B, coeffs):
     denom = numpy.dot(coeffs, overlaps)
     return numpy.einsum('i,ijk,i->jk', coeffs, Gi, overlaps) / denom
 
+
 def construct_multi_ghf_gab_back_prop(A, B, coeffs, bp_weights):
     M = A.shape[1] // 2
     Gi, overlaps = construct_multi_ghf_gab(A, B, coeffs)
@@ -1027,8 +1041,9 @@ def construct_multi_ghf_gab_back_prop(A, B, coeffs, bp_weights):
 
     return G
 
+
 def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
-    M = B.shape[0]//2
+    M = B.shape[0] // 2
     if Gi is None:
         Gi = numpy.zeros(shape=(A.shape[0],A.shape[1],A.shape[1]), dtype=A.dtype)
     if overlaps is None:
@@ -1040,6 +1055,7 @@ def construct_multi_ghf_gab(A, B, coeffs, Gi=None, overlaps=None):
         Gi[ix] = (B.dot(inv_O.dot(Aix.conj().T)))
         overlaps[ix] = 1.0 / scipy.linalg.det(inv_O)
     return (Gi, overlaps)
+
 
 def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
     r"""One-particle Green's function.

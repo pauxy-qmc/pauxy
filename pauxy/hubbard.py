@@ -6,6 +6,7 @@ import math
 import scipy.linalg
 import pauxy.kpoints
 
+
 class Hubbard:
     """Hubbard model system class.
 
@@ -51,8 +52,8 @@ class Hubbard:
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
         (self.kpoints, self.kc, self.eks) = pauxy.kpoints.kpoints(self.t,
-                                                                    self.nx,
-                                                                    self.ny)
+                                                                  self.nx,
+                                                                  self.ny)
         self.pinning = inputs.get('pinning_fields', False)
         if self.pinning:
             self.T = kinetic_pinning(self.t, self.nbasis, self.nx, self.ny)
@@ -112,9 +113,10 @@ class Hubbard:
             fmt = "{: 10.8e} {:>3d} {:>3d} {:>3d} {:>3d}\n"
             header += fmt.format(0, 0, 0, 0, 0)
         if to_string:
-            print (header)
+            print(header)
         else:
             return header
+
 
 def transform_matrix(nbasis, kpoints, kc, nx, ny):
     U = numpy.zeros(shape=(nbasis, nbasis), dtype=complex)
@@ -258,7 +260,7 @@ def decode_basis(nx, ny, i):
     else:
         return numpy.array([i%nx, i//nx])
 
-def encode_basis(i,j,nx):
+def encode_basis(i, j, nx):
     """Encode 2d index to one dimensional index.
 
     See decode basis for layout.

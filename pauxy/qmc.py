@@ -1,6 +1,7 @@
 import numpy
 import copy
 
+
 class QMCOpts:
     r"""Input options and certain constants / parameters derived from them.
 

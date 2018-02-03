@@ -39,6 +39,7 @@ def get_propagator(options, qmc, system, trial):
 
     return propagator
 
+
 def local_energy_bound(local_energy, mean, threshold):
     """Try to suppress rare population events by imposing local energy bound.
 
@@ -66,8 +67,9 @@ threshold : float
 
     return local_energy
 
+
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
-    nbasis = trial.psi.shape[1]//2
+    nbasis = trial.psi.shape[1] // 2
     for (idx, G) in enumerate(walker.Gi):
         guu = G[i,i]
         gdd = G[i+nbasis,i+nbasis]
@@ -125,16 +127,17 @@ def generic_continuous(walker, state):
     # Construct HS potential, V_HS = sigma dot U
     V_HS = numpy.einsum('ij,j->i', sigma, gamma)
     # Reshape so we can apply to MxN Slater determinant.
-    V_HS = numpy.reshape(V_HS, (M,M))
-    for n in range(1, nmax_exp+1):
-        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V)/math.factorial(n)
+    V_HS = numpy.reshape(V_HS, (M, M))
+    for n in range(1, nmax_exp + 1):
+        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V) / math.factorial(n)
     walker.phi[:nup] = numpy.dot(EXP_V, walker.phi[:nup])
     walker.phi[nup:] = numpy.dot(EXP_V, walker.phi[:nup])
 
     # Update inverse and green's function
     walker.inverse_overlap(trial)
     walker.greens_function(trial)
-    # Perform importance sampling, phaseless and real local energy approximation and update
+    # Perform importance sampling, phaseless and real local energy
+    # approximation and update
     E_L = state.estimators.local_energy(system, walker.G)[0].real
     ot_new = walker.calc_otrial(trial)
     dtheta = cmath.phase(ot_new/walker.ot)
@@ -256,6 +259,7 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     else:
         return numpy.array([Bup, Bdown])
 
+
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
@@ -302,6 +306,7 @@ def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
         return B.conj().T
     else:
         return B
+
 
 def back_propagate(system, psi, trial, nstblz, BT2, dt):
     r"""Perform back propagation for UHF style wavefunction.
@@ -364,18 +369,25 @@ def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
         back propagated list of walkers.
     """
 
-    psi_bp = [pauxy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
+    psi_bp = [
+        pauxy.walker.Walker(
+            1,
+            system,
+            trial,
+            w) for w in range(
+            len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
             B = construct_propagator_matrix_generic(system, BT2,
-                                            c, dt, conjt=True)
-            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
-            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
+                                                    c, dt, conjt=True)
+            psi_bp[iw].phi[:, :nup] = B[0].dot(psi_bp[iw].phi[:, :nup])
+            psi_bp[iw].phi[:, nup:] = B[1].dot(psi_bp[iw].phi[:, nup:])
             if i != 0 and i % nstblz == 0:
                 psi_bp[iw].reortho(trial)
     return psi_bp
+
 
 def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     r"""perform backpropagation.
@@ -402,7 +414,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     """
 
     psi_bp = [pauxy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
-                                            wfn0='GHF') for w in range(len(psi))]
+                                          wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
@@ -417,7 +429,9 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
                     psi_bp[iw].weights[idet] *= detR.conjugate()
     return psi_bp
 
-def back_propagate_single(phi_in, configs, weights, system, nstblz, BT2, store=False):
+
+def back_propagate_single(phi_in, configs, weights,
+                          system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
@@ -432,7 +446,9 @@ def back_propagate_single(phi_in, configs, weights, system, nstblz, BT2, store=F
 
     return psi_store
 
-def back_propagate_single_ghf(phi, configs, weights, system, nstblz, BT2, store=False):
+
+def back_propagate_single_ghf(
+        phi, configs, weights, system, nstblz, BT2, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
@@ -448,6 +464,7 @@ def back_propagate_single_ghf(phi, configs, weights, system, nstblz, BT2, store=
             psi_store.append(copy.deepcopy(phi))
 
     return psi_store
+
 
 def propagate_single(psi, system, B):
     r"""Perform backpropagation for single configuration.
@@ -960,7 +977,7 @@ class GenericContinuous:
             self.Temp = VHS.dot(self.Temp) / n
             phi += self.Temp
         if debug:
-            print ("DIFF: {: 10.8e}".format((c2-phi).sum()/c2.size))
+            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
 
     def propagate_walker_free(self, walker, system, trial):
         r"""Free projection for continuous HS transformation.

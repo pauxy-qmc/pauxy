@@ -15,6 +15,7 @@ except ImportError:
 import pauxy.cpmc
 import pauxy.utils
 
+
 def init(input_file, verbose=True):
     if parallel:
         comm = MPI.COMM_WORLD
@@ -54,6 +55,7 @@ def init(input_file, verbose=True):
     numpy.random.seed(seed)
 
     return (options, comm)
+
 
 def setup_parallel(options, comm=None):
     """Wrapper routine for initialising simulation
@@ -101,24 +103,24 @@ def setup_parallel(options, comm=None):
     # TODO: Return cpmc and psi and run from another routine.
     cpmc.estimators = (
         pauxy.estimators.Estimators(options.get('estimates'),
-                                      cpmc.root,
-                                      cpmc.qmc,
-                                      cpmc.system,
-                                      cpmc.trial,
-                                      cpmc.propagators.BT_BP)
+                                    cpmc.root,
+                                    cpmc.qmc,
+                                    cpmc.system,
+                                    cpmc.trial,
+                                    cpmc.propagators.BT_BP)
     )
     cpmc.psi = pauxy.walker.Walkers(cpmc.system, cpmc.trial,
-                                      cpmc.qmc.nwalkers,
-                                      cpmc.estimators.nprop_tot,
-                                      cpmc.estimators.nbp)
+                                    cpmc.qmc.nwalkers,
+                                    cpmc.estimators.nprop_tot,
+                                    cpmc.estimators.nbp)
     if comm.Get_rank() == 0:
         json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
         json_string = json.dumps(pauxy.utils.serialise(cpmc, verbose=1),
                                  sort_keys=False, indent=4)
         cpmc.estimators.h5f.create_dataset('metadata',
-                                          data=numpy.array([json_string],
-                                          dtype=object),
-                                          dtype=h5py.special_dtype(vlen=str))
+                                           data=numpy.array([json_string],
+                                                            dtype=object),
+                                           dtype=h5py.special_dtype(vlen=str))
         cpmc.estimators.estimators['mixed'].print_key()
         cpmc.estimators.estimators['mixed'].print_header()
 

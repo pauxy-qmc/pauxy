@@ -5,6 +5,7 @@ import pauxy.cpmc
 import pauxy.calc
 import json
 
+
 def main(input_file):
     (options, comm) = pauxy.calc.init(input_file)
     if comm is not None:
@@ -17,6 +18,7 @@ def main(input_file):
                                options.get('propagator', {}))
     cpmc.run(comm=comm)
     cpmc.finalise()
+
 
 if __name__ == '__main__':
     main(sys.argv[1])

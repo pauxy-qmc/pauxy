@@ -1,6 +1,7 @@
 import pauxy.hubbard
 import pauxy.generic
 
+
 def get_system(model, dt):
     """Wrapper to select system class
 

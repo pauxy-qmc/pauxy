@@ -15,6 +15,7 @@ import pauxy.utils
 import pauxy.pop_control
 import pauxy.systems
 
+
 class CPMC:
     """CPMC driver.
 
@@ -52,10 +53,12 @@ class CPMC:
     json_string : string
         String containing all input options and certain derived options.
     """
-    def __init__(self, model, qmc_opts, estimates, trial, propagator, parallel=False):
+
+    def __init__(self, model, qmc_opts, estimates,
+                 trial, propagator, parallel=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
-        self.sha1 =  pauxy.utils.get_git_revision_hash()
+        self.sha1 = pauxy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified on initialisation.
         self.root = True
@@ -94,7 +97,7 @@ class CPMC:
                                      sort_keys=False, indent=4)
             self.estimators.h5f.create_dataset('metadata',
                                                data=numpy.array([json_string],
-                                               dtype=object),
+                                                                dtype=object),
                                                dtype=h5py.special_dtype(vlen=str))
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
@@ -114,7 +117,7 @@ class CPMC:
         """
 
         # Combine some metadata in dicts so it can be easily printed/read.
-        calc_info =  {
+        calc_info = {
             'sha1': pauxy.utils.get_git_revision_hash(),
             'Run time': time.asctime(),
             'uuid': self.uuid
@@ -161,41 +164,44 @@ class CPMC:
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
-        for step in range(1, self.qmc.nsteps+1):
+        for step in range(1, self.qmc.nsteps + 1):
             for w in self.psi.walkers:
                 # Want to possibly allow for walkers with negative / complex weights
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
                 if abs(w.weight) > 1e-8:
-                    self.propagators.propagate_walker(w, self.system, self.trial)
+                    self.propagators.propagate_walker(
+                        w, self.system, self.trial)
                 # Constant factors
-                w.weight = w.weight*exp(self.qmc.dt*E_T.real)
+                w.weight = w.weight * exp(self.qmc.dt * E_T.real)
                 # Add current (propagated) walkers contribution to estimates.
             # calculate estimators
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
-            if step%self.qmc.nstblz == 0:
+            if step % self.qmc.nstblz == 0:
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
-            if step%self.qmc.nupdate_shift == 0:
+            if step % self.qmc.nupdate_shift == 0:
                 # Todo: proj energy function
                 E_T = self.estimators.estimators['mixed'].projected_energy()
-            if step%self.qmc.nmeasure == 0:
+            if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
             if step < self.qmc.nequilibrate:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
-            if step%self.qmc.npop_control == 0:
+            if step % self.qmc.npop_control == 0:
                 pauxy.pop_control.comb(self.psi, self.qmc.nwalkers)
 
     def finalise(self):
         if self.root:
-            print ("# End Time: %s"%time.asctime())
-            print ("# Running time : %.6f seconds"%(time.time()-self.init_time))
+            print("# End Time: %s" % time.asctime())
+            print("# Running time : %.6f seconds" %
+                  (time.time() - self.init_time))
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
+
 
 def determine_dtype(propagator, system):
     hs_type = propagator.get('hubbard_stratonovich', 'discrete')

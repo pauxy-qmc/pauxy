@@ -6,6 +6,7 @@ import sys
 import subprocess
 import types
 
+
 def sherman_morrison(Ainv, u, vt):
     r"""Sherman-Morrison update of a matrix inverse:
 
@@ -55,15 +56,18 @@ def diagonalise_sorted(H):
     (eigs, eigv) = scipy.linalg.eigh(H)
     idx = eigs.argsort()
     eigs = eigs[idx]
-    eigv = eigv[:,idx]
+    eigv = eigv[:, idx]
 
     return (eigs, eigv)
+
 
 def format_fixed_width_strings(strings):
     return ' '.join('{:>17}'.format(s) for s in strings)
 
+
 def format_fixed_width_floats(floats):
     return ' '.join('{: .10e}'.format(f) for f in floats)
+
 
 def regularise_matrix_inverse(A, cutoff=1e-10):
     """Perform inverse of singular matrix.
@@ -83,8 +87,8 @@ def regularise_matrix_inverse(A, cutoff=1e-10):
     B : class:`numpy.array`
         Regularised matrix inverse (pseudo-inverse).
     """
-    (U,D,V) = scipy.linalg.svd(A)
-    D = D / (cutoff**2.0+D**2.0)
+    (U, D, V) = scipy.linalg.svd(A)
+    D = D / (cutoff**2.0 + D**2.0)
     return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
 
 
@@ -119,6 +123,7 @@ def reortho(A):
     detR = scipy.linalg.det(signs.dot(R))
     return detR
 
+
 def get_git_revision_hash():
     """ Return git revision.
 
@@ -136,18 +141,20 @@ def get_git_revision_hash():
     sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                    cwd=src).strip()
     suffix = subprocess.check_output(['git', 'status',
-                                     '--porcelain',
-                                     './pauxy'],
+                                      '--porcelain',
+                                      './pauxy'],
                                      cwd=src).strip()
     if suffix:
         return sha1.decode('utf-8') + '-dirty'
     else:
         return sha1.decode('utf-8')
 
+
 def is_h5file(obj):
     t = str(type(obj))
     cond = 'h5py' in t
     return cond
+
 
 def is_class(obj):
     cond = (hasattr(obj, '__class__') and
@@ -156,6 +163,7 @@ def is_class(obj):
             and not is_h5file(obj))
 
     return cond
+
 
 def serialise(obj, verbose=0):
 
@@ -186,13 +194,13 @@ def serialise(obj, verbose=0):
         elif isinstance(v, numpy.ndarray):
             if verbose == 2:
                 if v.dtype == complex:
-                    obj_dict[k] = [v.real.tolist(),v.imag.tolist()]
+                    obj_dict[k] = [v.real.tolist(), v.imag.tolist()]
                 else:
                     obj_dict[k] = v.tolist(),
             elif verbose == 1:
                 if len(v.shape) == 1:
                     if v.dtype == complex:
-                        obj_dict[k] = [[v.real.tolist(),v.imag.tolist()]]
+                        obj_dict[k] = [[v.real.tolist(), v.imag.tolist()]]
                     else:
                         obj_dict[k] = v.tolist(),
         elif k == 'store':
@@ -211,6 +219,7 @@ def serialise(obj, verbose=0):
             pass
 
     return obj_dict
+
 
 def reortho(M):
     (Q, R) = scipy.linalg.qr(M, mode='economic')

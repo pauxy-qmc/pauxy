@@ -4,12 +4,13 @@ import copy
 import pauxy.estimators
 import pauxy.trial_wavefunction
 
+
 class Walkers:
     """Handler group of walkers which make up cpmc wavefunction."""
 
     def __init__(self, system, trial, nwalkers, nprop_tot, nbp):
         if trial.name == 'multi_determinant':
-            if trial.type== 'GHF':
+            if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
                                 for w in range(nwalkers)]
             else:
@@ -204,61 +205,72 @@ class MultiDetWalker:
     def update_overlap(self, probs, xi, coeffs):
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
-        self.ots = numpy.einsum('ji,ij->ij',self.R[:,xi,:],self.ots)
-        self.ot = sum(coeffs*self.ots[0,:]*self.ots[1,:])
+        self.ots = numpy.einsum('ji,ij->ij', self.R[:, xi, :], self.ots)
+        self.ot = sum(coeffs * self.ots[0, :] * self.ots[1, :])
 
     def reortho(self, trial):
         nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
-        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
-        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        (self.phi[:, :nup], Rup) = scipy.linalg.qr(
+            self.phi[:, :nup], mode='economic')
+        (self.phi[:, nup:], Rdown) = scipy.linalg.qr(
+            self.phi[:, nup:], mode='economic')
         # Enforce a positive diagonal for the overlap.
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
         signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
-        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        self.phi[:, :nup] = self.phi[:, :nup].dot(signs_up)
+        self.phi[:, nup:] = self.phi[:, nup:].dot(signs_down)
         # Todo: R is upper triangular.
         detR_up = scipy.linalg.det(signs_up.dot(Rup))
         detR_down = scipy.linalg.det(signs_down.dot(Rdown))
         self.ots[0] = self.ots[0] / detR_up
         self.ots[1] = self.ots[1] / detR_down
-        self.ot = self.ot / (detR_up*detR_down)
+        self.ot = self.ot / (detR_up * detR_down)
 
     def greens_function(self, trial):
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
-            self.Gi[ix,0,:,:] = (
-                (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
+            self.Gi[ix, 0, :, :] = (
+                (self.phi[:, :nup].dot(self.inv_ovlp[0][ix]).dot(
+                    t[:, :nup].conj().T)).T
             )
-            self.Gi[ix,1,:,:] = (
-                (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
+            self.Gi[ix, 1, :, :] = (
+                (self.phi[:, nup:].dot(self.inv_ovlp[1][ix]).dot(
+                    t[:, nup:].conj().T)).T
             )
-        denom = numpy.einsum('j,ij->i',trial.coeffs, self.ots)
-        self.G = numpy.einsum('i,ijkl,ji->jkl', trial.coeffs, self.Gi, self.ots)
-        self.G[0] = self.G[0]/denom[0]
-        self.G[1] = self.G[1]/denom[1]
+        denom = numpy.einsum('j,ij->i', trial.coeffs, self.ots)
+        self.G = numpy.einsum(
+            'i,ijkl,ji->jkl',
+            trial.coeffs,
+            self.Gi,
+            self.ots)
+        self.G[0] = self.G[0] / denom[0]
+        self.G[1] = self.G[1] / denom[1]
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
                 pauxy.utils.sherman_morrison(self.inv_ovlp[0][ix],
-                                               t[i,:nup].conj(), vtup)
+                                             t[i, :nup].conj(), vtup)
             )
             self.inv_ovlp[1][ix] = (
                 pauxy.utils.sherman_morrison(self.inv_ovlp[1][ix],
-                    t[i,nup:].conj(), vtdown)
+                                             t[i, nup:].conj(), vtdown)
             )
+
     def local_energy(self, system):
         return pauxy.estimators.local_energy_multi_det(system,
-                                                         self.Gi,
-                                                         self.weights)
+                                                       self.Gi,
+                                                       self.weights)
+
 
 class MultiGHFWalker:
     '''Essentially just some wrappers around Walker class.'''
 
-    def __init__(self, nw, system, trial, index=0, weights='zeros', wfn0='init'):
+    def __init__(self, nw, system, trial, index=0,
+                 weights='zeros', wfn0='init'):
         self.weight = nw
         # Initialise to a particular free electron slater determinant rather
         # than GHF. Can actually initialise to GHF by passing single GHF with
@@ -282,7 +294,7 @@ class MultiGHFWalker:
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
         self.inv_ovlp = numpy.zeros(shape=(trial.ndets, system.ne, system.ne),
-                                 dtype=self.phi.dtype)
+                                    dtype=self.phi.dtype)
         if weights == 'zeros':
             self.weights = numpy.zeros(trial.ndets, dtype=trial.psi.dtype)
         else:
@@ -290,23 +302,23 @@ class MultiGHFWalker:
         if wfn0 != 'GHF':
             self.inverse_overlap(trial.psi)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = numpy.zeros(shape=(trial.ndets, 2*system.nbasis,
-                           2*system.nbasis), dtype=self.phi.dtype)
+        self.Gi = numpy.zeros(shape=(trial.ndets, 2 * system.nbasis,
+                                     2 * system.nbasis), dtype=self.phi.dtype)
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
         self.R = numpy.zeros(shape=(trial.ndets, 2), dtype=self.phi.dtype)
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = numpy.zeros(shape=(2*system.nbasis, 2*system.nbasis),
-                          dtype=self.phi.dtype)
+        self.G = numpy.zeros(shape=(2 * system.nbasis, 2 * system.nbasis),
+                             dtype=self.phi.dtype)
         self.ots = numpy.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
             self.greens_function(trial)
             self.E_L = pauxy.estimators.local_energy_ghf(system, self.Gi,
-                                                           self.weights,
-                                                           sum(self.weights))[0].real
+                                                         self.weights,
+                                                         sum(self.weights))[0].real
         self.nb = system.nbasis
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
@@ -397,13 +409,13 @@ class FieldConfig:
         self.nblock = nprop_tot // nbp
 
     def push(self, config):
-        self.configs[self.step,self.ib] = config
+        self.configs[self.step, self.ib] = config
         self.ib = (self.ib + 1) % self.nfields
         # Completed field configuration for this walker?
         if self.ib == 0:
             self.step = (self.step + 1) % self.nprop_tot
             # Completed this block of back propagation steps?
-            if self.step%self.nbp == 0:
+            if self.step % self.nbp == 0:
                 self.block = (self.block + 1) % self.nblock
 
     def push_full(self, config, cfac, wfac):
@@ -413,13 +425,13 @@ class FieldConfig:
         # Completed field configuration for this walker?
         self.step = (self.step + 1) % self.nprop_tot
         # Completed this block of back propagation steps?
-        if self.step%self.nbp == 0:
+        if self.step % self.nbp == 0:
             self.block = (self.block + 1) % self.nblock
 
     def get_block(self):
         """Return a view to current block for back propagation."""
-        start = self.block*self.nbp
-        end = (self.block+1)*self.nbp
+        start = self.block * self.nbp
+        end = (self.block + 1) * self.nbp
         return (self.configs[start:end], self.cos_fac[start:end],
                 self.weight_fac[start:end])
 

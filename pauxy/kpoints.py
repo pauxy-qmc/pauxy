@@ -1,6 +1,7 @@
 from math import cos, pi
 import numpy
 
+
 def kpoints(t, nx, ny):
     """ Construct kpoints for system.
 
@@ -41,6 +42,7 @@ def kpoints(t, nx, ny):
     eigs = numpy.array(eigs)
     kp = numpy.array(kp)
     return (kp, kfac, eigs)
+
 
 def ek(t, k, kc, ny):
     """ Calculate single-particle energies.

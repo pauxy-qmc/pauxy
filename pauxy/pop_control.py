@@ -2,6 +2,7 @@
 import numpy
 import copy
 
+
 def comb(psi, nw):
     """ Apply the comb method of population control / branching.
 
