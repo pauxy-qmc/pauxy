@@ -12,7 +12,8 @@ PAUXY can currently:
 
 - estimate ground state properties of model systems (Hubbard models and generic
   systems defined by (real) FCIDUMPs).
-- phaseless, constrained path and free projection AFQMC.
+- perform phaseless, constrained path and free projection AFQMC using open ended random
+  walks.
 - calculate expectation values and correlation functions using back propagation.
 - calculate imaginary time correlation functions.
 - control the sign problem using a variety of trial wavefunctions including free-electron,
