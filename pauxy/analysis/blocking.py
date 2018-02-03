@@ -4,7 +4,7 @@
 import pandas as pd
 import numpy
 import scipy.stats
-import analysis.extraction
+import pauxy.analysis.extraction
 import matplotlib.pyplot as pl
 import h5py
 import json
@@ -97,7 +97,7 @@ def analyse_itcf(itcf):
     return (means, errs)
 
 def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
-    data = analysis.extraction.extract_hdf5_data_sets(files)
+    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
     bp_data = []
     bp_rdms = []
     norm_data = []
