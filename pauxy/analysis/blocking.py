@@ -4,7 +4,7 @@
 import pandas as pd
 import numpy
 import scipy.stats
-import analysis.extraction
+import pauxy.analysis.extraction
 import matplotlib.pyplot as pl
 import h5py
 import json

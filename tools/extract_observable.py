@@ -8,8 +8,10 @@ import pandas as pd
 import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
-import analysis.blocking
 import matplotlib.pyplot as plt
+from pauxy.analysis.blocking import extract_analysed_itcf
+from pauxy.analysis.blocking import analysed_energies
+from pauxy.analysis.blocking import correlation_function
 
 
 def parse_args(args):
@@ -75,22 +77,20 @@ None.
     options = parse_args(args)
     print_index = False
     if options.obs == 'itcf':
-        results = analysis.extraction.extract_analysed_itcf(options.filename[0],
-                                                            options.elements,
-                                                            options.spin,
-                                                            options.type,
-                                                            options.kspace)
+        results = extract_analysed_itcf(options.filename[0],
+                                        options.elements,
+                                        options.spin,
+                                        options.type,
+                                        options.kspace)
     elif options.obs == 'energy':
-        results = analysis.extraction.analysed_energies(options.filename[0],
-                                                        'mixed')
+        results = analysed_energies(options.filename[0], 'mixed')
     elif options.obs == 'back_propagated':
-        results = analysis.extraction.analysed_energies(options.filename[0],
-                                                        'back_propagated')
+        results = analysed_energies(options.filename[0], 'back_propagated')
     elif 'correlation' in options.obs:
         ctype = options.obs.replace('_correlation', '')
-        results = analysis.extraction.correlation_function(options.filename[0],
-                                                           ctype,
-                                                           options.elements)
+        results = correlation_function(options.filename[0],
+                                       ctype,
+                                       options.elements)
         print_index = True
     else:
         results = None
