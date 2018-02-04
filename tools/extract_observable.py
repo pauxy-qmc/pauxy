@@ -77,11 +77,8 @@ None.
     options = parse_args(args)
     print_index = False
     if options.obs == 'itcf':
-        results = extract_analysed_itcf(options.filename[0],
-                                        options.elements,
-                                        options.spin,
-                                        options.type,
-                                        options.kspace)
+        results = analysed_itcf(options.filename[0], options.elements,
+                                options.spin, options.type, options.kspace)
     elif options.obs == 'energy':
         results = analysed_energies(options.filename[0], 'mixed')
     elif options.obs == 'back_propagated':
