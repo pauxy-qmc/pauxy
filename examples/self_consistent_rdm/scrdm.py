@@ -7,8 +7,7 @@ import json
 import copy
 from mpi4py import MPI
 import matplotlib.pyplot as pl
-import afqmcpy.cpmc
-import analysis.extraction
+import pauxy.cpmc
 
 def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
     # 1. Generate psi
@@ -16,20 +15,21 @@ def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
     estimate_opts = options.get('estimates')
     estimate_opts['filename'] = data
     if index != 0:
-        estimators = afqmcpy.estimators.Estimators(estimate_opts,
-                                                   cpmc.root,
-                                                   cpmc.qmc,
-                                                   cpmc.system,
-                                                   cpmc.trial,
-                                                   cpmc.propagators.BT_BP)
+        estimators = pauxy.estimators.Estimators(estimate_opts,
+                                                 cpmc.root,
+                                                 cpmc.qmc,
+                                                 cpmc.system,
+                                                 cpmc.trial,
+                                                 cpmc.propagators.BT_BP)
         cpmc.estimators = estimators
-        json_string = json.dumps(afqmcpy.utils.serialise(cpmc, verbose=1),
+        json_string = json.dumps(pauxy.utils.serialise(cpmc, verbose=1),
                                  sort_keys=False, indent=4)
-        cpmc.estimators.h5f.create_dataset('metadata',
-                                           data=numpy.array([json_string],
-                                           dtype=object),
-                                           dtype=h5py.special_dtype(vlen=str))
-    psi0 = afqmcpy.walker.Walkers(cpmc.system, cpmc.trial,
+        if cpmc.root:
+            cpmc.estimators.h5f.create_dataset('metadata',
+                                               data=numpy.array([json_string],
+                                               dtype=object),
+                                               dtype=h5py.special_dtype(vlen=str))
+    psi0 = pauxy.walker.Walkers(cpmc.system, cpmc.trial,
                                   cpmc.qmc.nwalkers,
                                   cpmc.estimators.nprop_tot,
                                   cpmc.estimators.nbp)
@@ -40,9 +40,9 @@ def generate_qmc_rdm(cpmc, options, comm, rdm_delta, index=0):
         est = h5py.File(data, 'r')
         rdm_data = est['back_propagated_estimates/single_particle_greens_function'][:]
         start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
-        rdm, err = analysis.blocking.average_rdm(rdm_data[start:])
+        rdm, err = pauxy.analysis.blocking.average_rdm(rdm_data[start:])
         est.close()
-        bp_av, norm_av = analysis.blocking.analyse_estimates([data], start_time=4)
+        bp_av, norm_av = pauxy.analysis.blocking.analyse_estimates([data], start_time=4)
         # check quality.
         mean_err = err.diagonal().mean()
         print ("# Mean error in CPMC RDM: %f"%mean_err)
@@ -66,7 +66,7 @@ def find_uopt(rdm, system, trial, mmin, mmax, index=0, dtype=numpy.float64):
     ueff = numpy.linspace(mmin, mmax, 200)
     cost = numpy.zeros(len(ueff))
     psis = numpy.zeros((len(ueff), system.nbasis, system.ne), dtype=dtype)
-    uhf = afqmcpy.trial_wavefunction.UHF(system, system.ktwist.all() is not None, trial)
+    uhf = pauxy.trial_wavefunction.UHF(system, system.ktwist.all() is not None, trial)
     for (i, u) in enumerate(ueff):
         (niup, nidown, e_up, e_down) = uhf.diagonalise_mean_field(system, u,
                                                                   rdm[0].diagonal(),
@@ -96,11 +96,11 @@ nprocs = comm.Get_size()
 start = time.time()
 input_file = sys.argv[1]
 
-(options, comm) = afqmcpy.calc.init(input_file)
+(options, comm) = pauxy.calc.init(input_file)
 if comm is not None:
-    cpmc = afqmcpy.calc.setup_parallel(options, comm)
+    cpmc = pauxy.calc.setup_parallel(options, comm)
 else:
-    cpmc = afqmcpy.cpmc.CPMC(options.get('model'),
+    cpmc = pauxy.cpmc.CPMC(options.get('model'),
                              options.get('qmc_options'),
                              options.get('estimates'),
                              options.get('trial_wavefunction'))
@@ -134,7 +134,7 @@ if rank == 0:
     est = h5py.File('estimates.0.h5', 'r')
     rdm_data = est['back_propagated_estimates/single_particle_greens_function'][:]
     start = int(4.0/(cpmc.estimators.nbp*cpmc.qmc.dt))
-    rdm, err = analysis.blocking.average_rdm(rdm_data[start:])
+    rdm, err = pauxy.analysis.blocking.average_rdm(rdm_data[start:])
     est.close()
     (uopt[0], psi_opt) = find_uopt(rdm, system, uhf_input, 0.01, 10, index=0,
                                    dtype=cpmc.psi.walkers[0].phi.dtype)
