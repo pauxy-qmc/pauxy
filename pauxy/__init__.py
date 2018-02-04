@@ -10,3 +10,4 @@ import pauxy.propagation
 import pauxy.kpoints
 import pauxy.utils
 import pauxy.systems
+import pauxy.analysis
