@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-'''Simple analysis of PAUXY QMC output files.'''
+'''Simple analysis of PAUXY QMC output files.
+
+By default data will be aggregated into a single output file with analysed_
+prefixed to input filename.
+'''
 import argparse
 import os
 import sys
@@ -37,7 +41,8 @@ start_iteration : int
                         'gather statistics.  Default: 0')
     parser.add_argument('-l', '--multi-sim', action='store_true',
                         dest='multi_sim', default=False,
-                        help='Average over multiple simulations')
+                        help='Average over multiple simulations. By default '
+                        'an attempt is made to group results by features.')
     parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
                         default=False, help='Extract correlation functions.')
     parser.add_argument('-f', nargs='+', dest='filenames',
@@ -48,8 +53,6 @@ start_iteration : int
     if not options.filenames:
         parser.print_help()
         sys.exit(1)
-
-    # options.filenames = [[fname] for fname in options.filenames]
 
     return options
 
