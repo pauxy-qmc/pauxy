@@ -548,7 +548,7 @@ class ITCF:
         self.spgf_global = numpy.zeros(shape=self.spgf.shape,
                                        dtype=trial.G.dtype)
         if trial.type == "GHF":
-            self.I = numpy.identity(trial.psi.shape[1], dtype=trial.psi.dtype) 
+            self.I = numpy.identity(trial.psi.shape[1], dtype=trial.psi.dtype)
             self.initial_greens_function = self.initial_greens_function_ghf
             self.accumulate = self.accumulate_ghf
             self.back_propagate_single = pauxy.propagation.back_propagate_single_ghf
