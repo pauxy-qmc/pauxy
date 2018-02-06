@@ -53,14 +53,15 @@ def extract_test_data_hdf5(filename):
     (md, data, bp, itcf, kitcf, mrdm, bprdm) = extract_hdf5(filename)
     if (bp is not None):
         data = bp
-    elif mrdm is not None:
-        data = mrdm
-    elif bprdm is not None:
-        data = pmrdm
-    elif itcf is not None:
-        data = pd.DataFrame(itcf.reshape(itcf.shape[0], -1))
-        if kitcf is not None:
-            data.append(kitcf.reshape(kitcf.shape[0], -1))
+    if mrdm is not None:
+        mrdm = mrdm[abs(mrdm) > 1e-10].flatten()
+        data = pd.DataFrame({'G', mrdm})
+    if bprdm is not None:
+        bprdm = bprdm[abs(bprdm) > 1e-10].flatten()
+        data = pd.DataFrame({'G': bprdm})
+    if itcf is not None:
+        itcf = itcf[abs(itcf) > 1e-10].flatten()
+        data = pd.DataFrame(itcf)
     return data.apply(numpy.real)[::8].to_dict(orient='list')
 
 def analysed_itcf(filename, elements, spin, order, kspace):
