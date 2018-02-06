@@ -745,8 +745,8 @@ class ITCF:
     def increment_tau_uhf_stable(self, Ggr, Gls, B, Gnn_gr, Gnn_ls):
         Ggr[0] = (B[0].dot(Gnn_gr[0])).dot(Ggr[0])
         Ggr[1] = (B[1].dot(Gnn_gr[1])).dot(Ggr[1])
-        Gls[0] = (Gnn_ls[0].dot(scipy.linalg.inv(B[0]))).dot(Gls[0])
-        Gls[1] = (Gnn_ls[1].dot(scipy.linalg.inv(B[1]))).dot(Gls[1])
+        Gls[0] = Gls[0].dot(Gnn_ls[0].dot(scipy.linalg.inv(B[0])))
+        Gls[1] = Gls[0].dot(Gnn_ls[1].dot(scipy.linalg.inv(B[1])))
         return Ggr, Gls
 
     def increment_tau_ghf_stable(self, Ggr, Gls, B, Gnn_gr, Gnn_ls):
