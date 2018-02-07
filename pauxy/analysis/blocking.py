@@ -154,7 +154,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
             itcfk_data.append(itcfk[skip:nzero])
         mds.append(json.dumps(m))
 
-    base = files[0]
+    base = files[0].split('/')[-1]
     outfile = 'analysed_' + base
     store = h5py.File(outfile, 'w')
     store.create_dataset('metadata', data=numpy.array(mds, dtype=object),
