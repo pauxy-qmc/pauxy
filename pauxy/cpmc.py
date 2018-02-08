@@ -12,7 +12,6 @@ import pauxy.qmc
 import pauxy.walker
 import pauxy.estimators
 import pauxy.utils
-import pauxy.pop_control
 import pauxy.systems
 
 
@@ -192,7 +191,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
-                pauxy.pop_control.comb(self.psi, self.qmc.nwalkers)
+                self.psi.pop_control()
 
     def finalise(self):
         if self.root:
