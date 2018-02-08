@@ -182,7 +182,6 @@ class CPMC:
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
             if step % self.qmc.nupdate_shift == 0:
-                # Todo: proj energy function
                 E_T = self.estimators.estimators['mixed'].projected_energy()
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
