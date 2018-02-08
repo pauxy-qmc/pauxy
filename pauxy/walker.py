@@ -28,6 +28,10 @@ class Walkers:
             dtype = complex
         else:
             dtype = int
+        if self.pcontrol == 'comb':
+            self.pop_control = self.comb
+        else:
+            self.pop_control = self.branching
         self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
         self.calculate_total_weight()
         self.calculate_nwalkers()
@@ -59,6 +63,48 @@ class Walkers:
     def copy_init_wfn(self):
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
+
+    def comb(self):
+        """ Apply the comb method of population control / branching.
+
+        See Booth & Gubernatis PRE 80, 046704 (2009).
+
+        .. warning::
+            This algorithm is biased and not necessarily correct.
+
+        Todo : implement consistent algorithm.
+
+        Parameters
+        ----------
+        psi : list of :class:`pauxy.walker.Walker` objects
+            current distribution of walkers, i.e., at the current iteration in
+            the simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
+        nw : int
+            Number of walkers on current processor.
+        """
+        # Need make a copy to since the elements in psi are only references to
+        # walker objects in memory. We don't want future changes in a given
+        # element of psi having unintended consequences.
+        new_psi = copy.deepcopy(self.walkers)
+        weights = [w.weight for w in self.walkers]
+        parent_ix = numpy.arange(len(self.walkers))
+        total_weight = sum(weights)
+        cprobs = numpy.cumsum(weights)
+
+        r = numpy.random.random()
+        comb = [(i+r) * (total_weight/self.nw) for i in range(self.nw)]
+        for (ic, c) in enumerate(comb):
+            for (iw, w) in enumerate(cprobs):
+                if c < w:
+                    parent_ix[ic] = iw
+                    break
+
+        # Copy back new information
+        for (i,p) in enumerate(parent_ix):
+            # Todo: look at what we actually need to copy.
+            if i != p:
+                self.walkers[i] = copy.deepcopy(new_psi.walkers[p])
+            self.walkers[i].weight = 1.0
 
 class Walker:
 
