@@ -29,6 +29,14 @@ class Walkers:
         else:
             dtype = int
         self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
+        self.calculate_total_weight()
+        self.calculate_nwalkers()
+
+    def calculate_total_weight(self):
+        self.total_weight = sum(w.weight for w in self.walkers if w.alive)
+
+    def calculate_number_of_walkers(self):
+        self.nw = sum(w.alive for w in self.walkers)
 
     def orthogonalise(self, trial, free_projection):
         for w in self.walkers:
