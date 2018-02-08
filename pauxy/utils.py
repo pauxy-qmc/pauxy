@@ -136,7 +136,7 @@ def get_git_revision_hash():
         git hash with -dirty appended if uncommitted changes.
     """
 
-    src = [s for s in sys.path if 'pauxy' in s][-1]
+    src = [s for s in sys.path if 'pauxy' in s][0]
 
     sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                    cwd=src).strip()
