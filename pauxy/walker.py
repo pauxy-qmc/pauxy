@@ -40,7 +40,7 @@ class Walkers:
     def calculate_total_weight(self):
         self.total_weight = sum(w.weight for w in self.walkers if w.alive)
 
-    def calculate_number_of_walkers(self):
+    def calculate_nwalkers(self):
         self.nw = sum(w.alive for w in self.walkers)
 
     def orthogonalise(self, trial, free_projection):
