@@ -110,7 +110,7 @@ class Walkers:
         for (i,p) in enumerate(parent_ix):
             # Todo: look at what we actually need to copy.
             if i != p:
-                self.walkers[i] = copy.deepcopy(new_psi.walkers[p])
+                self.walkers[i] = copy.deepcopy(new_psi[p])
             self.walkers[i].weight = 1.0
 
     def branching(self):
