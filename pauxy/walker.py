@@ -3,6 +3,7 @@ import scipy.linalg
 import copy
 import pauxy.estimators
 import pauxy.trial_wavefunction
+import math
 
 
 class Walkers:
