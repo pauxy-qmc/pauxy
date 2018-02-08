@@ -168,7 +168,7 @@ class CPMC:
                 # Want to possibly allow for walkers with negative / complex weights
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
-                if abs(w.weight) > 1e-8:
+                if abs(w.weight) > 1e-8 and w.alive:
                     self.propagators.propagate_walker(
                         w, self.system, self.trial)
                 # Constant factors
