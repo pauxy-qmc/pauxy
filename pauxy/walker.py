@@ -65,6 +65,12 @@ class Walkers:
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
 
+    def rescale_weights(self):
+        self.calculate_total_weight()
+        factor = self.total_weight / self.max_nwalkers
+        for w in self.walkers:
+            w.weight /= factor
+
     def comb(self):
         """ Apply the comb method of population control / branching.
 
