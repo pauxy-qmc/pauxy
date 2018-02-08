@@ -75,6 +75,7 @@ def setup_parallel(options, comm=None):
                                options.get('qmc_options'),
                                options.get('estimates'),
                                options.get('trial_wavefunction'),
+                               options.get('walkers', {}),
                                options.get('propagator', {}),
                                parallel=True)
     else:
@@ -109,7 +110,9 @@ def setup_parallel(options, comm=None):
                                     cpmc.trial,
                                     cpmc.propagators.BT_BP)
     )
-    cpmc.psi = pauxy.walker.Walkers(cpmc.system, cpmc.trial,
+    cpmc.psi = pauxy.walker.Walkers(options.get('walkers', {}),
+                                    cpmc.system,
+                                    cpmc.trial,
                                     cpmc.qmc.nwalkers,
                                     cpmc.estimators.nprop_tot,
                                     cpmc.estimators.nbp)
