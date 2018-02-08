@@ -106,10 +106,46 @@ class Walkers:
                 self.walkers[i] = copy.deepcopy(new_psi.walkers[p])
             self.walkers[i].weight = 1.0
 
+    def branching(self):
+        iclone = []
+        nclone = []
+        ikill = []
+        # Search for walkers with too larger or small a weight
+        for (i, w) in enumerate(self.walkers):
+            r = numpy.random.random()
+            if (w.weight > self.wmax):
+                extra = math.floor(w.weight/self.wmax) - 1
+                if (w.weight - (extra+1) > r):
+                    extra += 1
+                nclone.append(extra)
+                iclone.append(i)
+                w.weight = self.wmax
+            elif (w.weight < self.wmin):
+                if (w.weight < r):
+                    ikill.append(i)
+                    w.alive = 0
+
+        # Number of empty space in walker list
+        nkill = sum(ikill)
+        ncopy = 0
+        full = False
+        for (ic, nc) in zip(iclone, nclone):
+            for ix in range(0, nc):
+                if ncopy > nkill:
+                    self.walkers.append(copy.deepcopy(self.walkers[ic]))
+                else:
+                    self.walkers[ikill[ncopy]] = copy.deepcopy(self.walkers[ic])
+                    ncopy += 1
+        # Place any remaining dead walkers to end of list
+        self.walkers.sort(key = lambda x: x.alive, reverse=True)
+        self.calculate_total_weight()
+        self.calculate_nwalkers()
+
 class Walker:
 
     def __init__(self, nw, system, trial, index):
         self.weight = nw
+        self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
                                    dtype=trial.psi.dtype)
@@ -207,6 +243,7 @@ class MultiDetWalker:
 
     def __init__(self, nw, system, trial, index=0):
         self.weight = nw
+        self.alive = 1
         self.phi = copy.deepcopy(trial.psi[index])
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
@@ -331,6 +368,7 @@ class MultiGHFWalker:
     def __init__(self, nw, system, trial, index=0,
                  weights='zeros', wfn0='init'):
         self.weight = nw
+        self.alive = 1
         # Initialise to a particular free electron slater determinant rather
         # than GHF. Can actually initialise to GHF by passing single GHF with
         # initial_wavefunction. The distinction is really for back propagation
