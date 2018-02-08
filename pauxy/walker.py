@@ -117,28 +117,31 @@ class Walkers:
         iclone = []
         nclone = []
         ikill = []
-        # Search for walkers with too larger or small a weight
+        # Avoid potentially massive growth / death of number of walkers
+        self.psi.rescale_weights()
+        # Search for walkers with too large or too small a weight
         for (i, w) in enumerate(self.walkers):
             r = numpy.random.random()
             if (w.weight > self.wmax):
-                extra = math.floor(w.weight/self.wmax) - 1
+                extra = math.floor(w.weight) - 1
                 if (w.weight - (extra+1) > r):
                     extra += 1
                 nclone.append(extra)
                 iclone.append(i)
-                w.weight = self.wmax
+                w.weight = 1.0
             elif (w.weight < self.wmin):
                 if (w.weight < r):
                     ikill.append(i)
                     w.alive = 0
 
+
         # Number of empty space in walker list
-        nkill = sum(ikill)
+        nkill = len(ikill)
         ncopy = 0
         full = False
         for (ic, nc) in zip(iclone, nclone):
             for ix in range(0, nc):
-                if ncopy > nkill:
+                if ncopy >= nkill:
                     self.walkers.append(copy.deepcopy(self.walkers[ic]))
                 else:
                     self.walkers[ikill[ncopy]] = copy.deepcopy(self.walkers[ic])
