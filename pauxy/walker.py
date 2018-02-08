@@ -8,7 +8,12 @@ import pauxy.trial_wavefunction
 class Walkers:
     """Handler group of walkers which make up cpmc wavefunction."""
 
-    def __init__(self, system, trial, nwalkers, nprop_tot, nbp):
+    def __init__(self, inputs, system, trial, nwalkers, nprop_tot, nbp):
+        self.pcontrol = inputs.get('population_control', 'comb')
+        self.wmax = inputs.get('max_weight', 4.0)
+        self.wmin = inputs.get('max_weight', 0.05)
+        self.max_nwalkers = inputs.get('maximum_walker_count', 1.1*nwalkers)
+        self.min_nwalkers = inputs.get('minimum_walker_count', 0.9*nwalkers)
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)

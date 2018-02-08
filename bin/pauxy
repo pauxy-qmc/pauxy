@@ -15,6 +15,7 @@ def main(input_file):
                                options.get('qmc_options'),
                                options.get('estimates'),
                                options.get('trial_wavefunction'),
+                               options.get('walkers', {}),
                                options.get('propagator', {}))
     cpmc.run(comm=comm)
     cpmc.finalise()
