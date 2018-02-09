@@ -33,7 +33,7 @@
 # ones.
 extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.mathjax',
               'sphinx.ext.ifconfig', 'sphinx.ext.autodoc',
-              'matplotlib.sphinxext.plot_directive']
+              'matplotlib.sphinxext.plot_directive', 'sphinx.ext.napoleon']
 
 try:
     import matplotlib.style
