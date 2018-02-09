@@ -134,17 +134,16 @@ class Walkers:
                 send.append([new_ix, proc_ix, i])
         # Send / Receive walkers.
         reqs = []
-        for s in send:
-            walker_buffer = new_psi[s[0]].get_buffer()
-            reqs.append(comm.isend(walker_buffer, dest=s[1], tag=s[2]))
         reqr = []
-        for r in recv:
-            walker_buffer = self.walkers[r[0]].get_buffer()
-            reqr.append(comm.irecv(source=r[1], tag=r[2]))
-        for (rq, rc) in zip(reqr, recv):
-            self.walkers[rc[0]].set_buffer(rq.wait())
-        for rq in reqs:
-            rq.wait()
+        walker_buffers = []
+        for i, s in enumerate(send):
+            walker_buffers.append(new_psi[s[0]].get_buffer())
+            reqs.append(comm.isend(walker_buffers[i], dest=s[1], tag=s[2]))
+        for rc in recv:
+            walker_buffer = comm.recv(source=rc[1], tag=rc[2])
+            self.walkers[rc[0]].set_buffer(walker_buffer)
+        for rs in reqs:
+            rs.wait()
         comm.Barrier()
         # Reset walker weight.
         for w in self.walkers:
