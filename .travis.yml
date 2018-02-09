@@ -1,6 +1,16 @@
+sudo: required
+dist: trusty
+
 language: python
+
 python:
     3.6
+
+addons:
+    apt:
+        packages:
+            - libmpich-dev
+            - mpich
 
 before_install:
     - pip install pandas matplotlib scipy numpy h5py mpi4py
