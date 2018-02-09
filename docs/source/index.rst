@@ -7,7 +7,7 @@ PAUXY
 =====
 
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
-quantum Monte Carlo algorithms in python. Here we will outline how to run the code as well
+quantum Monte Carlo algorithms. Here we will outline how to run the code as well
 as the basics of the theory as well as derivations of the algorithms (I hope).
 
 .. toctree::
