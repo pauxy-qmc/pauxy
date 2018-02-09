@@ -18,6 +18,7 @@ before_install:
     - git clone git://github.com/jsspencer/testcode
 
 script:
+    - pwd
     - cd tests
     # Only run a short subset of the tests
     - $HOME/testcode/bin/testcode.py
