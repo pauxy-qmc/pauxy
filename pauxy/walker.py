@@ -76,11 +76,6 @@ class Walkers:
 
         See Booth & Gubernatis PRE 80, 046704 (2009).
 
-        .. warning::
-            This algorithm is biased and not necessarily correct.
-
-        Todo : implement consistent algorithm.
-
         Parameters
         ----------
         psi : list of :class:`pauxy.walker.Walker` objects
@@ -160,7 +155,7 @@ class Walkers:
         nclone = []
         ikill = []
         # Avoid potentially massive growth / death of number of walkers
-        self.psi.rescale_weights()
+        self.rescale_weights()
         # Search for walkers with too large or too small a weight
         for (i, w) in enumerate(self.walkers):
             r = numpy.random.random()
