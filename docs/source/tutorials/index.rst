@@ -34,7 +34,7 @@ get a rough idea of the quality of the result.
     import pandas as pd
     import matplotlib.pyplot as pl
 
-    data = pd.read_csv('3x3.out', sep=r'\s+', comment='#')
+    data = pd.read_csv('calcs/hubbard/3x3.out', sep=r'\s+', comment='#')
     dt = 0.05
     pl.plot(data.iteration*dt, data.E)
     pl.xlabel(r'$\tau t')
