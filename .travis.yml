@@ -19,6 +19,7 @@ before_install:
 
 script:
     - pwd
+    - ls
     - cd tests
     # Only run a short subset of the tests
     - $HOME/testcode/bin/testcode.py
