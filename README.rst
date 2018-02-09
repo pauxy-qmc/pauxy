@@ -61,6 +61,9 @@ If python3 is not your default python interpreter then run
 
 Currently only serial tests exist.
 
+.. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
+    :target: https://travis-ci.org/pauxy/pauxy
+
 Documentation
 -------------
 
