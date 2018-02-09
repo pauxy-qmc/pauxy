@@ -31,15 +31,9 @@
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'matplotlib.sphinxext.plot_directive']
+extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.mathjax',
+              'sphinx.ext.ifconfig', 'sphinx.ext.autodoc',
+              'matplotlib.sphinxext.plot_directive']
 
 try:
     import matplotlib.style
