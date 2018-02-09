@@ -15,9 +15,9 @@ as the basics of the theory as well as derivations of the algorithms (I hope).
    :caption: Contents:
    :glob:
 
-   theory/index
    input/index
    tutorials/index
+   theory/index
    bibliography
 
 Indices and tables
