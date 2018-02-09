@@ -41,6 +41,15 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'matplotlib.sphinxext.plot_directive']
 
+try:
+    import matplotlib.style
+    plot_pre_code = '''
+import matplotlib.style
+matplotlib.style.use('ggplot')
+'''
+except ImportError:
+    # Using an old version of matplotlib
+    pass
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
