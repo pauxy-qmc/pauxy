@@ -190,7 +190,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
-                self.psi.pop_control()
+                self.psi.pop_control(comm, self.rank, self.nprocs)
 
     def finalise(self):
         if self.root:

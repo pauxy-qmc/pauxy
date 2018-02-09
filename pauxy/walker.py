@@ -71,8 +71,8 @@ class Walkers:
         for w in self.walkers:
             w.weight /= factor
 
-    def comb(self):
-        """ Apply the comb method of population control / branching.
+    def comb(self, comm, iproc, nprocs):
+        """Apply the comb method of population control / branching.
 
         See Booth & Gubernatis PRE 80, 046704 (2009).
 
@@ -93,27 +93,69 @@ class Walkers:
         # walker objects in memory. We don't want future changes in a given
         # element of psi having unintended consequences.
         new_psi = copy.deepcopy(self.walkers)
-        weights = [w.weight for w in self.walkers]
-        parent_ix = numpy.arange(len(self.walkers))
-        total_weight = sum(weights)
-        cprobs = numpy.cumsum(weights)
+        weights = numpy.array([w.weight for w in self.walkers])
+        global_weights = numpy.zeros(len(weights)*nprocs)
+        if iproc == 0:
+            parent_ix = numpy.arange(len(global_weights), dtype='i')
+        else:
+            parent_ix = numpy.empty(len(global_weights), dtype='i')
 
-        r = numpy.random.random()
-        comb = [(i+r) * (total_weight/self.nw) for i in range(self.nw)]
-        for (ic, c) in enumerate(comb):
-            for (iw, w) in enumerate(cprobs):
-                if c < w:
-                    parent_ix[ic] = iw
-                    break
+        if comm is not None:
+            comm.Gather(weights, global_weights, root=0)
+        if (comm is None) or iproc == 0:
+            total_weight = sum(global_weights)
+            cprobs = numpy.cumsum(global_weights)
+            ntarget = self.nw * nprocs
 
+            r = numpy.random.random()
+            comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
+            for (ic, c) in enumerate(comb):
+                for (iw, w) in enumerate(cprobs):
+                    if c < w:
+                        parent_ix[ic] = iw
+                        break
+
+        # Wait for master
+        if comm is not None:
+            comm.Bcast(parent_ix, root=0)
         # Copy back new information
+        send = []
+        recv = []
         for (i,p) in enumerate(parent_ix):
-            # Todo: look at what we actually need to copy.
-            if i != p:
-                self.walkers[i] = copy.deepcopy(new_psi[p])
-            self.walkers[i].weight = 1.0
+            loc_ix = i % self.nw
+            new_ix = p % self.nw
+            proc_ix = i // self.nw
+            new_proc_ix = p // self.nw
+            if proc_ix == iproc and new_ix != loc_ix:
+                # Walker on current processor has been killed and replaced with
+                # another.
+                # [location on current proc's, proc id of new walker]
+                recv.append([loc_ix, new_proc_ix, i])
+                if new_proc_ix == iproc:
+                    send.append([new_ix, proc_ix, i])
+            elif new_proc_ix == iproc and new_ix != loc_ix:
+                # We need to send a walker somewhere else.
+                # [location on current proc's, proc id of new walker]
+                send.append([new_ix, proc_ix, i])
+        # Send / Receive walkers.
+        reqs = []
+        for s in send:
+            walker_buffer = new_psi[s[0]].get_buffer()
+            reqs.append(comm.isend(walker_buffer, dest=s[1], tag=s[2]))
+        reqr = []
+        for r in recv:
+            walker_buffer = self.walkers[r[0]].get_buffer()
+            reqr.append(comm.irecv(source=r[1], tag=r[2]))
+        for (rq, rc) in zip(reqr, recv):
+            self.walkers[rc[0]].set_buffer(rq.wait())
+        for rq in reqs:
+            rq.wait()
+        comm.Barrier()
+        # Reset walker weight.
+        for w in self.walkers:
+            w.weight = 1.0
 
-    def branching(self):
+    def branching(self, comm, iproc, nprocs):
         iclone = []
         nclone = []
         ikill = []
@@ -174,6 +216,8 @@ class Walker:
                                 dtype=trial.psi.dtype)
         self.greens_function(trial)
         self.ot = 1.0
+        # interface consistency
+        self.ots = numpy.zeros(1)
         self.E_L = pauxy.estimators.local_energy(system, self.G)[0].real
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
@@ -247,6 +291,26 @@ class Walker:
     def local_energy(self, system):
         return pauxy.estimators.local_energy(system, self.G)
 
+    def get_buffer(self):
+        buff = {
+            'phi': self.phi,
+            'weight': self.weight,
+            'overlap': self.ot,
+            'overlaps': self.ots,
+            'fields': self.field_configs.configs,
+            'cfacs': self.field_configs.cos_fac,
+            'weight_fac': self.field_configs.weight_fac
+        }
+        return buff
+
+    def set_buffer(self, buff):
+        self.phi = numpy.copy(buff['phi'])
+        self.weight = buff['weight']
+        self.ot = buff['overlap']
+        self.ots = numpy.copy(buff['overlaps'])
+        self.field_configs.configs = numpy.copy(buff['fields'])
+        self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
+        self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
 
 class MultiDetWalker:
     '''Essentially just some wrappers around Walker class.'''
