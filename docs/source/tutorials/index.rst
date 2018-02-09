@@ -40,7 +40,7 @@ get a rough idea of the quality of the result.
     pl.xlabel(r'$\tau t')
     pl.xlabel(r'Energy (t)')
 
-To be safe we'll discard data before :math:`tau t=10` and analyse the data as follows:
+To be safe we'll discard data before :math:`\tau t=10` and analyse the data as follows:
 
 .. code-block:: bash
 
@@ -64,7 +64,7 @@ which will extract the mixed estimates. For the back propagated estimates we can
 
 to find
 
-.. literalinclude:: calcs/hubbard/basic.out
+.. literalinclude:: calcs/hubbard/back_propagated.out
 
 and finally the greater one-particle imaginary time green's function as
 
@@ -79,11 +79,13 @@ which we can then plot
     import pandas as pd
     import matplotlib.pyplot as pl
 
-    data = pd.read_csv('itcf.out', sep=r'\s+', comment='#')
+    data = pd.read_csv('calcs/hubbard/itcf.out', sep=r'\s+', comment='#')
     pl.errorbar(data.tau, data.G_greater_spin_up_00,
                 yerr=data.G_greater_spin_up_00_err, fmt='o')
-    pl.xlabel(r'$\tau t')
-    pl.xlabel(r'$G_{00}^{\uparrow\updarrow}(\tau)$')
+    pl.xlabel(r'$\tau t$')
+    pl.ylabel(r'$G_{00}^{\uparrow\uparrow}(\tau)$')
+
+As you can see, the error bars are still quite large so you should run for longer.
 
 .. toctree::
     :maxdepth: 2
