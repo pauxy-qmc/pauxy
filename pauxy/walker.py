@@ -288,6 +288,9 @@ class Walker:
     def get_buffer(self):
         buff = {
             'phi': self.phi,
+            'phi_old': self.phi_old,
+            'phi_init': self.phi_init,
+            'phi_bp': self.phi_bp,
             'weight': self.weight,
             'overlap': self.ot,
             'overlaps': self.ots,
@@ -299,6 +302,9 @@ class Walker:
 
     def set_buffer(self, buff):
         self.phi = numpy.copy(buff['phi'])
+        self.phi_old = numpy.copy(buff['phi_old'])
+        self.phi_init = numpy.copy(buff['phi_init'])
+        self.phi_bp = numpy.copy(buff['phi_bp'])
         self.weight = buff['weight']
         self.ot = buff['overlap']
         self.ots = numpy.copy(buff['overlaps'])
