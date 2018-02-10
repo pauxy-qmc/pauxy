@@ -22,4 +22,4 @@ script:
     - cd -
     - cd tests
     - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
-    - ../testcode/bin/testcode.py
+    - $HOME/testcode/bin/testcode.py
