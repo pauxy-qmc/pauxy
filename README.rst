@@ -7,7 +7,7 @@ quantum Monte Carlo algorithms with a focus on simplicity and transparency rathe
 speed.
 
 .. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/pauxy/pauxy
+    :target: https://travis-ci.org/fdmalone/pauxy
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest
     :target: http://pauxy.readthedocs.io/en/latest/?badge=latest
@@ -71,7 +71,7 @@ If python3 is not your default python interpreter then run
 Currently only serial tests exist.
 
 .. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/pauxy/pauxy
+    :target: https://travis-ci.org/fdmalone/pauxy
 
 Documentation
 -------------
