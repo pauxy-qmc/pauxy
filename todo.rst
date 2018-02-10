@@ -11,7 +11,11 @@ Code
 Algorithm
 =========
 
-- new population control algorithm
+- new population control algorithm:
+  - global control in parallel
+  - reconfiguring for branching
+  - fake comm to avoid conditionals
+- walker inheritance
 - Profile
 - unit tests
 - T > 0

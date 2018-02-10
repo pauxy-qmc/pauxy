@@ -12,7 +12,6 @@ import pauxy.qmc
 import pauxy.walker
 import pauxy.estimators
 import pauxy.utils
-import pauxy.pop_control
 import pauxy.systems
 
 
@@ -55,7 +54,7 @@ class CPMC:
     """
 
     def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, parallel=False):
+                 trial, walkers, propagator, parallel=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = pauxy.utils.get_git_revision_hash()
@@ -88,7 +87,7 @@ class CPMC:
                                             self.trial,
                                             self.propagators.BT_BP)
             )
-            self.psi = pauxy.walker.Walkers(self.system, self.trial,
+            self.psi = pauxy.walker.Walkers(walkers, self.system, self.trial,
                                             self.qmc.nwalkers,
                                             self.estimators.nprop_tot,
                                             self.estimators.nbp)
@@ -169,7 +168,7 @@ class CPMC:
                 # Want to possibly allow for walkers with negative / complex weights
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
-                if abs(w.weight) > 1e-8:
+                if abs(w.weight) > 1e-8 and w.alive:
                     self.propagators.propagate_walker(
                         w, self.system, self.trial)
                 # Constant factors
@@ -183,7 +182,6 @@ class CPMC:
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
             if step % self.qmc.nupdate_shift == 0:
-                # Todo: proj energy function
                 E_T = self.estimators.estimators['mixed'].projected_energy()
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
@@ -192,7 +190,7 @@ class CPMC:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
-                pauxy.pop_control.comb(self.psi, self.qmc.nwalkers)
+                self.psi.pop_control(comm, self.rank, self.nprocs)
 
     def finalise(self):
         if self.root:
