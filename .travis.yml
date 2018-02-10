@@ -18,8 +18,13 @@ before_install:
     # testcode
     - git clone git://github.com/jsspencer/testcode
 
-script:
+install:
     - cd -
+    - python setup.py install
+
+script:
     - cd tests
     - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
-    - $HOME/testcode/bin/testcode.py
+    - python3 -c "import sys; print (sys.path)"
+    - python3 -c "import pauxy; import pauxy.analysis"
+    - $HOME/testcode/bin/testcode.py -vvv
