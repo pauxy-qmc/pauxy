@@ -13,13 +13,13 @@ addons:
             - mpich
 
 before_install:
-    - cd
     - pip install pandas matplotlib scipy numpy h5py mpi4py
+    - cd
     # testcode
     - git clone git://github.com/jsspencer/testcode
 
 script:
-    cd -
+    - cd -
     - cd tests
     # Only run a short subset of the tests
     - $HOME/testcode/bin/testcode.py
