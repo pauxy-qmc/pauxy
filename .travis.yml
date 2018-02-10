@@ -22,4 +22,5 @@ script:
     - cd -
     - cd tests
     - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
+    - python3 -c "import sys; print (sys.path)"
     - $HOME/testcode/bin/testcode.py
