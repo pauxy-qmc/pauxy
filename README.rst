@@ -12,6 +12,9 @@ speed.
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest
     :target: http://pauxy.readthedocs.io/en/latest/?badge=latest
 
+.. image:: http://img.shields.io/badge/License-LGPL%20v2.1-blue.svg
+    :target: http://github.com/fdmalone/pauxy/blob/master/LICENSE
+
 Features
 --------
 PAUXY can currently:
@@ -78,7 +81,3 @@ Notes on the underlying theory as well as documentation and tutorials are availa
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest
     :target: http://pauxy.readthedocs.io/en/latest/?badge=latest
-
-LICENSE
--------
-GPL v2.1
