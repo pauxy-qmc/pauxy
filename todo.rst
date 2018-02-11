@@ -5,6 +5,7 @@ TODO
 Code
 ====
 
+- python2 (pickling / mpi4py)
 - docstrings
 - theory documentation
 - walker's phase for free projection
