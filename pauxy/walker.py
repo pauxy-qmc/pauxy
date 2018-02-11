@@ -226,7 +226,7 @@ class Walker:
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
-        self.weight_bp = nw
+        self.weight_bp = weight
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
