@@ -8,7 +8,7 @@ import copy
 import pauxy.utils
 
 
-def get_propagator(options, qmc, system, trial):
+def get_propagator(options, qmc, system, trial, verbose=False):
     """Wrapper to select propagator class.
 
     Parameters

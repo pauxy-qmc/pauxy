@@ -13,7 +13,7 @@ import pauxy.estimators
 import pauxy.hubbard
 
 
-def get_trial_wavefunction(options, system, cplx, parallel):
+def get_trial_wavefunction(options, system, cplx, parallel, verbose=False):
     """Wrapper to select trial wavefunction class.
 
     Parameters
@@ -33,13 +33,13 @@ def get_trial_wavefunction(options, system, cplx, parallel):
         Trial wavfunction class.
     """
     if options['name'] == 'free_electron':
-        trial = FreeElectron(system, cplx, options, parallel)
+        trial = FreeElectron(system, cplx, options, parallel, verbose)
     elif options['name'] == 'UHF':
-        trial = UHF(system, cplx, options, parallel)
+        trial = UHF(system, cplx, options, parallel, verbose)
     elif options['name'] == 'multi_determinant':
-        trial = MultiDeterminant(system, cplx, options, parallel)
+        trial = MultiDeterminant(system, cplx, options, parallel, verbose)
     elif options['name'] == 'hartree_fock':
-        trial = HartreeFock(system, cplx, options, parallel)
+        trial = HartreeFock(system, cplx, options, parallel, verbose)
     else:
         trial = None
 
@@ -48,12 +48,16 @@ def get_trial_wavefunction(options, system, cplx, parallel):
 
 class FreeElectron:
 
-    def __init__(self, system, cplx, trial, parallel=False):
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        if verbose:
+            print ("# Parsing free electron input options.")
         init_time = time.time()
         self.name = "free_electron"
         self.type = "free_electron"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'free_electron')
+        if verbose:
+            print ("# Diagonalising one-body Hamiltonian.")
         (self.eigs_up, self.eigv_up) = pauxy.utils.diagonalise_sorted(system.T[0])
         (self.eigs_dn, self.eigv_dn) = pauxy.utils.diagonalise_sorted(system.T[1])
         self.reference = trial.get('reference', None)
@@ -65,13 +69,15 @@ class FreeElectron:
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         if self.read_in is not None:
-            print ("# Reading trial wavefunction from %s"%(self.read_in))
+            if verbose:
+                print ("# Reading trial wavefunction from %s"%(self.read_in))
             try:
                 self.psi = numpy.load(self.read_in)
                 self.psi = self.psi.astype(self.trial_type)
             except OSError:
-                print("# Trial wavefunction is not in native numpy form.")
-                print("# Assuming Fortran GHF format.")
+                if verbose:
+                    print("# Trial wavefunction is not in native numpy form.")
+                    print("# Assuming Fortran GHF format.")
                 orbitals = read_fortran_complex_numbers(self.read_in)
                 tmp = orbitals.reshape((2*system.nbasis, system.ne),
                                        order='F')
@@ -108,6 +114,8 @@ class FreeElectron:
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
+        if verbose:
+            print ("# Finished initialising free electron trial wavefunction.")
 
 
 class UHF:
@@ -149,8 +157,9 @@ class UHF:
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel=False):
-        print("# Constructing trial wavefunction")
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        if verbose:
+            print("# Constructing UHF trial wavefunction")
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
@@ -166,7 +175,6 @@ class UHF:
         self.ueff = trial.get('ueff', 0.4)
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
-        self.verbose = trial.get('verbose', False)
         # For interface compatability
         self.coeffs = 1.0
         self.ndets = 1
@@ -209,10 +217,10 @@ class UHF:
                 Gdown = pauxy.estimators.gab(self.trial[:,nup:], self.trial[:,nup:]).T
                 enew = pauxy.estimators.local_energy(system,
                                                      numpy.array([Gup, Gdown]))[0].real
-                if self.verbose:
+                if verbose:
                     print("# %d %f %f" % (it, enew, eold))
                 sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
-                                          nidown_old, it, deps, self.verbose)
+                                          nidown_old, it, deps, verbose)
                 if sc:
                     # Global minimum search.
                     if attempt == 0:
@@ -301,7 +309,10 @@ class UHF:
 
 class MultiDeterminant:
 
-    def __init__(self, system, cplx, trial, parallel=False):
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        if verbose:
+            print ("# Parsing multi-determinant trial wavefunction input"
+                   "options.")
         init_time = time.time()
         self.name = "multi_determinant"
         self.expansion = "multi_determinant"
@@ -338,6 +349,8 @@ class MultiDeterminant:
             self.coeffs_file = trial.get('coefficients')
             # Store the complex conjugate of the multi-determinant trial
             # wavefunction expansion coefficients for ease later.
+            if verbose:
+                print ("# Reading wavefunction from %s." % self.coeffs_file)
             self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
             self.psi = numpy.zeros(shape=(self.ndets, nbasis, system.ne),
                                    dtype=self.coeffs.dtype)
@@ -359,6 +372,8 @@ class MultiDeterminant:
             )
         self.error = False
         self.initialisation_time = time.time() - init_time
+        if verbose:
+            print ("# Finished setting up trial wavefunction.")
 
 
 def read_fortran_complex_numbers(filename):
@@ -374,7 +389,9 @@ def read_fortran_complex_numbers(filename):
 
 class HartreeFock:
 
-    def __init__(self, system, cplx, trial, parallel=False):
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        if verbose:
+            print ("# Parsing Hartree--Fock trial wavefunction input options.")
         init_time = time.time()
         self.name = "hartree_fock"
         self.type = "hartree_fock"
@@ -397,3 +414,5 @@ class HartreeFock:
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
         self.initialisation_time = time.time() - init_time
+        if verbose:
+            print ("# Finished setting up trial wavefunction.")

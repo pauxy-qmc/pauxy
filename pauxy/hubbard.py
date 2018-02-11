@@ -41,7 +41,9 @@ class Hubbard:
         Super matrix (not currently implemented).
     """
 
-    def __init__(self, inputs, dt):
+    def __init__(self, inputs, dt, verbose=False):
+        if verbose:
+            print ("# Parsing input options.")
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
         self.ne = self.nup + self.ndown
@@ -55,6 +57,8 @@ class Hubbard:
                                                                   self.nx,
                                                                   self.ny)
         self.pinning = inputs.get('pinning_fields', False)
+        if verbose:
+            print ("# Setting up one-body operator.")
         if self.pinning:
             self.T = kinetic_pinning(self.t, self.nbasis, self.nx, self.ny)
         else:
@@ -73,6 +77,8 @@ class Hubbard:
         # Number of field configurations per walker.
         self.nfields = self.nbasis
         self.name = "Hubbard"
+        if verbose:
+            print ("# Finished setting up Hubbard system object.")
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.

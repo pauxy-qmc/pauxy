@@ -2,7 +2,7 @@ import pauxy.hubbard
 import pauxy.generic
 
 
-def get_system(model, dt):
+def get_system(model, dt, verbose):
     """Wrapper to select system class
 
     Parameters
@@ -19,9 +19,9 @@ def get_system(model, dt):
     """
     if model['name'] == 'Hubbard':
         # sytem packages all generic information + model specific information.
-        system = pauxy.hubbard.Hubbard(model, dt)
+        system = pauxy.hubbard.Hubbard(model, dt, verbose)
     elif model['name'] == 'Generic':
-        system = pauxy.generic.Generic(model, dt)
+        system = pauxy.generic.Generic(model, dt, verbose)
     else:
         system = None
 
