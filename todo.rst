@@ -8,18 +8,11 @@ Code
 - docstrings
 - theory documentation
 - walker's phase for free projection
-
-Algorithm
-=========
-
 - fake comm to avoid conditionals with no mpi4py / fix this dependency
 - walker inheritance
-- Profile
+- profile
 - unit tests
 - T > 0
-
-Estimators
-==========
 
 Imaginary time green's functions
 ----------------------------------
