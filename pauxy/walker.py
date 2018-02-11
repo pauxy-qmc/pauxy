@@ -293,6 +293,7 @@ class Walker:
             'phi_bp': self.phi_bp,
             'weight': self.weight,
             'inv_ovlp': self.inv_ovlp,
+            'G': self.G,
             'overlap': self.ot,
             'overlaps': self.ots,
             'fields': self.field_configs.configs,
@@ -308,6 +309,7 @@ class Walker:
         self.phi_init = numpy.copy(buff['phi_init'])
         self.phi_bp = numpy.copy(buff['phi_bp'])
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
+        self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
