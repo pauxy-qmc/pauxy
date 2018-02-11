@@ -15,6 +15,7 @@ Code
 - T > 0
 - complex cholesky decomposition
 - error analysis for free projection
+- verbosity option for driver / classes: print setup information to stdout
 
 Imaginary time green's functions
 ----------------------------------
