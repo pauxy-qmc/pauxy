@@ -29,11 +29,11 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     """
     hs_type = options.get('hubbard_stratonovich', 'discrete')
     if hs_type == 'discrete':
-        propagator = DiscreteHubbard(options, qmc, system, trial)
+        propagator = DiscreteHubbard(options, qmc, system, trial, verbose)
     elif hs_type == "hubbard_continuous":
-        propagator = ContinuousHubbard(options, qmc, system, trial)
+        propagator = ContinuousHubbard(options, qmc, system, trial, verbose)
     elif hs_type == "continuous":
-        propagator = GenericContinuous(options, qmc, system, trial)
+        propagator = GenericContinuous(options, qmc, system, trial, verbose)
     else:
         propagator = None
 
@@ -518,8 +518,10 @@ def kinetic_kspace(psi, system, btk):
 
 class DiscreteHubbard:
 
-    def __init__(self, options, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial, verbose=False):
 
+        if verbose:
+            print ("# Parsing discrete propagator input options.")
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
@@ -559,6 +561,8 @@ class DiscreteHubbard:
                 self.kinetic = kinetic_kspace
             else:
                 self.kinetic = kinetic_real
+        if verbose:
+            print ("# Finished setting up propagator.")
 
     def update_greens_function_uhf(self, walker, trial, i, nup):
         vup = trial.psi.conj()[i,:nup]
@@ -734,7 +738,9 @@ class DiscreteHubbard:
 class ContinuousHubbard:
     '''Base propagator class'''
 
-    def __init__(self, options, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial, verbose=False):
+        if verbose:
+            print ("# Parsing continuous propagator input options.")
         self.hs_type = 'hubbard_continuous'
         self.free_projection = options.get('free_projection', False)
         self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
@@ -761,6 +767,8 @@ class ContinuousHubbard:
             self.kinetic = kinetic_kspace
         else:
             self.kinetic = kinetic_real
+        if verbose:
+            print ("# Finished propagator input options.")
 
     def two_body(self, walker, system, trial):
         r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
@@ -873,7 +881,9 @@ class ContinuousHubbard:
 class GenericContinuous:
     '''Base propagator class'''
 
-    def __init__(self, options, qmc, system, trial):
+    def __init__(self, options, qmc, system, trial, verbose=False):
+        if verbose:
+            print ("# Parsing continuous propagator input options.")
         # Input options
         self.hs_type = 'continuous'
         self.free_projection = options.get('free_projection', False)
@@ -913,6 +923,8 @@ class GenericContinuous:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_phaseless
+        if verbose:
+            print ("# Finished setting up propagator.")
 
 
     def construct_one_body_propagator(self, dt, chol_vecs, h1e_mod):
