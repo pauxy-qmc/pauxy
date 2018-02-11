@@ -118,10 +118,6 @@ class Walkers:
             Current processor index
         nprocs : int
             Total number of mpi processors
-
-        Returns
-        -------
-        None
         """
         # Need make a copy to since the elements in psi are only references to
         # walker objects in memory. We don't want future changes in a given
@@ -190,8 +186,21 @@ class Walkers:
             w.weight = 1.0
 
 class Walker:
+    """UHF style walker.
 
-    def __init__(self, nw, system, trial, index):
+    Parameters
+    ----------
+    weight : int
+        Walker weight.
+    system : object
+        System object.
+    trial : object
+        Trial wavefunction object.
+    index : int
+        Element of trial wavefunction to initalise walker to.
+    """
+
+    def __init__(self, weight, system, trial, index=0):
         self.weight = nw
         self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
@@ -228,66 +237,155 @@ class Walker:
         self.weights = numpy.array([1])
 
     def inverse_overlap(self, trial):
+        """Compute inverse overlap matrix from scratch.
+
+        Parameters
+        ----------
+        trial : :class:`numpy.ndarray`
+            Trial wavefunction.
+        """
         nup = self.nup
-        self.inv_ovlp[0] = scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
-        self.inv_ovlp[1] = scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+        self.inv_ovlp[0] = (
+            scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
+        )
+        self.inv_ovlp[1] = (
+            scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+        )
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        """Update inverse overlap matrix given a single row update of walker.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        vtup : :class:`numpy.ndarray`
+            Update vector for spin up sector.
+        vtdown : :class:`numpy.ndarray`
+            Update vector for spin down sector.
+        i : int
+            Basis index.
+        """
         nup = self.nup
         self.inv_ovlp[0] = (
             pauxy.utils.sherman_morrison(self.inv_ovlp[0],
-                                           trial.psi[i,:nup].conj(),
-                                           vtup)
+                                         trial.psi[i,:nup].conj(),
+                                         vtup)
         )
         self.inv_ovlp[1] = (
             pauxy.utils.sherman_morrison(self.inv_ovlp[1],
-                                           trial.psi[i,nup:].conj(),
-                                           vtdown)
+                                         trial.psi[i,nup:].conj(),
+                                         vtdown)
         )
 
     def calc_otrial(self, trial):
-        # The importance function, i.e. <phi_T|phi>. We do 1 over this because
-        # inv_ovlp stores the inverse overlap matrix for ease when updating the
-        # green's function.
-        return 1.0/(scipy.linalg.det(self.inv_ovlp[0])*scipy.linalg.det(self.inv_ovlp[1]))
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        dup = scipy.linalg.det(self.inv_ovlp[0])
+        ddn = scipy.linalg.det(self.inv_ovlp[1])
+        return 1.0 / (dup*ddn)
 
     def update_overlap(self, probs, xi, coeffs):
+        """Update overlap.
+
+        Parameters
+        ----------
+        probs : :class:`numpy.ndarray`
+            Probabilities for chosing particular field configuration.
+        xi : int
+            Chosen field configuration.
+        coeffs : :class:`numpy.ndarray`
+            Trial wavefunction coefficients. For interface consistency.
+        """
         self.ot = 2 * self.ot * probs[xi]
 
     def reortho(self, trial):
+        """Reorthogonalise walker.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object. For interface consistency.
+        """
         nup = self.nup
-        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup], mode='economic')
-        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:], mode='economic')
+        (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
+                                                  mode='economic')
+        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
+                                                    mode='economic')
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
         signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
         self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
-        detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
+        drup = scipy.linalg.det(signs_up.dot(Rup))
+        drdn = scipy.linalg.det(signs_down.dot(Rdown))
+        detR = drup * drdn
         self.ot = self.ot / detR
         return detR
 
     def greens_function(self, trial):
+        """Compute walker's green's function.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
         nup = self.nup
+        t = trial.psi
         self.G[0] = (
-            (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(trial.psi[:,:nup].conj().T)).T
+            (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(t[:,:nup].conj().T)).T
         )
         self.G[1] = (
-            (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(trial.psi[:,nup:].conj().T)).T
+            (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(t[:,nup:].conj().T)).T
         )
 
     def rotated_greens_function(self):
+        """Compute "rotated" walker's green's function.
+
+        Green's function without trial wavefunction multiplication.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
         nup = self.nup
-        self.Gmod[0] = (
-            (self.phi[:,:nup].dot(self.inv_ovlp[0]))
-        )
-        self.Gmod[1] = (
-            (self.phi[:,nup:].dot(self.inv_ovlp[1]))
-        )
+        self.Gmod[0] = self.phi[:,:nup].dot(self.inv_ovlp[0])
+        self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
     def local_energy(self, system):
+        """Compute walkers local energy
+
+        Parameters
+        ----------
+        system : object
+            System object.
+
+        Returns
+        -------
+        (E, T, V) : tuple
+            Mixed estimates for walker's energy components.
+        """
         return pauxy.estimators.local_energy(system, self.G)
 
     def get_buffer(self):
+        """Get walker buffer for MPI communication
+
+        Returns
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
         buff = {
             'phi': self.phi,
             'phi_old': self.phi_old,
@@ -306,6 +404,13 @@ class Walker:
         return buff
 
     def set_buffer(self, buff):
+        """Set walker buffer following MPI communication
+
+        Parameters
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
         self.phi = numpy.copy(buff['phi'])
         self.phi_old = numpy.copy(buff['phi_old'])
         self.phi_init = numpy.copy(buff['phi_init'])
