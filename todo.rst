@@ -7,14 +7,12 @@ Code
 
 - docstrings
 - theory documentation
+- walker's phase for free projection
 
 Algorithm
 =========
 
-- new population control algorithm:
-  - global control in parallel
-  - reconfiguring for branching
-  - fake comm to avoid conditionals
+- fake comm to avoid conditionals with no mpi4py / fix this dependency
 - walker inheritance
 - Profile
 - unit tests
