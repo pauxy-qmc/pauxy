@@ -13,6 +13,8 @@ Code
 - profile
 - unit tests
 - T > 0
+- complex cholesky decomposition
+- error analysis for free projection
 
 Imaginary time green's functions
 ----------------------------------
