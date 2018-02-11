@@ -54,7 +54,7 @@ class CPMC:
     """
 
     def __init__(self, model, qmc_opts, estimates,
-                 trial, walkers, propagator, parallel=False,
+                 trial, propagator, parallel=False,
                  verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
@@ -90,7 +90,7 @@ class CPMC:
                                             self.propagators.BT_BP,
                                             verbose)
             )
-            self.psi = pauxy.walker.Walkers(walkers, self.system, self.trial,
+            self.psi = pauxy.walker.Walkers(self.system, self.trial,
                                             self.qmc.nwalkers,
                                             self.estimators.nprop_tot,
                                             self.estimators.nbp,

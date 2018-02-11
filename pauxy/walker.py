@@ -7,14 +7,23 @@ import math
 
 
 class Walkers:
-    """Handler group of walkers which make up cpmc wavefunction."""
+    """Container for groups of walkers which make up a wavefunction.
 
-    def __init__(self, inputs, system, trial, nwalkers, nprop_tot, nbp):
-        self.pcontrol = inputs.get('population_control', 'comb')
-        self.wmax = inputs.get('max_weight', 4.0)
-        self.wmin = inputs.get('max_weight', 0.05)
-        self.max_nwalkers = inputs.get('maximum_walker_count', 1.1*nwalkers)
-        self.min_nwalkers = inputs.get('minimum_walker_count', 0.9*nwalkers)
+    Parameters
+    ----------
+    system : object
+        System object.
+    trial : object
+        Trial wavefunction object.
+    nwalkers : int
+        Number of walkers to initialise.
+    nprop_tot : int
+        Total number of propagators to store for back propagation + itcf.
+    nbp : int
+        Number of back propagation steps.
+    """
+
+    def __init__(self, system, trial, nwalkers, nprop_tot, nbp):
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
@@ -29,10 +38,7 @@ class Walkers:
             dtype = complex
         else:
             dtype = int
-        if self.pcontrol == 'comb':
-            self.pop_control = self.comb
-        else:
-            self.pop_control = self.branching
+        self.pop_control = self.comb
         self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
         self.calculate_total_weight()
         self.calculate_nwalkers()
@@ -44,32 +50,61 @@ class Walkers:
         self.nw = sum(w.alive for w in self.walkers)
 
     def orthogonalise(self, trial, free_projection):
+        """Orthogonalise all walkers.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        free_projection : bool
+            True if doing free projection.
+        """
         for w in self.walkers:
             detR = w.reortho(trial)
             if free_projection:
                 w.weight = detR * w.weight
 
     def add_field_config(self, nprop_tot, nbp, nfields, dtype):
+        """Add FieldConfig object to walker object.
+
+        Parameters
+        ----------
+        nprop_tot : int
+            Total number of propagators to store for back propagation + itcf.
+        nbp : int
+            Number of back propagation steps.
+        nfields : int
+            Number of fields to store for each back propagation step.
+        dtype : type
+            Field configuration type.
+        """
         for w in self.walkers:
             w.field_configs = FieldConfig(nfields, nprop_tot, nbp, dtype)
 
     def copy_historic_wfn(self):
+        """Copy current wavefunction to psi_n for next back propagation step."""
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_old, self.walkers[i].phi)
 
     def copy_bp_wfn(self, phi_bp):
-        for (i,(w,wbp)) in enumerate(zip(self.walkers, phi_bp)):
+        """Copy back propagated wavefunction.
+
+        Parameters
+        ----------
+        phi_bp : object
+            list of walker objects containing back propagated walkers.
+        """
+        for (i, (w,wbp)) in enumerate(zip(self.walkers, phi_bp)):
             numpy.copyto(self.walkers[i].phi_bp, wbp.phi)
 
     def copy_init_wfn(self):
+        """Copy current wavefunction to initial wavefunction.
+
+        The definition of the initial wavefunction depends on whether we are
+        calculating an ITCF or not.
+        """
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
-
-    def rescale_weights(self):
-        self.calculate_total_weight()
-        factor = self.total_weight / self.max_nwalkers
-        for w in self.walkers:
-            w.weight /= factor
 
     def comb(self, comm, iproc, nprocs):
         """Apply the comb method of population control / branching.
@@ -78,11 +113,15 @@ class Walkers:
 
         Parameters
         ----------
-        psi : list of :class:`pauxy.walker.Walker` objects
-            current distribution of walkers, i.e., at the current iteration in
-            the simulation corresponding to :math:`\tau'=\tau+\tau_{bp}`.
-        nw : int
-            Number of walkers on current processor.
+        comm : MPI communicator
+        iproc : int
+            Current processor index
+        nprocs : int
+            Total number of mpi processors
+
+        Returns
+        -------
+        None
         """
         # Need make a copy to since the elements in psi are only references to
         # walker objects in memory. We don't want future changes in a given
@@ -149,44 +188,6 @@ class Walkers:
         # Reset walker weight.
         for w in self.walkers:
             w.weight = 1.0
-
-    def branching(self, comm, iproc, nprocs):
-        iclone = []
-        nclone = []
-        ikill = []
-        # Avoid potentially massive growth / death of number of walkers
-        self.rescale_weights()
-        # Search for walkers with too large or too small a weight
-        for (i, w) in enumerate(self.walkers):
-            r = numpy.random.random()
-            if (w.weight > self.wmax):
-                extra = math.floor(w.weight) - 1
-                if (w.weight - (extra+1) > r):
-                    extra += 1
-                nclone.append(extra)
-                iclone.append(i)
-                w.weight = 1.0
-            elif (w.weight < self.wmin):
-                if (w.weight < r):
-                    ikill.append(i)
-                    w.alive = 0
-
-
-        # Number of empty space in walker list
-        nkill = len(ikill)
-        ncopy = 0
-        full = False
-        for (ic, nc) in zip(iclone, nclone):
-            for ix in range(0, nc):
-                if ncopy >= nkill:
-                    self.walkers.append(copy.deepcopy(self.walkers[ic]))
-                else:
-                    self.walkers[ikill[ncopy]] = copy.deepcopy(self.walkers[ic])
-                    ncopy += 1
-        # Place any remaining dead walkers to end of list
-        self.walkers.sort(key = lambda x: x.alive, reverse=True)
-        self.calculate_total_weight()
-        self.calculate_nwalkers()
 
 class Walker:
 
