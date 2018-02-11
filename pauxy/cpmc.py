@@ -54,7 +54,8 @@ class CPMC:
     """
 
     def __init__(self, model, qmc_opts, estimates,
-                 trial, walkers, propagator, parallel=False):
+                 trial, walkers, propagator, parallel=False,
+                 verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = pauxy.utils.get_git_revision_hash()
@@ -64,19 +65,20 @@ class CPMC:
         self.nprocs = 1
         self.init_time = time.time()
         # 2. Calculation attributes.
-        self.system = pauxy.systems.get_system(model, qmc_opts['dt'])
-        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system)
+        self.system = pauxy.systems.get_system(model, qmc_opts['dt'], verbose)
+        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system, verbose)
         self.cplx = determine_dtype(propagator, self.system)
         # Store input dictionaries for the moment.
         self.trial = (
             pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
                                                             self.cplx,
-                                                            parallel)
+                                                            parallel, verbose)
         )
         self.propagators = pauxy.propagation.get_propagator(propagator,
                                                             self.qmc,
                                                             self.system,
-                                                            self.trial)
+                                                            self.trial,
+                                                            verbose)
         # Handy to keep original dicts so they can be printed at run time.
         if not parallel:
             self.estimators = (
@@ -85,12 +87,14 @@ class CPMC:
                                             self.qmc,
                                             self.system,
                                             self.trial,
-                                            self.propagators.BT_BP)
+                                            self.propagators.BT_BP,
+                                            verbose)
             )
             self.psi = pauxy.walker.Walkers(walkers, self.system, self.trial,
                                             self.qmc.nwalkers,
                                             self.estimators.nprop_tot,
-                                            self.estimators.nbp)
+                                            self.estimators.nbp,
+                                            verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
@@ -161,6 +165,8 @@ class CPMC:
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
+        self.estimators.estimators['mixed'].print_key()
+        self.estimators.estimators['mixed'].print_header()
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
@@ -192,13 +198,14 @@ class CPMC:
             if step % self.qmc.npop_control == 0:
                 self.psi.pop_control(comm, self.rank, self.nprocs)
 
-    def finalise(self):
+    def finalise(self, verbose):
         if self.root:
-            print("# End Time: %s" % time.asctime())
-            print("# Running time : %.6f seconds" %
-                  (time.time() - self.init_time))
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
+            if verbose:
+                print("# End Time: %s" % time.asctime())
+                print("# Running time : %.6f seconds" %
+                      (time.time() - self.init_time))
 
 
 def determine_dtype(propagator, system):

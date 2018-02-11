@@ -7,18 +7,19 @@ import json
 
 
 def main(input_file):
-    (options, comm) = pauxy.calc.init(input_file)
+    (options, comm) = pauxy.calc.init(input_file, verbose=True)
     if comm is not None:
-        cpmc = pauxy.calc.setup_parallel(options, comm)
+        cpmc = pauxy.calc.setup_parallel(options, comm, verbose=True)
     else:
         cpmc = pauxy.cpmc.CPMC(options.get('model'),
                                options.get('qmc_options'),
                                options.get('estimates'),
                                options.get('trial_wavefunction'),
                                options.get('walkers', {}),
-                               options.get('propagator', {}))
+                               options.get('propagator', {}),
+                               verbose=True)
     cpmc.run(comm=comm)
-    cpmc.finalise()
+    cpmc.finalise(verbose=True)
 
 
 if __name__ == '__main__':

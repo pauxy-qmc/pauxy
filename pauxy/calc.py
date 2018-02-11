@@ -16,7 +16,7 @@ import pauxy.cpmc
 import pauxy.utils
 
 
-def init(input_file, verbose=True):
+def init(input_file, verbose=False):
     if parallel:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -27,7 +27,7 @@ def init(input_file, verbose=True):
         nprocs = 1
     if rank == 0:
         if verbose:
-            print('# Initialising AFQMCPY simulation from %s'%input_file)
+            print('# Initialising PAUXY simulation from %s'%input_file)
         with open(input_file) as inp:
             options = json.load(inp)
         inp.close()
@@ -57,7 +57,7 @@ def init(input_file, verbose=True):
     return (options, comm)
 
 
-def setup_parallel(options, comm=None):
+def setup_parallel(options, comm=None, verbose=False):
     """Wrapper routine for initialising simulation
 
     Parameters
@@ -77,7 +77,8 @@ def setup_parallel(options, comm=None):
                                options.get('trial_wavefunction'),
                                options.get('walkers', {}),
                                options.get('propagator', {}),
-                               parallel=True)
+                               parallel=True,
+                               verbose=verbose)
     else:
         cpmc = None
     cpmc = comm.bcast(cpmc, root=0)
@@ -124,7 +125,5 @@ def setup_parallel(options, comm=None):
                                            data=numpy.array([json_string],
                                                             dtype=object),
                                            dtype=h5py.special_dtype(vlen=str))
-        cpmc.estimators.estimators['mixed'].print_key()
-        cpmc.estimators.estimators['mixed'].print_header()
 
     return cpmc

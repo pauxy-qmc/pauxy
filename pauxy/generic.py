@@ -44,7 +44,9 @@ class Generic:
         Number of field configurations per walker for back propagation.
     """
 
-    def __init__(self, inputs, dt):
+    def __init__(self, inputs, dt, verbose):
+        if verbose:
+            print ("# Parsing input options.")
         self.name = "Generic"
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
@@ -52,12 +54,17 @@ class Generic:
         self.integral_file = inputs.get('integrals')
         self.decomopsition = inputs.get('decomposition', 'cholesky')
         self.threshold = inputs.get('threshold', 1e-5)
-        self.verbose = inputs.get('verbose', False)
+        if verbose:
+            print ("# Reading integrals from %s." % self.integral_file)
         (self.T, self.h2e, self.ecore) = self.read_integrals()
-        (self.h1e_mod, self.chol_vecs) = self.construct_decomposition()
+        if verbose:
+            print ("# Decomposing two-body operator.")
+        (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
         self.nchol_vec = self.chol_vecs.shape[0]
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        if verbose:
+            print ("# Finished setting up Generic system object.")
 
     def read_integrals(self):
         """Read in integrals from file.
@@ -115,7 +122,7 @@ class Generic:
 
         return (numpy.array([h1e, h1e]), h2e, ecore)
 
-    def construct_decomposition(self):
+    def construct_decomposition(self, verbose):
         """Decompose two-electron integrals.
 
         Attributes
@@ -135,6 +142,6 @@ class Generic:
         if (numpy.sum(V - V.T) != 0):
             print("Warning: Supermatrix is not symmetric")
         chol_vecs = pauxy.utils.modified_cholesky(V, self.threshold,
-                                                  verbose=self.verbose)
+                                                  verbose=verbose)
         return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
                                             self.nbasis)))
