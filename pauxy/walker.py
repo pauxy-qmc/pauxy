@@ -892,6 +892,11 @@ class FieldConfig:
         ----------
         config : :class:`numpy.ndarray`
             Auxilliary field configuration.
+        cfac : float
+            Cosine factor if using phaseless approximation.
+        wfac : complex
+            Weight factor to restore full walker weight following phaseless
+            approximation.
         """
         self.configs[self.step] = config
         self.cos_fac[self.step] = cfac
