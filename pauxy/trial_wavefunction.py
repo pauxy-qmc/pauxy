@@ -180,7 +180,7 @@ class UHF:
         self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
             self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
-                              self.nconv, self.alpha, self.deps)
+                              self.nconv, self.alpha, self.deps, verbose)
         )
         if self.error and not parallel:
             warnings.warn('Error in constructing trial wavefunction. Exiting')
@@ -193,7 +193,7 @@ class UHF:
         self.initialisation_time = time.time() - init_time
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit,
-                     nit_max, alpha, deps=1e-8):
+                     nit_max, alpha, deps=1e-8, verbose=False):
         emin = 0
         uold = system.U
         system.U = ueff
