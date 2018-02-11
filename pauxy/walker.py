@@ -88,7 +88,8 @@ class Walkers:
         # walker objects in memory. We don't want future changes in a given
         # element of psi having unintended consequences.
         new_psi = copy.deepcopy(self.walkers)
-        weights = numpy.array([w.weight for w in self.walkers])
+        # todo : add phase to walker for free projection
+        weights = numpy.array([abs(w.weight) for w in self.walkers])
         global_weights = numpy.zeros(len(weights)*nprocs)
         if iproc == 0:
             parent_ix = numpy.arange(len(global_weights), dtype='i')
