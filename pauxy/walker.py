@@ -2,7 +2,7 @@ import numpy
 import scipy.linalg
 import copy
 import pauxy.estimators
-import pauxy.trial_wavefunction
+from pauxy.trial_wavefunction import FreeElectron, read_fortran_complex_numbers
 import math
 
 
@@ -201,13 +201,12 @@ class Walker:
     """
 
     def __init__(self, weight, system, trial, index=0):
-        self.weight = nw
+        self.weight = weight
         self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
                                    dtype=trial.psi.dtype)
-            tmp = pauxy.trial_wavefunction.FreeElectron(system,
-                                     system.ktwist.all() != None, {})
+            tmp = FreeElectron(system, system.ktwist.all() != None, {})
             self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
             self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
         else:
@@ -310,12 +309,12 @@ class Walker:
         self.ot = 2 * self.ot * probs[xi]
 
     def reortho(self, trial):
-        """Reorthogonalise walker.
+        """reorthogonalise walker.
 
-        Parameters
+        parameters
         ----------
         trial : object
-            Trial wavefunction object. For interface consistency.
+            trial wavefunction object. for interface consistency.
         """
         nup = self.nup
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
@@ -426,9 +425,21 @@ class Walker:
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
 
 class MultiDetWalker:
-    '''Essentially just some wrappers around Walker class.'''
+    """Multi-UHF style walker.
 
-    def __init__(self, nw, system, trial, index=0):
+    Parameters
+    ----------
+    weight : int
+        Walker weight.
+    system : object
+        System object.
+    trial : object
+        Trial wavefunction object.
+    index : int
+        Element of trial wavefunction to initalise walker to.
+    """
+
+    def __init__(self, weight, system, trial, index=0):
         self.weight = nw
         self.alive = 1
         self.phi = copy.deepcopy(trial.psi[index])
@@ -460,6 +471,13 @@ class MultiDetWalker:
         self.field_config = numpy.zeros(shape=(system.nbasis), dtype=int)
 
     def inverse_overlap(self, trial):
+        """Compute inverse overlap matrix from scratch.
+
+        Parameters
+        ----------
+        trial : :class:`numpy.ndarray`
+            Trial wavefunction.
+        """
         nup = self.nup
         for (indx, t) in enumerate(trial):
             self.inv_ovlp[0][indx,:,:] = (
@@ -470,12 +488,20 @@ class MultiDetWalker:
             )
 
     def calc_otrial(self, trial):
-        # The importance function, i.e. <phi_T|phi>. We do 1 over this because
-        # inv_ovlp stores the inverse overlap matrix for ease when updating the
-        # green's function.
-        # The trial wavefunctions coefficients should be complex conjugated
-        # on initialisation!
-        # This looks wrong for the UHF case - no spin considerations here.
+        """Caculate overlap with trial wavefunction.
+
+        The trial wavefunctions coefficients should be complex conjugated!
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
         ot = 0.0
         for (ix, c) in enumerate(trial.coeffs):
             deto_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix,:,:])
@@ -486,18 +512,36 @@ class MultiDetWalker:
         return ot
 
     def update_overlap(self, probs, xi, coeffs):
+        """Update overlap.
+
+        Parameters
+        ----------
+        probs : :class:`numpy.ndarray`
+            Probabilities for chosing particular field configuration.
+        xi : int
+            Chosen field configuration.
+        coeffs : :class:`numpy.ndarray`
+            Trial wavefunction coefficients. For interface consistency.
+        """
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
         self.ots = numpy.einsum('ji,ij->ij', self.R[:, xi, :], self.ots)
         self.ot = sum(coeffs * self.ots[0, :] * self.ots[1, :])
 
     def reortho(self, trial):
+        """Reorthogonalise walker.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object. For interface consistency.
+        """
         nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
-        (self.phi[:, :nup], Rup) = scipy.linalg.qr(
-            self.phi[:, :nup], mode='economic')
-        (self.phi[:, nup:], Rdown) = scipy.linalg.qr(
-            self.phi[:, nup:], mode='economic')
+        (self.phi[:, :nup], Rup) = scipy.linalg.qr(self.phi[:, :nup],
+                                                   mode='economic')
+        (self.phi[:, nup:], Rdown) = scipy.linalg.qr(self.phi[:, nup:],
+                                                     mode='economic')
         # Enforce a positive diagonal for the overlap.
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
         signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
@@ -511,6 +555,13 @@ class MultiDetWalker:
         self.ot = self.ot / (detR_up * detR_down)
 
     def greens_function(self, trial):
+        """Compute walker's green's function.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
@@ -523,15 +574,25 @@ class MultiDetWalker:
                     t[:, nup:].conj().T)).T
             )
         denom = numpy.einsum('j,ij->i', trial.coeffs, self.ots)
-        self.G = numpy.einsum(
-            'i,ijkl,ji->jkl',
-            trial.coeffs,
-            self.Gi,
-            self.ots)
+        self.G = numpy.einsum('i,ijkl,ji->jkl', trial.coeffs,
+                              self.Gi, self.ots)
         self.G[0] = self.G[0] / denom[0]
         self.G[1] = self.G[1] / denom[1]
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        """Update inverse overlap matrix given a single row update of walker.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        vtup : :class:`numpy.ndarray`
+            Update vector for spin up sector.
+        vtdown : :class:`numpy.ndarray`
+            Update vector for spin down sector.
+        i : int
+            Basis index.
+        """
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             self.inv_ovlp[0][ix] = (
@@ -544,15 +605,42 @@ class MultiDetWalker:
             )
 
     def local_energy(self, system):
-        return pauxy.estimators.local_energy_multi_det(system,
-                                                       self.Gi,
+        """Compute walkers local energy
+
+        Parameters
+        ----------
+        system : object
+            System object.
+
+        Returns
+        -------
+        (E, T, V) : tuple
+            Mixed estimates for walker's energy components.
+        """
+        return pauxy.estimators.local_energy_multi_det(system, self.Gi,
                                                        self.weights)
 
 
 class MultiGHFWalker:
-    '''Essentially just some wrappers around Walker class.'''
+    """Multi-GHF style walker.
 
-    def __init__(self, nw, system, trial, index=0,
+    Parameters
+    ----------
+    weight : int
+        Walker weight.
+    system : object
+        System object.
+    trial : object
+        Trial wavefunction object.
+    index : int
+        Element of trial wavefunction to initalise walker to.
+    weights : string
+        Initialise weights to zeros or ones.
+    wfn0 : string
+        Initial wavefunction.
+    """
+
+    def __init__(self, weight, system, trial, index=0,
                  weights='zeros', wfn0='init'):
         self.weight = nw
         self.alive = 1
@@ -564,13 +652,12 @@ class MultiGHFWalker:
         if wfn0 == 'init':
             # Initialise walker with single determinant.
             if trial.initial_wavefunction != 'free_electron':
-                orbs = pauxy.trial_wavefunction.read_fortran_complex_numbers(trial.read_init)
+                orbs = read_fortran_complex_numbers(trial.read_init)
                 self.phi = orbs.reshape((2*system.nbasis, system.ne), order='F')
             else:
                 self.phi = numpy.zeros(shape=(2*system.nbasis,system.ne),
                                     dtype=trial.psi.dtype)
-                tmp = pauxy.trial_wavefunction.FreeElectron(system,
-                                         trial.psi.dtype==complex, {})
+                tmp = FreeElectron(system, trial.psi.dtype==complex, {})
                 self.phi[:system.nbasis,:system.nup] = tmp.psi[:,:system.nup]
                 self.phi[system.nbasis:,system.nup:] = tmp.psi[:,system.nup:]
         else:
@@ -586,14 +673,14 @@ class MultiGHFWalker:
         if wfn0 != 'GHF':
             self.inverse_overlap(trial.psi)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = numpy.zeros(shape=(trial.ndets, 2 * system.nbasis,
-                                     2 * system.nbasis), dtype=self.phi.dtype)
+        self.Gi = numpy.zeros(shape=(trial.ndets, 2*system.nbasis,
+                                     2*system.nbasis), dtype=self.phi.dtype)
         # Should be nfields per basis * ndets.
         # Todo: update this for the continuous HS trasnform case.
         self.R = numpy.zeros(shape=(trial.ndets, 2), dtype=self.phi.dtype)
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
-        self.G = numpy.zeros(shape=(2 * system.nbasis, 2 * system.nbasis),
+        self.G = numpy.zeros(shape=(2*system.nbasis, 2*system.nbasis),
                              dtype=self.phi.dtype)
         self.ots = numpy.zeros(trial.ndets, dtype=self.phi.dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
@@ -612,6 +699,13 @@ class MultiGHFWalker:
         self.phi_bp = copy.deepcopy(trial.psi)
 
     def inverse_overlap(self, trial):
+        """Compute inverse overlap matrix from scratch.
+
+        Parameters
+        ----------
+        trial : :class:`numpy.ndarray`
+            Trial wavefunction.
+        """
         nup = self.nup
         for (indx, t) in enumerate(trial):
             self.inv_ovlp[indx,:,:] = (
@@ -619,9 +713,18 @@ class MultiGHFWalker:
             )
 
     def calc_otrial(self, trial):
-        # The importance function, i.e. <phi_T|phi>. We do 1 over this because
-        # inv_ovlp stores the inverse overlap matrix for ease when updating the
-        # green's function.
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
         for (ix, inv) in enumerate(self.inv_ovlp):
@@ -630,6 +733,17 @@ class MultiGHFWalker:
         return sum(self.weights)
 
     def update_overlap(self, probs, xi, coeffs):
+        """Update overlap.
+
+        Parameters
+        ----------
+        probs : :class:`numpy.ndarray`
+            Probabilities for chosing particular field configuration.
+        xi : int
+            Chosen field configuration.
+        coeffs : :class:`numpy.ndarray`
+            Trial wavefunction coefficients. For interface consistency.
+        """
         # Update each component's overlap and the total overlap.
         # The trial wavefunctions coeficients should be included in ots?
         self.ots = self.R[:,xi] * self.ots
@@ -637,21 +751,45 @@ class MultiGHFWalker:
         self.ot = 2.0 * self.ot * probs[xi]
 
     def reortho(self, trial):
+        """Update overlap.
+
+        Parameters
+        ----------
+        probs : :class:`numpy.ndarray`
+            Probabilities for chosing particular field configuration.
+        xi : int
+            Chosen field configuration.
+        coeffs : :class:`numpy.ndarray`
+            Trial wavefunction coefficients. For interface consistency.
+        """
         nup = self.nup
         # We assume that our walker is still block diagonal in the spin basis.
-        (self.phi[:self.nb,:nup], Rup) = scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
-        (self.phi[self.nb:,nup:], Rdown) = scipy.linalg.qr(self.phi[self.nb:,nup:], mode='economic')
+        (self.phi[:self.nb,:nup], Rup) = (
+            scipy.linalg.qr(self.phi[:self.nb,:nup], mode='economic')
+        )
+        (self.phi[self.nb:,nup:], Rdown) = (
+            scipy.linalg.qr(self.phi[self.nb:,nup:], mode='economic')
+        )
         # Enforce a positive diagonal for the overlap.
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
         signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:self.nb,:nup] = self.phi[:self.nb,:nup].dot(signs_up)
         self.phi[self.nb:,nup:] = self.phi[self.nb:,nup:].dot(signs_down)
         # Todo: R is upper triangular.
-        detR = (scipy.linalg.det(signs_up.dot(Rup))*scipy.linalg.det(signs_down.dot(Rdown)))
+        drup = scipy.linalg.det(signs_up.dot(Rup))
+        drdn = scipy.linalg.det(signs_down.dot(Rdown))
+        detR = drup * drdn
         self.inverse_overlap(trial.psi)
         self.ot = self.calc_otrial(trial)
 
     def greens_function(self, trial):
+        """Compute walker's green's function.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
         nup = self.nup
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
@@ -662,6 +800,19 @@ class MultiGHFWalker:
         self.G = numpy.einsum('i,ijk->jk', self.weights, self.Gi) / denom
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
+        """Update inverse overlap matrix given a single row update of walker.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        vtup : :class:`numpy.ndarray`
+            Update vector for spin up sector.
+        vtdown : :class:`numpy.ndarray`
+            Update vector for spin down sector.
+        i : int
+            Basis index.
+        """
         nup = self.nup
         for (indx, t) in enumerate(trial.psi):
             self.inv_ovlp[indx,:,:] = (
@@ -669,6 +820,18 @@ class MultiGHFWalker:
             )
 
     def local_energy(self, system):
+        """Compute walkers local energy
+
+        Parameters
+        ----------
+        system : object
+            System object.
+
+        Returns
+        -------
+        (E, T, V) : tuple
+            Mixed estimates for walker's energy components.
+        """
         return pauxy.estimators.local_energy_ghf(system, self.Gi,
                                                    self.weights, self.ot)
     # def update_inverse_overlap(self, trial, vtup, vtdown, nup, i):
@@ -679,6 +842,19 @@ class MultiGHFWalker:
             # )
 
 class FieldConfig:
+    """Object for managing stored auxilliary field.
+
+    Parameters
+    ----------
+    nfields : int
+        Number of fields to store for each back propagation step.
+    nprop_tot : int
+        Total number of propagators to store for back propagation + itcf.
+    nbp : int
+        Number of back propagation steps.
+    dtype : type
+        Field configuration type.
+    """
     def __init__(self, nfields, nprop_tot, nbp, dtype):
         self.configs = numpy.zeros(shape=(nprop_tot, nfields), dtype=dtype)
         self.cos_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=float)
@@ -693,6 +869,13 @@ class FieldConfig:
         self.nblock = nprop_tot // nbp
 
     def push(self, config):
+        """Add field configuration to buffer.
+
+        Parameters
+        ----------
+        config : int
+            Auxilliary field configuration.
+        """
         self.configs[self.step, self.ib] = config
         self.ib = (self.ib + 1) % self.nfields
         # Completed field configuration for this walker?
@@ -703,6 +886,13 @@ class FieldConfig:
                 self.block = (self.block + 1) % self.nblock
 
     def push_full(self, config, cfac, wfac):
+        """Add full field configuration for walker to buffer.
+
+        Parameters
+        ----------
+        config : :class:`numpy.ndarray`
+            Auxilliary field configuration.
+        """
         self.configs[self.step] = config
         self.cos_fac[self.step] = cfac
         self.weight_fac[self.step] = wfac
@@ -720,5 +910,6 @@ class FieldConfig:
                 self.weight_fac[start:end])
 
     def get_superblock(self):
+        """Return a view to current super block for ITCF."""
         end = self.nprop_tot - self.nbp
         return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
