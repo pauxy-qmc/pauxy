@@ -15,7 +15,7 @@ import pauxy.utils
 import pauxy.systems
 
 
-class CPMC:
+class CPMC(object):
     """CPMC driver.
 
     This object contains all the instances of the classes which parse input

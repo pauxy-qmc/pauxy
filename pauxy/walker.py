@@ -6,7 +6,7 @@ from pauxy.trial_wavefunction import FreeElectron, read_fortran_complex_numbers
 import math
 
 
-class Walkers:
+class Walkers(object):
     """Container for groups of walkers which make up a wavefunction.
 
     Parameters
@@ -188,7 +188,7 @@ class Walkers:
         for w in self.walkers:
             w.weight = 1.0
 
-class Walker:
+class Walker(object):
     """UHF style walker.
 
     Parameters
@@ -427,7 +427,7 @@ class Walker:
         self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
 
-class MultiDetWalker:
+class MultiDetWalker(object):
     """Multi-UHF style walker.
 
     Parameters
@@ -624,7 +624,7 @@ class MultiDetWalker:
                                                        self.weights)
 
 
-class MultiGHFWalker:
+class MultiGHFWalker(object):
     """Multi-GHF style walker.
 
     Parameters
@@ -844,7 +844,7 @@ class MultiGHFWalker:
                                                # t[:,:nup].T[:,i], vtup)
             # )
 
-class FieldConfig:
+class FieldConfig(object):
     """Object for managing stored auxilliary field.
 
     Parameters

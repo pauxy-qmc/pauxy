@@ -20,7 +20,7 @@ import pauxy.utils
 import pauxy.propagation
 
 
-class Estimators:
+class Estimators(object):
     """Container for qmc estimates of observables.
 
     Parameters
@@ -133,7 +133,7 @@ class Estimators:
             e.update(system, qmc, trial, psi, step, free_projection)
 
 
-class EstimatorEnum:
+class EstimatorEnum(object):
     """Enum structure for help with indexing estimators array.
 
     python's support for enums doesn't help as it indexes from 1.
@@ -150,7 +150,7 @@ class EstimatorEnum:
         self.time = 6
 
 
-class Mixed:
+class Mixed(object):
     """Container for calculating mixed estimators.
 
     """
@@ -309,7 +309,7 @@ class Mixed:
         self.estimates[self.names.time] = time.time()
 
 
-class BackPropagation:
+class BackPropagation(object):
     """Container for performing back propagation.
 
     Parameters
@@ -484,7 +484,7 @@ class BackPropagation:
         self.global_estimates[:] = 0
 
 
-class ITCF:
+class ITCF(object):
     """ Container for calculating ITCFs.
 
     Parameters

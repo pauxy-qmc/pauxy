@@ -7,7 +7,7 @@ import scipy.linalg
 import pauxy.kpoints
 
 
-class Hubbard:
+class Hubbard(object):
     """Hubbard model system class.
 
     1 and 2 case with nearest neighbour hopping.

@@ -2,7 +2,7 @@ import numpy
 import copy
 
 
-class QMCOpts:
+class QMCOpts(object):
     r"""Input options and certain constants / parameters derived from them.
 
     Initialised from a dict containing the following options, not all of which

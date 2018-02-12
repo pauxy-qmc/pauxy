@@ -4,7 +4,7 @@ import scipy.linalg
 import pauxy.utils
 
 
-class Generic:
+class Generic(object):
     """Generic system class (integrals read from fcidump)
 
     Parameters
