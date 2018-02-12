@@ -175,7 +175,7 @@ class Walkers(object):
             walker_buffers.append(new_psi[s[0]].get_buffer())
             reqs.append(comm.isend(walker_buffers[i], dest=s[1], tag=s[2]))
         for i, rc in enumerate(recv):
-            if comm.__class__ == 'FakeReq':
+            if str(comm.__class__) == 'pauxy.calc.FakeComm':
                 # no mpi4py
                 walker_buffer = walker_buffers[i]
             else:
