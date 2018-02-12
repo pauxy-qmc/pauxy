@@ -10,13 +10,29 @@ try:
     from mpi4py import MPI
     parallel = True
 except ImportError:
-    warnings.warn('mpi4py not found.')
     parallel = False
 import pauxy.cpmc
 import pauxy.utils
 
 
 def init(input_file, verbose=False):
+    """Helper function to parse input file and setup parallel calculation.
+
+    Parameters
+    ----------
+    input_file : string
+        Input filename.
+    verbose : bool
+        If true print out set up information.
+
+    Returns
+    -------
+    options : dict
+        Python dict of input options.
+    comm : MPI communicator
+        Communicator object. If mpi4py is not installed then we return a fake
+        communicator.
+    """
     if parallel:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -33,7 +49,7 @@ def init(input_file, verbose=False):
         inp.close()
         # sometimes python is beautiful
         if verbose:
-            print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
+            print('# Running on %s core%s.'%(nprocs, 's' if nprocs > 1 else ''))
     else:
         options = None
     options = comm.bcast(options, root=0)
@@ -61,13 +77,17 @@ def setup_parallel(options, comm=None, verbose=False):
 
     Parameters
     ----------
-    input_file : json file.
-        Simulation input file.
+    options : dict
+        Input options.
+    comm : MPI communicator
+        MPI communicator object.
+    verbose : bool
+        If true print out set up information.
 
     Returns
     -------
-    state : :class:`pauxy.state.State`
-        Simulation state.
+    cpmc : :class:`pauxy.cpmc.CPMC`
+        CPMC driver.
     """
     if comm.Get_rank() == 0:
         cpmc = pauxy.cpmc.CPMC(options.get('model'),
@@ -89,7 +109,7 @@ def setup_parallel(options, comm=None, verbose=False):
     cpmc.root = cpmc.rank == 0
     # We can't serialise '_io.BufferWriter' object, so just delay initialisation
     # of estimators object to after MPI communication.
-    # TODO: Do this more gracefully.
+    # Simpler to just ensure a fixed number of walkers per core.
     cpmc.qmc.nwalkers = int(cpmc.qmc.nwalkers/cpmc.nprocs)
     if cpmc.qmc.nwalkers == 0:
         # This should occur on all processors so we don't need to worry about
@@ -100,7 +120,6 @@ def setup_parallel(options, comm=None, verbose=False):
                           'input file. Exiting.')
         sys.exit()
 
-    # TODO: Return cpmc and psi and run from another routine.
     cpmc.estimators = (
         pauxy.estimators.Estimators(options.get('estimates'),
                                     cpmc.root,
