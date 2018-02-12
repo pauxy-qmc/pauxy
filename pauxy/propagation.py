@@ -516,7 +516,7 @@ def kinetic_kspace(psi, system, btk):
         psi[:,:s.nup] = tup
         psi[:,s.nup:] = tdown
 
-class DiscreteHubbard:
+class DiscreteHubbard(object):
 
     def __init__(self, options, qmc, system, trial, verbose=False):
 
@@ -735,7 +735,7 @@ class DiscreteHubbard:
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
 
-class ContinuousHubbard:
+class ContinuousHubbard(object):
     '''Base propagator class'''
 
     def __init__(self, options, qmc, system, trial, verbose=False):
@@ -878,7 +878,7 @@ class ContinuousHubbard:
         walker.E_L = E_L
         walker.ot = ot_new
 
-class GenericContinuous:
+class GenericContinuous(object):
     '''Base propagator class'''
 
     def __init__(self, options, qmc, system, trial, verbose=False):

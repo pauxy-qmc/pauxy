@@ -4,7 +4,7 @@ import scipy.linalg
 import pauxy.utils
 
 
-class Generic:
+class Generic(object):
     """Generic system class (integrals read from fcidump)
 
     Parameters
@@ -125,8 +125,8 @@ class Generic:
     def construct_decomposition(self, verbose):
         """Decompose two-electron integrals.
 
-        Attributes
-        ----------
+        Returns
+        -------
         h1e_mod : :class:`numpy.ndarray`
             Modified one-body Hamiltonian.
         chol_vecs : :class:`numpy.ndarray`

@@ -9,8 +9,10 @@ import warnings
 # todo : handle more gracefully
 try:
     from mpi4py import MPI
+    mpi_sum = MPI.SUM
 except ImportError:
-    warnings.warn('No MPI library found')
+    warnings.warn('mpi4py not found.')
+    mpi_sum = None
 import scipy.linalg
 import os
 import h5py
@@ -18,7 +20,7 @@ import pauxy.utils
 import pauxy.propagation
 
 
-class Estimators:
+class Estimators(object):
     """Container for qmc estimates of observables.
 
     Parameters
@@ -64,7 +66,7 @@ class Estimators:
         propagation and itcf calculation.
     """
 
-    def __init__(self, estimates, root, qmc, system, trial, BT2):
+    def __init__(self, estimates, root, qmc, system, trial, BT2, verbose=False):
         if root:
             index = estimates.get('index', 0)
             h5f_name = estimates.get('filename', None)
@@ -123,7 +125,7 @@ class Estimators:
         """
         for k, e in self.estimators.items():
             e.print_step(comm, nprocs, step, nmeasure)
-        if (comm is None) or (comm.Get_rank() == 0):
+        if comm.Get_rank() == 0:
             self.h5f.flush()
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
@@ -131,7 +133,7 @@ class Estimators:
             e.update(system, qmc, trial, psi, step, free_projection)
 
 
-class EstimatorEnum:
+class EstimatorEnum(object):
     """Enum structure for help with indexing estimators array.
 
     python's support for enums doesn't help as it indexes from 1.
@@ -148,7 +150,7 @@ class EstimatorEnum:
         self.time = 6
 
 
-class Mixed:
+class Mixed(object):
     """Container for calculating mixed estimators.
 
     """
@@ -235,12 +237,9 @@ class Mixed:
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         # Back propagated estimates
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
-        if comm is not None:
-            comm.Reduce(es, self.global_estimates, op=MPI.SUM)
-        else:
-            self.global_estimates[:] = es
+        comm.Reduce(es, self.global_estimates, op=mpi_sum)
         # put these in own print routines.
-        if (comm is None) or (comm.Get_rank() == 0):
+        if comm.Get_rank() == 0:
             print (pauxy.utils.format_fixed_width_floats([step]+
                         list(self.global_estimates[:ns.time+1].real/nmeasure)))
             self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
@@ -310,7 +309,7 @@ class Mixed:
         self.estimates[self.names.time] = time.time()
 
 
-class BackPropagation:
+class BackPropagation(object):
     """Container for performing back propagation.
 
     Parameters
@@ -472,7 +471,7 @@ class BackPropagation:
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step % self.nmax == 0:
-            comm.Reduce(self.estimates, self.global_estimates, op=MPI.SUM)
+            comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
             if comm.Get_rank() == 0:
                 self.output.push(self.global_estimates[:self.nreg]/(nprocs))
                 if self.rdm:
@@ -485,7 +484,7 @@ class BackPropagation:
         self.global_estimates[:] = 0
 
 
-class ITCF:
+class ITCF(object):
     """ Container for calculating ITCFs.
 
     Parameters
@@ -756,7 +755,7 @@ class ITCF:
 
     def print_step(self, comm, nprocs, step, nmeasure=1):
         if step != 0 and step % self.nprop_tot == 0:
-            comm.Reduce(self.spgf, self.spgf_global, op=MPI.SUM)
+            comm.Reduce(self.spgf, self.spgf_global, op=mpi_sum)
             if comm.Get_rank() == 0:
                 self.to_file(self.rspace_unit, self.spgf_global/nprocs)
                 if self.kspace:

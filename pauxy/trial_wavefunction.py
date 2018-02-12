@@ -46,7 +46,7 @@ def get_trial_wavefunction(options, system, cplx, parallel, verbose=False):
     return trial
 
 
-class FreeElectron:
+class FreeElectron(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
         if verbose:
@@ -118,7 +118,7 @@ class FreeElectron:
             print ("# Finished initialising free electron trial wavefunction.")
 
 
-class UHF:
+class UHF(object):
     r"""UHF trial wavefunction.
 
     Search for UHF trial wavefunction by self consistenly solving the mean field
@@ -307,7 +307,7 @@ class UHF:
         nidown = self.density(self.trial[:,system.nup:])
         return (niup, nidown, e_up, e_down)
 
-class MultiDeterminant:
+class MultiDeterminant(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
         if verbose:
@@ -387,7 +387,7 @@ def read_fortran_complex_numbers(filename):
     return numpy.array(orbs)
 
 
-class HartreeFock:
+class HartreeFock(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
         if verbose:
@@ -409,7 +409,9 @@ class HartreeFock:
         gdown = pauxy.estimators.gab(self.psi[:,system.nup:],
                 self.psi[:,system.nup:])
         self.G = numpy.array([gup,gdown])
-        (self.energy, self.e1b, self.e2b) = pauxy.estimators.local_energy_generic(system, self.G)
+        (self.energy, self.e1b, self.e2b) = (
+                pauxy.estimators.local_energy_generic(system, self.G)
+        )
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False

@@ -15,7 +15,7 @@ import pauxy.utils
 import pauxy.systems
 
 
-class CPMC:
+class CPMC(object):
     """CPMC driver.
 
     This object contains all the instances of the classes which parse input
@@ -63,6 +63,7 @@ class CPMC:
         # Hack - this is modified on initialisation.
         self.root = True
         self.nprocs = 1
+        self.rank = 1
         self.init_time = time.time()
         # 2. Calculation attributes.
         self.system = pauxy.systems.get_system(model, qmc_opts['dt'], verbose)

@@ -157,10 +157,9 @@ def is_h5file(obj):
 
 
 def is_class(obj):
-    cond = (hasattr(obj, '__class__') and
-            (('__dict__') in dir(obj) or hasattr(obj, '__slots__'))
+    cond = (hasattr(obj, '__class__') and (('__dict__') in dir(obj)
             and not isinstance(obj, types.FunctionType)
-            and not is_h5file(obj))
+            and not is_h5file(obj)))
 
     return cond
 
