@@ -31,26 +31,45 @@ class CPMC(object):
         Input options relating to what estimator to calculate.
     trial : dict
         Input options relating to trial wavefunction.
+    propagator : dict
+        Input options relating to propagator.
+    parallel : bool
+        If true we are running in parallel.
+    verbose : bool
+        If true we print out additional setup information.
 
     Attributes
     ----------
+    uuid : string
+        Simulation state uuid.
+    sha1 : string
+        Git hash.
+    seed : int
+        RNG seed. This is set during initialisation in calc.
+    root : bool
+        If true we are on the root / master processor.
+    nprocs : int
+        Number of processors.
+    rank : int
+        Processor id.
+    cplx : bool
+        If true then most numpy arrays are complex valued.
+    init_time : float
+        Calculation initialisation (cpu) time.
+    init_time : float
+        Human readable initialisation time.
     system : :class:`pauxy.hubbard.Hubbard` / system object in general.
         Container for model input options.
     qmc : :class:`pauxy.state.QMCOpts` object.
         Container for qmc input options.
-    uuid : string
-        Simulation state uuid.
-    seed : int
-        RNG seed. This is set during initialisation but is useful to output in
-        json_string.
-    root : bool
-        If True we are on the root / master processor.
     trial : :class:`pauxy.trial_wavefunction.X' object
         Trial wavefunction class.
     propagators : :class:`pauxy.propagation.Projectors` object
         Container for system specific propagation routines.
-    json_string : string
-        String containing all input options and certain derived options.
+    estimators : :class:`pauxy.estimators.Estimators` object
+        Estimator handler.
+    psi : :class:`pauxy.walkers.Walkers` object
+        Walker handler. Stores the CPMC wavefunction.
     """
 
     def __init__(self, model, qmc_opts, estimates,
@@ -60,16 +79,17 @@ class CPMC(object):
         self.uuid = str(uuid.uuid1())
         self.sha1 = pauxy.utils.get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
-        # Hack - this is modified on initialisation.
+        # Hack - this is modified later if running in parallel on
+        # initialisation.
         self.root = True
         self.nprocs = 1
         self.rank = 1
         self.init_time = time.time()
-        # 2. Calculation attributes.
+        self.run_time = time.asctime(),
+        # 2. Calculation objects.
         self.system = pauxy.systems.get_system(model, qmc_opts['dt'], verbose)
         self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system, verbose)
-        self.cplx = determine_dtype(propagator, self.system)
-        # Store input dictionaries for the moment.
+        self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
             pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
                                                             self.cplx,
@@ -80,7 +100,6 @@ class CPMC(object):
                                                             self.system,
                                                             self.trial,
                                                             verbose)
-        # Handy to keep original dicts so they can be printed at run time.
         if not parallel:
             self.estimators = (
                 pauxy.estimators.Estimators(estimates,
@@ -106,46 +125,6 @@ class CPMC(object):
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
-    # Remove - each class should have a serialiser
-    def write_json(self, model, qmc_opts, estimates):
-        r"""Print out state object information to string.
-
-        Parameters
-        ----------
-        print_function : method, optional
-            How to print state information, e.g. to std out or file. Default : print.
-        eol : string, optional
-            String to append to output, e.g., '\n', Default : ''.
-        verbose : bool, optional
-            How much information to print. Default : True.
-        """
-
-        # Combine some metadata in dicts so it can be easily printed/read.
-        calc_info = {
-            'sha1': pauxy.utils.get_git_revision_hash(),
-            'Run time': time.asctime(),
-            'uuid': self.uuid
-        }
-        trial_wavefunction = {
-            'name': self.trial.__class__.__name__,
-            'sp_eigv': self.trial.eigs.round(6).tolist(),
-            'initialisation_time': round(self.trial.initialisation_time, 5),
-            'trial_energy': self.trial.etrial,
-        }
-        # http://stackoverflow.com/questions/1447287/format-floats-with-standard-json-module
-        # ugh
-        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        info = {
-            'calculation': calc_info,
-            'model': model,
-            'qmc_options': qmc_opts,
-            'trial_wavefunction': trial_wavefunction,
-            'estimates': estimates,
-        }
-        # Note that we require python 3.6 to print dict in ordered fashion.
-        md = json.dumps(info, sort_keys=False, indent=4)
-        return (md)
-
     def run(self, psi=None, comm=None):
         """Perform CPMC simulation on state object.
 
@@ -153,7 +132,7 @@ class CPMC(object):
         ----------
         state : :class:`pauxy.state.State` object
             Model and qmc parameters.
-        psi : list of :class:`pauxy.walker.Walker` objects
+        psi : :class:`pauxy.walker.Walkers` object
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
         """
@@ -180,7 +159,6 @@ class CPMC(object):
                         w, self.system, self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt * E_T.real)
-                # Add current (propagated) walkers contribution to estimates.
             # calculate estimators
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
@@ -200,6 +178,13 @@ class CPMC(object):
                 self.psi.pop_control(comm, self.rank, self.nprocs)
 
     def finalise(self, verbose):
+        """Tidy up.
+
+        Parameters
+        ----------
+        verbose : bool
+            If true print out some information to stdout.
+        """
         if self.root:
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
@@ -209,9 +194,17 @@ class CPMC(object):
                       (time.time() - self.init_time))
 
 
-def determine_dtype(propagator, system):
-    hs_type = propagator.get('hubbard_stratonovich', 'discrete')
-    continuous = 'continuous' in hs_type
-    twist = system.ktwist.all() is not None
+    def determine_dtype(self, propagator, system):
+        """Determine dtype for trial wavefunction and walkers.
 
-    return continuous or twist
+        Parameters
+        ----------
+        propagator : dict
+            Propagator input options.
+        system : object
+            System object.
+        """
+        hs_type = propagator.get('hubbard_stratonovich', 'discrete')
+        continuous = 'continuous' in hs_type
+        twist = system.ktwist.all() is not None
+        return continuous or twist
