@@ -58,7 +58,7 @@ class CPMC(object):
         Calculation initialisation (cpu) time.
     init_time : float
         Human readable initialisation time.
-    system : :class:`pauxy.hubbard.Hubbard` / system object in general.
+    system : system object.
         Container for model input options.
     qmc : :class:`pauxy.state.QMCOpts` object.
         Container for qmc input options.
