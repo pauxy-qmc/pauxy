@@ -16,6 +16,7 @@ Code
 - T > 0
 - complex cholesky decomposition
 - error analysis for free projection
+- walker buffer using __dict__ attribute.
 
 Imaginary time green's functions
 ----------------------------------
