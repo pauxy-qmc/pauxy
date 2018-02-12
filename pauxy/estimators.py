@@ -11,7 +11,6 @@ try:
     from mpi4py import MPI
     mpi_sum = MPI.SUM
 except ImportError:
-    warnings.warn('mpi4py not found.')
     mpi_sum = None
 import scipy.linalg
 import os
