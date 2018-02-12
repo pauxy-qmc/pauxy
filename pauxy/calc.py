@@ -10,7 +10,7 @@ try:
     from mpi4py import MPI
     parallel = True
 except ImportError:
-    warnings.warn('No MPI library found')
+    warnings.warn('mpi4py not found.')
     parallel = False
 import pauxy.cpmc
 import pauxy.utils
@@ -22,7 +22,7 @@ def init(input_file, verbose=False):
         rank = comm.Get_rank()
         nprocs = comm.Get_size()
     else:
-        comm = None
+        comm = FakeComm()
         rank = 0
         nprocs = 1
     if rank == 0:
@@ -36,8 +36,7 @@ def init(input_file, verbose=False):
             print('# Running on %s core%s'%(nprocs, 's' if nprocs > 1 else ''))
     else:
         options = None
-    if comm is not None:
-        options = comm.bcast(options, root=0)
+    options = comm.bcast(options, root=0)
     seed = options['qmc_options'].get('rng_seed', None)
     if seed is None:
         # only set "random" part of seed on parent processor so we can reproduce
@@ -125,3 +124,35 @@ def setup_parallel(options, comm=None, verbose=False):
                                            dtype=h5py.special_dtype(vlen=str))
 
     return cpmc
+
+class FakeComm:
+    """Fake MPI communicator class to reduce logic."""
+
+    def __init__(self):
+        pass
+
+    def Barrier(self):
+        pass
+    def Get_rank(self):
+        return 0
+    def Get_size(self):
+        return 1
+    def Gather(self, sendbuf, recvbuf, root=0):
+        recvbuf[:] = sendbuf
+    def Bcast(self, sendbuf, root=0):
+        return sendbuf
+    def bcast(self, sendbuf, root=0):
+        return sendbuf
+    def isend(self, sendbuf, dest=None, tag=None):
+        return FakeReq()
+    def recv(self, sendbuf, root=0):
+        pass
+    def Reduce(self, sendbuf, recvbuf, op=None):
+        recvbuf[:] = sendbuf
+
+class FakeReq:
+
+    def __init__(self):
+        pass
+    def wait(self):
+        pass

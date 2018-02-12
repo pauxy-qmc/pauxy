@@ -63,6 +63,7 @@ class CPMC:
         # Hack - this is modified on initialisation.
         self.root = True
         self.nprocs = 1
+        self.rank = 1
         self.init_time = time.time()
         # 2. Calculation attributes.
         self.system = pauxy.systems.get_system(model, qmc_opts['dt'], verbose)

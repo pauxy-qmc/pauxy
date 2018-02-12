@@ -23,7 +23,7 @@ class Walkers:
         Number of back propagation steps.
     """
 
-    def __init__(self, system, trial, nwalkers, nprop_tot, nbp):
+    def __init__(self, system, trial, nwalkers, nprop_tot, nbp, verbose=False):
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
@@ -131,9 +131,8 @@ class Walkers:
         else:
             parent_ix = numpy.empty(len(global_weights), dtype='i')
 
-        if comm is not None:
-            comm.Gather(weights, global_weights, root=0)
-        if (comm is None) or iproc == 0:
+        comm.Gather(weights, global_weights, root=0)
+        if iproc == 0:
             total_weight = sum(global_weights)
             cprobs = numpy.cumsum(global_weights)
             ntarget = self.nw * nprocs
@@ -147,8 +146,7 @@ class Walkers:
                         break
 
         # Wait for master
-        if comm is not None:
-            comm.Bcast(parent_ix, root=0)
+        comm.Bcast(parent_ix, root=0)
         # Copy back new information
         send = []
         recv = []
@@ -173,10 +171,15 @@ class Walkers:
         reqr = []
         walker_buffers = []
         for i, s in enumerate(send):
+            # don't want to access buffer during non-blocking send.
             walker_buffers.append(new_psi[s[0]].get_buffer())
             reqs.append(comm.isend(walker_buffers[i], dest=s[1], tag=s[2]))
-        for rc in recv:
-            walker_buffer = comm.recv(source=rc[1], tag=rc[2])
+        for i, rc in enumerate(recv):
+            if comm.__class__ == 'FakeReq':
+                # no mpi4py
+                walker_buffer = walker_buffers[i]
+            else:
+                walker_buffer = comm.recv(source=rc[1], tag=rc[2])
             self.walkers[rc[0]].set_buffer(walker_buffer)
         for rs in reqs:
             rs.wait()

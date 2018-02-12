@@ -125,8 +125,8 @@ class Generic:
     def construct_decomposition(self, verbose):
         """Decompose two-electron integrals.
 
-        Attributes
-        ----------
+        Returns
+        -------
         h1e_mod : :class:`numpy.ndarray`
             Modified one-body Hamiltonian.
         chol_vecs : :class:`numpy.ndarray`
