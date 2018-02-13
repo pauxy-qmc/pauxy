@@ -45,15 +45,15 @@ def local_energy_bound(local_energy, mean, threshold):
 
     See: Purwanto et al., Phys. Rev. B 80, 214116 (2009).
 
-Parameters
-----------
-local_energy : float
-    Local energy of current walker
-mean : float
-    Mean value of local energy about which we impose the threshold / bound.
-threshold : float
-    Amount of lee-way for energy fluctuations about the mean.
-"""
+    Parameters
+    ----------
+    local_energy : float
+        Local energy of current walker
+    mean : float
+        Mean value of local energy about which we impose the threshold / bound.
+    threshold : float
+        Amount of lee-way for energy fluctuations about the mean.
+    """
 
     maximum = mean + threshold
     minimum = mean - threshold
@@ -69,6 +69,19 @@ threshold : float
 
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
+    """Calculate overlap ratio for single site update with GHF trial.
+
+    Parameters
+    ----------
+    walker : walker object
+        Walker to be updated.
+    delta : :class:`numpy.ndarray`
+        Delta updates for single spin flip.
+    trial : trial wavefunctio object
+        Trial wavefunction.
+    i : int
+        Basis index.
+    """
     nbasis = trial.psi.shape[1] // 2
     for (idx, G) in enumerate(walker.Gi):
         guu = G[i,i]
@@ -85,6 +98,19 @@ def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
+    """Calculate overlap ratio for single site update with multi-det trial.
+
+    Parameters
+    ----------
+    walker : walker object
+        Walker to be updated.
+    delta : :class:`numpy.ndarray`
+        Delta updates for single spin flip.
+    trial : trial wavefunctio object
+        Trial wavefunction.
+    i : int
+        Basis index.
+    """
     for (idx, G) in enumerate(walker.Gi):
         walker.R[idx,0,0] = (1+delta[0][0]*G[0][i,i])
         walker.R[idx,0,1] = (1+delta[0][1]*G[1][i,i])
@@ -95,90 +121,29 @@ def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_single_det(walker, delta, trial, i):
+    """Calculate overlap ratio for single site update with UHF trial.
+
+    Parameters
+    ----------
+    walker : walker object
+        Walker to be updated.
+    delta : :class:`numpy.ndarray`
+        Delta updates for single spin flip.
+    trial : trial wavefunctio object
+        Trial wavefunction.
+    i : int
+        Basis index.
+    """
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
     R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
     return 0.5 * numpy.array([R1,R2])
-
-def generic_continuous(walker, state):
-    r"""Continuous HS transformation
-
-    This form assumes nothing about the form of the two-body Hamiltonian and
-    is thus quite slow, particularly if the matrix is M^2xM^2.
-
-    Todo: check if this actually works.
-
-    Parameters
-    ----------
-    walker : :class:`pauxy.walker.Walker`
-        walker object to be updated. on output we have acted on
-        :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
-        updates inplace.
-    state : :class:`pauxy.state.State`
-        Simulation state.
-    """
-
-    # iterate over spins
-
-    dt = state.dt
-    gamma = state.system.gamma
-    nup = state.system.nup
-    # Generate ~M^2 normally distributed auxiliary fields.
-    sigma = dt**0.5 * numpy.random.normal(0.0, 1.0, len(gamma))
-    # Construct HS potential, V_HS = sigma dot U
-    V_HS = numpy.einsum('ij,j->i', sigma, gamma)
-    # Reshape so we can apply to MxN Slater determinant.
-    V_HS = numpy.reshape(V_HS, (M, M))
-    for n in range(1, nmax_exp + 1):
-        EXP_V = EXP_V + numpy.dot(V_HS, EXP_V) / math.factorial(n)
-    walker.phi[:nup] = numpy.dot(EXP_V, walker.phi[:nup])
-    walker.phi[nup:] = numpy.dot(EXP_V, walker.phi[:nup])
-
-    # Update inverse and green's function
-    walker.inverse_overlap(trial)
-    walker.greens_function(trial)
-    # Perform importance sampling, phaseless and real local energy
-    # approximation and update
-    E_L = state.estimators.local_energy(system, walker.G)[0].real
-    ot_new = walker.calc_otrial(trial)
-    dtheta = cmath.phase(ot_new/walker.ot)
-    walker.weight = (walker.weight * exp(-0.5*system.dt*(walker.E_L-E_L))
-                                  * max(0, cos(dtheta)))
-    walker.E_L = E_L
-    walker.ot = ot_new
-
-
-def kinetic_importance_sampling(walker, state):
-    r"""Propagate by the kinetic term by direct matrix multiplication.
-
-    Parameters
-    ----------
-    walker : :class:`pauxy.walker.Walker`
-        Walker object to be updated. on output we have acted on
-        :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
-        appropriately.  updates inplace.
-    state : :class:`pauxy.state.State`
-        Simulation state.
-    """
-    self.propagators.kinetic(walker.phi, state)
-    # Update inverse overlap
-    walker.inverse_overlap(state.trial.psi)
-    # Update walker weight
-    ot_new = walker.calc_otrial(state.trial)
-    ratio = (ot_new/walker.ot)
-    phase = cmath.phase(ratio)
-    if abs(phase) < math.pi/2:
-        walker.weight = walker.weight * ratio.real
-        walker.ot = ot_new
-        # Todo : remove computation of green's function repeatedly.
-        walker.greens_function(state.trial)
-    else:
-        walker.weight = 0.0
-
 
 def kinetic_real(phi, system, bt2):
     r"""Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuus algorithm and free propagation.
+
+    todo : this is the same a propagating by an arbitrary matrix, remove.
 
     Parameters
     ----------
@@ -198,7 +163,7 @@ def kinetic_real(phi, system, bt2):
 def kinetic_ghf(phi, system, bt2):
     r"""Propagate by the kinetic term by direct matrix multiplication.
 
-    For use with the GHF algorithm.
+    For use with the GHF trial wavefunction.
 
     Parameters
     ----------
@@ -239,10 +204,18 @@ def propagate_potential_auxf(phi, state, field_config):
 def construct_propagator_matrix(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
+    For use with discrete transformation.
+
     Parameters
     ----------
+    system : class
+        System class.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
     config : numpy array
         Auxiliary field configuration.
+    conjt : bool
+        If true return Hermitian conjugate of matrix.
 
     Returns
     -------
@@ -263,10 +236,18 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
+    For use with generic system object.
+
     Parameters
     ----------
+    system : class
+        System class.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
     config : numpy array
         Auxiliary field configuration.
+    conjt : bool
+        If true return Hermitian conjugate of matrix.
 
     Returns
     -------
@@ -287,10 +268,18 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
 def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
+    For use with GHF trial wavefunction.
+
     Parameters
     ----------
+    system : class
+        System class.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
     config : numpy array
         Auxiliary field configuration.
+    conjt : bool
+        If true return Hermitian conjugate of matrix.
 
     Returns
     -------
@@ -311,25 +300,25 @@ def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
 def back_propagate(system, psi, trial, nstblz, BT2, dt):
     r"""Perform back propagation for UHF style wavefunction.
 
-    todo: Explanation.
-
-    parameters
+    Parameters
     ---------
-    state : :class:`pauxy.state.state`
-        state object
-    psi_n : list of :class:`pauxy.walker.walker` objects
-        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
-        output the walker's auxiliary field counter will be set to zero if we
-        are not also calculating an itcf.
-    step : int
-        simulation step (modulo total number of fields to save). this is
-        necessary when estimating an itcf for imaginary times >> back
-        propagation time.
+    system : system object in general.
+        Container for model input options.
+    psi : :class:`pauxy.walkers.Walkers` object
+        CPMC wavefunction.
+    trial : :class:`pauxy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    dt : float
+        Timestep.
 
-    returns
+    Returns
     -------
-    psi_bp : list of :class:`pauxy.walker.walker` objects
-        back propagated list of walkers.
+    psi_bp : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
     """
 
     psi_bp = [pauxy.walker.Walker(1, system, trial, w) for w in range(len(psi))]
@@ -348,38 +337,35 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
 def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
     r"""Perform back propagation for UHF style wavefunction.
 
-    todo: Explanation.
+    For use with generic system hamiltonian.
 
-    parameters
+    Parameters
     ---------
-    state : :class:`pauxy.state.state`
-        state object
-    psi_n : list of :class:`pauxy.walker.walker` objects
-        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
-        output the walker's auxiliary field counter will be set to zero if we
-        are not also calculating an itcf.
-    step : int
-        simulation step (modulo total number of fields to save). this is
-        necessary when estimating an itcf for imaginary times >> back
-        propagation time.
+    system : system object in general.
+        Container for model input options.
+    psi : :class:`pauxy.walkers.Walkers` object
+        CPMC wavefunction.
+    trial : :class:`pauxy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    dt : float
+        Timestep.
 
-    returns
+    Returns
     -------
-    psi_bp : list of :class:`pauxy.walker.walker` objects
-        back propagated list of walkers.
+    psi_bp : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
     """
-
-    psi_bp = [
-        pauxy.walker.Walker(
-            1,
-            system,
-            trial,
-            w) for w in range(
-            len(psi))]
+    psi_bp = [pauxy.walker.Walker(1,system,trial,w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
         for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
+            # could make this system specific to reduce need for multiple
+            # routines.
             B = construct_propagator_matrix_generic(system, BT2,
                                                     c, dt, conjt=True)
             psi_bp[iw].phi[:, :nup] = B[0].dot(psi_bp[iw].phi[:, :nup])
@@ -388,31 +374,29 @@ def back_propagate_generic(system, psi, trial, nstblz, BT2, dt):
                 psi_bp[iw].reortho(trial)
     return psi_bp
 
-
 def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
-    r"""perform backpropagation.
+    r"""Perform back propagation for GHF style wavefunction.
 
-    todo: explanation and disentangle measurement from act.
-
-    parameters
+    Parameters
     ---------
-    state : :class:`pauxy.state.State`
-        state object
-    psi_n : list of :class:`pauxy.walker.Walker` objects
-        current distribution of walkers, i.e., :math:`\tau_n'+\tau_{bp}`. on
-        output the walker's auxiliary field counter will be set to zero if we
-        are not also calculating an itcf.
-    step : int
-        simulation step (modulo total number of fields to save). this is
-        necessary when estimating an itcf for imaginary times >> back
-        propagation time.
+    system : system object in general.
+        Container for model input options.
+    psi : :class:`pauxy.walkers.Walkers` object
+        CPMC wavefunction.
+    trial : :class:`pauxy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    dt : float
+        Timestep.
 
-    returns
+    Returns
     -------
     psi_bp : list of :class:`pauxy.walker.Walker` objects
-        back propagated list of walkers.
+        Back propagated list of walkers.
     """
-
     psi_bp = [pauxy.walker.MultiGHFWalker(1, system, trial, w, weights='ones',
                                           wfn0='GHF') for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
@@ -432,6 +416,31 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
 
 def back_propagate_single(phi_in, configs, weights,
                           system, nstblz, BT2, store=False):
+    r"""Perform back propagation for single walker.
+
+    Parameters
+    ---------
+    phi_in : :class:`pauxy.walkers.Walker` object
+        Walker.
+    configs : :class:`numpy.ndarray`
+        Auxilliary field configurations.
+    weights : :class:`numpy.ndarray`
+        Not used. For interface consistency.
+    system : system object in general.
+        Container for model input options.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    store : bool
+        If true the the back propagated wavefunctions are stored along the back
+        propagation path.
+
+    Returns
+    -------
+    psi_store : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
+    """
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
@@ -447,8 +456,33 @@ def back_propagate_single(phi_in, configs, weights,
     return psi_store
 
 
-def back_propagate_single_ghf(
-        phi, configs, weights, system, nstblz, BT2, store=False):
+def back_propagate_single_ghf(phi, configs, weights, system,
+                              nstblz, BT2, store=False):
+    r"""Perform back propagation for single walker.
+
+    Parameters
+    ---------
+    phi : :class:`pauxy.walkers.MultiGHFWalker` object
+        Walker.
+    configs : :class:`numpy.ndarray`
+        Auxilliary field configurations.
+    weights : :class:`numpy.ndarray`
+        Not used. For interface consistency.
+    system : system object in general.
+        Container for model input options.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    store : bool
+        If true the the back propagated wavefunctions are stored along the back
+        propagation path.
+
+    Returns
+    -------
+    psi_store : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
+    """
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
@@ -473,12 +507,12 @@ def propagate_single(psi, system, B):
 
     Parameters
     ---------
-    state : :class:`pauxy.state.State`
-        state object
-    psi : :class:`numpy.ndarray`
-        Input wavefunction to propagate.
-    B : numpy array
-        Propagation matrix.
+    phi : :class:`pauxy.walkers.MultiGHFWalker` object
+        Walker.
+    system : system object in general.
+        Container for model input options.
+    B : :class:`numpy.ndarray`
+        One body propagator.
     """
     nup = system.nup
     if len(B.shape) == 3:
@@ -490,31 +524,40 @@ def propagate_single(psi, system, B):
         psi[M:,nup:] = B[M:,M:].dot(psi[M:,nup:])
 
 
-def kinetic_kspace(psi, system, btk):
+def kinetic_kspace(phi, system, btk):
     """Apply the kinetic energy projector in kspace.
 
     May be faster for very large dilute lattices.
+
+    Parameters
+    ---------
+    phi : :class:`pauxy.walkers.MultiGHFWalker` object
+        Walker.
+    system : system object in general.
+        Container for model input options.
+    B : :class:`numpy.ndarray`
+        One body propagator.
     """
     s = system
     # Transform psi to kspace by fft-ing its columns.
-    tup = pauxy.utils.fft_wavefunction(psi[:,:s.nup], s.nx, s.ny,
-                                         s.nup, psi[:,:s.nup].shape)
-    tdown = pauxy.utils.fft_wavefunction(psi[:,s.nup:], s.nx, s.ny,
-                                           s.ndown, psi[:,s.nup:].shape)
+    tup = pauxy.utils.fft_wavefunction(phi[:,:s.nup], s.nx, s.ny,
+                                       s.nup, phi[:,:s.nup].shape)
+    tdown = pauxy.utils.fft_wavefunction(phi[:,s.nup:], s.nx, s.ny,
+                                         s.ndown, phi[:,s.nup:].shape)
     # Kinetic enery operator is diagonal in momentum space.
     # Note that multiplying by diagonal btk in this way is faster than using
     # einsum and way faster than using dot using an actual diagonal matrix.
     tup = (btk*tup.T).T
     tdown = (btk*tdown.T).T
-    # Transform psi to kspace by fft-ing its columns.
+    # Transform phi to kspace by fft-ing its columns.
     tup = pauxy.utils.ifft_wavefunction(tup, s.nx, s.ny, s.nup, tup.shape)
     tdown = pauxy.utils.ifft_wavefunction(tdown, s.nx, s.ny, s.ndown, tdown.shape)
-    if psi.dtype == float:
-        psi[:,:s.nup] = tup.astype(float)
-        psi[:,s.nup:] = tdown.astype(float)
+    if phi.dtype == float:
+        phi[:,:s.nup] = tup.astype(float)
+        phi[:,s.nup:] = tdown.astype(float)
     else:
-        psi[:,:s.nup] = tup
-        psi[:,s.nup:] = tdown
+        phi[:,:s.nup] = tup
+        phi[:,s.nup:] = tdown
 
 class DiscreteHubbard(object):
 
