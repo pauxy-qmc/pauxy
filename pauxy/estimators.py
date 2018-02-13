@@ -847,14 +847,14 @@ class ITCF(object):
         psi.copy_init_wfn()
 
     def initial_greens_function_uhf(self, A, B, trial, nup, weights):
-        """Compute initial green's function at timestep n for UHF wavefunction.
+        r"""Compute initial green's function at timestep n for UHF wavefunction.
 
         Here we actually compute the equal-time green's function:
 
         .. math::
 
             G_{ij} = \langle c_i c_j^{\dagger} \rangle
-        
+
         Parameters
         ----------
         A : :class:`numpy.ndarray`
@@ -880,14 +880,14 @@ class ITCF(object):
         return (numpy.array([Ggr_up, Ggr_down]), numpy.array([Gls_up, Gls_down]))
 
     def initial_greens_function_ghf(self, A, B, trial, nup, weights):
-        """Compute initial green's function at timestep n for GHF wavefunction.
+        r"""Compute initial green's function at timestep n for GHF wavefunction.
 
         Here we actually compute the equal-time green's function:
 
         .. math::
 
             G_{ij} = \langle c_i c_j^{\dagger} \rangle
-        
+
         Parameters
         ----------
         A : :class:`numpy.ndarray`
