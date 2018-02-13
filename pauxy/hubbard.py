@@ -244,7 +244,7 @@ def kinetic_pinning(t, nbasis, nx, ny):
 def decode_basis(nx, ny, i):
     """Return cartesian lattice coordinates from basis index.
 
-    Consider a 3x3 lattice then we index lattice sites like:
+    Consider a 3x3 lattice then we index lattice sites like::
 
         (0,2) (1,2) (2,2)       6 7 8
         (0,1) (1,1) (2,1)  ->   3 4 5
