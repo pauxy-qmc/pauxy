@@ -145,8 +145,9 @@ class CPMC(object):
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
-        self.estimators.estimators['mixed'].print_key()
-        self.estimators.estimators['mixed'].print_header()
+        if self.root:
+            self.estimators.estimators['mixed'].print_key()
+            self.estimators.estimators['mixed'].print_header()
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
