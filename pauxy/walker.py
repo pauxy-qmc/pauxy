@@ -127,7 +127,7 @@ class Walkers(object):
         weights = numpy.array([abs(w.weight) for w in self.walkers])
         global_weights = numpy.zeros(len(weights)*nprocs)
         if iproc == 0:
-            parent_ix = numpy.arange(len(global_weights), dtype='i')
+            parent_ix = numpy.zeros(len(global_weights), dtype='i')
         else:
             parent_ix = numpy.empty(len(global_weights), dtype='i')
 
@@ -139,48 +139,46 @@ class Walkers(object):
 
             r = numpy.random.random()
             comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
-            for (ic, c) in enumerate(comb):
-                for (iw, w) in enumerate(cprobs):
-                    if c < w:
-                        parent_ix[ic] = iw
-                        break
+            iw = 0
+            ic = 0
+            while ic < len(comb):
+                if comb[ic] < cprobs[iw]:
+                    parent_ix[iw] += 1
+                    ic += 1
+                else:
+                    iw += 1
 
         # Wait for master
         comm.Bcast(parent_ix, root=0)
         # Copy back new information
         send = []
         recv = []
-        for (i,p) in enumerate(parent_ix):
-            loc_ix = i % self.nw
-            new_ix = p % self.nw
-            proc_ix = i // self.nw
-            new_proc_ix = p // self.nw
-            if proc_ix == iproc and new_ix != loc_ix:
-                # Walker on current processor has been killed and replaced with
-                # another.
-                # [location on current proc's, proc id of new walker]
-                recv.append([loc_ix, new_proc_ix, i])
-                if new_proc_ix == iproc:
-                    send.append([new_ix, proc_ix, i])
-            elif new_proc_ix == iproc and new_ix != loc_ix:
-                # We need to send a walker somewhere else.
-                # [location on current proc's, proc id of new walker]
-                send.append([new_ix, proc_ix, i])
+        for (i, w) in enumerate(parent_ix):
+            # processor index of killed walker
+            if w == 0:
+                recv.append([i//self.nw, i%self.nw])
+            elif w > 1:
+                for ns in range(0, w-1):
+                    send.append([i//self.nw, i%self.nw])
         # Send / Receive walkers.
         reqs = []
         reqr = []
         walker_buffers = []
-        for i, s in enumerate(send):
+        for i, (s,r) in enumerate(zip(send, recv)):
             # don't want to access buffer during non-blocking send.
-            walker_buffers.append(new_psi[s[0]].get_buffer())
-            reqs.append(comm.isend(walker_buffers[i], dest=s[1], tag=s[2]))
-        for i, rc in enumerate(recv):
+            if (iproc == s[0]):
+                # Sending duplicated walker
+                walker_buffers.append(new_psi[s[1]].get_buffer())
+                reqs.append(comm.isend(walker_buffers[-1],
+                            dest=r[0], tag=i))
+        for i, (s,r) in enumerate(zip(send, recv)):
             if str(comm.__class__) == 'pauxy.calc.FakeComm':
                 # no mpi4py
                 walker_buffer = walker_buffers[i]
             else:
-                walker_buffer = comm.recv(source=rc[1], tag=rc[2])
-            self.walkers[rc[0]].set_buffer(walker_buffer)
+                if (iproc == r[0]):
+                    walker_buffer = comm.recv(source=s[0], tag=i)
+                    self.walkers[r[1]].set_buffer(walker_buffer)
         for rs in reqs:
             rs.wait()
         comm.Barrier()
