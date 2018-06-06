@@ -3,8 +3,7 @@ PAUXY
 =====
 
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
-quantum Monte Carlo algorithms with a focus on simplicity and transparency rather than
-speed.
+quantum Monte Carlo algorithms with a focus on simplicity rather than speed.
 
 .. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
     :target: https://travis-ci.org/fdmalone/pauxy
