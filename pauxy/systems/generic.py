@@ -1,8 +1,7 @@
-import sys
 import numpy
+import sys
 import scipy.linalg
-import pauxy.utils
-
+from pauxy.utils.linalg import modified_cholesky
 
 class Generic(object):
     """Generic system class (integrals read from fcidump)
@@ -141,7 +140,6 @@ class Generic(object):
                                                             self.nbasis**2)
         if (numpy.sum(V - V.T) != 0):
             print("Warning: Supermatrix is not symmetric")
-        chol_vecs = pauxy.utils.modified_cholesky(V, self.threshold,
-                                                  verbose=verbose)
+        chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
                                             self.nbasis)))
