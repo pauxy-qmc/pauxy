@@ -350,3 +350,13 @@ def ek(t, k, kc, ny):
         e = -2.0*t*(cos(kc[0]*k[0])+cos(kc[1]*k[1]))
 
     return e
+
+def get_strip(cfunc, cfunc_err, ix, nx, ny, stag=False):
+    iy = [i for i in range(ny)]
+    idx = [encode_basis(ix,i,nx) for i in iy]
+    if stag:
+        c = [((-1)**(ix+i))*cfunc[ib] for (i, ib) in zip(iy,idx)]
+    else:
+        c = [cfunc[ib] for ib in idx]
+    cerr = [cfunc_err[ib] for ib in idx]
+    return c, cerr
