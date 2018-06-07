@@ -1,4 +1,4 @@
-"""Driver to perform CPMC calculation"""
+"""Driver to perform AFQMC calculation"""
 import sys
 import json
 import time
@@ -8,15 +8,19 @@ import uuid
 from math import exp
 import copy
 import h5py
-import pauxy.qmc
-import pauxy.walker
-import pauxy.estimators
-import pauxy.utils
-import pauxy.systems
+from pauxy.estimators.handler import Estimators
+from pauxy.propagation.utils import get_propagator
+from pauxy.qmc.options import QMCOpts
+from pauxy.systems.utils import get_system
+from pauxy.trial_wavefunction.utils import get_trial_wavefunction
+from pauxy.utils.misc import get_git_revision_hash, serialise
+from pauxy.walkers.handler import Walkers
 
 
-class CPMC(object):
-    """CPMC driver.
+class AFQMC(object):
+    """AFQMC driver.
+
+    Zero temperature AFQMC using open ended random walk.
 
     This object contains all the instances of the classes which parse input
     options.
@@ -69,7 +73,7 @@ class CPMC(object):
     estimators : :class:`pauxy.estimators.Estimators` object
         Estimator handler.
     psi : :class:`pauxy.walkers.Walkers` object
-        Walker handler. Stores the CPMC wavefunction.
+        Walker handler. Stores the AFQMC wavefunction.
     """
 
     def __init__(self, model, qmc_opts, estimates,
@@ -77,7 +81,7 @@ class CPMC(object):
                  verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
-        self.sha1 = pauxy.utils.get_git_revision_hash()
+        self.sha1 = get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
         # Hack - this is modified later if running in parallel on
         # initialisation.
@@ -87,36 +91,25 @@ class CPMC(object):
         self.init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        self.system = pauxy.systems.get_system(model, qmc_opts['dt'], verbose)
-        self.qmc = pauxy.qmc.QMCOpts(qmc_opts, self.system, verbose)
+        self.system = get_system(model, qmc_opts['dt'], verbose)
+        self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
-            pauxy.trial_wavefunction.get_trial_wavefunction(trial, self.system,
-                                                            self.cplx,
-                                                            parallel, verbose)
+            get_trial_wavefunction(trial, self.system, self.cplx,
+                                   parallel, verbose)
         )
-        self.propagators = pauxy.propagation.get_propagator(propagator,
-                                                            self.qmc,
-                                                            self.system,
-                                                            self.trial,
-                                                            verbose)
+        self.propagators = get_propagator(propagator, self.qmc, self.system,
+                                          self.trial, verbose)
         if not parallel:
             self.estimators = (
-                pauxy.estimators.Estimators(estimates,
-                                            self.root,
-                                            self.qmc,
-                                            self.system,
-                                            self.trial,
-                                            self.propagators.BT_BP,
-                                            verbose)
+                Estimators(estimates, self.root, self.qmc, self.system,
+                           self.trial, self.propagators.BT_BP, verbose)
             )
-            self.psi = pauxy.walker.Walkers(self.system, self.trial,
-                                            self.qmc.nwalkers,
-                                            self.estimators.nprop_tot,
-                                            self.estimators.nbp,
-                                            verbose)
+            self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
+                               self.estimators.nprop_tot,
+                               self.estimators.nbp, verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-            json_string = json.dumps(pauxy.utils.serialise(self, verbose=1),
+            json_string = json.dumps(serialise(self, verbose=1),
                                      sort_keys=False, indent=4)
             self.estimators.h5f.create_dataset('metadata',
                                                data=numpy.array([json_string],
@@ -126,7 +119,7 @@ class CPMC(object):
             self.estimators.estimators['mixed'].print_header()
 
     def run(self, psi=None, comm=None):
-        """Perform CPMC simulation on state object.
+        """Perform AFQMC simulation on state object using open-ended random walk.
 
         Parameters
         ----------
@@ -176,7 +169,7 @@ class CPMC(object):
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
-                self.psi.pop_control(comm, self.rank, self.nprocs)
+                self.psi.pop_control(comm)
 
     def finalise(self, verbose):
         """Tidy up.

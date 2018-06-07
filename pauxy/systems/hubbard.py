@@ -1,10 +1,11 @@
 '''Hubbard model specific classes and methods'''
 
-import numpy
 import cmath
-import math
+from math import cos, pi
+import numpy
+import numpy
 import scipy.linalg
-import pauxy.kpoints
+from pauxy.utils.io import fcidump_header
 
 
 class Hubbard(object):
@@ -53,9 +54,7 @@ class Hubbard(object):
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
-        (self.kpoints, self.kc, self.eks) = pauxy.kpoints.kpoints(self.t,
-                                                                  self.nx,
-                                                                  self.ny)
+        (self.kpoints, self.kc, self.eks) = kpoints(self.t, self.nx, self.ny)
         self.pinning = inputs.get('pinning_fields', False)
         if verbose:
             print ("# Setting up one-body operator.")
@@ -88,8 +87,7 @@ class Hubbard(object):
         to_string : bool
             Return fcidump as string. Default print to stdout.
         """
-        header = pauxy.utils.fcidump_header(self.ne, self.nbasis,
-                                              self.nup-self.ndown)
+        header = fcidump_header(self.ne, self.nbasis, self.nup-self.ndown)
         for i in range(1, self.nbasis+1):
             if self.T.dtype == complex:
                 fmt = "({: 10.8e}, {: 10.8e}) {:>3d} {:>3d} {:>3d} {:>3d}\n"
@@ -290,3 +288,65 @@ def encode_basis(i, j, nx):
 def _super_matrix(U, nbasis):
     '''Construct super-matrix from v_{ijkl}'''
 
+def kpoints(t, nx, ny):
+    """ Construct kpoints for system.
+
+    Parameters
+    ----------
+    t : float
+        Hopping amplitude.
+    nx : int
+        Number of x lattice sites.
+    nx : int
+        Number of y lattice sites.
+
+    Returns
+    -------
+    kp : numpy array
+        System kpoints Note these are not sorted according to eigenvalue energy
+        but rather so as to conform with numpys default kpoint indexing for FFTs.
+    kfac : float
+        Kpoint scaling factor (2pi/L).
+    eigs : numpy array
+        Single particle eigenvalues associated with kp.
+    """
+    kp = []
+    eigs = []
+    if ny == 1:
+        kfac = numpy.array([2.0*pi/nx])
+        for n in range(0, nx):
+            kp.append(numpy.array([n]))
+            eigs.append(ek(t, n, kfac, ny))
+    else:
+        kfac = numpy.array([2.0*pi/nx, 2.0*pi/ny])
+        for n in range(0, nx):
+            for m in range(0, ny):
+                k = numpy.array([n, m])
+                kp.append(k)
+                eigs.append(ek(t, k, kfac, ny))
+
+    eigs = numpy.array(eigs)
+    kp = numpy.array(kp)
+    return (kp, kfac, eigs)
+
+
+def ek(t, k, kc, ny):
+    """ Calculate single-particle energies.
+
+    Parameters
+    ----------
+    t : float
+        Hopping amplitude.
+    k : numpy array
+        Kpoint.
+    kc : float
+        Scaling factor.
+    ny : int
+        Number of y lattice points.
+    """
+    if ny == 1:
+        e = -2.0*t*cos(kc*k)
+    else:
+        e = -2.0*t*(cos(kc[0]*k[0])+cos(kc[1]*k[1]))
+
+    return e
