@@ -2,7 +2,7 @@ import pandas as pd
 import numpy
 import json
 import h5py
-import pauxy.analysis.utils
+from pauxy.analysis.utils import get_strip
 
 def extract_hdf5_data_sets(files):
 
@@ -102,8 +102,8 @@ def correlation_function(filename, name, iy):
     ny = int(md['system']['ny'])
     output = data[name+'/correlation'][:]
     columns = ['hole', 'hole_err', 'spin', 'spin_err']
-    h, herr = pauxy.analysis.utils.get_strip(output[0], output[1], iy[0], nx, ny)
-    s, serr = pauxy.analysis.utils.get_strip(output[2], output[3],
+    h, herr = get_strip(output[0], output[1], iy[0], nx, ny)
+    s, serr = get_strip(output[2], output[3],
                                        iy[0], nx, ny, True)
     results = pd.DataFrame({'hole': h, 'hole_err': herr,
                             'spin': s, 'spin_err': serr},
