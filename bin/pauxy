@@ -2,7 +2,12 @@
 
 import sys
 from pauxy.qmc.afqmc import AFQMC
-from pauxy.qmc.calc import init_communicator, read_input, set_rng_seed
+from pauxy.qmc.calc import (
+    init_communicator,
+    read_input,
+    set_rng_seed,
+    setup_parallel
+)
 import json
 
 

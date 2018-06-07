@@ -12,7 +12,9 @@ try:
 except ImportError:
     parallel = False
 from pauxy.qmc.afqmc import AFQMC
-import pauxy.utils
+from pauxy.estimators.handler import Estimators
+from pauxy.utils.misc import serialise
+from pauxy.walkers.handler import Walkers
 
 
 def init_communicator():
@@ -92,13 +94,13 @@ def setup_parallel(options, comm=None, verbose=False):
         CPMC driver.
     """
     if comm.Get_rank() == 0:
-        afqmc = pauxy.qmc.afqmc.AFQMC(options.get('model'),
-                                      options.get('qmc_options'),
-                                      options.get('estimates'),
-                                      options.get('trial_wavefunction'),
-                                      options.get('propagator', {}),
-                                      parallel=True,
-                                      verbose=verbose)
+        afqmc = AFQMC(options.get('model'),
+                      options.get('qmc_options'),
+                      options.get('estimates'),
+                      options.get('trial_wavefunction'),
+                      options.get('propagator', {}),
+                      parallel=True,
+                      verbose=verbose)
     else:
         afqmc = None
     afqmc = comm.bcast(afqmc, root=0)
@@ -123,21 +125,21 @@ def setup_parallel(options, comm=None, verbose=False):
         sys.exit()
 
     afqmc.estimators = (
-        pauxy.estimators.Estimators(options.get('estimates'),
-                                    afqmc.root,
-                                    afqmc.qmc,
-                                    afqmc.system,
-                                    afqmc.trial,
-                                    afqmc.propagators.BT_BP)
+        Estimators(options.get('estimates'),
+                   afqmc.root,
+                   afqmc.qmc,
+                   afqmc.system,
+                   afqmc.trial,
+                   afqmc.propagators.BT_BP)
     )
-    afqmc.psi = pauxy.walker.Walkers(afqmc.system,
-                                    afqmc.trial,
-                                    afqmc.qmc.nwalkers,
-                                    afqmc.estimators.nprop_tot,
-                                    afqmc.estimators.nbp)
+    afqmc.psi = Walkers(afqmc.system,
+                        afqmc.trial,
+                        afqmc.qmc.nwalkers,
+                        afqmc.estimators.nprop_tot,
+                        afqmc.estimators.nbp)
     if comm.Get_rank() == 0:
         json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        json_string = json.dumps(pauxy.utils.serialise(afqmc, verbose=1),
+        json_string = json.dumps(serialise(afqmc, verbose=1),
                                  sort_keys=False, indent=4)
         afqmc.estimators.h5f.create_dataset('metadata',
                                            data=numpy.array([json_string],
