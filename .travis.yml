@@ -27,4 +27,8 @@ script:
     - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
     - python3 -c "import sys; print (sys.path)"
     - python3 -c "import pauxy; import pauxy.analysis"
+    - python3 -c "import pauxy.qmc"
     - $HOME/testcode/bin/testcode.py -vvv
+
+after_failure:
+    - cat */*.err*

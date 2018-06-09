@@ -2,7 +2,6 @@ import pandas as pd
 import numpy
 import json
 import h5py
-import pauxy.analysis.utils
 
 def extract_hdf5_data_sets(files):
 
@@ -94,21 +93,6 @@ def analysed_itcf(filename, elements, spin, order, kspace):
         results[name+'_err'] = gf_err[:,isp,it,elements[0]]
 
     return results
-
-def correlation_function(filename, name, iy):
-    data = h5py.File(filename, 'r')
-    md = json.loads(data['metadata'][:][0])
-    nx = int(md['system']['nx'])
-    ny = int(md['system']['ny'])
-    output = data[name+'/correlation'][:]
-    columns = ['hole', 'hole_err', 'spin', 'spin_err']
-    h, herr = pauxy.analysis.utils.get_strip(output[0], output[1], iy[0], nx, ny)
-    s, serr = pauxy.analysis.utils.get_strip(output[2], output[3],
-                                       iy[0], nx, ny, True)
-    results = pd.DataFrame({'hole': h, 'hole_err': herr,
-                            'spin': s, 'spin_err': serr},
-                           columns=columns)
-
     return results
 
 def analysed_energies(filename, name):
