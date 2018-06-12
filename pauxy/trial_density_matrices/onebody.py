@@ -11,17 +11,18 @@ class OneBody(object):
         self.I = numpy.identity(self.dmat[0].shape[0], dtype=self.dmat.dtype)
         # Ignore factor of 1/L
         self.nav = system.nup + system.ndown
-        self.max_it = 100
+        self.max_it = 1000
         self.deps = 1e-8
         self.mu = self.find_chemical_potential(system, beta, verbose)
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
 
     def find_chemical_potential(self, system, beta, verbose=False):
-        # Todo: some sort of generic starting point independent of system
         rho = numpy.array([scipy.linalg.expm(-beta*(system.H1[0])),
                            scipy.linalg.expm(-beta*(system.H1[1]))])
-        mu1 = -10
-        mu2 = 10
+        # Todo: some sort of generic starting point independent of
+        # system/temperature
+        mu1 = -100
+        mu2 = 100
         rho1 = self.compute_rho(rho, mu1, beta)
         G = greens_function(rho1)
         dmu1 = self.delta(G)
@@ -38,7 +39,7 @@ class OneBody(object):
             G = greens_function(rho_mu)
             dmu = self.delta(G)
             if verbose:
-                print ("# %d mu = %f dmu = %f nav = %f" % (i, mu, dmu, particle_number(G)))
+                print ("# %d mu = %.8f dmu = %13.8e nav = %f" % (i, mu, dmu, particle_number(G)))
             if (abs(dmu) < self.deps):
                 found_mu = True
                 break
@@ -49,7 +50,7 @@ class OneBody(object):
                     mu2 = mu
         if found_mu:
             if verbose:
-                print ("# Chemical potential found to be: %f" % mu)
+                print ("# Chemical potential found to be: %.8f" % mu)
             return mu
         else:
             print ("# Error chemical potential not found")
