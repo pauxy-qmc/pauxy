@@ -93,7 +93,6 @@ def analysed_itcf(filename, elements, spin, order, kspace):
         results[name+'_err'] = gf_err[:,isp,it,elements[0]]
 
     return results
-    return results
 
 def analysed_energies(filename, name):
     data = h5py.File(filename, 'r')
