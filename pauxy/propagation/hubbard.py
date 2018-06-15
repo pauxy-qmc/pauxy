@@ -401,6 +401,63 @@ def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     R = numpy.einsum('i,ij,i->j',trial.coeffs,walker.R,walker.ots)/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
+class ThermalDiscrete(object):
+
+    def __init__(self, options, qmc, system, trial, verbose=False):
+
+        if verbose:
+            print ("# Parsing discrete propagator input options.")
+        self.free_projection = options.get('free_projection', False)
+        self.nstblz = qmc.nstblz
+        self.hs_type = 'discrete'
+        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+        self.delta = self.auxf - 1
+        self.BH1 = trial.dmat
+        self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=trial.dmat.dtype)
+        if self.free_projection:
+            self.propagate_walker = self.propagate_walker_free
+        else:
+            self.propagate_walker = self.propagate_walker_constrained
+
+    def update_greens_function_simple(self, walker, time_slice):
+        walker.construct_greens_function_stable(time_slice):
+
+    def update_greens_function(self, walker, i, xi):
+        for spin in [0,1]:
+            g = walker.G[spin,:,i]
+            denom = 1 + (1-g[i])*delta[xi, spin]
+            walker.G[spin] = (
+                walker.G[spin] + self.delta[ix,spin]*numpy.einsum('i,j->ij', g, 1-g) / denom
+            )
+
+    def calculate_overlap_ratio(self, walker, i):
+        R1 = (1+(1-walker.G[0,i,i])*(self.delta[0,0]-1))*(1+(1-walker.G[1,i,i])*(self.delta[0,1]-1))
+        R2 = (1+(1-walker.G[0,i,i])*(self.delta[1,0]-1))*(1+(1-walker.G[1,i,i])*(self.delta[1,1]-1))
+        return 0.5 * numpy.array([R1, R2])
+
+    def propagate_walker_constrained(self, walker, time_slice):
+        for i in range(0, system.nbasis):
+            probs = self.calculate_overlap_ratio(walker, i)
+            phaseless_ratio = numpy.maximum(probs.real, [0,0])
+            norm = sum(phaseless_ratio)
+            r = numpy.random.random()
+            if norm > 0:
+                walker.weight = walker.weight * norm
+                if r < phaseless_ratio[0] / norm:
+                    xi = 0
+                else:
+                    xi = 1
+                self.update_greens_function(walker, i, xi)
+                self.BV[0,i] = self.auxf[xi, 0]
+                self.BV[1,i] = self.auxf[xi, 1]
+            else:
+                walker.weight = 0
+        B = numpy.einsum('ki,kij->kij', self.BV, self.BH1) 
+        walker.stack.update(B)
+
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with multi-det trial.
 

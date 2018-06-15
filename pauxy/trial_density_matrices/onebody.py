@@ -5,6 +5,8 @@ from pauxy.estimators.thermal import greens_function, particle_number
 class OneBody(object):
 
     def __init__(self, system, beta, dt, verbose=False):
+        self.name = 'thermal'
+        self.ntime_slices = int(beta/dt)
         dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(system.H1[1]))
         self.dmat = numpy.array([dmat_up, dmat_down])
@@ -15,6 +17,8 @@ class OneBody(object):
         self.deps = 1e-8
         self.mu = self.find_chemical_potential(system, beta, verbose)
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
+        self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
+                                     scipy.linalg.inv(self.dmat[1])])
 
     def find_chemical_potential(self, system, beta, verbose=False):
         rho = numpy.array([scipy.linalg.expm(-beta*(system.H1[0])),

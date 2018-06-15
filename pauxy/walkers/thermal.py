@@ -5,31 +5,19 @@ from pauxy.estimators.thermal import greens_function
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial, num_slices, bin_size=10):
+    def __init__(self, weight, system, trial):
         self.weight = weight
-        self.num_slices = num_slices
-        self.bin_size = bin_size
+        self.num_slices = trial.ntime_slices
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
-        self.stack_length = num_slices // self.bin_size
-        self.stack = numpy.zeros(shape=(self.stack_length,)+trial.dmat.shape,
-                                 dtype=trial.dmat.dtype)
-        self.create_stack(trial)
+        self.stack_length = self.num_slices // self.bin_size
+        # todo: Fix this hardcoded value
+        self.stack = Stack(10, trial.ntime_slices, trial.dmat.shape[-1],
+                           trial.dmat.dtype)
 
-    def create_stack(self, trial):
-        for i in range(0, self.stack.shape[0]):
-            self.stack[i,0] = numpy.identity(trial.dmat[0].shape[0],
-                                             dtype=trial.dmat.dtype)
-            self.stack[i,1] = numpy.identity(trial.dmat[1].shape[1],
-                                             dtype=trial.dmat.dtype)
-        for i in range(0, self.num_slices):
-            ix = i // self.bin_size
-            self.stack[ix,0] = trial.dmat[0].dot(self.stack[ix,0])
-            self.stack[ix,1] = trial.dmat[1].dot(self.stack[ix,1])
-
-    def construct_greens_function_stable(self, slice_ix):
-        for spin in range(0, 1):
-            (U1, S1, V1) = scipy.linalg.svd(self.stack[slice_ix,spin])
-            for i in range(1, self.stack_length):
+    def construct_greens_function_stable(self, stack, slice_ix):
+        for spin in range(0, 2):
+            (U1, S1, V1) = scipy.linalg.svd(stack[slice_ix,spin])
+            for i in range(1, stack):
                 ix = (slice_ix + i) % self.stack_length
                 T1 = numpy.dot(self.stack[ix,spin], U1)
                 T2 = numpy.dot(T1, numpy.diag(S1))
@@ -50,3 +38,38 @@ class ThermalWalker(object):
             A[0] = self.stack[ix,0].dot(A[0])
             A[1] = self.stack[ix,1].dot(A[1])
         self.G = greens_function(A)
+
+    def recompute_greens_function(self, time_slice): 
+        # stack contains entries up to the time slice.
+
+
+class Stack:
+    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT=None):
+        self.time_slice = 0
+        self.stack_width = bin_size
+        self.ntime_slices = ntime_slices
+        self.nbasis = nbasis
+        self.dtype = dtype
+        self.stack = numpy.zeros(shape=(ntime_slices, 2, nbasis, nbasis),
+                                 dtype=dtype)
+        self.reset_stack()
+
+    def reset_stack(self):
+        self.time_slice = 0
+        for i in range(0, self.ntime_slices):
+            self.stack[i,0] = numpy.identity(nbasis, dtype=dtype)
+            self.stack[i,1] = numpy.identity(nbasis, dtype=dtype)
+
+    def recompute_greens_function(self, stack, trial, time_slice): 
+        # Super stupid
+        BTAlpha = numpy.linalg.matrix_power(trial.dmat[0],
+                                            trial.ntime_slices-time_slice)
+        BTBeta = numpy.linalg.matrix_power(trial.dmat[1],
+                                           trial.ntime_slices-time_slice)
+        BT = numpy.array([BTAlpha, BTBeta])
+
+
+    def update_stack(self, B):
+        self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
+        self.stack[self.time_slice,1] = B[1].dot(self.stack[self.time_slice,1])
+        self.time_slice = (self.time_slice + 1) // self.stack_width

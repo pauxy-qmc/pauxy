@@ -28,6 +28,9 @@ class Walkers(object):
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
                                 for w in range(nwalkers)]
+        elif trial.name == 'thermal':
+            self.walkers = [ThermalWalker(1, system, trial) for w in
+                            range(nwalkers)]
         else:
             self.walkers = [SingleDetWalker(1, system, trial, w)
                             for w in range(nwalkers)]
