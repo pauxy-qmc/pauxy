@@ -9,17 +9,19 @@ class ThermalWalker(object):
         self.weight = weight
         self.num_slices = trial.ntime_slices
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
-        self.stack_length = self.num_slices // self.bin_size
+        self.stack_length = self.num_slices // 10
         # todo: Fix this hardcoded value
         self.stack = Stack(10, trial.ntime_slices, trial.dmat.shape[-1],
                            trial.dmat.dtype)
 
-    def construct_greens_function_stable(self, stack, slice_ix):
-        for spin in range(0, 2):
-            (U1, S1, V1) = scipy.linalg.svd(stack[slice_ix,spin])
-            for i in range(1, stack):
-                ix = (slice_ix + i) % self.stack_length
-                T1 = numpy.dot(self.stack[ix,spin], U1)
+    def construct_greens_function_stable(self, slice_ix):
+        for spin in [0, 1]:
+            B = self.stack.get(slice_ix)
+            (U1, S1, V1) = scipy.linalg.svd(B[spin])
+            for i in range(1, self.stack.nbins):
+                ix = (slice_ix + i) % self.stack.nbins
+                B = self.stack.get(ix)
+                T1 = numpy.dot(B[spin], U1)
                 T2 = numpy.dot(T1, numpy.diag(S1))
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
@@ -33,10 +35,11 @@ class ThermalWalker(object):
     def construct_greens_function_unstable(self, slice_ix):
         I = numpy.identity(self.G.shape[-1], dtype=self.G.dtype)
         A = numpy.array([I,I])
-        for i in range(0, self.stack_length):
-            ix = (slice_ix + i) % self.stack_length
-            A[0] = self.stack[ix,0].dot(A[0])
-            A[1] = self.stack[ix,1].dot(A[1])
+        for i in range(0, self.stack.nbins):
+            ix = (slice_ix + i) % self.stack.nbins
+            B = self.stack.get(ix)
+            A[0] = B[0].dot(A[0])
+            A[1] = B[1].dot(A[1])
         self.G = greens_function(A)
 
     def recompute_greens_function(self, stack, trial, time_slice):
@@ -53,17 +56,27 @@ class Stack:
         self.time_slice = 0
         self.stack_width = bin_size
         self.ntime_slices = ntime_slices
+        self.nbins = ntime_slices // bin_size
         self.nbasis = nbasis
         self.dtype = dtype
-        self.stack = numpy.zeros(shape=(ntime_slices, 2, nbasis, nbasis),
+        self.stack = numpy.zeros(shape=(ntime_slices//bin_size, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.reset_stack()
 
+    def get(self, ix):
+        return self.stack[ix]
+
+    def set_all(self, BT):
+        for i in range(0, self.ntime_slices):
+            ix = i // self.stack_width
+            self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
+            self.stack[ix,1] = BT[0].dot(self.stack[ix,1])
+
     def reset_stack(self):
         self.time_slice = 0
-        for i in range(0, self.ntime_slices):
-            self.stack[i,0] = numpy.identity(nbasis, dtype=dtype)
-            self.stack[i,1] = numpy.identity(nbasis, dtype=dtype)
+        for i in range(0, self.nbins):
+            self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
+            self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
 
     def update_stack(self, B):
         self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
