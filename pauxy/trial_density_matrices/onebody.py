@@ -1,6 +1,6 @@
 import numpy
 import scipy.linalg
-from pauxy.estimators.thermal import greens_function, particle_number
+from pauxy.estimators.thermal import greens_function, particle_number, one_rdm
 
 class OneBody(object):
 
@@ -28,22 +28,24 @@ class OneBody(object):
         mu1 = -100
         mu2 = 100
         rho1 = self.compute_rho(rho, mu1, beta)
-        G = greens_function(rho1)
-        dmu1 = self.delta(G)
+        dmat = one_rdm(rho1)
+        dmu1 = self.delta(dmat)
         rho2 = self.compute_rho(rho, mu2, beta)
-        G = greens_function(rho2)
-        dmu2 = self.delta(G)
+        dmat = one_rdm(rho2)
+        dmu2 = self.delta(dmat)
         if (numpy.sign(dmu1)*numpy.sign(dmu2) < 0 and verbose):
-            print ("# Chemical potential lies within range of [%f,%f]"%(mu1, mu2))
+            print ("# Chemical potential lies within range of [%f,%f]"%(mu1,
+                                                                        mu2))
             print ("# delta_mu1 = %f, delta_mu2 = %f"%(dmu1, dmu2))
         found_mu = False
         for i in range(0, self.max_it):
             mu = 0.5 * (mu1 + mu2)
             rho_mu = self.compute_rho(rho, mu, beta)
-            G = greens_function(rho_mu)
-            dmu = self.delta(G)
+            dmat = one_rdm(rho_mu)
+            dmu = self.delta(dmat)
             if verbose:
-                print ("# %d mu = %.8f dmu = %13.8e nav = %f" % (i, mu, dmu, particle_number(G)))
+                print ("# %d mu = %.8f dmu = %13.8e nav = %f" % (i, mu, dmu,
+                                                           particle_number(dmat)))
             if (abs(dmu) < self.deps):
                 found_mu = True
                 break
@@ -60,8 +62,9 @@ class OneBody(object):
             print ("# Error chemical potential not found")
             return None
 
-    def delta(self, G):
-        return particle_number(G) - self.nav
+    def delta(self, dm):
+        return particle_number(dm) - self.nav
 
     def compute_rho(self, rho, mu, beta):
-        return numpy.einsum('ijk,kl->ijl', rho, scipy.linalg.expm(beta*mu*self.I))
+        return numpy.einsum('ijk,kl->ijl', rho,
+                            scipy.linalg.expm(beta*mu*self.I))
