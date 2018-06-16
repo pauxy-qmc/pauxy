@@ -416,6 +416,7 @@ class ThermalDiscrete(object):
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         self.BH1 = trial.dmat
+        self.BH1_inv = trial.dmat_inv
         self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=trial.dmat.dtype)
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
@@ -432,11 +433,16 @@ class ThermalDiscrete(object):
             walker.G[spin] = (
                 walker.G[spin] + self.delta[ix,spin]*numpy.einsum('i,j->ij', g, 1-g) / denom
             )
+    def propagate_greens_function(self, walker):
+        walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1_inv[0])
+        walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1_inv[1])
 
     def calculate_overlap_ratio(self, walker, i):
-        R1 = (1+(1-walker.G[0,i,i])*(self.delta[0,0]-1))*(1+(1-walker.G[1,i,i])*(self.delta[0,1]-1))
-        R2 = (1+(1-walker.G[0,i,i])*(self.delta[1,0]-1))*(1+(1-walker.G[1,i,i])*(self.delta[1,1]-1))
-        return 0.5 * numpy.array([R1, R2])
+        R1_up = (1+(1-walker.G[0,i,i])*(self.delta[0,0]-1))
+        R1_dn = (1+(1-walker.G[1,i,i])*(self.delta[0,1]-1))
+        R2_up = (1+(1-walker.G[0,i,i])*(self.delta[1,0]-1))
+        R2_dn = (1+(1-walker.G[1,i,i])*(self.delta[1,1]-1))
+        return 0.5 * numpy.array([R1_up*R1_dn, R2_up*R2_dn])
 
     def propagate_walker_constrained(self, walker, time_slice):
         for i in range(0, system.nbasis):
@@ -455,8 +461,9 @@ class ThermalDiscrete(object):
                 self.BV[1,i] = self.auxf[xi, 1]
             else:
                 walker.weight = 0
-        B = numpy.einsum('ki,kij->kij', self.BV, self.BH1) 
+        B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
         walker.stack.update(B)
+        self.propagate_greens_function(walker)
 
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with multi-det trial.
