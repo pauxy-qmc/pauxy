@@ -145,8 +145,7 @@ class ThermalAFQMC(object):
                 if ts % self.qmc.npop_control == 0:
                     self.psi.pop_control(comm)
                 if ts % self.qmc.nstblz == 0:
-                    self.recompute_greens_function()
-                self.propagate_greens_function()
+                    self.psi.recompute_greens_function(ts)
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)

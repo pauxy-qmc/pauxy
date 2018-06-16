@@ -186,6 +186,10 @@ class Walkers(object):
         for w in self.walkers:
             w.weight = 1.0
 
+    def recompute_greens_function(self, time_slice):
+        for w in self.walkers:
+            w.construct_greens_function_stable(time_slice)
+
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
 
