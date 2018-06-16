@@ -39,8 +39,13 @@ class ThermalWalker(object):
             A[1] = self.stack[ix,1].dot(A[1])
         self.G = greens_function(A)
 
-    def recompute_greens_function(self, time_slice): 
-        # stack contains entries up to the time slice.
+    def recompute_greens_function(self, stack, trial, time_slice):
+        # Super stupid
+        BTAlpha = numpy.linalg.matrix_power(trial.dmat[0],
+                                            trial.ntime_slices-time_slice)
+        BTBeta = numpy.linalg.matrix_power(trial.dmat[1],
+                                           trial.ntime_slices-time_slice)
+        BT = numpy.array([BTAlpha, BTBeta])
 
 
 class Stack:
@@ -59,15 +64,6 @@ class Stack:
         for i in range(0, self.ntime_slices):
             self.stack[i,0] = numpy.identity(nbasis, dtype=dtype)
             self.stack[i,1] = numpy.identity(nbasis, dtype=dtype)
-
-    def recompute_greens_function(self, stack, trial, time_slice): 
-        # Super stupid
-        BTAlpha = numpy.linalg.matrix_power(trial.dmat[0],
-                                            trial.ntime_slices-time_slice)
-        BTBeta = numpy.linalg.matrix_power(trial.dmat[1],
-                                           trial.ntime_slices-time_slice)
-        BT = numpy.array([BTAlpha, BTBeta])
-
 
     def update_stack(self, B):
         self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
