@@ -4,7 +4,7 @@ from pauxy.estimators.thermal import greens_function, particle_number, one_rdm
 
 class OneBody(object):
 
-    def __init__(self, system, beta, dt, verbose=False):
+    def __init__(self, trial, system, beta, dt, verbose=False):
         self.name = 'thermal'
         self.ntime_slices = int(beta/dt)
         dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
@@ -13,8 +13,8 @@ class OneBody(object):
         self.I = numpy.identity(self.dmat[0].shape[0], dtype=self.dmat.dtype)
         # Ignore factor of 1/L
         self.nav = system.nup + system.ndown
-        self.max_it = 1000
-        self.deps = 1e-8
+        self.max_it = trial.get('max_it', 1000)
+        self.deps = trial.get('threshold', 1e-6)
         self.mu = self.find_chemical_potential(system, beta, verbose)
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
@@ -25,18 +25,27 @@ class OneBody(object):
                            scipy.linalg.expm(-beta*(system.H1[1]))])
         # Todo: some sort of generic starting point independent of
         # system/temperature
-        mu1 = -100
-        mu2 = 100
-        rho1 = self.compute_rho(rho, mu1, beta)
-        dmat = one_rdm(rho1)
-        dmu1 = self.delta(dmat)
-        rho2 = self.compute_rho(rho, mu2, beta)
-        dmat = one_rdm(rho2)
-        dmu2 = self.delta(dmat)
-        if (numpy.sign(dmu1)*numpy.sign(dmu2) < 0 and verbose):
-            print ("# Chemical potential lies within range of [%f,%f]"%(mu1,
-                                                                        mu2))
-            print ("# delta_mu1 = %f, delta_mu2 = %f"%(dmu1, dmu2))
+        dmu1 = dmu2 = 1
+        mu1 = -1
+        mu2 = 1
+        while (numpy.sign(dmu1)*numpy.sign(dmu2) > 0):
+            rho1 = self.compute_rho(rho, mu1, beta)
+            dmat = one_rdm(rho1)
+            dmu1 = self.delta(dmat)
+            rho2 = self.compute_rho(rho, mu2, beta)
+            dmat = one_rdm(rho2)
+            dmu2 = self.delta(dmat)
+            if (numpy.sign(dmu1)*numpy.sign(dmu2) < 0):
+                if verbose:
+                    print ("# Chemical potential lies within range of [%f,%f]"%(mu1,
+                                                                                mu2))
+                    print ("# delta_mu1 = %f, delta_mu2 = %f"%(dmu1, dmu2))
+                break
+            else:
+                mu1 -= 2
+                mu2 += 2
+                if verbose:
+                    print ("# Increasing chemical potential search to [%f,%f]"%(mu1, mu2))
         found_mu = False
         for i in range(0, self.max_it):
             mu = 0.5 * (mu1 + mu2)
