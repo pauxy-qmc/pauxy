@@ -424,7 +424,7 @@ class ThermalDiscrete(object):
             self.propagate_walker = self.propagate_walker_constrained
 
     def update_greens_function_simple(self, walker, time_slice):
-        walker.construct_greens_function_stable(time_slice):
+        walker.construct_greens_function_stable(time_slice)
 
     def update_greens_function(self, walker, i, xi):
         for spin in [0,1]:
