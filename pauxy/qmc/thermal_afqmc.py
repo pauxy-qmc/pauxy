@@ -11,7 +11,7 @@ import h5py
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
-from pauxy.propagation.hubbard import ThermalDiscrete
+from pauxy.propagation.utils import get_propagator
 from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.utils.misc import get_git_revision_hash, serialise
 from pauxy.walkers.handler import Walkers
@@ -90,9 +90,10 @@ class ThermalAFQMC(object):
         # 2. Calculation objects.
         self.system = get_system(model, qmc_opts['dt'], verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
-        self.qmc.ntime_slices = int(qmc.beta/qmc.dt)
+        self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
         self.cplx = self.determine_dtype(propagator, self.system)
-        self.trial = OneBody(system, qmc.beta, qmc.dt, verbose)
+        self.trial = OneBody(trial, self.system, self.qmc.beta,
+                             self.qmc.dt, verbose)
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         if not parallel:
@@ -138,10 +139,10 @@ class ThermalAFQMC(object):
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
-            for ts in range(0, self.ntime_slices):
+            for ts in range(0, self.qmc.ntime_slices):
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
-                        self.propagators.propagate_walker(w, self.system, self.trial)
+                        self.propagators.propagate_walker(self.system, w, ts)
                 if ts % self.qmc.npop_control == 0:
                     self.psi.pop_control(comm)
                 if ts % self.qmc.nstblz == 0:
