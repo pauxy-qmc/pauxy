@@ -1,6 +1,6 @@
 """Routines for performing propagation of a walker"""
 
-from pauxy.propagation.hubbard import Discrete, Continuous
+from pauxy.propagation.hubbard import Discrete, Continuous, ThermalDiscrete
 from pauxy.propagation.planewave import PlaneWave
 from pauxy.propagation.generic import GenericContinuous
 
@@ -26,7 +26,7 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     """
     hs_type = options.get('hubbard_stratonovich', 'discrete')
     if hs_type == 'discrete':
-        if qmc.beta is not None: 
+        if qmc.beta is not None:
             propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
         else:
             propagator = Discrete(options, qmc, system, trial, verbose)
