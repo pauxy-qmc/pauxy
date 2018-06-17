@@ -4,6 +4,7 @@ import math
 import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.walkers.thermal import ThermalWalker
 
 
 class Walkers(object):
