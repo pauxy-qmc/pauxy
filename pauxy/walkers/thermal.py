@@ -1,12 +1,14 @@
 import copy
 import numpy
 import scipy.linalg
-from pauxy.estimators.thermal import greens_function
+from pauxy.estimators.thermal import greens_function, one_rdm_from_G
+from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
     def __init__(self, weight, system, trial):
         self.weight = weight
+        self.alive = True
         self.num_slices = trial.ntime_slices
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
         self.stack_length = self.num_slices // 10
@@ -17,7 +19,7 @@ class ThermalWalker(object):
         self.stack.set_all(trial.dmat)
 
     def construct_greens_function_stable(self, slice_ix):
-        bin_ix = slice_ix // self.stack.bin_size
+        bin_ix = slice_ix // self.stack.stack_width
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -36,9 +38,9 @@ class ThermalWalker(object):
             # Care needs to be taken when adding the identity matrix.
             T3 = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
             (U2, S2, V2) = scipy.linalg.svd(T3)
-            U3 = numpy.dot((U1.conj().T), U2.conj().T)
+            U3 = numpy.dot(U1, U2)
             D3 = numpy.diag(1.0/S2)
-            V3 = numpy.dot(V2.conj().T, V1.conj().T)
+            V3 = numpy.dot(V2, V1)
             # G(l) = (U3 S2 V3)^{-1}
             #      = V3^{\dagger} D3 U3^{\dagger}
             self.G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
@@ -52,6 +54,40 @@ class ThermalWalker(object):
             A[0] = B[0].dot(A[0])
             A[1] = B[1].dot(A[1])
         self.G = greens_function(A)
+
+    def local_energy(self, system):
+        rdm = one_rdm_from_G(self.G)
+        return local_energy(system, rdm)
+
+    def greens_function(self, trial):
+        return self.construct_greens_function_stable(self.stack.time_slice)
+
+    def get_buffer(self):
+        """Get walker buffer for MPI communication
+
+        Returns
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
+        buff = {
+            'stack': self.stack.stack,
+            'G': self.G,
+            'weight': self.weight,
+        }
+        return buff
+
+    def set_buffer(self, buff):
+        """Set walker buffer following MPI communication
+
+        Parameters
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
+        self.stack.stack = numpy.copy(buff['stack'])
+        self.G = numpy.copy(buff['G'])
+        self.weight = buff['weight']
 
 
 class PropagatorStack:
@@ -89,4 +125,5 @@ class PropagatorStack:
         self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
         self.stack[self.time_slice,1] = B[1].dot(self.stack[self.time_slice,1])
         self.time_slice = (self.time_slice + 1) // self.stack_width
-        self.counter = (self.counter + 1) % self.bin_width
+        self.counter = (self.counter + 1) % self.stack_width
+
