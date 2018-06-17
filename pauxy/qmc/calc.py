@@ -12,6 +12,7 @@ try:
 except ImportError:
     parallel = False
 from pauxy.qmc.afqmc import AFQMC
+from pauxy.qmc.thermal_afqmc import ThermalAFQMC
 from pauxy.estimators.handler import Estimators
 from pauxy.utils.misc import serialise
 from pauxy.walkers.handler import Walkers
@@ -24,6 +25,37 @@ def init_communicator():
         comm = FakeComm()
     return comm
 
+def setup_calculation(input_file):
+    comm = init_communicator()
+    options = read_input(input_file, comm, verbose=True)
+    set_rng_seed(options, comm)
+    if comm.size > 1:
+        afqmc = setup_parallel(options, comm, verbose=True)
+    else:
+        afqmc = get_driver(options, comm)
+    return (afqmc, comm)
+
+def get_driver(options, comm):
+    beta = options.get('qmc_options').get('beta', None)
+    print (beta)
+    if beta is not None:
+        afqmc = ThermalAFQMC(options.get('model'),
+                             options.get('qmc_options'),
+                             options.get('estimates'),
+                             options.get('trial_wavefunction'),
+                             options.get('propagator', {}),
+                             parallel=comm.size>1,
+                             verbose=True)
+    else:
+        print ("here")
+        afqmc = AFQMC(options.get('model'),
+                      options.get('qmc_options'),
+                      options.get('estimates'),
+                      options.get('trial_wavefunction'),
+                      options.get('propagator', {}),
+                      parallel=comm.size>1,
+                      verbose=True)
+    return afqmc
 
 def read_input(input_file, comm, verbose=False):
     """Helper function to parse input file and setup parallel calculation.
@@ -94,13 +126,7 @@ def setup_parallel(options, comm=None, verbose=False):
         CPMC driver.
     """
     if comm.Get_rank() == 0:
-        afqmc = AFQMC(options.get('model'),
-                      options.get('qmc_options'),
-                      options.get('estimates'),
-                      options.get('trial_wavefunction'),
-                      options.get('propagator', {}),
-                      parallel=True,
-                      verbose=verbose)
+        afqmc = get_driver(options, comm)
     else:
         afqmc = None
     afqmc = comm.bcast(afqmc, root=0)

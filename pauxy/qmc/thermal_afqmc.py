@@ -11,7 +11,7 @@ import h5py
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
-from pauxy.thermal.hubbard import Discrete
+from pauxy.propagation.hubbard import ThermalDiscrete
 from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.utils.misc import get_git_revision_hash, serialise
 from pauxy.walkers.handler import Walkers
