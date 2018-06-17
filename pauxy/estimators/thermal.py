@@ -23,6 +23,10 @@ def one_rdm(A):
     G = greens_function_stable(A)
     return numpy.array([I-G[0].T, I-G[1].T])
 
+def one_rdm_from_G(G):
+    I = numpy.identity(G.shape[-1])
+    return numpy.array([I-G[0].T, I-G[1].T])
+
 def particle_number(dmat):
     nav = dmat[0].trace() + dmat[1].trace()
     return nav
