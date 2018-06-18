@@ -430,19 +430,22 @@ class ThermalDiscrete(object):
     def update_greens_function(self, walker, i, xi):
         for spin in [0,1]:
             g = walker.G[spin,:,i]
-            denom = 1 + (1-g[i])*self.delta[xi, spin]
+            gbar = -walker.G[spin,i,:]
+            gbar[i] += 1
+            denom = 1 + (1-g[i]) * self.delta[xi,spin]
             walker.G[spin] = (
-                walker.G[spin] + self.delta[xi,spin]*numpy.einsum('i,j->ij', g, 1-g) / denom
+                walker.G[spin] - self.delta[xi,spin]*numpy.einsum('i,j->ij', g, gbar) / denom
             )
+
     def propagate_greens_function(self, walker):
         walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1_inv[0])
         walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1_inv[1])
 
     def calculate_overlap_ratio(self, walker, i):
-        R1_up = (1+(1-walker.G[0,i,i])*(self.delta[0,0]-1))
-        R1_dn = (1+(1-walker.G[1,i,i])*(self.delta[0,1]-1))
-        R2_up = (1+(1-walker.G[0,i,i])*(self.delta[1,0]-1))
-        R2_dn = (1+(1-walker.G[1,i,i])*(self.delta[1,1]-1))
+        R1_up = 1 + (1-walker.G[0,i,i])*self.delta[0,0]
+        R1_dn = 1 + (1-walker.G[1,i,i])*self.delta[0,1]
+        R2_up = 1 + (1-walker.G[0,i,i])*self.delta[1,0]
+        R2_dn = 1 + (1-walker.G[1,i,i])*self.delta[1,1]
         return 0.5 * numpy.array([R1_up*R1_dn, R2_up*R2_dn])
 
     def propagate_walker_constrained(self, system, walker, time_slice):
