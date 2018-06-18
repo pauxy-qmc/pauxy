@@ -6,17 +6,18 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial):
+    def __init__(self, weight, system, trial, stack_size=10):
         self.weight = weight
         self.alive = True
         self.num_slices = trial.ntime_slices
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
-        self.stack_length = self.num_slices // 10
+        self.stack_length = self.num_slices // stack_size
         # todo: Fix this hardcoded value
-        self.stack = PropagatorStack(10, trial.ntime_slices,
+        self.stack = PropagatorStack(stack_size, trial.ntime_slices,
                                      trial.dmat.shape[-1], trial.dmat.dtype)
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
+        self.greens_function(trial)
 
     def construct_greens_function_stable(self, slice_ix):
         bin_ix = slice_ix // self.stack.stack_width
@@ -126,4 +127,3 @@ class PropagatorStack:
         self.stack[self.time_slice,1] = B[1].dot(self.stack[self.time_slice,1])
         self.time_slice = (self.time_slice + 1) // self.stack_width
         self.counter = (self.counter + 1) % self.stack_width
-
