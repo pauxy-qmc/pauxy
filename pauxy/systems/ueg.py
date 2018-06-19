@@ -47,6 +47,8 @@ class UEG(object):
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        print("# Number of spin-up electrons = %i"%self.nup)
+        print("# Number of spin-down electrons = %i"%self.ndown)
 
         # total # of electrons
         self.ne = self.nup + self.ndown
@@ -220,10 +222,10 @@ class UEG(object):
         return rho_q
 
 def unit_test():
-    inputs = {'nup':2, 
-    'ndown':2,
+    inputs = {'nup':7, 
+    'ndown':7,
     'rs':1.0,
-    'ecut':1.0}
+    'ecut':2.5}
     system = UEG(inputs, True)
 
 if __name__=="__main__":
