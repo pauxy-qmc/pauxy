@@ -1,6 +1,7 @@
 """Routines for performing propagation of a walker"""
 
 from pauxy.propagation.hubbard import Discrete, Continuous
+from pauxy.propagation.planewave import PlaneWave
 from pauxy.propagation.generic import GenericContinuous
 
 
@@ -30,6 +31,8 @@ def get_propagator(options, qmc, system, trial, verbose=False):
         propagator = Continuous(options, qmc, system, trial, verbose)
     elif hs_type == "continuous":
         propagator = GenericContinuous(options, qmc, system, trial, verbose)
+    elif hs_type == "plane_wave":
+        propagator = PlaneWave(options, qmc, system, trial, verbose)
     else:
         propagator = None
 
