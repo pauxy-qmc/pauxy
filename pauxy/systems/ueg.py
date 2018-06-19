@@ -3,6 +3,7 @@ import numpy
 import scipy.linalg
 import pauxy.utils
 import math
+import time
 
 
 class UEG(object):
@@ -66,6 +67,7 @@ class UEG(object):
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
 
+        (self.sp_eigv, self.basisltkf, self.nmax) = self.sp_energies(self.kfac, self.ef)
         # Single particle eigenvalues and corresponding kvectors
         (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
         self.shifted_nmax = 2*self.nmax
@@ -185,9 +187,7 @@ class UEG(object):
 
     def mod_one_body(self, T):
         h1e_mod = numpy.copy(T)
-        # print(h1e_mod)
-        # print(h1e_mod[0])
-        # exit()
+
         # JOONHO make mod_one_body just kinetic energy
         fac = 1.0 / (2.0 * self.vol)
         for (i, ki) in enumerate(self.basis):
@@ -199,10 +199,24 @@ class UEG(object):
 
     def density_operator(system, q):
         rho_q = numpy.zeros(shape=(system.nbasis, system.nbasis))
+
+        kpq = []
         for (i, ki) in enumerate(system.basis):
-            for (j, kj) in enumerate(system.basis):
-                if (i != j and numpy.all(ki+q == kj)):
-                    rho_q[i,j] = 1
+            kpq += [ki + q]
+
+        zero = numpy.zeros(numpy.size(q))
+
+        if (numpy.all(zero == q)):
+            for (i, kipq) in enumerate(kpq):
+                for (j, kj) in enumerate(system.basis):
+                    if (i != j and kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
+                        rho_q[i,j] = 1
+        else:
+            for (i, kipq) in enumerate(kpq):
+                for (j, kj) in enumerate(system.basis):
+                    if (kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
+                        rho_q[i,j] = 1
+
         return rho_q
 
 def unit_test():
