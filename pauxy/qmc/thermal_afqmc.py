@@ -152,6 +152,7 @@ class ThermalAFQMC(object):
                                    self.propagators.free_projection)
             self.estimators.print_step(comm, self.nprocs, step,
                                        self.qmc.nmeasure)
+            self.psi.reset(self.trial)
 
     def finalise(self, verbose):
         """Tidy up.
