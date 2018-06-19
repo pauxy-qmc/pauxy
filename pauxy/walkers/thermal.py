@@ -6,7 +6,7 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial, stack_size=10):
+    def __init__(self, weight, system, trial, stack_size=1):
         self.weight = weight
         self.alive = True
         self.num_slices = trial.ntime_slices
@@ -102,7 +102,7 @@ class PropagatorStack:
         self.counter = 0
         self.stack = numpy.zeros(shape=(ntime_slices//bin_size, 2, nbasis, nbasis),
                                  dtype=dtype)
-        self.reset_stack()
+        self.reset()
 
     def get(self, ix):
         return self.stack[ix]
@@ -113,7 +113,7 @@ class PropagatorStack:
             self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
             self.stack[ix,1] = BT[0].dot(self.stack[ix,1])
 
-    def reset_stack(self):
+    def reset(self):
         self.time_slice = 0
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
