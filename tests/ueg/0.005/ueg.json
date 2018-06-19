@@ -8,10 +8,10 @@
     },
     "qmc_options": {
         "method": "CPMC",
-        "dt": 0.010,
+        "dt": 0.005,
         "nsteps": 1000,
         "nmeasure": 10,
-        "nwalkers": 1,
+        "nwalkers": 5,
         "npop_control": 1,
         "nstabilise": 1,
         "temperature": 0.0,
