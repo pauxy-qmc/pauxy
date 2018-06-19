@@ -1,3 +1,4 @@
+import time
 import numpy
 try:
     from mpi4py import MPI
@@ -7,22 +8,35 @@ except ImportError:
 import scipy.linalg
 
 def local_energy_ueg(system, G):
+    # start = time.time()
+    
     ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1]) # kinetic energy
     
     Gkpq =  [numpy.zeros(len(system.qvecs), dtype=numpy.complex128) for i in range(2)]
     Gpmq =  [numpy.zeros(len(system.qvecs), dtype=numpy.complex128) for i in range(2)]
     Gprod = [numpy.zeros(len(system.qvecs), dtype=numpy.complex128) for i in range(2)]
 
+    ne = [system.nup, system.ndown]
+
+    G[0] = G[0].T
+    G[1] = G[1].T
+
+    # print (G[0])
+    # exit()
+
     for s in [0, 1]:
+        kf = system.basis[0:ne[s]]
         for (iq, q) in enumerate(system.qvecs):
-            for i, k in enumerate(system.basis):
+            # for i, k in enumerate(system.basis):
+            for i, k in enumerate(kf):
                 kpq = k + q
                 ikpq = system.lookup_basis(kpq)
                 if ikpq is not None:
                     Gkpq[s][iq] += G[s][ikpq,i]
                     # if (abs(Gkpq[i]) > 1e-16):
                         # print ("NZ: ", i, k, q, kpq, ikpq)
-                    for (j, p) in enumerate(system.basis):
+                    # for (j, p) in enumerate(system.basis):
+                    for (j, p) in enumerate(kf):
                         pmq = p - q
                         # if (kpq.dot(kpq) == 0): print ("kpq: ", ikpq, i, k, j, p, q, pmq)
                         ipmq = system.lookup_basis(pmq)
@@ -45,16 +59,21 @@ def local_energy_ueg(system, G):
     # print("essa = %10.5f, essb = %10.5f, eos = %10.5f"%(essa, essb, eos))
 
     pe = essa + essb + eos
+    
+    G[0] = G[0].T
+    G[1] = G[1].T
+    # end = time.time()
+    # print("local_energy_ueg (seconds) %10.5f"%(end - start))
 
     return (ke+pe, ke, pe)
 
 def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
-    inputs = {'nup':7, 
-    'ndown':7,
+    inputs = {'nup':10, 
+    'ndown':10,
     'rs':1.0,
-    'ecut':1.0}
+    'ecut':2.5}
     system = UEG(inputs, True)
     nbsf = system.nbasis
     Pa = np.zeros([nbsf,nbsf])
@@ -66,7 +85,7 @@ def unit_test():
     for i in range(nb):
         Pb[i,i] = 1.0
     P = [Pa, Pb]
-    
+    # ((21.149879935489658+0j), 24.743544532817815, (-3.5936645973281554+0j))
     etot, ekin, epot = local_energy_ueg(system, P)
 
     print (etot, ekin, epot)
