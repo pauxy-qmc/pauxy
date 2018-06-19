@@ -231,6 +231,7 @@ class Mixed(object):
 # Energy evaluation routines.
 
 def local_energy(system, G):
+    from pauxy.estimators.ueg import local_energy_ueg
     """Helper routine to compute local energy.
 
     Parameters
@@ -251,9 +252,10 @@ def local_energy(system, G):
             return local_energy_ghf(system, G)
         else:
             return local_energy_hubbard(system, G)
+    elif system.name == "UEG":
+        return local_energy_ueg(system, G)
     else:
         return local_energy_generic(system, G)
-
 
 def local_energy_hubbard(system, G):
     r"""Calculate local energy of walker for the Hubbard model.
