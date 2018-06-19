@@ -33,9 +33,6 @@ def local_energy_ueg(system, G):
                 idxkpq += [(i,idx)]
         ikpq += [idxkpq]
 
-    # print(ikpq)
-    # exit()
-
     ipmq = []
     for (iq, q) in enumerate(system.qvecs):
         idxpmq =[]
@@ -59,7 +56,7 @@ def local_energy_ueg(system, G):
 
     essa = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[0]*Gpmq[0]-Gprod[0])
     essb = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[1]*Gpmq[1]-Gprod[1])
-    eos = 0.5*((1.0/system.vol)*system.vqvec.dot(Gkpq[0]*Gpmq[1]) + (1.0/system.vol)*system.vqvec.dot(Gkpq[1]*Gpmq[0]))
+    eos = ((1.0/system.vol)*system.vqvec.dot(Gkpq[0]*Gpmq[1]) + (1.0/system.vol)*system.vqvec.dot(Gkpq[1]*Gpmq[0]))
 
     pe = essa + essb + eos
 
