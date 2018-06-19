@@ -113,7 +113,7 @@ class Mixed(object):
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
-                w.greens_function(trial)
+                # w.greens_function(trial)
                 E, T, V = w.local_energy(system)
                 self.estimates[self.names.enumer] += w.weight*E.real
                 self.estimates[self.names.ekin:self.names.epot+1] += (
