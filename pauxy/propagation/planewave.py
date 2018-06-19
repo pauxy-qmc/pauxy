@@ -2,6 +2,7 @@ import cmath
 import math
 import numpy
 import scipy.linalg
+import time
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
@@ -23,7 +24,6 @@ class PlaneWave(object):
         self.num_vplus = system.nfields // 2
         
         print("# Number of fields = %i"%system.nfields)
-        print("# num_vplus = %i"%self.num_vplus)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
 
@@ -86,7 +86,7 @@ class PlaneWave(object):
             VHS = VHS + xshifted[i+self.num_vplus] * B 
         return  VHS * self.sqrt_dt
 
-    def two_body(self, walker, system, trial):
+    def two_body(self, walker, system, trial, fb = True):
         r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
         Only requires M auxiliary fields.
         Parameters
@@ -101,15 +101,19 @@ class PlaneWave(object):
         # Construct walker modified Green's function.
         # walker.rotated_greens_function()
         walker.inverse_overlap(trial.psi)
+        # print("inverse_overlap (seconds) %10.5f"%(end - start0))
         walker.greens_function(trial)
+        # print("greens_function (seconds) %10.5f"%(end - start))
 
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nfields)
 
         # Optimal force bias.
-        # JOONHO: Turning off force bias
-        xbar = self.construct_force_bias(system, walker.G)
-        # xbar = numpy.zeros(system.nfields)
+        xbar = numpy.zeros(system.nfields)
+        if (fb):
+            xbar = self.construct_force_bias(system, walker.G)
+            # xbar = numpy.zeros(system.nfields)
+        
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
@@ -121,12 +125,16 @@ class PlaneWave(object):
 
         # Operator terms contributing to propagator.
         VHS = self.construct_VHS(system, xshifted)
+        # print("construct_VHS (seconds) %10.5f"%(end - start))
         nup = system.nup
 
         # Apply propagator
         walker.phi[:,:nup] = self.apply_exponential(walker.phi[:,:nup], VHS, False)
         walker.phi[:,nup:] = self.apply_exponential(walker.phi[:,nup:], VHS, False)
+        # print("apply_exponential (seconds) %10.5f"%(end - start))
 
+        # print("two_body (seconds) %10.5f"%(end - start0))
+        # exit()
         return (c_xf, c_fb, xshifted)
 
     def apply_exponential(self, phi, VHS, debug=False):
@@ -147,42 +155,45 @@ class PlaneWave(object):
             phi += self.Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+        # print("apply_exponential (seconds) %10.5f"%(end - start))
         return phi
 
-    # def propagate_walker_free(self, walker, system, trial):
-    #     r"""Free projection for continuous HS transformation.
-    #     TODO: update if ever adapted to other model types.
-    #     Parameters
-    #     ----------
-    #     walker : :class:`walker.Walker`
-    #         Walker object to be updated. on output we have acted on
-    #         :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-    #         appropriately. Updates inplace.
-    #     state : :class:`state.State`
-    #         Simulation state.
-    #     """
-    #     nup = system.nup
-    #     # 1. Apply kinetic projector.
-    #     kinetic_real(walker.phi, system, self.BH1)
-    #     # Normally distributed random numbers.
-    #     xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
-    #     sxf = sum(xfields)
-    #     # Constant, field dependent term emerging when subtracting mean-field.
-    #     sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
-    #     c_xf = cmath.exp(sc)
-    #     # Potential propagator.
-    #     s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
-    #     bv = numpy.diag(numpy.exp(s))
-    #     # 2. Apply potential projector.
-    #     walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
-    #     walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
-    #     # 3. Apply kinetic projector.
-    #     kinetic_real(walker.phi, system, self.BH1)
-    #     walker.inverse_overlap(trial.psi)
-    #     walker.ot = walker.calc_otrial(trial.psi)
-    #     walker.greens_function(trial)
-    #     # Constant terms are included in the walker's weight.
-    #     walker.weight = walker.weight * c_xf
+    def propagate_walker_free(self, walker, system, trial):
+        r"""Free projection for continuous HS transformation.
+        TODO: update if ever adapted to other model types.
+        Parameters
+        ----------
+        walker : :class:`walker.Walker`
+            Walker object to be updated. on output we have acted on
+            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
+            appropriately. Updates inplace.
+        state : :class:`state.State`
+            Simulation state.
+        """
+        nup = system.nup
+        # 1. Apply kinetic projector.
+        kinetic_real(walker.phi, system, self.BH1)
+        #
+        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
+        # # Normally distributed random numbers.
+        # xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
+        # sxf = sum(xfields)
+        # # Constant, field dependent term emerging when subtracting mean-field.
+        # sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
+        # c_xf = cmath.exp(sc)
+        # # Potential propagator.
+        # s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
+        # bv = numpy.diag(numpy.exp(s))
+        # # 2. Apply potential projector.
+        # walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
+        # walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
+        # 3. Apply kinetic projector.
+        kinetic_real(walker.phi, system, self.BH1)
+        walker.inverse_overlap(trial.psi)
+        walker.ot = walker.calc_otrial(trial.psi)
+        walker.greens_function(trial)
+        # Constant terms are included in the walker's weight.
+        walker.weight = walker.weight * cxf
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Wrapper function for propagation using continuous transformation.
