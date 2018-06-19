@@ -115,9 +115,7 @@ class Mixed(object):
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
                 E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += (
-                        w.weight*E.real
-                )
+                self.estimates[self.names.enumer] += w.weight*E.real
                 self.estimates[self.names.ekin:self.names.epot+1] += (
                         w.weight*numpy.array([T,V]).real
                 )
@@ -132,7 +130,7 @@ class Mixed(object):
                         (w.weight*w.local_energy(system)[0]*w.ot)
                 )
                 self.estimates[self.names.weight] += w.weight
-                self.estimates[self.names.edenom] += (w.weight*w.ot)
+                self.estimates[self.names.edenom] += w.weight * w.ot
 
     def print_step(self, comm, nprocs, step, nmeasure):
         """Print mixed estimates to file.
