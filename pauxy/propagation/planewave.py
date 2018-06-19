@@ -126,10 +126,12 @@ class PlaneWave(object):
         VHS = self.construct_VHS(system, xshifted)
         # print("construct_VHS (seconds) %10.5f"%(end - start))
         nup = system.nup
+        ndown = system.ndown
 
         # Apply propagator
         walker.phi[:,:nup] = self.apply_exponential(walker.phi[:,:nup], VHS, False)
-        walker.phi[:,nup:] = self.apply_exponential(walker.phi[:,nup:], VHS, False)
+        if (ndown >0):
+            walker.phi[:,nup:] = self.apply_exponential(walker.phi[:,nup:], VHS, False)
         # print("apply_exponential (seconds) %10.5f"%(end - start))
 
         # print("two_body (seconds) %10.5f"%(end - start0))

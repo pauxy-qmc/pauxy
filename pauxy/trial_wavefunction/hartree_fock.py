@@ -21,7 +21,10 @@ class HartreeFock(object):
         self.psi[:system.ndown,system.nup:] = occdown
         gup = gab(self.psi[:,:system.nup],
                                    self.psi[:,:system.nup])
-        gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:])
+        gdown = numpy.zeros(gup.shape)
+        if (system.ndown >0):
+            gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:])
+
         self.G = numpy.array([gup,gdown])
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
         self.coeffs = 1.0
