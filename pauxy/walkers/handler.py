@@ -191,6 +191,13 @@ class Walkers(object):
         for w in self.walkers:
             w.construct_greens_function_stable(time_slice)
 
+    def reset(self, trial):
+        for w in self.walkers:
+            w.stack.reset()
+            w.stack.set_all(trial.dmat)
+            w.greens_function(trial)
+            w.weight = 1
+
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
 
