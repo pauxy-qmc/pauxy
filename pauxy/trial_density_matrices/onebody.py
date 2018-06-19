@@ -20,6 +20,7 @@ class OneBody(object):
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
                                      scipy.linalg.inv(self.dmat[1])])
         self.G = greens_function(self.dmat)
+        self.error = False
 
     def find_chemical_potential(self, system, beta, verbose=False):
         rho = numpy.array([scipy.linalg.expm(-beta*(system.H1[0])),
