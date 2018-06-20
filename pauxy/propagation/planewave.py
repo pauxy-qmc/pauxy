@@ -54,7 +54,8 @@ class PlaneWave(object):
     def two_body_potentials(self, system, q):
         rho_q = system.density_operator(q)
         qscaled = system.kfac * q
-        factor = ((2.0*math.pi)/(system.vol*numpy.dot(qscaled,qscaled)))**0.5
+        twopi = 2.0*math.pi / system.vol
+        factor = (twopi/numpy.dot(qscaled,qscaled))**0.5
 
         # JOONHO: include a factor of 1j
         A = 1j * factor * (rho_q + rho_q.conj().T) * 0.5
