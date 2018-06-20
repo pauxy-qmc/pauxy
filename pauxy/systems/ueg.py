@@ -214,14 +214,13 @@ class UEG(object):
         idxkpq = []
         kpq = []
         for (i, ki) in enumerate(self.basis):
-            e = numpy.sum((ki + q)**2 /2.0)
-            # kpq += [numpy.sum(((ki + q)*self.kfac)**2 /2.0)]
+            kipq = ki+q
+            e = numpy.sum(kipq**2 /2.0)
             if (e <= self.ecut):
-                kipq = ki+q
                 idx = self.lookup_basis(kipq)
-            # print(e, self.ecut)
-                idxkpq += [idx]
-                kpq += [kipq]
+                if (idx != None):
+                    idxkpq += [(idx,i)]
+                    kpq += [kipq]
         # print(q * self.kfac)
         # print (self.basis)
         # print("")
@@ -231,14 +230,19 @@ class UEG(object):
         # exit()
         # exit()
 
-        for (i, kipq) in zip(idxkpq, kpq):
-            for (j, kj) in enumerate(self.basis):
-                # if (kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
-                # idx = self.lookup_basis(kipq)
-                # print(i, j)
+        for (i,j) in idxkpq:
+            # for j in range(self.nbasis):
                 rho_q[i,j] = 1
+
         return rho_q
 
+    def density_operator2(system, q):
+        rho_q = numpy.zeros(shape=(system.nbasis, system.nbasis))
+        for (i, ki) in enumerate(system.basis):
+            for (j, kj) in enumerate(system.basis):
+                if (i != j and numpy.all(ki+q == kj)):
+                    rho_q[i,j] = 1
+        return rho_q
 def unit_test():
     inputs = {'nup':1, 
     'ndown':1,
@@ -248,6 +252,11 @@ def unit_test():
 
     for (i, qi) in enumerate(system.qvecs):
         rho_q = system.density_operator(qi)
+        rho_q2 = system.density_operator2(qi)
+        print(rho_q)
+        print(rho_q2)
+        exit()
+        # print(numpy.sum((rho_q-rho_q2)**2))
 
 if __name__=="__main__":
     unit_test()
