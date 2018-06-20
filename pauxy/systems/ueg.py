@@ -64,6 +64,7 @@ class UEG(object):
         # Volume
         self.vol = self.L**3.0
         # k-space grid spacing.
+        # self.kfac = 2*math.pi/self.L
         self.kfac = 2*math.pi/self.L
         # Fermi Wavevector (infinite system).
         self.kf = (3*(self.zeta+1)*math.pi**2*self.ne/self.L**3)**(1/3.)
@@ -77,9 +78,9 @@ class UEG(object):
         print("# kfac = %10.5f"%self.kfac)
         print("# ecore = %10.5f"%self.ecore)
 
-        (self.sp_eigv, self.basisltkf, self.nmax) = self.sp_energies(self.kfac, self.ef)
         # Single particle eigenvalues and corresponding kvectors
         (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
+
         self.shifted_nmax = 2*self.nmax
         self.imax_sq = numpy.dot(self.basis[-1], self.basis[-1])
         self.create_lookup_table()
@@ -198,7 +199,6 @@ class UEG(object):
     def mod_one_body(self, T):
         h1e_mod = numpy.copy(T)
 
-        # JOONHO make mod_one_body just kinetic energy
         fac = 1.0 / (2.0 * self.vol)
         for (i, ki) in enumerate(self.basis):
             for (j, kj) in enumerate(self.basis):
@@ -207,34 +207,47 @@ class UEG(object):
                     h1e_mod[i,i] = h1e_mod[i,i] - fac * self.vq(q)
         return h1e_mod
 
-    def density_operator(system, q):
-        rho_q = numpy.zeros(shape=(system.nbasis, system.nbasis))
+    def density_operator(self, q):
+        assert (q[0] != 0 or q[1] != 0 or q[2] !=0)
+        rho_q = numpy.zeros(shape=(self.nbasis, self.nbasis))
 
+        idxkpq = []
         kpq = []
-        for (i, ki) in enumerate(system.basis):
-            kpq += [ki + q]
+        for (i, ki) in enumerate(self.basis):
+            e = numpy.sum((ki + q)**2 /2.0)
+            # kpq += [numpy.sum(((ki + q)*self.kfac)**2 /2.0)]
+            if (e <= self.ecut):
+                kipq = ki+q
+                idx = self.lookup_basis(kipq)
+            # print(e, self.ecut)
+                idxkpq += [idx]
+                kpq += [kipq]
+        # print(q * self.kfac)
+        # print (self.basis)
+        # print("")
+        # print (kpq)
+        # print (self.lookup_basis(kpq[1]))
+        # print(idxkpq)
+        # exit()
+        # exit()
 
-        zero = numpy.zeros(numpy.size(q))
-
-        if (numpy.all(zero == q)):
-            for (i, kipq) in enumerate(kpq):
-                for (j, kj) in enumerate(system.basis):
-                    if (i != j and kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
-                        rho_q[i,j] = 1
-        else:
-            for (i, kipq) in enumerate(kpq):
-                for (j, kj) in enumerate(system.basis):
-                    if (kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
-                        rho_q[i,j] = 1
-
+        for (i, kipq) in zip(idxkpq, kpq):
+            for (j, kj) in enumerate(self.basis):
+                # if (kipq[0] == kj[0] and kipq[1] == kj[1] and kipq[2] == kj[2]):
+                # idx = self.lookup_basis(kipq)
+                # print(i, j)
+                rho_q[i,j] = 1
         return rho_q
 
 def unit_test():
-    inputs = {'nup':7, 
-    'ndown':7,
+    inputs = {'nup':1, 
+    'ndown':1,
     'rs':1.0,
-    'ecut':2.5}
+    'ecut':1.0}
     system = UEG(inputs, True)
+
+    for (i, qi) in enumerate(system.qvecs):
+        rho_q = system.density_operator(qi)
 
 if __name__=="__main__":
     unit_test()
