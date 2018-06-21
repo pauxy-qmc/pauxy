@@ -9,8 +9,8 @@ import scipy.linalg
 
 def local_energy_ueg(system, G):
     
-    ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1]) # kinetic energy
-    
+    ke = numpy.einsum('sij,sji->',system.T,G)
+
     Gkpq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
     Gpmq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
     Gprod = numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
@@ -22,67 +22,69 @@ def local_energy_ueg(system, G):
 
 #   Todo: make it work for different spin
     # kf = system.basis[0:ne[0]]
-    kf = scipy.linalg.norm(system.basis[ne[0]])
+    kf = system.basis[0:ne[0]]
+    # kf = scipy.linalg.norm(system.basis[ne[0]])
 
     ikpq = []
     for (iq, q) in enumerate(system.qvecs):
-        idxkpq =[]
-        # for i, k in enumerate(kf):
+        idxkpq_list =[]
         for i, k in enumerate(system.basis):
             kpq = k + q
             # if (scipy.linalg.norm(kpq) < kf):
-            if (True):
-                idx = system.lookup_basis(kpq)
-                if idx is not None:
-                    idxkpq += [(idx,i)]
-        ikpq += [idxkpq]
+            idxkpq = system.lookup_basis(kpq)
+            if idxkpq is not None:
+                idxkpq_list += [(idxkpq,i)]
+        ikpq += [idxkpq_list]
+    # print(ikpq)
+    # exit()
 
     ipmq = []
     for (iq, q) in enumerate(system.qvecs):
-        idxpmq =[]
-        # for i, p in enumerate(kf):
+        idxpmq_list =[]
         for i, p in enumerate(system.basis):
             pmq = p - q
             # if (scipy.linalg.norm(pmq) < kf):
-            if (True):
-                idx = system.lookup_basis(pmq)
-                if idx is not None:
-                    idxpmq += [(idx,i)]
-        ipmq += [idxpmq]
-
+            idxpmq = system.lookup_basis(pmq)
+            if idxpmq is not None:
+                idxpmq_list += [(idxpmq,i)]
+        ipmq += [idxpmq_list]
     # essa = 0.0
     # essb = 0.0
     ess = [0.0, 0.0]
     eos = 0.0
 
+    # for s in [0, 1]:
+    #     for (iq, q) in enumerate(system.qvecs):
+    #         for (idxkpq,i) in ikpq[iq]:
+    #             Gkpq[s][iq] += G[s][idxkpq,i]
+    #             for (idxpmq,j) in ipmq[iq]:
+    #                 Gprod[s][iq] += G[s][idxkpq,j]*G[s][idxpmq,i]
+    #     # print(Gprod[s])
+    #     for (iq, q) in enumerate(system.qvecs):
+    #         for (idxpmq,i) in ipmq[iq]:
+    #             Gpmq[s][iq] += G[s][idxpmq,i]
+    #     tmp = numpy.multiply(Gkpq[s],Gpmq[s]) - Gprod[s]
+    #     ess[s] = (1.0/(2.0*system.vol))*system.vqvec.dot(tmp)
     for s in [0, 1]:
         for (iq, q) in enumerate(system.qvecs):
-            for (idxkpq, i) in ikpq[iq]:
-                # summing over k
-                Gkpq[s][iq] += G[s][idxkpq,i]
-
-                for (j,idxpmq) in ipmq[iq]:
-                    Gprod[s][iq] += G[s][idxkpq,j]*G[s][idxpmq,i]
-
+            for (idxkpq,i) in ikpq[iq]:
+                Gkpq[s][iq] += G[s][i,idxkpq]
+                for (idxpmq,j) in ipmq[iq]:
+                    Gprod[s][iq] += G[s][j,idxkpq]*G[s][i,idxpmq]
+        # print(Gprod[s])
         for (iq, q) in enumerate(system.qvecs):
-            for (idxpmq, j) in ipmq[iq]:
-                #summing over p
-                Gpmq[s][iq] += G[s][idxpmq,j]
+            for (idxpmq,i) in ipmq[iq]:
+                Gpmq[s][iq] += G[s][i,idxpmq]
+        tmp = numpy.multiply(Gkpq[s],Gpmq[s]) - Gprod[s]
+        ess[s] = (1.0/(2.0*system.vol))*system.vqvec.dot(tmp)
 
-        fact = 1.0/(2.0*system.vol)
+    # ess[0] = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[0]*Gpmq[0]-Gprod[0])
+    # ess[1] = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[1]*Gpmq[1]-Gprod[1])
 
-        tmp = numpy.multiply(Gkpq[s],Gpmq[s])-Gprod[s]
-
-        ess[s] = fact * system.vqvec.dot(tmp)
-
-    # essa = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[0],Gpmq[0])-Gprod[0])
-    # essb = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[1],Gpmq[1])-Gprod[1])
-    eos = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[0]*Gpmq[1]) + (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[1]*Gpmq[0])
-
+    eos = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[0],Gpmq[1])) \
+        + (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[1],Gpmq[0]))
+    # print("eaa = %10.5f, ebb = %10.5f, eab = %10.5f"%(ess[0],ess[1],eos))
     pe = ess[0] + ess[1] + eos
-
-    # G[0] = G[0].T
-    # G[1] = G[1].T
 
     return (ke+pe, ke, pe)
 

@@ -1,6 +1,7 @@
 import sys
 import numpy
 import scipy.linalg
+import scipy.sparse
 import pauxy.utils
 import math
 import time
@@ -220,10 +221,10 @@ class UEG(object):
                 if (idx != None):
                     idxkpq += [(idx,i)]
 
-        # print(idxkpq)
         for (i,j) in idxkpq:
             rho_q[i,j] = 1
-        # rho_q[idxkpq] = 1
+
+        # rho_q = scipy.sparse.csc_matrix(rho_q)
 
         return rho_q
 
@@ -233,6 +234,7 @@ class UEG(object):
             for (j, kj) in enumerate(system.basis):
                 if (i != j and numpy.all(ki+q == kj)):
                     rho_q[i,j] = 1
+        # rho_q = scipy.sparse.csc_matrix(rho_q)
         return rho_q
 def unit_test():
     inputs = {'nup':1, 
