@@ -39,8 +39,8 @@ class PlaneWave(object):
         # Temporary array for matrix exponentiation.
         self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
                                 dtype=trial.psi.dtype)
-        self.ebound = (2.0/self.dt)**0.5
 
+        self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
 
         if self.free_projection:
@@ -54,14 +54,17 @@ class PlaneWave(object):
     def two_body_potentials(self, system, q):
         rho_q = system.density_operator(q)
         qscaled = system.kfac * q
-        twopi = 2.0*math.pi / system.vol
-        factor = (twopi/numpy.dot(qscaled,qscaled))**0.5
+        # twopiovol = 2.0*math.pi / system.vol
+
+        # Due to the HS transformation, we have to do pi / vol as opposed to 2*pi / vol
+        piovol = math.pi / (2.0 *system.vol)
+        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
 
         # JOONHO: include a factor of 1j
-        A = 1j * factor * (rho_q + rho_q.conj().T) * 0.5
-        B = - factor * (rho_q - rho_q.conj().T) * 0.5
+        iA = 1j * factor * (rho_q + rho_q.conj().T) 
+        iB = - factor * (rho_q - rho_q.conj().T) 
 
-        return (A, B)
+        return (iA, iB)
 
     def construct_one_body_propagator(self, system, dt):
         H1 = system.h1e_mod
@@ -71,19 +74,19 @@ class PlaneWave(object):
 
     def construct_force_bias(self, system, G):
         for (i, qi) in enumerate(system.qvecs):
-            (A, B) = self.two_body_potentials(system, qi)
+            (iA, iB) = self.two_body_potentials(system, qi)
             # Deal with spin more gracefully
-            self.vbias[i] = numpy.einsum('ij,kij->', A, G)
-            self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', B, G)
+            self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
+            self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
         return - self.sqrt_dt * self.vbias
 
     def construct_VHS(self, system, xshifted):
         VHS = numpy.zeros(shape=(system.nbasis,system.nbasis),
                           dtype=numpy.complex128)
         for (i, qi) in enumerate(system.qvecs):
-            (A, B) = self.two_body_potentials(system, qi)
-            VHS = VHS + xshifted[i] * A 
-            VHS = VHS + xshifted[i+self.num_vplus] * B 
+            (iA, iB) = self.two_body_potentials(system, qi)
+            VHS = VHS + xshifted[i] * iA 
+            VHS = VHS + xshifted[i+self.num_vplus] * iB 
         return  VHS * self.sqrt_dt
 
     def two_body(self, walker, system, trial, fb = True):
@@ -145,8 +148,8 @@ class PlaneWave(object):
         # # print ("phi before expm")
         # # print (phi)
         # phi = scipy.linalg.expm(VHS).dot(copy)
-        # # print ("phi after expm")
-        # # print (phi)
+        # print ("phi after expm")
+        # print (phi)
         # return phi
         if debug:
             copy = numpy.copy(phi)
@@ -223,7 +226,7 @@ class PlaneWave(object):
         # print ("after two_body")
         # print (walker.phi)
         # exit()
-        # 3. Apply one_body pQropagator.
+        # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # Now apply hybrid phaseless approximation
         walker.inverse_overlap(trial.psi)
