@@ -42,10 +42,10 @@ def local_energy_ueg(system, G):
         idxkpq_list =[]
         for i, k in enumerate(system.basis):
             kpq = k + q
-            if (scipy.linalg.norm(k) < kf):
-                idxkpq = system.lookup_basis(kpq)
-                if idxkpq is not None:
-                    idxkpq_list += [(idxkpq,i)]
+            # if (scipy.linalg.norm(k) < kf):
+            idxkpq = system.lookup_basis(kpq)
+            if idxkpq is not None:
+                idxkpq_list += [(idxkpq,i)]
         ikpq += [idxkpq_list]
 
     ipmq = []
@@ -53,10 +53,10 @@ def local_energy_ueg(system, G):
         idxpmq_list =[]
         for i, p in enumerate(system.basis):
             pmq = p - q
-            if (scipy.linalg.norm(p) < kf):
-                idxpmq = system.lookup_basis(pmq)
-                if idxpmq is not None:
-                    idxpmq_list += [(idxpmq,i)]
+            # if (scipy.linalg.norm(p) < kf):
+            idxpmq = system.lookup_basis(pmq)
+            if idxpmq is not None:
+                idxpmq_list += [(idxpmq,i)]
         ipmq += [idxpmq_list]
 
     ess = [0.0, 0.0]
