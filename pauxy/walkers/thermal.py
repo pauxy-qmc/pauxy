@@ -27,7 +27,7 @@ class ThermalWalker(object):
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
             (U1, S1, V1) = scipy.linalg.svd(B[spin])
-            for i in range(1, self.stack.nbins):
+            for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 T1 = numpy.dot(B[spin], U1)
@@ -126,4 +126,5 @@ class PropagatorStack:
         self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
         self.stack[self.time_slice,1] = B[1].dot(self.stack[self.time_slice,1])
         self.time_slice = (self.time_slice + 1) // self.stack_width
+        print (self.counter, self.time_slice, self.stack_width)
         self.counter = (self.counter + 1) % self.stack_width
