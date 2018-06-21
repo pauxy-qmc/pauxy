@@ -86,7 +86,6 @@ class UEG(object):
         self.imax_sq = numpy.dot(self.basis[-1], self.basis[-1])
         self.create_lookup_table()
         for (i, k) in enumerate(self.basis):
-            # print (i, k, self.lookup_basis(k), self.map_basis_to_index(k))
             assert(i==self.lookup_basis(k))
 
         # Number of plane waves.
@@ -195,9 +194,29 @@ class UEG(object):
         return c1 * c2 / (self.ne**(1.0/3.0) * self.rs)
 
     def vq(self, q):
+        """The typical 3D Coulomb kernel
+        Parameters
+        ----------
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        v_M: float
+            3D Coulomb kernel (in Hartrees)
+        """
         return 4*math.pi / numpy.dot(q, q)
 
     def mod_one_body(self, T):
+        """ Add a diagonal term of two-body Hamiltonian to the one-body term
+        Parameters
+        ----------
+        T : float
+            one-body Hamiltonian (i.e. kinetic energy)
+        Returns
+        -------
+        h1e_mod: float
+            modified one-body Hamiltonian
+        """
         h1e_mod = numpy.copy(T)
 
         fac = 1.0 / (2.0 * self.vol)
@@ -209,6 +228,16 @@ class UEG(object):
         return h1e_mod
 
     def density_operator(self, q):
+        """ Density operator as defined in Eq.(6) of PRB(75)245123
+        Parameters
+        ----------
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        rho_q: float
+            density operator
+        """
         assert (q[0] != 0 or q[1] != 0 or q[2] !=0)
         rho_q = numpy.zeros(shape=(self.nbasis, self.nbasis))
 
@@ -224,18 +253,8 @@ class UEG(object):
         for (i,j) in idxkpq:
             rho_q[i,j] = 1
 
-        # rho_q = scipy.sparse.csc_matrix(rho_q)
-
         return rho_q
 
-    def density_operator2(system, q):
-        rho_q = numpy.zeros(shape=(system.nbasis, system.nbasis))
-        for (i, ki) in enumerate(system.basis):
-            for (j, kj) in enumerate(system.basis):
-                if (i != j and numpy.all(ki+q == kj)):
-                    rho_q[i,j] = 1
-        # rho_q = scipy.sparse.csc_matrix(rho_q)
-        return rho_q
 def unit_test():
     inputs = {'nup':1, 
     'ndown':1,
@@ -245,11 +264,8 @@ def unit_test():
 
     for (i, qi) in enumerate(system.qvecs):
         rho_q = system.density_operator(qi)
-        rho_q2 = system.density_operator2(qi)
-        print(rho_q)
-        print(rho_q2)
-        exit()
-        # print(numpy.sum((rho_q-rho_q2)**2))
+        rho_mq = system.density_operator(-qi)
+        print (numpy.linalg.norm(rho_q-rho_mq.T))
 
 if __name__=="__main__":
     unit_test()

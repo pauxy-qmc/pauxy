@@ -8,6 +8,8 @@ from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
 
 class PlaneWave(object):
+    """PlaneWave class
+    """
     def __init__(self, options, qmc, system, trial, verbose=False):
         if verbose:
             print ("# Parsing plane wave propagator input options.")
@@ -52,9 +54,22 @@ class PlaneWave(object):
             print ("# Finished setting up propagator.")
 
     def two_body_potentials(self, system, q):
+        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
+        Parameters
+        ----------
+        system :
+            system class
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        iA : numpy array
+            Eq.(13a)
+        iB : numpy array
+            Eq.(13b)
+        """
         rho_q = system.density_operator(q)
         qscaled = system.kfac * q
-        # twopiovol = 2.0*math.pi / system.vol
 
         # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
         piovol = math.pi / (system.vol)
@@ -66,29 +81,67 @@ class PlaneWave(object):
         return (iA, iB)
 
     def construct_one_body_propagator(self, system, dt):
+        """Construct the one-body propagator Exp(-dt/2 H0)
+        Parameters
+        ----------
+        system :
+            system class
+        dt : float
+            time-step
+        Returns
+        -------
+        self.BH1 : numpy array
+            Exp(-dt/2 H0)
+        """
         H1 = system.h1e_mod
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def apply_exponential(self, phi, VHS, debug=False):
+        """Apply exponential propagator of the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        phi : numpy array
+            a state
+        VHS : numpy array
+            HS transformation potential
+        Returns
+        -------
+        phi : numpy array
+            Exp(VHS) * phi
+        """
         # JOONHO: exact exponential
-        copy = numpy.copy(phi)
-        # phi = scipy.sparse.linalg.expm(VHS).dot(copy)
-        phi = scipy.linalg.expm(VHS).dot(copy)
-        # if debug:
-        #     copy = numpy.copy(phi)
-        #     c2 = scipy.linalg.expm(VHS).dot(copy)
-        # numpy.copyto(self.Temp, phi)
-        # for n in range(1, self.exp_nmax+1):
-        #     self.Temp = VHS.dot(self.Temp) / n
-        #     phi += self.Temp
-        # if debug:
-        #     print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-        # print("apply_exponential (seconds) %10.5f"%(end - start))
+        # copy = numpy.copy(phi)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
+        if debug:
+            copy = numpy.copy(phi)
+            c2 = scipy.linalg.expm(VHS).dot(copy)
+        
+        numpy.copyto(self.Temp, phi)
+        for n in range(1, self.exp_nmax+1):
+            self.Temp = VHS.dot(self.Temp) / n
+            phi += self.Temp
+        if debug:
+            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+        print("apply_exponential (seconds) %10.5f"%(end - start))
         return phi
 
     def construct_force_bias(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
         for (i, qi) in enumerate(system.qvecs):
             (iA, iB) = self.two_body_potentials(system, qi)
             # Deal with spin more gracefully
@@ -97,16 +150,45 @@ class PlaneWave(object):
         return - self.sqrt_dt * self.vbias
 
     def construct_VHS(self, system, xshifted):
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
         VHS = numpy.zeros(shape=(system.nbasis,system.nbasis),
                           dtype=numpy.complex128)
-        # VHS = scipy.sparse.csc_matrix((system.nbasis,system.nbasis), dtype=numpy.complex128)
         for (i, qi) in enumerate(system.qvecs):
             (iA, iB) = self.two_body_potentials(system, qi)
             VHS = VHS + xshifted[i] * iA 
             VHS = VHS + xshifted[i+self.num_vplus] * iB 
         return  VHS * self.sqrt_dt
 
-    def two_body(self, walker, system, trial, fb = True):
+    def two_body_propagator(self, walker, system, fb = True):
+        """It appliese the two-body propagator
+        Parameters
+        ----------
+        walker :
+            walker class
+        system :
+            system class
+        fb : boolean
+            wheter to use force bias
+        Returns
+        -------
+        cxf : float
+            the constant factor arises from mean-field shift (hard-coded for UEG for now)
+        cfb : float
+            the constant factor arises from the force-bias
+        xshifted : numpy array
+            shifited auxiliary field
+        """
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nfields)
 
@@ -134,11 +216,23 @@ class PlaneWave(object):
         return (cxf, cfb, xshifted)
 
     def propagate_walker_free(self, walker, system, trial):
+        """Free projection propagator
+        Parameters
+        ----------
+        walker :
+            walker class
+        system :
+            system class
+        trial : 
+            trial wavefunction class
+        Returns
+        -------
+        """
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
         #
         # 2. Apply 2-body projector
-        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial, False)
+        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system, False)
         #
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
@@ -149,10 +243,22 @@ class PlaneWave(object):
         walker.weight = walker.weight * cxf
 
     def propagate_walker_phaseless(self, walker, system, trial):
+        """Phaseless propagator
+        Parameters
+        ----------
+        walker :
+            walker class
+        system :
+            system class
+        trial : 
+            trial wavefunction class
+        Returns
+        -------
+        """
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
+        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
