@@ -24,6 +24,7 @@ class Walkers(object):
     """
 
     def __init__(self, system, trial, nwalkers, nprop_tot, nbp, verbose=False):
+        print ("# Number of walkers = %i"%nwalkers)
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
