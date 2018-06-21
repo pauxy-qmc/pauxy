@@ -34,7 +34,7 @@ def local_energy_ueg(system, G):
             if (True):
                 idx = system.lookup_basis(kpq)
                 if idx is not None:
-                    idxkpq += [(i,idx)]
+                    idxkpq += [(idx,i)]
         ikpq += [idxkpq]
 
     ipmq = []
@@ -47,25 +47,39 @@ def local_energy_ueg(system, G):
             if (True):
                 idx = system.lookup_basis(pmq)
                 if idx is not None:
-                    idxpmq += [(i,idx)]
+                    idxpmq += [(idx,i)]
         ipmq += [idxpmq]
+
+    # essa = 0.0
+    # essb = 0.0
+    ess = [0.0, 0.0]
+    eos = 0.0
 
     for s in [0, 1]:
         for (iq, q) in enumerate(system.qvecs):
-            for (i, idxkpq) in ikpq[iq]:
+            for (idxkpq, i) in ikpq[iq]:
+                # summing over k
                 Gkpq[s][iq] += G[s][idxkpq,i]
+
                 for (j,idxpmq) in ipmq[iq]:
                     Gprod[s][iq] += G[s][idxkpq,j]*G[s][idxpmq,i]
 
         for (iq, q) in enumerate(system.qvecs):
-            for (j,idxpmq) in ipmq[iq]:
+            for (idxpmq, j) in ipmq[iq]:
+                #summing over p
                 Gpmq[s][iq] += G[s][idxpmq,j]
 
-    essa = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[0]*Gpmq[0]-Gprod[0])
-    essb = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[1]*Gpmq[1]-Gprod[1])
-    eos = ((1.0/system.vol)*system.vqvec.dot(Gkpq[0]*Gpmq[1]) + (1.0/system.vol)*system.vqvec.dot(Gkpq[1]*Gpmq[0]))
+        fact = 1.0/(2.0*system.vol)
 
-    pe = essa + essb + eos
+        tmp = numpy.multiply(Gkpq[s],Gpmq[s])-Gprod[s]
+
+        ess[s] = fact * system.vqvec.dot(tmp)
+
+    # essa = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[0],Gpmq[0])-Gprod[0])
+    # essb = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[1],Gpmq[1])-Gprod[1])
+    eos = (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[0]*Gpmq[1]) + (1.0/(2.0*system.vol))*system.vqvec.dot(Gkpq[1]*Gpmq[0])
+
+    pe = ess[0] + ess[1] + eos
 
     # G[0] = G[0].T
     # G[1] = G[1].T
@@ -76,7 +90,7 @@ def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
     inputs = {'nup':7, 
-    'ndown':0,
+    'ndown':7,
     'rs':1.0,
     'ecut':1.0}
     system = UEG(inputs, True)
@@ -90,6 +104,8 @@ def unit_test():
     for i in range(nb):
         Pb[i,i] = 1.0
     P = [Pa, Pb]
+
+    # print (system.basis)
 
     etot, ekin, epot = local_energy_ueg(system, P)
 # Number of spin-up electrons = 7
