@@ -126,7 +126,6 @@ class PlaneWave(object):
             phi += self.Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-        print("apply_exponential (seconds) %10.5f"%(end - start))
         return phi
 
     def construct_force_bias(self, system, G):
