@@ -212,7 +212,6 @@ class UEG(object):
         rho_q = numpy.zeros(shape=(self.nbasis, self.nbasis))
 
         idxkpq = []
-        kpq = []
         for (i, ki) in enumerate(self.basis):
             kipq = ki+q
             e = numpy.sum(kipq**2 /2.0)
@@ -220,19 +219,11 @@ class UEG(object):
                 idx = self.lookup_basis(kipq)
                 if (idx != None):
                     idxkpq += [(idx,i)]
-                    kpq += [kipq]
-        # print(q * self.kfac)
-        # print (self.basis)
-        # print("")
-        # print (kpq)
-        # print (self.lookup_basis(kpq[1]))
-        # print(idxkpq)
-        # exit()
-        # exit()
 
+        # print(idxkpq)
         for (i,j) in idxkpq:
-            # for j in range(self.nbasis):
-                rho_q[i,j] = 1
+            rho_q[i,j] = 1
+        # rho_q[idxkpq] = 1
 
         return rho_q
 
