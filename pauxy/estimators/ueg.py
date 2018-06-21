@@ -35,12 +35,12 @@ def local_energy_ueg(system, G):
 #   Todo: make it work for different spin
     # kf = system.basis[0:ne[0]]
     # kf = system.basis[0:ne[0]]
-    kf = scipy.linalg.norm(system.basis[ne[0]])
+    # kf = scipy.linalg.norm(system.basis[ne[0]])
 
     ikpq = []
     for (iq, q) in enumerate(system.qvecs):
         idxkpq_list =[]
-        for i, k in enumerate(system.basis):
+        for i, k in enumerate(system.basis[0:ne[0]]):
             kpq = k + q
             # if (scipy.linalg.norm(k) < kf):
             idxkpq = system.lookup_basis(kpq)
@@ -51,7 +51,8 @@ def local_energy_ueg(system, G):
     ipmq = []
     for (iq, q) in enumerate(system.qvecs):
         idxpmq_list =[]
-        for i, p in enumerate(system.basis):
+        for i, p in enumerate(system.basis[0:ne[0]]):
+        # for i, p in enumerate(system.basis):
             pmq = p - q
             # if (scipy.linalg.norm(p) < kf):
             idxpmq = system.lookup_basis(pmq)
