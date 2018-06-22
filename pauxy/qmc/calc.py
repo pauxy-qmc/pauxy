@@ -26,9 +26,12 @@ def init_communicator():
         comm = FakeComm()
     return comm
 
-def setup_calculation(input_file):
+def setup_calculation(input_options):
     comm = init_communicator()
-    options = read_input(input_file, comm, verbose=True)
+    if (isinstance(input_options, str)):
+        options = read_input(input_options, comm, verbose=True)
+    else:
+        options = input_options
     set_rng_seed(options, comm)
     if comm.size > 1:
         afqmc = setup_parallel(options, comm, verbose=True)
@@ -38,21 +41,19 @@ def setup_calculation(input_file):
 
 def get_driver(options, comm):
     beta = options.get('qmc_options').get('beta', None)
-    print (beta)
     if beta is not None:
         afqmc = ThermalAFQMC(options.get('model'),
                              options.get('qmc_options'),
-                             options.get('estimates'),
-                             options.get('trial_wavefunction'),
+                             options.get('estimates', {}),
+                             options.get('trial', {}),
                              options.get('propagator', {}),
                              parallel=comm.size>1,
                              verbose=True)
     else:
-        print ("here")
         afqmc = AFQMC(options.get('model'),
                       options.get('qmc_options'),
-                      options.get('estimates'),
-                      options.get('trial_wavefunction'),
+                      options.get('estimates', {}),
+                      options.get('trial_wavefunction', {}),
                       options.get('propagator', {}),
                       parallel=comm.size>1,
                       verbose=True)
@@ -152,7 +153,7 @@ def setup_parallel(options, comm=None, verbose=False):
         sys.exit()
 
     afqmc.estimators = (
-        Estimators(options.get('estimates'),
+        Estimators(options.get('estimates', {}),
                    afqmc.root,
                    afqmc.qmc,
                    afqmc.system,
