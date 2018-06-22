@@ -9,7 +9,7 @@
     "qmc_options": {
         "method": "CPMC",
         "dt": 0.05,
-        "nsteps": 100,
+        "nsteps": 1000,
         "nmeasure": 10,
         "nwalkers": 10,
         "npop_control": 1,

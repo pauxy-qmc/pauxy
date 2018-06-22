@@ -63,6 +63,7 @@ class Hubbard(object):
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
                              self.ny, self.ktwist)
+        self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,

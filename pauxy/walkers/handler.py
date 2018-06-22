@@ -4,6 +4,8 @@ import math
 import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.walkers.thermal import ThermalWalker
+from pauxy.qmc.comm import FakeComm
 
 
 class Walkers(object):
@@ -28,6 +30,9 @@ class Walkers(object):
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(1, system, trial)
                                 for w in range(nwalkers)]
+        elif trial.name == 'thermal':
+            self.walkers = [ThermalWalker(1, system, trial) for w in
+                            range(nwalkers)]
         else:
             self.walkers = [SingleDetWalker(1, system, trial, w)
                             for w in range(nwalkers)]
@@ -169,9 +174,10 @@ class Walkers(object):
                 reqs.append(comm.isend(walker_buffers[-1],
                             dest=r[0], tag=i))
         for i, (s,r) in enumerate(zip(send, recv)):
-            if str(comm.__class__) == 'pauxy.qmc.calc.FakeComm':
+            if isinstance(comm, FakeComm):
                 # no mpi4py
                 walker_buffer = walker_buffers[i]
+                self.walkers[r[1]].set_buffer(walker_buffer)
             else:
                 if (comm.rank == r[0]):
                     walker_buffer = comm.recv(source=s[0], tag=i)
@@ -182,6 +188,17 @@ class Walkers(object):
         # Reset walker weight.
         for w in self.walkers:
             w.weight = 1.0
+
+    def recompute_greens_function(self, time_slice):
+        for w in self.walkers:
+            w.construct_greens_function_stable(time_slice)
+
+    def reset(self, trial):
+        for w in self.walkers:
+            w.stack.reset()
+            w.stack.set_all(trial.dmat)
+            w.greens_function(trial)
+            w.weight = 1
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.

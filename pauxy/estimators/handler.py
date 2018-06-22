@@ -54,15 +54,15 @@ class Estimators(object):
 
     def __init__(self, estimates, root, qmc, system, trial, BT2, verbose=False):
         if root:
-            index = estimates.get('index', 0)
+            self.index = estimates.get('index', 0)
             h5f_name = estimates.get('filename', None)
             if h5f_name is None:
                 overwrite = estimates.get('overwrite', True)
-                h5f_name = 'estimates.%s.h5' % index
+                h5f_name = 'estimates.%s.h5' % self.index
                 while os.path.isfile(h5f_name) and not overwrite:
-                    index = int(h5f_name.split('.')[1])
-                    index = index + 1
-                    h5f_name = 'estimates.%s.h5' % index
+                    self.index = int(h5f_name.split('.')[1])
+                    self.index = self.index + 1
+                    h5f_name = 'estimates.%s.h5' % self.index
             self.h5f = h5py.File(h5f_name, 'w')
         else:
             self.h5f = None
@@ -92,6 +92,23 @@ class Estimators(object):
                                            system.nbasis, dtype,
                                            self.nprop_tot, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
+
+    def reset(self, root):
+        if root:
+            self.increment_file_number()
+            self.dump_metadata()
+            for k, e in self.estimators.items():
+                e.reset(self.h5f)
+
+    def dump_metadata(self):
+        self.h5f.create_dataset('metadata',
+                                data=numpy.array([self.json_string], dtype=object),
+                                dtype=h5py.special_dtype(vlen=str))
+
+    def increment_file_number(self):
+        self.index = self.index + 1
+        h5f_name = 'estimates.%s.h5' % self.index
+        self.h5f = h5py.File(h5f_name, 'w')
 
     def print_step(self, comm, nprocs, step, nmeasure):
         """Print QMC estimates.

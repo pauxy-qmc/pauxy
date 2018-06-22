@@ -9,22 +9,19 @@ from math import exp
 import copy
 import h5py
 from pauxy.estimators.handler import Estimators
-from pauxy.propagation.utils import get_propagator
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
-from pauxy.trial_wavefunction.utils import get_trial_wavefunction
+from pauxy.propagation.utils import get_propagator
+from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.utils.misc import get_git_revision_hash
-from pauxy.utils.io import  to_json
+from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
 
 
-class AFQMC(object):
+class ThermalAFQMC(object):
     """AFQMC driver.
 
-    Zero temperature AFQMC using open ended random walk.
-
-    This object contains all the instances of the classes which parse input
-    options.
+    Non-zero temperature AFQMC using open ended random walk.
 
     Parameters
     ----------
@@ -74,11 +71,11 @@ class AFQMC(object):
     estimators : :class:`pauxy.estimators.Estimators` object
         Estimator handler.
     psi : :class:`pauxy.walkers.Walkers` object
-        Walker handler. Stores the AFQMC wavefunction.
+        Stores walkers which sample the partition function.
     """
 
-    def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, parallel=False,
+    def __init__(self, model, qmc_opts, estimates={},
+                 trial={}, propagator={}, parallel=False,
                  verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
@@ -94,11 +91,10 @@ class AFQMC(object):
         # 2. Calculation objects.
         self.system = get_system(model, qmc_opts['dt'], verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
+        self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
         self.cplx = self.determine_dtype(propagator, self.system)
-        self.trial = (
-            get_trial_wavefunction(trial, self.system, self.cplx,
-                                   parallel, verbose)
-        )
+        self.trial = OneBody(trial, self.system, self.qmc.beta,
+                             self.qmc.dt, verbose)
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         if not parallel:
@@ -111,8 +107,7 @@ class AFQMC(object):
                                self.estimators.nbp, verbose)
             json_string = to_json(self)
             self.estimators.json_string = json_string
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            self.estimators.dump_metadata()
 
     def run(self, psi=None, comm=None):
         """Perform AFQMC simulation on state object using open-ended random walk.
@@ -128,7 +123,6 @@ class AFQMC(object):
         if psi is not None:
             self.psi = psi
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
-        self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,
@@ -140,32 +134,20 @@ class AFQMC(object):
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
-            for w in self.psi.walkers:
-                # Want to possibly allow for walkers with negative / complex weights
-                # when not using a constraint. I'm not so sure about the criteria
-                # for complex weighted walkers.
-                if abs(w.weight) > 1e-8 and w.alive:
-                    self.propagators.propagate_walker(w, self.system,
-                                                      self.trial)
-                # Constant factors
-                w.weight = w.weight * exp(self.qmc.dt * E_T.real)
-            # calculate estimators
+            for ts in range(0, self.qmc.ntime_slices):
+                for w in self.psi.walkers:
+                    if abs(w.weight) > 1e-8:
+                        self.propagators.propagate_walker(self.system, w, ts)
+                if ts % self.qmc.npop_control == 0:
+                    self.psi.pop_control(comm)
+                if ts % self.qmc.nstblz == 0:
+                    self.psi.recompute_greens_function(ts)
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
-            if step % self.qmc.nstblz == 0:
-                self.psi.orthogonalise(self.trial,
-                                       self.propagators.free_projection)
-            if step % self.qmc.nupdate_shift == 0:
-                E_T = self.estimators.estimators['mixed'].projected_energy()
-            if step % self.qmc.nmeasure == 0:
-                self.estimators.print_step(comm, self.nprocs, step,
-                                           self.qmc.nmeasure)
-            if step < self.qmc.nequilibrate:
-                # Update local energy bound.
-                self.propagators.mean_local_energy = E_T
-            if step % self.qmc.npop_control == 0:
-                self.psi.pop_control(comm)
+            self.estimators.print_step(comm, self.nprocs, step,
+                                       self.qmc.nmeasure)
+            self.psi.reset(self.trial)
 
     def finalise(self, verbose):
         """Tidy up.

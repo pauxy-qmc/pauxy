@@ -33,3 +33,6 @@ class H5EstimatorHelper(object):
         """
         self.store[self.index] = data
         self.index = self.index + 1
+
+    def reset(self):
+        self.index = 0

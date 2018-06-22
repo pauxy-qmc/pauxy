@@ -12,9 +12,11 @@ try:
 except ImportError:
     parallel = False
 from pauxy.qmc.afqmc import AFQMC
+from pauxy.qmc.thermal_afqmc import ThermalAFQMC
 from pauxy.estimators.handler import Estimators
 from pauxy.utils.misc import serialise
 from pauxy.walkers.handler import Walkers
+from pauxy.qmc.comm import FakeComm
 
 
 def init_communicator():
@@ -24,6 +26,38 @@ def init_communicator():
         comm = FakeComm()
     return comm
 
+def setup_calculation(input_options):
+    comm = init_communicator()
+    if (isinstance(input_options, str)):
+        options = read_input(input_options, comm, verbose=True)
+    else:
+        options = input_options
+    set_rng_seed(options, comm)
+    if comm.size > 1:
+        afqmc = setup_parallel(options, comm, verbose=True)
+    else:
+        afqmc = get_driver(options, comm)
+    return (afqmc, comm)
+
+def get_driver(options, comm):
+    beta = options.get('qmc_options').get('beta', None)
+    if beta is not None:
+        afqmc = ThermalAFQMC(options.get('model'),
+                             options.get('qmc_options'),
+                             options.get('estimates', {}),
+                             options.get('trial', {}),
+                             options.get('propagator', {}),
+                             parallel=comm.size>1,
+                             verbose=True)
+    else:
+        afqmc = AFQMC(options.get('model'),
+                      options.get('qmc_options'),
+                      options.get('estimates', {}),
+                      options.get('trial_wavefunction', {}),
+                      options.get('propagator', {}),
+                      parallel=comm.size>1,
+                      verbose=True)
+    return afqmc
 
 def read_input(input_file, comm, verbose=False):
     """Helper function to parse input file and setup parallel calculation.
@@ -94,13 +128,7 @@ def setup_parallel(options, comm=None, verbose=False):
         CPMC driver.
     """
     if comm.Get_rank() == 0:
-        afqmc = AFQMC(options.get('model'),
-                      options.get('qmc_options'),
-                      options.get('estimates'),
-                      options.get('trial_wavefunction'),
-                      options.get('propagator', {}),
-                      parallel=True,
-                      verbose=verbose)
+        afqmc = get_driver(options, comm)
     else:
         afqmc = None
     afqmc = comm.bcast(afqmc, root=0)
@@ -125,7 +153,7 @@ def setup_parallel(options, comm=None, verbose=False):
         sys.exit()
 
     afqmc.estimators = (
-        Estimators(options.get('estimates'),
+        Estimators(options.get('estimates', {}),
                    afqmc.root,
                    afqmc.qmc,
                    afqmc.system,
@@ -147,36 +175,3 @@ def setup_parallel(options, comm=None, verbose=False):
                                            dtype=h5py.special_dtype(vlen=str))
 
     return afqmc
-
-class FakeComm:
-    """Fake MPI communicator class to reduce logic."""
-
-    def __init__(self):
-        self.rank = 0
-        self.size = 1
-
-    def Barrier(self):
-        pass
-    def Get_rank(self):
-        return 0
-    def Get_size(self):
-        return 1
-    def Gather(self, sendbuf, recvbuf, root=0):
-        recvbuf[:] = sendbuf
-    def Bcast(self, sendbuf, root=0):
-        return sendbuf
-    def bcast(self, sendbuf, root=0):
-        return sendbuf
-    def isend(self, sendbuf, dest=None, tag=None):
-        return FakeReq()
-    def recv(self, sendbuf, root=0):
-        pass
-    def Reduce(self, sendbuf, recvbuf, op=None):
-        recvbuf[:] = sendbuf
-
-class FakeReq:
-
-    def __init__(self):
-        pass
-    def wait(self):
-        pass
