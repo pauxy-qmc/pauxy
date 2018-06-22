@@ -29,11 +29,12 @@ qmc = {
     "beta": 1,
     "rng_seed": 7
 }
-estimates = {'mixed': {'thermal': True} }
-options = {'model': sys, 'qmc_options': qmc, 'estimates': estimates}
+estimates = {"mixed": {"thermal": True} }
+trial = {"name": "one_body", "mu": 0.4}
+options = {"model": sys, "qmc_options": qmc,
+           "estimates": estimates, "trial": trial}
 (afqmc, comm) = setup_calculation(options)
-# afqmc.run(comm=comm)
-# mu0 = afqmc.trial.mu
+afqmc.run(comm=comm)
 scan = numpy.linspace(0.5, 1.5, 10)
 for mu in scan:
     afqmc.trial = OneBody({'mu': mu}, afqmc.system, afqmc.qmc.beta, afqmc.qmc.dt)
