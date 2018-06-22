@@ -13,18 +13,22 @@
         "dt": 0.005,
         "nsteps": 100,
         "nmeasure": 1,
-        "nwalkers": 64,
+        "nwalkers": 10,
         "npop_control": 10,
         "nstabilise": 10,
         "beta": 1.0,
         "rng_seed": 7
     },
-    "trial_wavefunction": {
-        "name": "free_electron"
+    "trial": {
+        "name": "one_body",
+        "mu": 1.4
     },
     "propagator": {
         "hubbard_stratonovich": "discrete"
     },
     "estimates": {
+        "mixed": {
+            "thermal": true
+        }
     }
 }

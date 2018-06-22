@@ -11,17 +11,17 @@ from pauxy.propagation.hubbard import ThermalDiscrete
 sys_dict = {'name': 'Hubbard', 'nx': 4, 'ny': 4,
             'nup': 7, 'ndown': 7, 'U': 4, 't': 1}
 
-dt = 0.01
+dt = 0.1
 
 system = Hubbard(sys_dict, dt)
 
-beta = 1
+beta = 0.4
 
 trial = OneBody({}, system, beta, dt, verbose=True)
 
 num_slices = int(beta/dt)
 
-walker = ThermalWalker(1, system, trial, 10)
+walker = ThermalWalker(1, system, trial, 1)
 
 xis = numpy.random.randint(2, size=system.nbasis)
 
@@ -47,7 +47,7 @@ for j in range(0,num_slices):
     propg.propagate_greens_function(walker)
 
 G1 = numpy.copy(walker.G)
-walker.construct_greens_function_stable(0)
+walker.construct_greens_function_stable(num_slices)
 G2 = numpy.copy(walker.G)
 A = numpy.linalg.matrix_power(propg.BH1[0], num_slices-1)
 # A1 = B[0].dot(A)
