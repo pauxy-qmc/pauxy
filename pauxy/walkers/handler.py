@@ -5,6 +5,7 @@ import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.thermal import ThermalWalker
+from pauxy.qmc.comm import FakeComm
 
 
 class Walkers(object):
@@ -173,13 +174,13 @@ class Walkers(object):
                 reqs.append(comm.isend(walker_buffers[-1],
                             dest=r[0], tag=i))
         for i, (s,r) in enumerate(zip(send, recv)):
-            if str(comm.__class__) == 'pauxy.qmc.calc.FakeComm':
+            if isinstance(comm, FakeComm):
                 # no mpi4py
                 walker_buffer = walker_buffers[i]
             else:
                 if (comm.rank == r[0]):
                     walker_buffer = comm.recv(source=s[0], tag=i)
-                    self.walkers[r[1]].set_buffer(walker_buffer)
+            self.walkers[r[1]].set_buffer(walker_buffer)
         for rs in reqs:
             rs.wait()
         comm.Barrier()
