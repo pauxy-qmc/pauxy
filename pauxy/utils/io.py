@@ -1,5 +1,7 @@
 import ast
+import json
 import numpy
+from pauxy.utils.misc import serialise
 
 def format_fixed_width_strings(strings):
     return ' '.join('{:>17}'.format(s) for s in strings)
@@ -31,3 +33,9 @@ def fcidump_header(nel, norb, spin):
         "&END\n"
     )
     return header
+
+def to_json(afqmc):
+    json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+    json_string = json.dumps(serialise(afqmc, verbose=1),
+                             sort_keys=False, indent=4)
+    return json_string

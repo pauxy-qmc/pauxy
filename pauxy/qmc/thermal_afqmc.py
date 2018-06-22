@@ -13,7 +13,8 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.propagation.utils import get_propagator
 from pauxy.trial_density_matrices.onebody import OneBody
-from pauxy.utils.misc import get_git_revision_hash, serialise
+from pauxy.utils.misc import get_git_revision_hash
+from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
 
 
@@ -73,8 +74,8 @@ class ThermalAFQMC(object):
         Stores walkers which sample the partition function.
     """
 
-    def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, parallel=False,
+    def __init__(self, model, qmc_opts, estimates={},
+                 trial={}, propagator={}, parallel=False,
                  verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
@@ -104,15 +105,9 @@ class ThermalAFQMC(object):
             self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
-            json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-            json_string = json.dumps(serialise(self, verbose=1),
-                                     sort_keys=False, indent=4)
-            self.estimators.h5f.create_dataset('metadata',
-                                               data=numpy.array([json_string],
-                                                                dtype=object),
-                                               dtype=h5py.special_dtype(vlen=str))
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            json_string = to_json(self)
+            self.estimators.json_string = json_string
+            self.estimators.dump_metadata()
 
     def run(self, psi=None, comm=None):
         """Perform AFQMC simulation on state object using open-ended random walk.

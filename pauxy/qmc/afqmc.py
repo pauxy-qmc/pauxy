@@ -13,7 +13,8 @@ from pauxy.propagation.utils import get_propagator
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
-from pauxy.utils.misc import get_git_revision_hash, serialise
+from pauxy.utils.misc import get_git_revision_hash
+from pauxy.utils.io import  to_json
 from pauxy.walkers.handler import Walkers
 
 
@@ -108,13 +109,8 @@ class AFQMC(object):
             self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
-            json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-            json_string = json.dumps(serialise(self, verbose=1),
-                                     sort_keys=False, indent=4)
-            self.estimators.h5f.create_dataset('metadata',
-                                               data=numpy.array([json_string],
-                                                                dtype=object),
-                                               dtype=h5py.special_dtype(vlen=str))
+            json_string = to_json(self)
+            self.estimators.json_string = json_string
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
@@ -149,8 +145,8 @@ class AFQMC(object):
                 # when not using a constraint. I'm not so sure about the criteria
                 # for complex weighted walkers.
                 if abs(w.weight) > 1e-8 and w.alive:
-                    self.propagators.propagate_walker(
-                        w, self.system, self.trial)
+                    self.propagators.propagate_walker(w, self.system,
+                                                      self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt * E_T.real)
             # calculate estimators
