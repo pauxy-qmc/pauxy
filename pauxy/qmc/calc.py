@@ -16,6 +16,7 @@ from pauxy.qmc.thermal_afqmc import ThermalAFQMC
 from pauxy.estimators.handler import Estimators
 from pauxy.utils.misc import serialise
 from pauxy.walkers.handler import Walkers
+from pauxy.qmc.comm import FakeComm
 
 
 def init_communicator():
@@ -173,36 +174,3 @@ def setup_parallel(options, comm=None, verbose=False):
                                            dtype=h5py.special_dtype(vlen=str))
 
     return afqmc
-
-class FakeComm:
-    """Fake MPI communicator class to reduce logic."""
-
-    def __init__(self):
-        self.rank = 0
-        self.size = 1
-
-    def Barrier(self):
-        pass
-    def Get_rank(self):
-        return 0
-    def Get_size(self):
-        return 1
-    def Gather(self, sendbuf, recvbuf, root=0):
-        recvbuf[:] = sendbuf
-    def Bcast(self, sendbuf, root=0):
-        return sendbuf
-    def bcast(self, sendbuf, root=0):
-        return sendbuf
-    def isend(self, sendbuf, dest=None, tag=None):
-        return FakeReq()
-    def recv(self, sendbuf, root=0):
-        pass
-    def Reduce(self, sendbuf, recvbuf, op=None):
-        recvbuf[:] = sendbuf
-
-class FakeReq:
-
-    def __init__(self):
-        pass
-    def wait(self):
-        pass
