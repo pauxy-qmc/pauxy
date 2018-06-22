@@ -4,14 +4,14 @@
         "nup": 1,
         "ndown": 1,
         "rs": 1.0,
-        "ecut": 1
+        "ecut": 1.0
     },
     "qmc_options": {
         "method": "CPMC",
-        "dt": 0.010,
-        "nsteps": 1000,
+        "dt": 0.005,
+        "nsteps": 10000,
         "nmeasure": 10,
-        "nwalkers": 1,
+        "nwalkers": 20,
         "npop_control": 1,
         "nstabilise": 1,
         "temperature": 0.0,

@@ -31,8 +31,11 @@ class SingleDetWalker(object):
             self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
         else:
             self.phi = copy.deepcopy(trial.psi)
+            # JOONHO randomizing the guess
+            # self.phi = numpy.random.rand([system.nbasis,system.ne])
         self.inv_ovlp = [0, 0]
         self.nup = system.nup
+        self.ndown = system.ndown
         self.inverse_overlap(trial.psi)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
@@ -64,12 +67,17 @@ class SingleDetWalker(object):
             Trial wavefunction.
         """
         nup = self.nup
+        ndown = self.ndown
+        
         self.inv_ovlp[0] = (
             scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         )
-        self.inv_ovlp[1] = (
-            scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
-        )
+        
+        self.inv_ovlp[1] = numpy.zeros(self.inv_ovlp[0].shape)
+        if (ndown>0):
+            self.inv_ovlp[1] = (
+                scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+            )
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
         """Update inverse overlap matrix given a single row update of walker.
@@ -86,6 +94,8 @@ class SingleDetWalker(object):
             Basis index.
         """
         nup = self.nup
+        ndown = self.ndown
+
         self.inv_ovlp[0] = (
             sherman_morrison(self.inv_ovlp[0], trial.psi[i,:nup].conj(), vtup)
         )
@@ -107,7 +117,10 @@ class SingleDetWalker(object):
             Overlap.
         """
         dup = scipy.linalg.det(self.inv_ovlp[0])
-        ddn = scipy.linalg.det(self.inv_ovlp[1])
+        ndown = self.ndown
+        ddn = 1.0
+        if (ndown >0):
+            ddn = scipy.linalg.det(self.inv_ovlp[1])
         return 1.0 / (dup*ddn)
 
     def update_overlap(self, probs, xi, coeffs):
@@ -133,16 +146,23 @@ class SingleDetWalker(object):
             trial wavefunction object. for interface consistency.
         """
         nup = self.nup
+        ndown = self.ndown
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
                                                   mode='economic')
-        (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
-                                                    mode='economic')
+        Rdown = numpy.zeros(Rup.shape)
+        if (ndown >0):
+            (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
+                                                        mode='economic')
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
-        signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
+        if (ndown >0):
+            signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        if (ndown >0):
+            self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         drup = scipy.linalg.det(signs_up.dot(Rup))
-        drdn = scipy.linalg.det(signs_down.dot(Rdown))
+        drdn = 1.0
+        if (ndown >0):
+            drdn = scipy.linalg.det(signs_down.dot(Rdown))
         detR = drup * drdn
         self.ot = self.ot / detR
         return detR
@@ -156,13 +176,17 @@ class SingleDetWalker(object):
             Trial wavefunction object.
         """
         nup = self.nup
+        ndown = self.ndown
+
         t = trial.psi
         self.G[0] = (
             (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(t[:,:nup].conj().T)).T
         )
-        self.G[1] = (
-            (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(t[:,nup:].conj().T)).T
-        )
+        self.G[1] = numpy.zeros(self.G[0].shape)
+        if (ndown >0 ):
+            self.G[1] = (
+                (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(t[:,nup:].conj().T)).T
+            )
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.
@@ -175,8 +199,11 @@ class SingleDetWalker(object):
             Trial wavefunction object.
         """
         nup = self.nup
+        ndown = self.ndown
         self.Gmod[0] = self.phi[:,:nup].dot(self.inv_ovlp[0])
-        self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
+        self.Gmod[1] = np.zeros(self.Gmod[0].shape)
+        if (ndown>0):
+            self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
     def local_energy(self, system):
         """Compute walkers local energy

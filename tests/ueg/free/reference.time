@@ -1,0 +1,17 @@
+         244221539 function calls (244212977 primitive calls) in 221.062 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+ 31760211   50.942    0.000   50.942    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+     4840   39.016    0.008  150.154    0.031 ueg.py:202(density_operator)
+       17   28.596    1.682   69.007    4.059 ueg.py:10(local_energy_ueg)
+ 31760080   25.461    0.000  111.099    0.000 fromnumeric.py:2021(all)
+ 20523678   17.438    0.000   17.438    0.000 {numpy.core.multiarray.dot}
+ 31760155   13.137    0.000   16.198    0.000 numeric.py:495(asanyarray)
+ 20511873   13.042    0.000   40.411    0.000 ueg.py:150(lookup_basis)
+ 31760147   10.361    0.000   69.441    0.000 {method 'all' of 'numpy.ndarray' objects}
+  6252082    9.495    0.000    9.495    0.000 ueg.py:161(map_basis_to_index)
+ 31760147    8.138    0.000   59.079    0.000 _methods.py:40(_all)
+ 31760411    3.062    0.000    3.062    0.000 {numpy.core.multiarray.array}
+     4840    0.675    0.000  150.853    0.031 planewave.py:54(two_body_potentials)
