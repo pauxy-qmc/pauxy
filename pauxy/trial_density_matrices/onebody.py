@@ -15,7 +15,9 @@ class OneBody(object):
         self.nav = system.nup + system.ndown
         self.max_it = trial.get('max_it', 1000)
         self.deps = trial.get('threshold', 1e-6)
-        self.mu = self.find_chemical_potential(system, beta, verbose)
+        self.mu = trial.get('mu', None)
+        if self.mu is None:
+            self.mu = self.find_chemical_potential(system, beta, verbose)
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
                                      scipy.linalg.inv(self.dmat[1])])
