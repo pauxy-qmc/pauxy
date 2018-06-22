@@ -438,8 +438,9 @@ class ThermalDiscrete(object):
             )
 
     def propagate_greens_function(self, walker):
-        walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1_inv[0])
-        walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1_inv[1])
+        if walker.stack.time_slice < walker.stack.ntime_slices:
+            walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1_inv[0])
+            walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1_inv[1])
 
     def calculate_overlap_ratio(self, walker, i):
         R1_up = 1 + (1-walker.G[0,i,i])*self.delta[0,0]

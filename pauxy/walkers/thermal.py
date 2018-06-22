@@ -100,6 +100,7 @@ class PropagatorStack:
         self.nbasis = nbasis
         self.dtype = dtype
         self.counter = 0
+        self.block = 0
         self.stack = numpy.zeros(shape=(ntime_slices//bin_size, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.reset()
@@ -115,16 +116,17 @@ class PropagatorStack:
 
     def reset(self):
         self.time_slice = 0
+        self.block = 0
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
 
     def update(self, B):
         if self.counter == 0:
-            self.stack[self.time_slice,0] = numpy.identity(B.shape[-1])
-            self.stack[self.time_slice,1] = numpy.identity(B.shape[-1])
-        self.stack[self.time_slice,0] = B[0].dot(self.stack[self.time_slice,0])
-        self.stack[self.time_slice,1] = B[1].dot(self.stack[self.time_slice,1])
-        self.time_slice = (self.time_slice + 1) // self.stack_width
-        print (self.counter, self.time_slice, self.stack_width)
+            self.stack[self.block,0] = numpy.identity(B.shape[-1])
+            self.stack[self.block,1] = numpy.identity(B.shape[-1])
+        self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
+        self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
+        self.time_slice = self.time_slice + 1
+        self.block = self.time_slice // self.stack_width
         self.counter = (self.counter + 1) % self.stack_width
