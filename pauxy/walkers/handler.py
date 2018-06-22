@@ -177,10 +177,11 @@ class Walkers(object):
             if isinstance(comm, FakeComm):
                 # no mpi4py
                 walker_buffer = walker_buffers[i]
+                self.walkers[r[1]].set_buffer(walker_buffer)
             else:
                 if (comm.rank == r[0]):
                     walker_buffer = comm.recv(source=s[0], tag=i)
-            self.walkers[r[1]].set_buffer(walker_buffer)
+                    self.walkers[r[1]].set_buffer(walker_buffer)
         for rs in reqs:
             rs.wait()
         comm.Barrier()
