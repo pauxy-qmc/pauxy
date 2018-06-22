@@ -8,6 +8,7 @@ except ImportError:
 import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
+from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 
 
@@ -54,16 +55,22 @@ class Mixed(object):
     """
 
     def __init__(self, mixed, root, h5f, qmc, trial, dtype):
+        self.thermal = mixed.get('thermal', False)
         self.rdm = mixed.get('rdm', False)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
-        self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                       'EKin', 'EPot', 'time']
+        if self.thermal:
+            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
+                           'EKin', 'EPot', 'Nav', 'time']
+        else:
+            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
+                           'EKin', 'EPot', 'time']
         self.nreg = len(self.header[1:])
+        self.dtype = dtype
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
         self.estimates = numpy.zeros(self.nreg + self.G.size, dtype=dtype)
-        self.names = EstimatorEnum()
+        self.names = EstimatorEnum(self.thermal)
         self.estimates[self.names.time] = time.time()
-        self.global_estimates = numpy.zeros(self.nreg + self.G.size,
+        self.global_estimates = numpy.zeros(self.nreg+self.G.size,
                                             dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -73,6 +80,7 @@ class Mixed(object):
             'E': "Projected energy estimator.",
             'EKin': "Mixed kinetic energy estimator.",
             'EPot': "Mixed potential energy estimator.",
+            'Nav': "Average number of electrons.",
             'time': "Time per processor to complete one iteration.",
         }
         if root:
@@ -119,6 +127,8 @@ class Mixed(object):
                 self.estimates[self.names.ekin:self.names.epot+1] += (
                         w.weight*numpy.array([T,V]).real
                 )
+                if self.thermal:
+                    self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
@@ -153,6 +163,8 @@ class Mixed(object):
         ns = self.names
         denom = es[ns.edenom]*nprocs / nmeasure
         es[ns.eproj] = es[ns.enumer] / denom
+        if self.thermal:
+            es[ns.nav] = es[ns.nav] / denom
         es[ns.ekin:ns.epot+1] /= denom
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
@@ -225,6 +237,16 @@ class Mixed(object):
         self.estimates[:] = 0
         self.global_estimates[:] = 0
         self.estimates[self.names.time] = time.time()
+
+    def reset(self, h5f):
+        energies = h5f.create_group('mixed_estimates')
+        energies.create_dataset('headers',
+                                data=numpy.array(self.header[1:], dtype=object),
+                                dtype=h5py.special_dtype(vlen=str))
+        self.output = H5EstimatorHelper(energies, 'energies',
+                                        (self.nmeasure + 1, self.nreg),
+                                        self.dtype)
+        self.output.reset()
 
 # Energy evaluation routines.
 
@@ -717,15 +739,18 @@ class EstimatorEnum(object):
     python's support for enums doesn't help as it indexes from 1.
     """
 
-    def __init__(self):
-        # Exception for alignment of equal sign.
+    def __init__(self, thermal=False):
         self.weight = 0
         self.enumer = 1
         self.edenom = 2
         self.eproj = 3
         self.ekin = 4
         self.epot = 5
-        self.time = 6
+        if thermal:
+            self.nav = 6
+            self.time = 7
+        else:
+            self.time = 6
 
 
 def eproj(estimates, enum):
