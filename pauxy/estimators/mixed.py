@@ -128,9 +128,9 @@ class Mixed(object):
         else:
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                self.estimates[self.names.enumer] += (
-                        (w.weight*w.local_energy(system)[0]*w.ot)
-                )
+                E, T, V = w.local_energy(system)
+                self.estimates[self.names.enumer] += w.weight*E*w.ot
+                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += (w.weight*w.ot)
 
