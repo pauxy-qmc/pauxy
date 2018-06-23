@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 '''Run a reblocking analysis on pauxy QMC output files.'''
 
-import pandas as pd
-import numpy
-import scipy.stats
-import pauxy.analysis.extraction
-import matplotlib.pyplot as pl
 import h5py
 import json
+import matplotlib.pyplot as pl
+import numpy
+import pandas as pd
+import pyblock
+import scipy.stats
+import pauxy.analysis.extraction
 
 def average_single(frame):
     short = frame.drop(['time', 'iteration', 'E_denom', 'E_num', 'Weight'], axis=1)
@@ -23,6 +24,17 @@ def average_single(frame):
     columns = numpy.insert(columns, 0, 'dt')
     columns = numpy.insert(columns, 0, 'ndets')
     return averaged[columns]
+
+def reblock(frame):
+    short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
+    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+    reblocked = []
+    for c in short.columns:
+        reblocked.append(pyblock.pd_utils.reblock_summary(blocked_data.ix[:,c]))
+    # averaged = pd.DataFrame({'E': optimal['mean'],
+                         # 'E_error': optimal['standard error']})
+    print (reblocked)
+    # return averaged.reset_index(drop=True)
 
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)
