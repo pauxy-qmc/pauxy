@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 '''Run a reblocking analysis on pauxy QMC output files.'''
 
-import pandas as pd
-import numpy
-import scipy.stats
-import pauxy.analysis.extraction
-import matplotlib.pyplot as pl
 import h5py
 import json
+import matplotlib.pyplot as pl
+import numpy
+import pandas as pd
+import pyblock
+import scipy.stats
+import pauxy.analysis.extraction
 
 def average_single(frame):
     short = frame.drop(['time', 'iteration', 'E_denom', 'E_num', 'Weight'], axis=1)
@@ -23,6 +24,19 @@ def average_single(frame):
     columns = numpy.insert(columns, 0, 'dt')
     columns = numpy.insert(columns, 0, 'ndets')
     return averaged[columns]
+
+def reblock_mixed(frame):
+    short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
+    analysed = []
+    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+    reblocked = pd.DataFrame()
+    for c in short.columns:
+        rb = pyblock.pd_utils.reblock_summary(blocked_data.ix[:,c])
+        reblocked[c] = rb['mean'].values
+        reblocked[c+'_error'] = rb['standard error'].values
+    analysed.append(reblocked)
+
+    return pd.concat(analysed)
 
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)
@@ -109,13 +123,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
         dt = m.get('qmc').get('dt')
         step = m.get('qmc').get('nmeasure')
-        norm['dt'] = dt
-        norm['iteration'] = numpy.arange(0, step*len(norm), step)
         ndets = m.get('trial').get('ndets')
-        if ndets is not None:
-            norm['ndets'] = ndets
-        else:
-            norm['ndets'] = 1
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
@@ -189,9 +197,9 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         norm_av = average_tau(norm_data)
     else:
         norm_data = pd.concat(norm_data)
-        norm_av = average_single(norm_data)
+        norm_av = reblock_mixed(norm_data)
     basic = store.create_group('mixed')
-    basic.create_dataset('estimates', data=norm_av.as_matrix())
+    basic.create_dataset('estimates', data=norm_av.as_matrix().astype(float))
     basic.create_dataset('headers', data=norm_av.columns.values,
             dtype=h5py.special_dtype(vlen=str))
     if mixed_rdm is not None:
