@@ -36,7 +36,7 @@ class Walkers(object):
         else:
             self.walkers = [SingleDetWalker(1, system, trial, w)
                             for w in range(nwalkers)]
-        if system.name == "Generic":
+        if system.name == "Generic" or system.name == "UEG":
             dtype = complex
         else:
             dtype = int
