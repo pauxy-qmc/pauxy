@@ -36,6 +36,8 @@ options = {"model": sys, "qmc_options": qmc,
 (afqmc, comm) = setup_calculation(options)
 #afqmc.run(comm=comm)
 scan = numpy.linspace(0.5, 1.5, 10)
+# afqmc.run(comm=comm)
+# scan = numpy.linspace(0.5, 1.5, 10)
 for mu in [0.5]:
     afqmc.trial = OneBody({'mu': mu}, afqmc.system, afqmc.qmc.beta, afqmc.qmc.dt)
     afqmc.propagators = get_propagator({}, afqmc.qmc, afqmc.system, afqmc.trial)
