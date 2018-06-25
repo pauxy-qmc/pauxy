@@ -11,7 +11,7 @@ import h5py
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
-from pauxy.propagation.utils import get_propagator
+from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.utils.misc import get_git_revision_hash
 from pauxy.utils.io import to_json

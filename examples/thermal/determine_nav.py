@@ -6,7 +6,7 @@ import matplotlib.pyplot as pl
 from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.qmc.calc import init_communicator, setup_calculation
 from pauxy.qmc.thermal_afqmc import ThermalAFQMC
-from pauxy.propagation.utils import get_propagator
+from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.analysis.thermal import analyse_energy
 from pauxy.utils.io import to_json
 
@@ -23,7 +23,7 @@ qmc = {
     "dt": 0.005,
     "nsteps": 10,
     "nmeasure": 1,
-    "nwalkers": 36,
+    "nwalkers": 1,
     "npop_control": 10,
     "nstabilise": 10,
     "beta": 1,
@@ -34,9 +34,9 @@ trial = {"name": "one_body", "mu": 0.4}
 options = {"model": sys, "qmc_options": qmc,
            "estimates": estimates, "trial": trial}
 (afqmc, comm) = setup_calculation(options)
-afqmc.run(comm=comm)
+#afqmc.run(comm=comm)
 scan = numpy.linspace(0.5, 1.5, 10)
-for mu in scan:
+for mu in [0.5]:
     afqmc.trial = OneBody({'mu': mu}, afqmc.system, afqmc.qmc.beta, afqmc.qmc.dt)
     afqmc.propagators = get_propagator({}, afqmc.qmc, afqmc.system, afqmc.trial)
     afqmc.psi.reset(afqmc.trial)
