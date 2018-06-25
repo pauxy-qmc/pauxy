@@ -12,7 +12,7 @@ from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
-from pauxy.trial_density_matrices.onebody import OneBody
+from pauxy.trial_density_matrices.utils import get_trial_density_matrices
 from pauxy.utils.misc import get_git_revision_hash
 from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
@@ -93,8 +93,11 @@ class ThermalAFQMC(object):
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
         self.cplx = self.determine_dtype(propagator, self.system)
-        self.trial = OneBody(trial, self.system, self.qmc.beta,
-                             self.qmc.dt, verbose)
+        self.trial = (
+            get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
+        )
+        # self.trial = OneBody(trial, self.system, self.qmc.beta,
+        #                      self.qmc.dt, verbose)
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         if not parallel:
@@ -141,7 +144,8 @@ class ThermalAFQMC(object):
                 if ts % self.qmc.npop_control == 0:
                     self.psi.pop_control(comm)
                 if ts % self.qmc.nstblz == 0:
-                    self.psi.recompute_greens_function(ts)
+                    self.psi.recompute_greens_function(self.trial, ts)
+
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)

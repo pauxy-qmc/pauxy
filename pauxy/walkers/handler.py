@@ -189,9 +189,11 @@ class Walkers(object):
         for w in self.walkers:
             w.weight = 1.0
 
-    def recompute_greens_function(self, time_slice):
+    # def recompute_greens_function(self, time_slice):
+    def recompute_greens_function(self, trial, time_slice=None):
         for w in self.walkers:
-            w.construct_greens_function(time_slice)
+            # w.construct_greens_function(time_slice)
+            w.greens_function(trial, time_slice)
 
     def reset(self, trial):
         for w in self.walkers:

@@ -19,8 +19,12 @@ class ThermalWalker(object):
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
 
-    def construct_greens_function(self, slice_ix):
+    def greens_function(self, trial, slice_ix = None):
+        if (slice_ix == None):
+            slice_ix = self.stack.time_slice
+
         bin_ix = slice_ix // self.stack.stack_width
+
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -59,9 +63,6 @@ class ThermalWalker(object):
     def local_energy(self, system):
         rdm = one_rdm_from_G(self.G)
         return local_energy(system, rdm)
-
-    def greens_function(self, trial):
-        return self.construct_greens_function(self.stack.time_slice)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication
