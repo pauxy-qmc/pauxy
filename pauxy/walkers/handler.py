@@ -191,7 +191,7 @@ class Walkers(object):
 
     def recompute_greens_function(self, time_slice):
         for w in self.walkers:
-            w.construct_greens_function_stable(time_slice)
+            w.construct_greens_function(time_slice)
 
     def reset(self, trial):
         for w in self.walkers:

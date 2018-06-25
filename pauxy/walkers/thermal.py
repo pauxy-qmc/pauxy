@@ -19,7 +19,7 @@ class ThermalWalker(object):
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
 
-    def construct_greens_function_stable(self, slice_ix):
+    def construct_greens_function(self, slice_ix):
         bin_ix = slice_ix // self.stack.stack_width
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
@@ -61,7 +61,7 @@ class ThermalWalker(object):
         return local_energy(system, rdm)
 
     def greens_function(self, trial):
-        return self.construct_greens_function_stable(self.stack.time_slice)
+        return self.construct_greens_function(self.stack.time_slice)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication
