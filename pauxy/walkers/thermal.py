@@ -18,6 +18,7 @@ class ThermalWalker(object):
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
+        self.ot = 1.0
 
     def greens_function(self, trial, slice_ix = None):
         if (slice_ix == None):
