@@ -39,7 +39,7 @@ class UEG(object):
         Scale factor (2pi/L).
     """
 
-    def __init__(self, inputs, verbose):
+    def __init__(self, inputs, dt, verbose):
         if verbose:
             print ("# Parsing input options.")
         self.name = "UEG"
@@ -71,6 +71,9 @@ class UEG(object):
         self.kf = (3*(self.zeta+1)*math.pi**2*self.ne/self.L**3)**(1/3.)
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
+
+        # save dt
+        self.dt = dt
 
         print("# zeta = %10.5f"%self.zeta)
         print("# rho = %10.5f"%self.rho)

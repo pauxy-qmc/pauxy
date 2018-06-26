@@ -120,12 +120,8 @@ class Mixed(object):
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
                 E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += (
-                        (w.weight*E*w.ot)
-                )
-                self.estimates[self.names.ekin:self.names.epot+1] += (
-                        w.weight*numpy.array([T,V]).real*w.ot
-                )
+                self.estimates[self.names.enumer] += w.weight*E*w.ot
+                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot
                 if self.thermal:
                     self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))*w.ot
                 self.estimates[self.names.weight] += w.weight
@@ -147,16 +143,6 @@ class Mixed(object):
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
                     self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
-        else:
-            for i, w in enumerate(psi.walkers):
-                w.greens_function(trial)
-                E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += w.weight*E*w.ot
-                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot
-                if self.thermal:
-                    self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))*w.ot
-                self.estimates[self.names.weight] += w.weight
-                self.estimates[self.names.edenom] += w.weight * w.ot
 
     def print_step(self, comm, nprocs, step, nmeasure):
         """Print mixed estimates to file.

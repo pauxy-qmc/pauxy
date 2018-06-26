@@ -24,7 +24,7 @@ def get_system(model, dt, verbose):
     elif model['name'] == 'Generic':
         system = Generic(model, dt, verbose)
     elif model['name'] == 'UEG':
-        system = UEG(model, verbose)
+        system = UEG(model, dt, verbose)
     else:
         system = None
 

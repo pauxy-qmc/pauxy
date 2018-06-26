@@ -17,6 +17,18 @@ from pauxy.utils.misc import get_git_revision_hash
 from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
 
+def convert_from_reduced_unit(system, qmc_opts, verbose):
+    if (system.name == 'UEG'):
+        TF = system.ef# Fermi temeprature
+        print("# Fermi Temperature = %10.5f"%TF)
+        print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
+        print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
+        dt = qmc_opts['dt'] # original dt
+        beta = qmc_opts['beta'] # original dt
+        qmc_opts['dt'] = dt / TF # converting to Hartree ^ -1
+        qmc_opts['beta'] = beta / TF # converting to Hartree ^ -1
+        print("# beta in Hartree^-1 = %10.5f"%qmc_opts['beta'])
+        print("# dt in Hartree^-1 = %10.5f"%qmc_opts['dt'])
 
 class ThermalAFQMC(object):
     """AFQMC driver.
@@ -90,6 +102,7 @@ class ThermalAFQMC(object):
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         self.system = get_system(model, qmc_opts['dt'], verbose)
+        convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
         print("# Number of time slices = %i"%self.qmc.ntime_slices)
@@ -97,8 +110,7 @@ class ThermalAFQMC(object):
         self.trial = (
             get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
         )
-        # self.trial = OneBody(trial, self.system, self.qmc.beta,
-        #                      self.qmc.dt, verbose)
+
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         if not parallel:
