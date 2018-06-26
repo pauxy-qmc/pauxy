@@ -92,6 +92,7 @@ class ThermalAFQMC(object):
         self.system = get_system(model, qmc_opts['dt'], verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
+        print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
             get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
