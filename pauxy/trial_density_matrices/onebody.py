@@ -25,6 +25,7 @@ class OneBody(object):
         self.mu = options.get('mu', None)
         if self.mu is None:
             self.mu = self.find_chemical_potential(system, beta, verbose)
+        print("# chemical potential (mu) = %10.5f"%self.mu)
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
                                      scipy.linalg.inv(self.dmat[1])])
@@ -32,8 +33,11 @@ class OneBody(object):
         self.error = False
 
     def find_chemical_potential(self, system, beta, verbose=False):
+        print ("JOONHO find_chemical_potential 1")
         rho = numpy.array([scipy.linalg.expm(-beta*(self.H1[0])),
                            scipy.linalg.expm(-beta*(self.H1[1]))])
+        # print(rho)
+        print ("JOONHO find_chemical_potential 2")
         # Todo: some sort of generic starting point independent of
         # system/temperature
         dmu1 = dmu2 = 1
@@ -41,7 +45,9 @@ class OneBody(object):
         mu2 = 1
         while (numpy.sign(dmu1)*numpy.sign(dmu2) > 0):
             rho1 = self.compute_rho(rho, mu1, beta)
+            print("JOONHO HERE?")
             dmat = one_rdm(rho1)
+            print("JOONHO HERE? 2")
             dmu1 = self.delta(dmat)
             rho2 = self.compute_rho(rho, mu2, beta)
             dmat = one_rdm(rho2)

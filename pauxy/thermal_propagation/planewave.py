@@ -221,16 +221,16 @@ class PlaneWave(object):
         """
 
         # 1. Apply 1-body projector to greens function
-        self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
+        # self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
         # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        BV_inv = scipy.linalg.inv(BV)
+        # BV_inv = scipy.linalg.inv(BV)
         BV = numpy.array([BV, BV])
-        BV_inv = numpy.array([BV_inv, BV_inv])
-        self.propagate_greens_function(walker, BV, BV_inv)
+        # BV_inv = numpy.array([BV_inv, BV_inv])
+        # self.propagate_greens_function(walker, BV, BV_inv)
         # 3. Apply 1-body projector to greens function
-        self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
+        # self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
 
     #     # phi = scipy.linalg.expm(VHS).dot(copy)
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])

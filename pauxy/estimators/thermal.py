@@ -42,7 +42,6 @@ def greens_function(A):
         Thermal Green's function.
     """
     G = numpy.zeros(A.shape, dtype=A.dtype)
-    # for spin in [0,1]:
     (U1,S1,V1) = scipy.linalg.svd(A)
     T = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
     (U2,S2,V2) = scipy.linalg.svd(T)
@@ -69,7 +68,7 @@ def one_rdm(A):
         Thermal 1RDM.
     """
     I = numpy.identity(A.shape[-1])
-    G = greens_function(A)
+    G = numpy.array([greens_function(A[0]),greens_function(A[1])])
     return numpy.array([I-G[0].T, I-G[1].T])
 
 def one_rdm_from_G(G):

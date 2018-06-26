@@ -103,7 +103,7 @@ class UEG(object):
         # Can reduce by symmetry but be stupid for the moment.
         self.nfields = 2*len(self.qvecs)
         T = numpy.diag(self.sp_eigv)
-        self.T = numpy.array([T, T]) # Making alpha and beta
+        self.H1 = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         if verbose:
