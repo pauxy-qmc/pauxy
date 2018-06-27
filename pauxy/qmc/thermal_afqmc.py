@@ -89,6 +89,9 @@ class ThermalAFQMC(object):
     def __init__(self, model, qmc_opts, estimates={},
                  trial={}, propagator={}, parallel=False,
                  verbose=False):
+        if (qmc_opts['beta'] == None):
+            print ("Shouldn't call ThermalAFQMC without specifying beta")
+            exit()
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()
@@ -101,6 +104,7 @@ class ThermalAFQMC(object):
         self.init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
+        model['thermal'] = True # Add thermal keyword to model
         self.system = get_system(model, qmc_opts['dt'], verbose)
         convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)

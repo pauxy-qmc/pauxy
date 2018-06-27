@@ -129,6 +129,7 @@ class PlaneWave(object):
         return (iA, iB)
 
     def construct_VHS(self, system, xshifted):
+        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -141,13 +142,31 @@ class PlaneWave(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = scipy.sparse.csc_matrix((system.nbasis, system.nbasis), dtype=numpy.complex128 )
-        
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+
         for (i, qi) in enumerate(system.qvecs):
             (iA, iB) = self.two_body_potentials(system, i)
-            VHS = VHS + xshifted[i] * iA 
-            VHS = VHS + xshifted[i+self.num_vplus] * iB 
-        
+            VHS = VHS + (xshifted[i] * iA).todense()
+            VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
+        return  VHS * self.sqrt_dt
+
+
+    def construct_VHS_incore(self, system, xshifted):
+        import numpy.matlib
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+        VHS = system.iA * xshifted[:self.num_vplus] + system.iB * xshifted[self.num_vplus:]
         return  VHS * self.sqrt_dt
 
     def construct_force_bias(self, system, G):
@@ -208,7 +227,9 @@ class PlaneWave(object):
         cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
-        VHS = self.construct_VHS(system, xshifted)
+        # VHS = self.construct_VHS(system, xshifted)
+        VHS = self.construct_VHS_incore(system, xshifted)
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
 
         # Apply propagator
         walker.phi[:,:system.nup] = self.apply_exponential(walker.phi[:,:system.nup], VHS, False)
