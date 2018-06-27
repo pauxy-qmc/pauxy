@@ -185,10 +185,26 @@ class PlaneWave(object):
         for (i, qi) in enumerate(system.qvecs):
             (iA, iB) = self.two_body_potentials(system, i)
             # Deal with spin more gracefully
-            # self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
-            # self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
             self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
             self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
+        return - self.sqrt_dt * self.vbias
+
+    def construct_force_bias_incore(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
+        Gvec = G.reshape(2, system.nbasis*system.nbasis)
+        self.vbias[:self.num_vplus] = Gvec[0].T*system.iA + Gvec[1].T*system.iA
+        self.vbias[self.num_vplus:] = Gvec[0].T*system.iB + Gvec[1].T*system.iB
         return - self.sqrt_dt * self.vbias
 
     def two_body_propagator(self, walker, system, fb = True):
@@ -216,7 +232,7 @@ class PlaneWave(object):
         # Optimal force bias.
         xbar = numpy.zeros(system.nfields)
         if (fb):
-            xbar = self.construct_force_bias(system, walker.G)
+            xbar = self.construct_force_bias_incore(system, walker.G)
         
         xshifted = xi - xbar
 
