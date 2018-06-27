@@ -88,7 +88,7 @@ def one_rdm_from_G(G):
         Thermal 1RDM.
     """
     I = numpy.identity(G.shape[-1])
-    return numpy.array([I-G[0].T, I-G[1].T])
+    return numpy.array([I-G[0].T, I-G[1].T],dtype = numpy.complex128)
 
 def particle_number(dmat):
     """Compute average particle number.

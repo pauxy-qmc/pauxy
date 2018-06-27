@@ -167,6 +167,7 @@ class PlaneWave(object):
         """
         VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
         VHS = system.iA * xshifted[:self.num_vplus] + system.iB * xshifted[self.num_vplus:]
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
         return  VHS * self.sqrt_dt
 
     def construct_force_bias(self, system, G):
@@ -245,7 +246,6 @@ class PlaneWave(object):
         # Operator terms contributing to propagator.
         # VHS = self.construct_VHS(system, xshifted)
         VHS = self.construct_VHS_incore(system, xshifted)
-        VHS = VHS.reshape(system.nbasis, system.nbasis)
 
         # Apply propagator
         walker.phi[:,:system.nup] = self.apply_exponential(walker.phi[:,:system.nup], VHS, False)

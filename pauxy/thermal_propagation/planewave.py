@@ -57,33 +57,6 @@ class PlaneWave(object):
         if verbose:
             print ("# Finished setting up propagator.")
 
-    def two_body_potentials(self, system, q):
-        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
-        Parameters
-        ----------
-        system :
-            system class
-        q : float
-            a plane-wave vector
-        Returns
-        -------
-        iA : numpy array
-            Eq.(13a)
-        iB : numpy array
-            Eq.(13b)
-        """
-        rho_q = system.density_operator(q)
-        qscaled = system.kfac * q
-
-        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
-        piovol = math.pi / (system.vol)
-        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
-
-        # JOONHO: include a factor of 1j
-        iA = 1j * factor * (rho_q + rho_q.conj().T) 
-        iB = - factor * (rho_q - rho_q.conj().T) 
-        return (iA, iB)
-
     # def apply_exponential(self, phi, VHS, debug=False):
     #     """Apply exponential propagator of the HS transformation
     #     Parameters
@@ -113,28 +86,8 @@ class PlaneWave(object):
     #     if debug:
     #         print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
     #     return phi
-
-    def construct_force_bias(self, system, G):
-        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
-        Parameters
-        ----------
-        system :
-            system class
-        G : numpy array
-            Green's function
-        Returns
-        -------
-        force bias : numpy array
-            -sqrt(dt) * vbias
-        """
-        for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
-            # Deal with spin more gracefully
-            self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
-            self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
-        return - self.sqrt_dt * self.vbias
-
-    def construct_VHS(self, system, xshifted):
+    def construct_VHS_incore(self, system, xshifted):
+        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -147,13 +100,28 @@ class PlaneWave(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = numpy.zeros(shape=(system.nbasis,system.nbasis),
-                          dtype=numpy.complex128)
-        for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
-            VHS = VHS + xshifted[i] * iA 
-            VHS = VHS + xshifted[i+self.num_vplus] * iB 
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+        VHS = system.iA * xshifted[:self.num_vplus] + system.iB * xshifted[self.num_vplus:]
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
         return  VHS * self.sqrt_dt
+
+    def construct_force_bias_incore(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
+        Gvec = G.reshape(2, system.nbasis*system.nbasis)
+        self.vbias[:self.num_vplus] = Gvec[0].T*system.iA + Gvec[1].T*system.iA
+        self.vbias[self.num_vplus:] = Gvec[0].T*system.iB + Gvec[1].T*system.iB
+        return - self.sqrt_dt * self.vbias
 
     def propagate_greens_function(self, walker, B, Binv):
         if walker.stack.time_slice < walker.stack.ntime_slices:
@@ -186,7 +154,7 @@ class PlaneWave(object):
         xbar = numpy.zeros(system.nfields)
         if (fb):
             rdm = one_rdm_from_G(walker.G)
-            xbar = self.construct_force_bias(system, rdm)
+            xbar = self.construct_force_bias_incore(system, rdm)
         
         xshifted = xi - xbar
 
@@ -197,12 +165,8 @@ class PlaneWave(object):
         cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
-        VHS = self.construct_VHS(system, xshifted)
+        VHS = self.construct_VHS_incore(system, xshifted)
 
-        # Apply propagator
-        # walker.phi[:,:system.nup] = self.apply_exponential(walker.phi[:,:system.nup], VHS, False)
-        # if (system.ndown >0):
-        #     walker.phi[:,system.nup:] = self.apply_exponential(walker.phi[:,system.nup:], VHS, False)
 
         return (cxf, cfb, xshifted, VHS)
 
