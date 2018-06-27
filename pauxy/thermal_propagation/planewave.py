@@ -225,12 +225,7 @@ class PlaneWave(object):
         # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # BV_inv = scipy.linalg.inv(BV)
         BV = numpy.array([BV, BV])
-        # BV_inv = numpy.array([BV_inv, BV_inv])
-        # self.propagate_greens_function(walker, BV, BV_inv)
-        # 3. Apply 1-body projector to greens function
-        # self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
 
     #     # phi = scipy.linalg.expm(VHS).dot(copy)
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
@@ -283,18 +278,18 @@ class PlaneWave(object):
 def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.qmc.options import QMCOpts
-    from pauxy.trial_wavefunction.hartree_fock import HartreeFock
+    # from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 
     inputs = {'nup':1, 'ndown':1,
     'rs':1.0, 'ecut':1.0, 'dt':0.05, 'nwalkers':10}
 
-    system = UEG(inputs, True)
+    # system = UEG(inputs, True)
 
-    qmc = QMCOpts(inputs, system, True)
+    # qmc = QMCOpts(inputs, system, True)
 
-    trial = HartreeFock(system, False, inputs, True)
+    # trial = HartreeFock(system, False, inputs, True)
 
-    propagator = PlaneWave(inputs, qmc, system, trial, True)
+    # propagator = PlaneWave(inputs, qmc, system, trial, True)
 
 
 if __name__=="__main__":

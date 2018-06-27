@@ -53,33 +53,6 @@ class PlaneWave(object):
         if verbose:
             print ("# Finished setting up propagator.")
 
-    def two_body_potentials(self, system, q):
-        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
-        Parameters
-        ----------
-        system :
-            system class
-        q : float
-            a plane-wave vector
-        Returns
-        -------
-        iA : numpy array
-            Eq.(13a)
-        iB : numpy array
-            Eq.(13b)
-        """
-        rho_q = system.density_operator(q)
-        qscaled = system.kfac * q
-
-        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
-        piovol = math.pi / (system.vol)
-        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
-
-        # JOONHO: include a factor of 1j
-        iA = 1j * factor * (rho_q + rho_q.conj().T) 
-        iB = - factor * (rho_q - rho_q.conj().T) 
-        return (iA, iB)
-
     def construct_one_body_propagator(self, system, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
         Parameters
@@ -128,6 +101,56 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
+    def two_body_potentials(self, system, iq):
+        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
+        Parameters
+        ----------
+        system :
+            system class
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        iA : numpy array
+            Eq.(13a)
+        iB : numpy array
+            Eq.(13b)
+        """
+        rho_q = system.density_operator(iq)
+        qscaled = system.kfac * system.qvecs[iq]
+
+        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+        piovol = math.pi / (system.vol)
+        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+
+        # JOONHO: include a factor of 1j
+        iA = 1j * factor * (rho_q + rho_q.getH()) 
+        iB = - factor * (rho_q - rho_q.getH()) 
+        return (iA, iB)
+
+    def construct_VHS(self, system, xshifted):
+        import numpy.matlib
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
+        VHS = scipy.sparse.csc_matrix((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+        
+        for (i, qi) in enumerate(system.qvecs):
+            (iA, iB) = self.two_body_potentials(system, i)
+            VHS = VHS + xshifted[i] * iA 
+            VHS = VHS + xshifted[i+self.num_vplus] * iB 
+        
+        return  VHS * self.sqrt_dt
+
     def construct_force_bias(self, system, G):
         """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
         Parameters
@@ -142,32 +165,11 @@ class PlaneWave(object):
             -sqrt(dt) * vbias
         """
         for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
+            (iA, iB) = self.two_body_potentials(system, i)
             # Deal with spin more gracefully
             self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
             self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
         return - self.sqrt_dt * self.vbias
-
-    def construct_VHS(self, system, xshifted):
-        """Construct the one body potential from the HS transformation
-        Parameters
-        ----------
-        system :
-            system class
-        xshifted : numpy array
-            shifited auxiliary field
-        Returns
-        -------
-        VHS : numpy array
-            the HS potential
-        """
-        VHS = numpy.zeros(shape=(system.nbasis,system.nbasis),
-                          dtype=numpy.complex128)
-        for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
-            VHS = VHS + xshifted[i] * iA 
-            VHS = VHS + xshifted[i+self.num_vplus] * iB 
-        return  VHS * self.sqrt_dt
 
     def two_body_propagator(self, walker, system, fb = True):
         """It appliese the two-body propagator

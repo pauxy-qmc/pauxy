@@ -1,8 +1,8 @@
 {
     "model": {
         "name": "UEG",
-        "nup": 1,
-        "ndown": 1,
+        "nup": 7,
+        "ndown": 7,
         "rs": 1.0,
         "ecut": 1
     },
@@ -11,7 +11,7 @@
         "dt": 0.010,
         "nsteps": 1000,
         "nmeasure": 10,
-        "nwalkers": 1,
+        "nwalkers": 10,
         "npop_control": 1,
         "nstabilise": 1,
         "temperature": 0.0,
@@ -23,7 +23,7 @@
     "propagator": {
         "hubbard_stratonovich": "plane_wave",
         "expansion_order": 6,
-        "free_projection": false
+        "free_projection": true
     },
     "estimates": { }
 }

@@ -39,7 +39,7 @@ class UEG(object):
         Scale factor (2pi/L).
     """
 
-    def __init__(self, inputs, dt, verbose):
+    def __init__(self, inputs, verbose):
         if verbose:
             print ("# Parsing input options.")
         self.name = "UEG"
@@ -71,9 +71,6 @@ class UEG(object):
         self.kf = (3*(self.zeta+1)*math.pi**2*self.ne/self.L**3)**(1/3.)
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
-
-        # save dt
-        self.dt = dt
 
         print("# zeta = %10.5f"%self.zeta)
         print("# rho = %10.5f"%self.rho)
@@ -108,6 +105,73 @@ class UEG(object):
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         if verbose:
             print ("# Finished setting up Generic system object.")
+    
+        self.ikpq_i = []
+        self.ikpq_kpq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxkpq_list_i =[]
+            idxkpq_list_kpq =[]
+            for i, k in enumerate(self.basis[0:self.nup]):
+            # for i, k in enumerate(self.basis):
+                kpq = k + q
+                idxkpq = self.lookup_basis(kpq)
+                if idxkpq is not None:
+                    # idxkpq_list += [(idxkpq,i)]
+                    idxkpq_list_i += [i]
+                    idxkpq_list_kpq += [idxkpq]
+            # self.ikpq += [idxkpq_list]
+            self.ikpq_i += [idxkpq_list_i]
+            self.ikpq_kpq += [idxkpq_list_kpq]
+
+        self.rho_ikpq_i = []
+        self.rho_ikpq_kpq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxkpq_list_i =[]
+            idxkpq_list_kpq =[]
+            for i, k in enumerate(self.basis):
+            # for i, k in enumerate(self.basis):
+                kpq = k + q
+                idxkpq = self.lookup_basis(kpq)
+                if idxkpq is not None:
+                    # idxkpq_list += [(idxkpq,i)]
+                    idxkpq_list_i += [i]
+                    idxkpq_list_kpq += [idxkpq]
+            # self.ikpq += [idxkpq_list]
+            self.rho_ikpq_i += [idxkpq_list_i]
+            self.rho_ikpq_kpq += [idxkpq_list_kpq]
+
+        # print(numpy.shape(self.rho_ikpq_i))
+        # print(numpy.shape(self.rho_ikpq_kpq))
+        # exit()
+
+        self.ipmq_i = []
+        self.ipmq_pmq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxpmq_list_i =[]
+            idxpmq_list_pmq =[]
+            for i, p in enumerate(self.basis[0:self.nup]):
+            # for i, p in enumerate(self.basis):
+                pmq = p - q
+                idxpmq = self.lookup_basis(pmq)
+                if idxpmq is not None:
+                    idxpmq_list_i += [i]
+                    idxpmq_list_pmq += [idxpmq]
+                    # idxpmq_list += [(idxpmq,i)]
+            # self.ipmq += [idxpmq_list]
+            self.ipmq_i += [idxpmq_list_i]
+            self.ipmq_pmq += [idxpmq_list_pmq]
+
+        # self.ikpq_i = numpy.array(self.ikpq_i)
+        # self.ikpq_kpq = numpy.array(self.ikpq_kpq)
+        # self.ipmq_i = numpy.array(self.ipmq_i)
+        # self.ipmq_pmq = numpy.array(self.ipmq_pmq)
+        for (iq, q) in enumerate(self.qvecs):
+            self.ikpq_i[iq]  = numpy.array(self.ikpq_i[iq], dtype=numpy.int64)
+            self.ikpq_kpq[iq] = numpy.array(self.ikpq_kpq[iq], dtype=numpy.int64)
+            self.ipmq_i[iq]  = numpy.array(self.ipmq_i[iq], dtype=numpy.int64)
+            self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
+            self.rho_ikpq_i[iq]  = numpy.array(self.rho_ikpq_i[iq], dtype=numpy.int64)
+            self.rho_ikpq_kpq[iq] = numpy.array(self.rho_ikpq_kpq[iq], dtype=numpy.int64)
 
     def sp_energies(self, kfac, ecut):
         """Calculate the allowed kvectors and resulting single particle eigenvalues (basically kinetic energy)
@@ -230,7 +294,7 @@ class UEG(object):
                     h1e_mod[i,i] = h1e_mod[i,i] - fac * self.vq(q)
         return h1e_mod
 
-    def density_operator(self, q):
+    def density_operator(self, iq):
         """ Density operator as defined in Eq.(6) of PRB(75)245123
         Parameters
         ----------
@@ -241,34 +305,25 @@ class UEG(object):
         rho_q: float
             density operator
         """
-        assert (q[0] != 0 or q[1] != 0 or q[2] !=0)
-        rho_q = numpy.zeros(shape=(self.nbasis, self.nbasis))
-
-        idxkpq = []
-        for (i, ki) in enumerate(self.basis):
-            kipq = ki+q
-            e = numpy.sum(kipq**2 /2.0)
-            if (e <= self.ecut):
-                idx = self.lookup_basis(kipq)
-                if (idx != None):
-                    idxkpq += [(idx,i)]
-
-        for (i,j) in idxkpq:
-            rho_q[i,j] = 1
-
+        nnz = self.rho_ikpq_kpq[iq].shape[0] # Number of non-zeros
+        ones = numpy.ones((nnz), dtype=numpy.complex128)
+        rho_q = scipy.sparse.csc_matrix((ones, (self.rho_ikpq_kpq[iq], self.rho_ikpq_i[iq])), 
+            shape = (self.nbasis, self.nbasis) ,dtype=numpy.complex128 )
         return rho_q
 
 def unit_test():
     inputs = {'nup':1, 
     'ndown':1,
     'rs':1.0,
-    'ecut':1.0}
+    'ecut':10}
     system = UEG(inputs, True)
 
     for (i, qi) in enumerate(system.qvecs):
-        rho_q = system.density_operator(qi)
-        rho_mq = system.density_operator(-qi)
-        print (numpy.linalg.norm(rho_q-rho_mq.T))
+        rho_q = system.density_operator(i)
+        A = rho_q + scipy.sparse.csc_matrix.transpose(rho_q)
+        # print(scipy.sparse.csc_matrix.transpose(rho_q).shape)
+        # rho_mq = system.density_operator(-i)
+        # print (numpy.linalg.norm(rho_q-rho_mq.T))
 
 if __name__=="__main__":
     unit_test()

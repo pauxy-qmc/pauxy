@@ -12,7 +12,7 @@ class HartreeFock(object):
         self.type = "hartree_fock"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
-        self.trial_type = complex
+        self.trial_type = numpy.complex128
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         occup = numpy.identity(system.nup)
@@ -25,7 +25,7 @@ class HartreeFock(object):
         if (system.ndown >0):
             gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:])
 
-        self.G = numpy.array([gup,gdown])
+        self.G = numpy.array([gup,gdown],dtype=self.trial_type)
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)

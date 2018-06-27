@@ -24,7 +24,6 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     propagator : class or None
         Propagator object.
     """
-    print ("XXX")
     hs_type = options.get('hubbard_stratonovich', 'discrete')
     if hs_type == 'discrete':
         propagator = Discrete(options, qmc, system, trial, verbose)
