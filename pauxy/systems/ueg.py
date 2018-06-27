@@ -315,12 +315,14 @@ def unit_test():
     inputs = {'nup':1, 
     'ndown':1,
     'rs':1.0,
-    'ecut':10}
+    'ecut':1}
     system = UEG(inputs, True)
 
     for (i, qi) in enumerate(system.qvecs):
         rho_q = system.density_operator(i)
         A = rho_q + scipy.sparse.csc_matrix.transpose(rho_q)
+        # print(A.dot(rho_q).diagonal().sum())
+        # exit()
         # print(scipy.sparse.csc_matrix.transpose(rho_q).shape)
         # rho_mq = system.density_operator(-i)
         # print (numpy.linalg.norm(rho_q-rho_mq.T))

@@ -166,8 +166,10 @@ class PlaneWave(object):
         for (i, qi) in enumerate(system.qvecs):
             (iA, iB) = self.two_body_potentials(system, i)
             # Deal with spin more gracefully
-            self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
-            self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
+            # self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
+            # self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
+            self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
+            self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
         return - self.sqrt_dt * self.vbias
 
     def two_body_propagator(self, walker, system, fb = True):
