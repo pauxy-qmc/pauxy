@@ -111,6 +111,7 @@ class AFQMC(object):
                                self.estimators.nbp, verbose)
             json_string = to_json(self)
             self.estimators.json_string = json_string
+            self.estimators.dump_metadata()
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
