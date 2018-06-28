@@ -31,7 +31,7 @@ def reblock_mixed(frame):
     (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
     reblocked = pd.DataFrame()
     for c in short.columns:
-        rb = pyblock.pd_utils.reblock_summary(blocked_data.ix[:,c])
+        rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
         reblocked[c] = rb['mean'].values
         reblocked[c+'_error'] = rb['standard error'].values
     analysed.append(reblocked)
