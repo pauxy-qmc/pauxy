@@ -262,4 +262,3 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
             if i != 0 and i % nstblz == 0:
                 psi_bp[iw].reortho(trial)
     return psi_bp
-
