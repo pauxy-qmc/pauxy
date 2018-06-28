@@ -314,7 +314,7 @@ class PlaneWave(object):
         Q = cmath.exp(cmath.log (oratio) + cfb)
 
         if (isfinite(Q)):
-            print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
+            # print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             importance_function = self.mf_const_fac * cxf * cfb * oratio
 
             dtheta = cmath.phase(importance_function)
@@ -326,7 +326,7 @@ class PlaneWave(object):
             walker.ot = ot_new
             walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
         else:
-            print("not finite:: cfb = {}, oratio = {}".format(cfb, oratio))
+            # print("not finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             walker.ot = ot_new
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
