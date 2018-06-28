@@ -117,6 +117,7 @@ class ThermalAFQMC(object):
 
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
+        
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
@@ -167,8 +168,6 @@ class ThermalAFQMC(object):
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
             self.estimators.print_step(comm, self.nprocs, step, 1)
-            # self.estimators.print_step(comm, self.nprocs, step,
-            #                            self.qmc.nmeasure)
             self.psi.reset(self.trial)
 
     def finalise(self, verbose):

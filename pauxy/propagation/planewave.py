@@ -234,7 +234,12 @@ class PlaneWave(object):
         xbar = numpy.zeros(system.nfields)
         if (fb):
             xbar = self.construct_force_bias_incore(system, walker.G)
-        
+
+        for i in range(system.nfields):
+            if (numpy.absolute(xbar[i]) > 1.0):
+                print ("# Rescaling force bias is triggered")
+                xbar[i] /= numpy.absolute(xbar[i])
+
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
@@ -243,6 +248,8 @@ class PlaneWave(object):
         # Constant factor arising from shifting the propability distribution.
         # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
         cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
+
+        print(xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
         # VHS = self.construct_VHS(system, xshifted)
@@ -309,18 +316,16 @@ class PlaneWave(object):
 
         # Walker's phase.
         Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
-        importance_function = self.mf_const_fac * cxf * Q
-        (magn, dtheta) = cmath.polar(importance_function) # dtheta is phase
+        expQ = self.mf_const_fac * cxf * Q
+        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
         if (not math.isinf(magn)):
-            # print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             cfac = max(0, math.cos(dtheta))
-            rweight = abs(importance_function)
+            rweight = abs(expQ)
             walker.weight *= rweight * cfac
             walker.ot = ot_new
-            walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
         else:
-            # print("not finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             walker.ot = ot_new
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)

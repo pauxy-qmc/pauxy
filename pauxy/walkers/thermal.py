@@ -132,3 +132,34 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_width
         self.counter = (self.counter + 1) % self.stack_width
+
+def unit_test():
+    from pauxy.systems.ueg import UEG
+    from pauxy.trial_density_matrices.onebody import OneBody
+
+    inputs = {'nup':1, 
+    'ndown':1,
+    'rs':1.0,
+    'ecut':1,
+    "name": "one_body",
+    "mu":1.94046021
+    }
+    beta = 2.0
+    dt = 0.05
+    system = UEG(inputs, True)
+    trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
+    print(numpy.diag(trial.dmat[0]), numpy.diag(trial.dmat[1]))
+    walker = ThermalWalker(1.0, system, trial, stack_size=10)
+
+    # system.scaled_density_operator_incore(system.qvecs)
+
+    # for (i, qi) in enumerate(system.qvecs):
+        # rho_q = system.density_operator(i)
+        # A = rho_q + scipy.sparse.csc_matrix.transpose(rho_q)
+        # print(A.dot(rho_q).diagonal().sum())
+        # exit()
+        # print(scipy.sparse.csc_matrix.transpose(rho_q).shape)
+        # rho_mq = system.density_operator(-i)
+        # print (numpy.linalg.norm(rho_q-rho_mq.T))
+if __name__=="__main__":
+    unit_test()
