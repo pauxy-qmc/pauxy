@@ -9,7 +9,6 @@ Code
 - docstrings
 - theory documentation
 - walker's phase for free projection
-- fake comm to avoid conditionals with no mpi4py / fix this dependency
 - walker inheritance
 - profile
 - unit tests
@@ -17,6 +16,7 @@ Code
 - complex cholesky decomposition
 - error analysis for free projection
 - walker buffer using __dict__ attribute.
+- Energy / FB bounds
 
 Imaginary time green's functions
 ----------------------------------
