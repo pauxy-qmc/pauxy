@@ -313,7 +313,7 @@ class PlaneWave(object):
 
         Q = cmath.exp(cmath.log (oratio) + cfb)
 
-        if (isfinite(Q)):
+        if (!math.isinf(Q)):
             # print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             importance_function = self.mf_const_fac * cxf * cfb * oratio
 
