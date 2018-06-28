@@ -14,6 +14,7 @@ except ImportError:
 from pauxy.qmc.afqmc import AFQMC
 from pauxy.qmc.thermal_afqmc import ThermalAFQMC
 from pauxy.estimators.handler import Estimators
+from pauxy.utils.io import  to_json
 from pauxy.utils.misc import serialise
 from pauxy.walkers.handler import Walkers
 from pauxy.qmc.comm import FakeComm
@@ -165,13 +166,9 @@ def setup_parallel(options, comm=None, verbose=False):
                         afqmc.qmc.nwalkers,
                         afqmc.estimators.nprop_tot,
                         afqmc.estimators.nbp)
-    if comm.Get_rank() == 0:
-        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-        json_string = json.dumps(serialise(afqmc, verbose=1),
-                                 sort_keys=False, indent=4)
-        afqmc.estimators.h5f.create_dataset('metadata',
-                                           data=numpy.array([json_string],
-                                                            dtype=object),
-                                           dtype=h5py.special_dtype(vlen=str))
+    if comm.rank() == 0:
+        json_string = to_json(afqmc)
+        afqmc.estimators.json_string = json_string
+        afqmc.estimators.dump_metadata()
 
     return afqmc
