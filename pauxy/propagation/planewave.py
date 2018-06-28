@@ -313,14 +313,11 @@ class PlaneWave(object):
 
         Q = cmath.exp(cmath.log (oratio) + cfb)
 
-        if (not math.isinf(math.abs(Q))):
-            # print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
-            importance_function = self.mf_const_fac * cxf * cfb * oratio
+        importance_function = self.mf_const_fac * cxf * Q
+        dtheta = cmath.phase(importance_function)
 
-            dtheta = cmath.phase(importance_function)
-
+        if (not math.isinf(Q)):
             cfac = max(0, math.cos(dtheta))
-
             rweight = abs(importance_function)
             walker.weight *= rweight * cfac
             walker.ot = ot_new
