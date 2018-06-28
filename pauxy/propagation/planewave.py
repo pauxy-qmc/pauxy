@@ -316,7 +316,7 @@ class PlaneWave(object):
         importance_function = self.mf_const_fac * cxf * Q
         dtheta = cmath.phase(importance_function)
 
-        if (not math.isinf(Q)):
+        if (not math.isinf(importance_function)):
             cfac = max(0, math.cos(dtheta))
             rweight = abs(importance_function)
             walker.weight *= rweight * cfac
