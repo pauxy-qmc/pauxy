@@ -241,7 +241,8 @@ class PlaneWave(object):
         # Mean field shift is zero for UEG in HF basis
         cxf = 1.0
         # Constant factor arising from shifting the propability distribution.
-        cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
 
         # Operator terms contributing to propagator.
         # VHS = self.construct_VHS(system, xshifted)
@@ -307,12 +308,14 @@ class PlaneWave(object):
         ot_new = walker.calc_otrial(trial.psi)
 
         # Walker's phase.
-        if (walker.ot < 1e-8):
-            walker.ot = ot_new
-            walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
-        else:
-            importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
+
+        oratio = ot_new / walker.ot
+
+        Q = cmath.exp(cmath.log (oratio) + cfb)
+
+        if (isfinite(Q)):
+            print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
+            importance_function = self.mf_const_fac * cxf * cfb * oratio
 
             dtheta = cmath.phase(importance_function)
 
@@ -322,6 +325,11 @@ class PlaneWave(object):
             walker.weight *= rweight * cfac
             walker.ot = ot_new
             walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+        else:
+            print("not finite:: cfb = {}, oratio = {}".format(cfb, oratio))
+            walker.ot = ot_new
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
 def unit_test():
     from pauxy.systems.ueg import UEG
