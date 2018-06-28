@@ -12,6 +12,13 @@ import json
 
 
 def main(input_file):
+    """Simple launcher for pauxy via input file.
+
+    Parameters
+    ----------
+    input_file : string
+        JSON input file name.
+    """
     comm = init_communicator()
     options = read_input(input_file, comm, verbose=True)
     set_rng_seed(options, comm)
