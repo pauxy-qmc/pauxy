@@ -3,7 +3,7 @@ import math
 import numpy
 import scipy.sparse.linalg
 import time
-from pauxy.propagation.operations import kinetic_real
+from pauxy.propagation.operations import kinetic_real, local_energy_bound
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
 
@@ -289,7 +289,7 @@ class PlaneWave(object):
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * cxf
 
-    def propagate_walker_phaseless(self, walker, system, trial):
+    def propagate_walker_phaseless(self, walker, system, trial, hybrid = False):
         """Phaseless propagator
         Parameters
         ----------
@@ -310,26 +310,40 @@ class PlaneWave(object):
         kinetic_real(walker.phi, system, self.BH1)
 
         # Now apply hybrid phaseless approximation
-        walker.inverse_overlap(trial.psi)
-        walker.greens_function(trial)
-        ot_new = walker.calc_otrial(trial.psi)
 
-        # Walker's phase.
-        Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
-        expQ = self.mf_const_fac * cxf * Q
-        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+        if (hybrid):
+            walker.inverse_overlap(trial.psi)
+            walker.greens_function(trial)        
+            ot_new = walker.calc_otrial(trial.psi)
 
-        if (not math.isinf(magn)):
-            cfac = max(0, math.cos(dtheta))
-            rweight = abs(expQ)
-            walker.weight *= rweight * cfac
-            walker.ot = ot_new
-            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
-        else:
-            walker.ot = ot_new
-            walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+            # Walker's phase.
+            Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
+            expQ = self.mf_const_fac * cxf * Q
+            (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
+            if (not math.isinf(magn)):
+                cfac = max(0, math.cos(dtheta))
+                rweight = abs(expQ)
+                walker.weight *= rweight * cfac
+                walker.ot = ot_new
+                walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+            else:
+                walker.ot = ot_new
+                walker.weight = 0.0
+                walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+        else: # local energy approach
+            walker.inverse_overlap(trial.psi)
+            walker.greens_function(trial)        
+            E_L = walker.local_energy(system)[0].real
+            # Check for large population fluctuations
+            E_L = local_energy_bound(E_L, self.mean_local_energy,
+                                     self.ebound)
+            ot_new = walker.calc_otrial(trial.psi)
+            # Walker's phase.
+            dtheta = cmath.phase(cxf*ot_new/walker.ot)
+            walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
+                                           * max(0, math.cos(dtheta)))
+            walker.E_L = E_L
 def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.qmc.options import QMCOpts
