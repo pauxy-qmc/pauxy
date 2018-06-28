@@ -128,6 +128,26 @@ class PlaneWave(object):
         iB = - factor * (rho_q - rho_q.getH()) 
         return (iA, iB)
 
+    def construct_force_bias(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
+        for (i, qi) in enumerate(system.qvecs):
+            (iA, iB) = self.two_body_potentials(system, i)
+            # Deal with spin more gracefully
+            self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
+            self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
+        return - self.sqrt_dt * self.vbias
+
     def construct_VHS(self, system, xshifted):
         import numpy.matlib
         """Construct the one body potential from the HS transformation
@@ -169,26 +189,6 @@ class PlaneWave(object):
         VHS = system.iA * xshifted[:self.num_vplus] + system.iB * xshifted[self.num_vplus:]
         VHS = VHS.reshape(system.nbasis, system.nbasis)
         return  VHS * self.sqrt_dt
-
-    def construct_force_bias(self, system, G):
-        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
-        Parameters
-        ----------
-        system :
-            system class
-        G : numpy array
-            Green's function
-        Returns
-        -------
-        force bias : numpy array
-            -sqrt(dt) * vbias
-        """
-        for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, i)
-            # Deal with spin more gracefully
-            self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
-            self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
-        return - self.sqrt_dt * self.vbias
 
     def construct_force_bias_incore(self, system, G):
         """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
@@ -307,16 +307,21 @@ class PlaneWave(object):
         ot_new = walker.calc_otrial(trial.psi)
 
         # Walker's phase.
-        importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
+        if (walker.ot < 1e-8):
+            walker.ot = ot_new
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+        else:
+            importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
 
-        dtheta = cmath.phase(importance_function)
+            dtheta = cmath.phase(importance_function)
 
-        cfac = max(0, math.cos(dtheta))
+            cfac = max(0, math.cos(dtheta))
 
-        rweight = abs(importance_function)
-        walker.weight *= rweight * cfac
-        walker.ot = ot_new
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+            rweight = abs(importance_function)
+            walker.weight *= rweight * cfac
+            walker.ot = ot_new
+            walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
 
 def unit_test():
     from pauxy.systems.ueg import UEG
