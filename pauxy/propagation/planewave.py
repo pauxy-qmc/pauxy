@@ -249,7 +249,7 @@ class PlaneWave(object):
         # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
         cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
 
-        print(xbar.dot(xbar))
+        # print(xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
         # VHS = self.construct_VHS(system, xshifted)
