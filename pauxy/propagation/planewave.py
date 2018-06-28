@@ -308,15 +308,12 @@ class PlaneWave(object):
         ot_new = walker.calc_otrial(trial.psi)
 
         # Walker's phase.
-
-        oratio = ot_new / walker.ot
-
-        Q = cmath.exp(cmath.log (oratio) + cfb)
-
+        Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
         importance_function = self.mf_const_fac * cxf * Q
-        # dtheta = cmath.phase(importance_function)
-        (magn, dtheta) = cmath.polar(importance_function)
+        (magn, dtheta) = cmath.polar(importance_function) # dtheta is phase
+
         if (not math.isinf(magn)):
+            # print("finite:: cfb = {}, oratio = {}".format(cfb, oratio))
             cfac = max(0, math.cos(dtheta))
             rweight = abs(importance_function)
             walker.weight *= rweight * cfac
