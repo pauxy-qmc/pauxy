@@ -126,13 +126,6 @@ Generic
 
 QMC options
 ^^^^^^^^^^^
-``method``
-    type: string
-
-    Required.
-
-    QMC method. Currently only allowed value is `CPMC`.
-
 ``dt``
     type: float
 
