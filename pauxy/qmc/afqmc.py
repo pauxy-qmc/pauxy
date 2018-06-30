@@ -8,6 +8,8 @@ import uuid
 from math import exp
 import copy
 import h5py
+from pauxy.analysis.blocking import reblock_mixed
+from pauxy.analysis.extraction import extract_hdf5
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator
 from pauxy.qmc.options import QMCOpts
@@ -123,8 +125,6 @@ class AFQMC(object):
 
         Parameters
         ----------
-        state : :class:`pauxy.state.State` object
-            Model and qmc parameters.
         psi : :class:`pauxy.walker.Walkers` object
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
@@ -202,3 +202,20 @@ class AFQMC(object):
         continuous = 'continuous' in hs_type
         twist = system.ktwist.all() is not None
         return continuous or twist
+
+    def get_energy(self):
+        """Get mixed estimate for the energy.
+
+        Returns
+        -------
+        energy : float
+            Mixed estimate for the energy.
+        error : float
+            Standard error in the energy.
+        """
+        filename = self.estimators.h5f_name
+        data = extract_hdf5(filename)
+        results = reblock_mixed(data[1])
+        energy = results['E'].values[0].real
+        error = results['E_error'].values[0].real
+        return (energy, error)
