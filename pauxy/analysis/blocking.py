@@ -38,6 +38,26 @@ def reblock_mixed(frame):
 
     return pd.concat(analysed)
 
+def reblock_free_projection(frame):
+    short = frame.drop(['time', 'Weight', 'E'], axis=1)
+    analysed = []
+    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+    reblocked = pd.DataFrame()
+    denom = blocked_data.loc[:,'E_denom']
+    for c in short.columns:
+        if c != 'E_denom':
+            nume = blocked_data.loc[:,c]
+            cov = covariance.xs('E_denom', level=1)[c]
+            ratio = pyblock.error.ratio(nume, denom, cov, data_len)
+            rb = pyblock.pd_utils.reblock_summary(ratio)
+            if c == 'E_num':
+                c = 'E'
+            reblocked[c] = rb['mean'].values
+            reblocked[c+'_error'] = rb['standard error'].values
+    analysed.append(reblocked)
+
+    return pd.concat(analysed)
+
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)
     gf_err = gf.std(axis=0) / len(gf)**0.5
@@ -124,6 +144,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         dt = m.get('qmc').get('dt')
         step = m.get('qmc').get('nmeasure')
         ndets = m.get('trial').get('ndets')
+        free_projection = m.get('propagators').get('free_projection', False)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
@@ -197,7 +218,10 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         norm_av = average_tau(norm_data)
     else:
         norm_data = pd.concat(norm_data)
-        norm_av = reblock_mixed(norm_data)
+        if free_projection:
+            norm_av = reblock_free_projection(norm_data)
+        else:
+            norm_av = reblock_mixed(norm_data)
     basic = store.create_group('mixed')
     basic.create_dataset('estimates', data=norm_av.as_matrix().astype(float))
     basic.create_dataset('headers', data=norm_av.columns.values,
