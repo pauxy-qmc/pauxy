@@ -20,8 +20,8 @@ class SingleDetWalker(object):
         Element of trial wavefunction to initalise walker to.
     """
 
-    def __init__(self, weight, system, trial, index=0):
-        self.weight = weight
+    def __init__(self, walker_opts, system, trial, index=0):
+        self.weight = walker.opts.get('weight', 1)
         self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
