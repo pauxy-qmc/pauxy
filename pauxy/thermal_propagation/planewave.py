@@ -191,7 +191,7 @@ class PlaneWave(object):
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         BV = numpy.array([BV, BV])
 
-    #     # phi = scipy.linalg.expm(VHS).dot(copy)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         walker.stack.update(B)

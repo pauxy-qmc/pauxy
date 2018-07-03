@@ -118,6 +118,8 @@ class ThermalAFQMC(object):
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         
+        stack_size = qmc_opts.get("stack_size", None)
+
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
@@ -125,7 +127,7 @@ class ThermalAFQMC(object):
             )
             self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
                                self.estimators.nprop_tot,
-                               self.estimators.nbp, verbose)
+                               self.estimators.nbp, verbose, stack_size)
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()

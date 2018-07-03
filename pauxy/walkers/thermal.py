@@ -7,7 +7,7 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial, stack_size=2):
+    def __init__(self, weight, system, trial, stack_size=None):
         self.weight = weight
         self.alive = True
         self.num_slices = trial.ntime_slices
@@ -51,10 +51,13 @@ class ThermalWalker(object):
         self.greens_function(trial)
         self.ot = 1.0
 
+        cond = numpy.linalg.cond(trial.dmat[0])
+        print("# condition number of BT = {}".format(cond))
 
     def greens_function(self, trial, slice_ix = None):
         # self.greens_function_svd(trial, slice_ix)
         self.greens_function_qr(trial, slice_ix)
+
     def greens_function_svd(self, trial, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -219,28 +222,28 @@ def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.trial_density_matrices.onebody import OneBody
 
-    # inputs = {'nup':1, 
-    # 'ndown':1,
-    # 'rs':1.0,
-    # 'ecut':0.5,
-    # "name": "one_body",
-    # "mu":1.94046021
-    # }
-    # beta = 2.0
-    # dt = 0.05
-    # system = UEG(inputs, True)
-    # trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
-    # walker = ThermalWalker(1.0, system, trial, stack_size=None)
+    inputs = {'nup':1, 
+    'ndown':1,
+    'rs':1.0,
+    'ecut':0.5,
+    "name": "one_body",
+    "mu":1.94046021
+    }
+    beta = 2.0
+    dt = 0.05
+    system = UEG(inputs, True)
+    trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
+    walker = ThermalWalker(1.0, system, trial, stack_size=None)
     # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
-    N = 100
+    # N = 100
 
-    A = numpy.random.rand(N,N)
-    Q, R, P = scipy.linalg.qr(A, pivoting = True)
-    Pmat = numpy.zeros((N,N))
-    for i in range (N):
-        Pmat[P[i],i] = 1
+    # A = numpy.random.rand(N,N)
+    # Q, R, P = scipy.linalg.qr(A, pivoting = True)
+    # Pmat = numpy.zeros((N,N))
+    # for i in range (N):
+    #     Pmat[P[i],i] = 1
 
-    print(A - Q.dot(R).dot(Pmat.T))
+    # print(A - Q.dot(R).dot(Pmat.T))
     # print (P)
     # R = numpy.random.rand(system.nbasis, system.nbasis)
     # R = numpy.triu(R)
