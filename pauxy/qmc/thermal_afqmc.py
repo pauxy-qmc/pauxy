@@ -162,11 +162,8 @@ class ThermalAFQMC(object):
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
                         self.propagators.propagate_walker(self.system, w, ts)
-                if ts % self.qmc.npop_control == 0:
+                if ts % self.qmc.npop_control == 0 and ts != 0:
                     self.psi.pop_control(comm)
-                if ts % self.qmc.nstblz == 0:
-                    self.psi.recompute_greens_function(self.trial, ts)
-
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
@@ -188,7 +185,6 @@ class ThermalAFQMC(object):
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
-
 
     def determine_dtype(self, propagator, system):
         """Determine dtype for trial wavefunction and walkers.

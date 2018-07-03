@@ -27,6 +27,9 @@ class ThermalDiscrete(object):
         else:
             self.propagate_walker = self.propagate_walker_constrained
 
+    def update_greens_function_simple(self, walker, time_slice):
+        walker.construct_greens_function_stable(time_slice)
+
     def update_greens_function(self, walker, i, xi):
         for spin in [0,1]:
             g = walker.G[spin,:,i]
@@ -68,4 +71,8 @@ class ThermalDiscrete(object):
                 walker.weight = 0
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
         walker.stack.update(B)
+        # Need to recompute Green's function from scratch before we propagate it
+        # to the next time slice due to stack structure.
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.construct_greens_function_stable(walker.stack.time_slice-1)
         self.propagate_greens_function(walker)

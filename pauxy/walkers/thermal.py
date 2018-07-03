@@ -59,9 +59,11 @@ class ThermalWalker(object):
     def greens_function_svd(self, trial, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
-
         bin_ix = slice_ix // self.stack.stack_width
-
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -92,7 +94,10 @@ class ThermalWalker(object):
             slice_ix = self.stack.time_slice
 
         bin_ix = slice_ix // self.stack.stack_width
-
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -106,14 +111,12 @@ class ThermalWalker(object):
                 T1 = numpy.dot(B[spin], U1)
                 # (U1, V, P) = scipy.linalg.qr(T1, pivoting = True)
                 (U1, V) = scipy.linalg.qr(T1, pivoting = False)
-            
                 # Pmat = numpy.zeros((len(P),len(P)))
                 # for j in range (len(P)):
                 #     Pmat[P[j],j] = 1
                 # V = numpy.dot(V, Pmat.T)
-            
                 V1 = numpy.dot(V, V1)
-            
+
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
             # Care needs to be taken when adding the identity matrix.
             V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
