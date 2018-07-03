@@ -87,7 +87,7 @@ class ThermalAFQMC(object):
     """
 
     def __init__(self, model, qmc_opts, estimates={},
-                 trial={}, propagator={}, parallel=False,
+                 trial={}, propagator={}, walker_opts={}, parallel=False,
                  verbose=False):
         if (qmc_opts['beta'] == None):
             print ("Shouldn't call ThermalAFQMC without specifying beta")
@@ -125,7 +125,8 @@ class ThermalAFQMC(object):
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
-            self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
+            self.psi = Walkers(walker_opts, self.system, self.trial,
+                               self.qmc.nwalkers,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose, stack_size)
             json_string = to_json(self)

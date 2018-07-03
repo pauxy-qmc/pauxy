@@ -48,6 +48,7 @@ def get_driver(options, comm):
                              options.get('estimates', {}),
                              options.get('trial', {}),
                              options.get('propagator', {}),
+                             options.get('walkers', {}),
                              parallel=comm.size>1,
                              verbose=True)
     else:
@@ -56,6 +57,7 @@ def get_driver(options, comm):
                       options.get('estimates', {}),
                       options.get('trial_wavefunction', {}),
                       options.get('propagator', {}),
+                      options.get('walkers', {}),
                       parallel=comm.size>1,
                       verbose=True)
     return afqmc
@@ -161,7 +163,7 @@ def setup_parallel(options, comm=None, verbose=False):
                    afqmc.trial,
                    afqmc.propagators.BT_BP)
     )
-    afqmc.psi = Walkers(afqmc.system,
+    afqmc.psi = Walkers(options.get(walkers, {'weight': 1}), afqmc.system,
                         afqmc.trial,
                         afqmc.qmc.nwalkers,
                         afqmc.estimators.nprop_tot,

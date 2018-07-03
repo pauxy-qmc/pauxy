@@ -7,13 +7,13 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial, stack_size=None):
-        self.weight = weight
+    def __init__(self, walker_opts, system, trial):
+        self.weight = walker_opts.get('weight', 1)
         self.alive = True
         self.num_slices = trial.ntime_slices
         print("# Number of slices = {}".format(self.num_slices))
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
-
+        self.stack_size = walker_opts.get('stack_size', None)
         if (stack_size == None):
             print ("# Stack size is determined by BT")
             emax = numpy.max(numpy.diag(trial.dmat[0]))
@@ -21,10 +21,8 @@ class ThermalWalker(object):
             self.stack_size = min(self.num_slices, 
                 int (1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
             print ("# Initial stack size is {}".format(self.stack_size))
-        else:
-            self.stack_size = stack_size
 
-#       adjust stack size
+        # adjust stack size
         lower_bound = self.stack_size
         upper_bound = self.stack_size
         while ((self.num_slices//lower_bound) * lower_bound < self.num_slices):

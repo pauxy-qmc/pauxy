@@ -78,7 +78,7 @@ class AFQMC(object):
     """
 
     def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, parallel=False,
+                 trial, propagator, walker_opts={'weight': 1}, parallel=False,
                  verbose=False):
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
@@ -106,7 +106,8 @@ class AFQMC(object):
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
-            self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
+            self.psi = Walkers(walker_opts, self.system, self.trial,
+                               self.qmc.nwalkers,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
             json_string = to_json(self)
