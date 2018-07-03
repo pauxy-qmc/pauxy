@@ -118,8 +118,6 @@ class ThermalAFQMC(object):
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
         
-        stack_size = qmc_opts.get("stack_size", None)
-
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,

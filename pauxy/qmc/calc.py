@@ -163,7 +163,7 @@ def setup_parallel(options, comm=None, verbose=False):
                    afqmc.trial,
                    afqmc.propagators.BT_BP)
     )
-    afqmc.psi = Walkers(options.get(walkers, {'weight': 1}), afqmc.system,
+    afqmc.psi = Walkers(options.get('walkers', {'weight': 1}), afqmc.system,
                         afqmc.trial,
                         afqmc.qmc.nwalkers,
                         afqmc.estimators.nprop_tot,
