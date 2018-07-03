@@ -36,7 +36,7 @@ def reblock_mixed(frame):
             reblocked[c] = rb['mean'].values
             reblocked[c+'_error'] = rb['standard error'].values
         except KeyError:
-            print ("Reblocking of {:4} failed. Insufficient"
+            print ("Reblocking of {:4} failed. Insufficient "
                     "statistics.".format(c))
     analysed.append(reblocked)
 
@@ -60,7 +60,7 @@ def reblock_free_projection(frame):
                 reblocked[c] = rb['mean'].values
                 reblocked[c+'_error'] = rb['standard error'].values
             except KeyError:
-                print ("Reblocking of {:4} failed. Insufficient"
+                print ("Reblocking of {:4} failed. Insufficient "
                         "statistics.".format(c))
     analysed.append(reblocked)
 
