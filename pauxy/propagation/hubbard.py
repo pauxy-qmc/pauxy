@@ -401,7 +401,6 @@ def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     R = numpy.einsum('i,ij,i->j',trial.coeffs,walker.R,walker.ots)/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
-
 def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with multi-det trial.
 

@@ -7,24 +7,22 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, weight, system, trial, stack_size=None):
-        self.weight = weight
+    def __init__(self, walker_opts, system, trial):
+        self.weight = walker_opts.get('weight', 1)
         self.alive = True
         self.num_slices = trial.ntime_slices
         print("# Number of slices = {}".format(self.num_slices))
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
-
-        if (stack_size == None):
+        self.stack_size = walker_opts.get('stack_size', None)
+        if (self.stack_size == None):
             print ("# Stack size is determined by BT")
             emax = numpy.max(numpy.diag(trial.dmat[0]))
             emin = numpy.min(numpy.diag(trial.dmat[0]))
-            self.stack_size = min(self.num_slices, 
+            self.stack_size = min(self.num_slices,
                 int (1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
             print ("# Initial stack size is {}".format(self.stack_size))
-        else:
-            self.stack_size = stack_size
 
-#       adjust stack size
+        # adjust stack size
         lower_bound = self.stack_size
         upper_bound = self.stack_size
         while ((self.num_slices//lower_bound) * lower_bound < self.num_slices):
@@ -61,9 +59,11 @@ class ThermalWalker(object):
     def greens_function_svd(self, trial, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
-
         bin_ix = slice_ix // self.stack.stack_width
-
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -94,7 +94,10 @@ class ThermalWalker(object):
             slice_ix = self.stack.time_slice
 
         bin_ix = slice_ix // self.stack.stack_width
-
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -108,14 +111,12 @@ class ThermalWalker(object):
                 T1 = numpy.dot(B[spin], U1)
                 # (U1, V, P) = scipy.linalg.qr(T1, pivoting = True)
                 (U1, V) = scipy.linalg.qr(T1, pivoting = False)
-            
                 # Pmat = numpy.zeros((len(P),len(P)))
                 # for j in range (len(P)):
                 #     Pmat[P[j],j] = 1
                 # V = numpy.dot(V, Pmat.T)
-            
                 V1 = numpy.dot(V, V1)
-            
+
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
             # Care needs to be taken when adding the identity matrix.
             V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
@@ -188,8 +189,9 @@ class PropagatorStack:
         self.dtype = dtype
         self.counter = 0
         self.block = 0
-        self.stack = numpy.zeros(shape=(ntime_slices//bin_size, 2, nbasis, nbasis),
+        self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
+        # set all entries to be the identity matrix
         self.reset()
 
     def get(self, ix):
@@ -199,7 +201,7 @@ class PropagatorStack:
         for i in range(0, self.ntime_slices):
             ix = i // self.stack_width
             self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
-            self.stack[ix,1] = BT[0].dot(self.stack[ix,1])
+            self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
 
     def reset(self):
         self.time_slice = 0
@@ -210,8 +212,8 @@ class PropagatorStack:
 
     def update(self, B):
         if self.counter == 0:
-            self.stack[self.block,0] = numpy.identity(B.shape[-1])
-            self.stack[self.block,1] = numpy.identity(B.shape[-1])
+            self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
         self.time_slice = self.time_slice + 1

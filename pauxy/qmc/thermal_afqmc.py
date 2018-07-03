@@ -87,7 +87,7 @@ class ThermalAFQMC(object):
     """
 
     def __init__(self, model, qmc_opts, estimates={},
-                 trial={}, propagator={}, parallel=False,
+                 trial={}, propagator={}, walker_opts={}, parallel=False,
                  verbose=False):
         if (qmc_opts['beta'] == None):
             print ("Shouldn't call ThermalAFQMC without specifying beta")
@@ -125,9 +125,10 @@ class ThermalAFQMC(object):
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
-            self.psi = Walkers(self.system, self.trial, self.qmc.nwalkers,
+            self.psi = Walkers(walker_opts, self.system, self.trial,
+                               self.qmc.nwalkers,
                                self.estimators.nprop_tot,
-                               self.estimators.nbp, verbose, stack_size)
+                               self.estimators.nbp, verbose)
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
@@ -161,11 +162,8 @@ class ThermalAFQMC(object):
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
                         self.propagators.propagate_walker(self.system, w, ts)
-                if ts % self.qmc.npop_control == 0:
+                if ts % self.qmc.npop_control == 0 and ts != 0:
                     self.psi.pop_control(comm)
-                if ts % self.qmc.nstblz == 0:
-                    self.psi.recompute_greens_function(self.trial, ts)
-
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
@@ -187,7 +185,6 @@ class ThermalAFQMC(object):
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
-
 
     def determine_dtype(self, propagator, system):
         """Determine dtype for trial wavefunction and walkers.

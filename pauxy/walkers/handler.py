@@ -25,16 +25,17 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, system, trial, nwalkers, nprop_tot, nbp, verbose=False, stack_size=None):
+    def __init__(self, walker_opts, system, trial, nwalkers,
+                 nprop_tot, nbp, verbose=False):
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
-                self.walkers = [MultiGHFWalker(1, system, trial)
+                self.walkers = [MultiGHFWalker(walker_opts, system, trial)
                                 for w in range(nwalkers)]
         elif trial.name == 'thermal':
-            self.walkers = [ThermalWalker(1, system, trial, stack_size) for w in
+            self.walkers = [ThermalWalker(walker_opts, system, trial) for w in
                             range(nwalkers)]
         else:
-            self.walkers = [SingleDetWalker(1, system, trial, w)
+            self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
                             for w in range(nwalkers)]
         if system.name == "Generic" or system.name == "UEG":
             dtype = complex
