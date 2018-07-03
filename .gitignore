@@ -17,3 +17,6 @@ benchmark*
 FCIDUMP
 *dump*
 out
+*build*
+*.so
+*.c
