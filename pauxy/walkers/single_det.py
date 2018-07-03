@@ -21,7 +21,7 @@ class SingleDetWalker(object):
     """
 
     def __init__(self, walker_opts, system, trial, index=0):
-        self.weight = walker.opts.get('weight', 1)
+        self.weight = walker_opts.get('weight', 1)
         self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
@@ -49,7 +49,7 @@ class SingleDetWalker(object):
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
-        self.weight_bp = weight
+        self.weight_bp = self.weight
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
