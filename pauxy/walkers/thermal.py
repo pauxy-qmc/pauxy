@@ -188,8 +188,9 @@ class PropagatorStack:
         self.dtype = dtype
         self.counter = 0
         self.block = 0
-        self.stack = numpy.zeros(shape=(ntime_slices//bin_size, 2, nbasis, nbasis),
+        self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
+        # set all entries to be the identity matrix
         self.reset()
 
     def get(self, ix):
@@ -199,7 +200,7 @@ class PropagatorStack:
         for i in range(0, self.ntime_slices):
             ix = i // self.stack_width
             self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
-            self.stack[ix,1] = BT[0].dot(self.stack[ix,1])
+            self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
 
     def reset(self):
         self.time_slice = 0
@@ -210,8 +211,8 @@ class PropagatorStack:
 
     def update(self, B):
         if self.counter == 0:
-            self.stack[self.block,0] = numpy.identity(B.shape[-1])
-            self.stack[self.block,1] = numpy.identity(B.shape[-1])
+            self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
         self.time_slice = self.time_slice + 1
