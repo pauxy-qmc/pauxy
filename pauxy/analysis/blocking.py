@@ -31,9 +31,13 @@ def reblock_mixed(frame):
     (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
     reblocked = pd.DataFrame()
     for c in short.columns:
-        rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
-        reblocked[c] = rb['mean'].values
-        reblocked[c+'_error'] = rb['standard error'].values
+        try:
+            rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
+            reblocked[c] = rb['mean'].values
+            reblocked[c+'_error'] = rb['standard error'].values
+        except KeyError:
+            print ("Reblocking of {:4} failed. Insufficient"
+                    "statistics.".format(c))
     analysed.append(reblocked)
 
     return pd.concat(analysed)
@@ -50,10 +54,14 @@ def reblock_free_projection(frame):
             cov = covariance.xs('E_denom', level=1)[c]
             ratio = pyblock.error.ratio(nume, denom, cov, data_len)
             rb = pyblock.pd_utils.reblock_summary(ratio)
-            if c == 'E_num':
-                c = 'E'
-            reblocked[c] = rb['mean'].values
-            reblocked[c+'_error'] = rb['standard error'].values
+            try:
+                if c == 'E_num':
+                    c = 'E'
+                reblocked[c] = rb['mean'].values
+                reblocked[c+'_error'] = rb['standard error'].values
+            except KeyError:
+                print ("Reblocking of {:4} failed. Insufficient"
+                        "statistics.".format(c))
     analysed.append(reblocked)
 
     return pd.concat(analysed)
