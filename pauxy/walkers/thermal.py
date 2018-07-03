@@ -14,11 +14,11 @@ class ThermalWalker(object):
         print("# Number of slices = {}".format(self.num_slices))
         self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
         self.stack_size = walker_opts.get('stack_size', None)
-        if (stack_size == None):
+        if (self.stack_size == None):
             print ("# Stack size is determined by BT")
             emax = numpy.max(numpy.diag(trial.dmat[0]))
             emin = numpy.min(numpy.diag(trial.dmat[0]))
-            self.stack_size = min(self.num_slices, 
+            self.stack_size = min(self.num_slices,
                 int (1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
             print ("# Initial stack size is {}".format(self.stack_size))
 
