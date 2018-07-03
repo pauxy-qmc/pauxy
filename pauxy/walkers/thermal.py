@@ -100,19 +100,12 @@ class ThermalWalker(object):
             # in stable way. Iteratively construct SVD decompositions starting
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            # (U1, S1, V1) = scipy.linalg.svd(B[spin])
             (U1, V1) = numpy.linalg.qr(B[spin])
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 T1 = numpy.dot(B[spin], U1)
-                # (U1, V, P) = scipy.linalg.qr(T1, pivoting = True)
                 (U1, V) = scipy.linalg.qr(T1, pivoting = False)
-            
-                # Pmat = numpy.zeros((len(P),len(P)))
-                # for j in range (len(P)):
-                #     Pmat[P[j],j] = 1
-                # V = numpy.dot(V, Pmat.T)
             
                 V1 = numpy.dot(V, V1)
             
@@ -121,13 +114,7 @@ class ThermalWalker(object):
             V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
 
             T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
-            # (U2, V2, P) = scipy.linalg.qr(T3, pivoting = True)
             (U2, V2) = scipy.linalg.qr(T3, pivoting = False)
-
-            # Pmat = numpy.zeros((len(P),len(P)))
-            # for j in range (len(P)):
-            #     Pmat[P[j],j] = 1
-            # V2 = numpy.dot(V2, Pmat.T)
 
             U3 = numpy.dot(U1, U2)
             V3 = numpy.dot(V2, V1)
@@ -221,19 +208,31 @@ class PropagatorStack:
 def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.trial_density_matrices.onebody import OneBody
+    from pauxy.thermal_propagation.planewave import PlaneWave
+    from pauxy.qmc.options import QMCOpts
 
     inputs = {'nup':1, 
     'ndown':1,
     'rs':1.0,
     'ecut':0.5,
     "name": "one_body",
-    "mu":1.94046021
+    "mu":1.94046021,
+    "beta":2.0,
+    "dt": 0.05
     }
-    beta = 2.0
-    dt = 0.05
+    beta = inputs ['beta']
+    dt = inputs['dt']
+
     system = UEG(inputs, True)
+
+    qmc = QMCOpts(inputs, system, True)
     trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
+
+    propagator = PlaneWave(inputs, qmc, system, trial, True)
     walker = ThermalWalker(1.0, system, trial, stack_size=None)
+    walker.greens_function(trial)
+    E, T, V = walker.local_energy(system)
+    print(E,T,V)
     # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
     # N = 100
 

@@ -188,10 +188,9 @@ class PlaneWave(object):
         # self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
         # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         BV = numpy.array([BV, BV])
-
-        # phi = scipy.linalg.expm(VHS).dot(copy)
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         walker.stack.update(B)
