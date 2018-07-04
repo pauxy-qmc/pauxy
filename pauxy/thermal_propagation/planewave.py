@@ -33,8 +33,10 @@ class PlaneWave(object):
         mf_core = system.ecore
 
         # square root is necessary for symmetric Trotter split
-        self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
-        self.BH1_inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+        # self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
+        # self.BH1_inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+        self.BH1 = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
+        self.BH1_inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
         self.mf_const_fac = 1
 
         # todo : ?
@@ -189,10 +191,11 @@ class PlaneWave(object):
         # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        BV = numpy.array([BV, BV])
+        # BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        # BV = numpy.array([BV, BV])
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        # B = numpy.array([self.BH1[0]*self.BH1[0],self.BH1[1]*self.BH1[1]])
         walker.stack.update(B)
 
         walker.ot = 1.0
