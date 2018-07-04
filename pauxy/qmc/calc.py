@@ -168,7 +168,7 @@ def setup_parallel(options, comm=None, verbose=False):
                         afqmc.qmc.nwalkers,
                         afqmc.estimators.nprop_tot,
                         afqmc.estimators.nbp)
-    if comm.rank() == 0:
+    if comm.rank == 0:
         json_string = to_json(afqmc)
         afqmc.estimators.json_string = json_string
         afqmc.estimators.dump_metadata()
