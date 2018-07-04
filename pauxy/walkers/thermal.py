@@ -23,8 +23,8 @@ class ThermalWalker(object):
             print ("# Initial stack size is {}".format(self.stack_size))
 
         # adjust stack size
-        lower_bound = self.stack_size
-        upper_bound = self.stack_size
+        lower_bound = max(self.stack_size, self.num_slices)
+        upper_bound = max(self.stack_size, self.num_slices)
         while ((self.num_slices//lower_bound) * lower_bound < self.num_slices):
             lower_bound -= 1
         while ((self.num_slices//upper_bound) * upper_bound < self.num_slices):
