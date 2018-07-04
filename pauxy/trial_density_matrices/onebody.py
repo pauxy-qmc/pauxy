@@ -7,7 +7,6 @@ class OneBody(object):
     def __init__(self, options, system, beta, dt, H1 = None, verbose=False):
         self.name = 'thermal'
         self.ntime_slices = int(beta/dt)
-        
         if (H1 == None):
             self.H1 = system.H1
         else:
@@ -15,7 +14,7 @@ class OneBody(object):
 
         dmat_up = scipy.linalg.expm(-dt*(self.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(self.H1[1]))
-        
+
         self.dmat = numpy.array([dmat_up, dmat_down])
         self.I = numpy.identity(self.dmat[0].shape[0], dtype=self.dmat.dtype)
         # Ignore factor of 1/L
@@ -25,7 +24,6 @@ class OneBody(object):
         self.mu = options.get('mu', None)
         if self.mu is None:
             self.mu = self.find_chemical_potential(system, beta, verbose)
-        
         print("# chemical potential (mu) = %10.5f"%self.mu)
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
