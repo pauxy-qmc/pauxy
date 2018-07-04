@@ -191,8 +191,8 @@ class PlaneWave(object):
         # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         
-        # BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # BV = numpy.array([BV, BV])
+        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        BV = numpy.array([BV, BV])
         B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
         # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         # B = numpy.array([self.BH1[0]*self.BH1[0],self.BH1[1]*self.BH1[1]])
