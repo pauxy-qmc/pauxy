@@ -12,7 +12,9 @@ class ThermalWalker(object):
         self.alive = True
         self.num_slices = trial.ntime_slices
         print("# Number of slices = {}".format(self.num_slices))
-        self.G = numpy.zeros(trial.dmat.shape, dtype=trial.dmat.dtype)
+        if system.name == "UEG":
+            dtype = numpy.complex128
+        self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
         if (self.stack_size == None):
             print ("# Stack size is determined by BT")
@@ -42,7 +44,7 @@ class ThermalWalker(object):
         self.stack_length = self.num_slices // self.stack_size
 
         self.stack = PropagatorStack(self.stack_size, trial.ntime_slices,
-                                     trial.dmat.shape[-1], trial.dmat.dtype)
+                                     trial.dmat.shape[-1], dtype)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
