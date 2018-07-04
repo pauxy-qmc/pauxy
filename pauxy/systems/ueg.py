@@ -396,7 +396,7 @@ def unit_test():
     inputs = {'nup':1, 
     'ndown':1,
     'rs':1.0,
-    'ecut':10}
+    'ecut':6}
     system = UEG(inputs, True)
 
     # system.scaled_density_operator_incore(system.qvecs)
