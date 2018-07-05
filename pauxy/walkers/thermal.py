@@ -7,11 +7,12 @@ from pauxy.estimators.mixed import local_energy
 
 class ThermalWalker(object):
 
-    def __init__(self, walker_opts, system, trial):
+    def __init__(self, walker_opts, system, trial, verbose=False):
         self.weight = walker_opts.get('weight', 1)
         self.alive = True
         self.num_slices = trial.ntime_slices
-        print("# Number of slices = {}".format(self.num_slices))
+        if verbose:
+            print("# Number of slices = {}".format(self.num_slices))
         if system.name == "UEG":
             dtype = numpy.complex128
         else:
@@ -19,12 +20,14 @@ class ThermalWalker(object):
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
         if (self.stack_size == None):
-            print ("# Stack size is determined by BT")
+            if verbose:
+                print ("# Stack size is determined by BT")
             emax = numpy.max(numpy.diag(trial.dmat[0]))
             emin = numpy.min(numpy.diag(trial.dmat[0]))
             self.stack_size = min(self.num_slices,
                 int (1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
-            print ("# Initial stack size is {}".format(self.stack_size))
+            if verbose:
+                print ("# Initial stack size is {}".format(self.stack_size))
 
         # adjust stack size
         lower_bound = min(self.stack_size, self.num_slices)
@@ -39,9 +42,10 @@ class ThermalWalker(object):
         else:
             self.stack_size = upper_bound
 
-        print ("# upper_bound is {}".format(upper_bound))
-        print ("# lower_bound is {}".format(lower_bound))
-        print ("# Adjusted stack size is {}".format(self.stack_size))
+        if verbose:
+            print ("# upper_bound is {}".format(upper_bound))
+            print ("# lower_bound is {}".format(lower_bound))
+            print ("# Adjusted stack size is {}".format(self.stack_size))
 
         self.stack_length = self.num_slices // self.stack_size
 
@@ -54,7 +58,8 @@ class ThermalWalker(object):
         self.ot = 1.0
 
         cond = numpy.linalg.cond(trial.dmat[0])
-        print("# condition number of BT = {}".format(cond))
+        if verbose:
+            print("# condition number of BT = {}".format(cond))
 
     def greens_function(self, trial, slice_ix = None):
         # self.greens_function_svd(trial, slice_ix)

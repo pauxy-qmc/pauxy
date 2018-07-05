@@ -19,12 +19,11 @@ def get_trial_density_matrices(options, system, cplx, parallel, beta, dt, verbos
     trial : class or None
         Trial wavfunction class.
     """
-    if options['name'] == 'one_body':
-        trial = OneBody(options, system, beta, dt, verbose=verbose)
     if options['name'] == 'one_body_mod':
-        trial = OneBody(options, system, beta, dt, system.h1e_mod, verbose=verbose)
-    else:
+        trial = OneBody(options, system, beta, dt, H1=system.h1e_mod, verbose=verbose)
+    elif options['name'] == 'one_body':
         trial = OneBody(options, system, beta, dt, verbose=verbose)
-        # trial = None
+    else:
+        trial = None
 
     return trial
