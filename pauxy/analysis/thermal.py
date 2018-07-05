@@ -1,6 +1,7 @@
 from pauxy.analysis.extraction import extract_hdf5_data_sets
 import pandas as pd
 import scipy.stats
+import numpy
 
 def analyse_energy(files):
     data = extract_hdf5_data_sets(files)
@@ -12,7 +13,7 @@ def analyse_energy(files):
         norm['sim'] = i
         norm['mu'] = mu
         norm['dt'] = dt
-        sims.append(norm[1:])
+        sims.append(norm[1:].apply(numpy.real))
     full = pd.concat(sims).groupby(['sim','dt', 'mu'])
     means = full.mean()
     err = full.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
