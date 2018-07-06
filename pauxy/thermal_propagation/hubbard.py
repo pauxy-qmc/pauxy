@@ -76,3 +76,11 @@ class ThermalDiscrete(object):
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
         self.propagate_greens_function(walker)
+
+    def propagate_walker_constrained(self, system, walker, time_slice):
+        for i in range(0, system.nbasis):
+            self.update_greens_function(walker, i, xi)
+            self.BV[0,i] = self.auxf[xi, 0]
+            self.BV[1,i] = self.auxf[xi, 1]
+        B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
+        walker.stack.update(B)
