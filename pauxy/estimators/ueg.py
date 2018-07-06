@@ -72,10 +72,10 @@ def local_energy_ueg(system, G):
 def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
-    inputs = {'nup':7, 
-    'ndown':7,
+    inputs = {'nup':2, 
+    'ndown':2,
     'rs':1.0,
-    'ecut':1.0}
+    'ecut':0.5}
     system = UEG(inputs, True)
     nbsf = system.nbasis
     Pa = np.zeros([nbsf,nbsf],dtype = np.complex128)

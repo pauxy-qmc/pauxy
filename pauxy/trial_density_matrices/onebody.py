@@ -4,7 +4,7 @@ from pauxy.estimators.thermal import greens_function, particle_number, one_rdm
 
 class OneBody(object):
 
-    def __init__(self, options, system, beta, dt, H1 = None, verbose=False):
+    def __init__(self, options, system, beta, dt, H1=None, verbose=False):
         self.name = 'thermal'
         self.ntime_slices = int(beta/dt)
         if (H1 == None):
@@ -24,7 +24,8 @@ class OneBody(object):
         self.mu = options.get('mu', None)
         if self.mu is None:
             self.mu = self.find_chemical_potential(system, beta, verbose)
-        print("# chemical potential (mu) = %10.5f"%self.mu)
+        if verbose:
+            print("# chemical potential (mu) = %10.5f"%self.mu)
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),

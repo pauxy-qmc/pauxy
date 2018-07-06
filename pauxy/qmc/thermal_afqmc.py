@@ -17,8 +17,8 @@ from pauxy.utils.misc import get_git_revision_hash
 from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
 
-def convert_from_reduced_unit(system, qmc_opts, verbose):
-    if (system.name == 'UEG'):
+def convert_from_reduced_unit(system, qmc_opts, verbose=False):
+    if (system.name == 'UEG' and verbose):
         TF = system.ef# Fermi temeprature
         print("# Fermi Temperature = %10.5f"%TF)
         print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
@@ -109,7 +109,8 @@ class ThermalAFQMC(object):
         convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
-        print("# Number of time slices = %i"%self.qmc.ntime_slices)
+        if verbose:
+            print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
             get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
@@ -117,7 +118,7 @@ class ThermalAFQMC(object):
 
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
-        
+
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,

@@ -344,6 +344,7 @@ class PlaneWave(object):
             walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
                                            * max(0, math.cos(dtheta)))
             walker.E_L = E_L
+
 def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.qmc.options import QMCOpts
