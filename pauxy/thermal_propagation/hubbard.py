@@ -88,13 +88,13 @@ class ThermalDiscrete(object):
                 xi = 0
             else:
                 xi = 1
-            self.update_greens_function(walker, i, xi)
+            # self.update_greens_function(walker, i, xi)
             self.BV[0,i] = self.auxf[xi, 0]
             self.BV[1,i] = self.auxf[xi, 1]
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
-        if walker.stack.time_slice % self.nstblz == 0:
-            walker.greens_function(None, walker.stack.time_slice-1)
-        self.propagate_greens_function(walker)
+        # if walker.stack.time_slice % self.nstblz == 0:
+        #     walker.greens_function(None, walker.stack.time_slice-1)
+        # self.propagate_greens_function(walker)
