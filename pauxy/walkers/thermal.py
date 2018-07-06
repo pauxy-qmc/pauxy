@@ -14,6 +14,8 @@ class ThermalWalker(object):
         print("# Number of slices = {}".format(self.num_slices))
         if system.name == "UEG":
             dtype = numpy.complex128
+        else:
+            dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
         if (self.stack_size == None):
