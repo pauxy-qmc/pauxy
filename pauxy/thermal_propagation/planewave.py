@@ -19,6 +19,7 @@ class PlaneWave(object):
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
         self.exp_nmax = options.get('expansion_order', 4)
+        self.nstblz = qmc.nstblz
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
@@ -201,6 +202,9 @@ class PlaneWave(object):
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * cxf
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
+
 
     def propagate_walker_phaseless(self, system, walker, time_slice):
         print ("NYI")
