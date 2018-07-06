@@ -95,6 +95,6 @@ class ThermalDiscrete(object):
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
-        # if walker.stack.time_slice % self.nstblz == 0:
-        #     walker.greens_function(None, walker.stack.time_slice-1)
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
         # self.propagate_greens_function(walker)
