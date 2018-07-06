@@ -1,0 +1,23 @@
+for nup=0,7 do
+    for ndown=0,7 do
+        if nup == 0 and ndown == 0 then
+        else
+            sys = ueg {
+                nel = nup + ndown,
+                ms = nup - ndown,
+                sym = 1,
+                dim = 3,
+                cutoff = 1,
+                rs = 1,
+            }
+
+            fci {
+                sys = sys,
+                fci = {
+                    write_hamiltonian = true,
+                    hamiltonian_file = "hamil.hfq",
+                },
+            }
+        end
+    end
+end
