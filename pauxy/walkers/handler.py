@@ -128,12 +128,13 @@ class Walkers(object):
         new_psi = copy.deepcopy(self.walkers)
         # todo : add phase to walker for free projection
         weights = numpy.array([abs(w.weight) for w in self.walkers])
-        global_weights = numpy.zeros(len(weights)*comm.size)
+        global_weights = None
         if comm.rank == 0:
+            global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.zeros(len(global_weights), dtype='i')
         else:
+            global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.empty(len(global_weights), dtype='i')
-
         comm.Gather(weights, global_weights, root=0)
         if comm.rank == 0:
             total_weight = sum(global_weights)
@@ -199,7 +200,7 @@ class Walkers(object):
             w.stack.reset()
             w.stack.set_all(trial.dmat)
             w.greens_function(trial)
-            w.weight = 1
+            w.weight = 1.0
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.

@@ -8,7 +8,7 @@ from pauxy.estimators.mixed import local_energy
 class ThermalWalker(object):
 
     def __init__(self, walker_opts, system, trial, verbose=False):
-        self.weight = walker_opts.get('weight', 1)
+        self.weight = walker_opts.get('weight', 1.0)
         self.alive = True
         self.num_slices = trial.ntime_slices
         if verbose:
