@@ -35,9 +35,9 @@ class PlaneWave(object):
 
         # square root is necessary for symmetric Trotter split
         # self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
-        # self.BH1_inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+        # self.BH1inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
         self.BH1 = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
-        self.BH1_inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+        self.BH1inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
         self.mf_const_fac = 1
 
         # todo : ?
@@ -187,28 +187,23 @@ class PlaneWave(object):
         -------
         """
 
-        # 1. Apply 1-body projector to greens function
-        # self.propagate_greens_function(walker, self.BH1, self.BH1_inv)
-        # 2. Apply 2-body projector to greens function
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
-        
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        BV = numpy.array([BV, BV])
-        B = numpy.array([BV[0].dot(self.BH1[0]),BV[1].dot(self.BH1[1])])
+        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        # B = numpy.array([self.BH1[0]*self.BH1[0],self.BH1[1]*self.BH1[1]])
+        
+        B = numpy.array([BV.dot(self.BH1_inv[0]),BV.dot(self.BH1_inv[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         walker.stack.update(B)
 
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * cxf
+
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
 
-
     def propagate_walker_phaseless(self, system, walker, time_slice):
-        print ("NYI")
-        exit()
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -221,29 +216,29 @@ class PlaneWave(object):
         # Returns
         # -------
         # """
-        # # 1. Apply one_body propagator.
-        # kinetic_real(walker.phi, system, self.BH1)
-        # # 2. Apply two_body propagator.
-        # (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
-        # # 3. Apply one_body propagator.
-        # kinetic_real(walker.phi, system, self.BH1)
+        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
+        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        BVinv = scipy.linalg.expm(-VHS) # could use a power-series method to build this
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        walker.stack.update(B)
 
-        # # Now apply hybrid phaseless approximation
-        # walker.inverse_overlap(trial.psi)
-        # walker.greens_function(trial)
-        # ot_new = walker.calc_otrial(trial.psi)
+        Binv = numpy.array([BVinv.dot(self.BH1inv[0]),BVinv.dot(self.BH1inv[1])])
+        Binv = numpy.array([self.BH1inv[0].dot(Binv[0]),self.BH1inv[1].dot(Binv[1])])
 
-        # # Walker's phase.
-        # importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
+    # def propagate_greens_function(self, walker, B, Binv):
 
-        # dtheta = cmath.phase(importance_function)
+        # Walker's phase.
+        importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
 
-        # cfac = max(0, math.cos(dtheta))
+        dtheta = cmath.phase(importance_function)
 
-        # rweight = abs(importance_function)
-        # walker.weight *= rweight * cfac
-        # walker.ot = ot_new
-        # walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+        cfac = max(0, math.cos(dtheta))
+
+        rweight = abs(importance_function)
+        walker.weight *= rweight * cfac
+        walker.ot = ot_new
+        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
 
 def unit_test():
     from pauxy.systems.ueg import UEG
