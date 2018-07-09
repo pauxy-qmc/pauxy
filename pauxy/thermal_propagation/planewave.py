@@ -89,6 +89,75 @@ class PlaneWave(object):
     #     if debug:
     #         print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
     #     return phi
+    def two_body_potentials(self, system, iq):
+        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
+        Parameters
+        ----------
+        system :
+            system class
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        iA : numpy array
+            Eq.(13a)
+        iB : numpy array
+            Eq.(13b)
+        """
+        rho_q = system.density_operator(iq)
+        qscaled = system.kfac * system.qvecs[iq]
+
+        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+        piovol = math.pi / (system.vol)
+        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+
+        # JOONHO: include a factor of 1j
+        iA = 1j * factor * (rho_q + rho_q.getH()) 
+        iB = - factor * (rho_q - rho_q.getH()) 
+        return (iA, iB)
+
+    def construct_force_bias(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
+        for (i, qi) in enumerate(system.qvecs):
+            (iA, iB) = self.two_body_potentials(system, i)
+            # Deal with spin more gracefully
+            self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
+            self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
+        return - self.sqrt_dt * self.vbias
+
+    def construct_VHS_outofcore(self, system, xshifted):
+        import numpy.matlib
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+
+        for (i, qi) in enumerate(system.qvecs):
+            (iA, iB) = self.two_body_potentials(system, i)
+            VHS = VHS + (xshifted[i] * iA).todense()
+            VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
+        return  VHS * self.sqrt_dt
+
     def construct_VHS_incore(self, system, xshifted):
         import numpy.matlib
         """Construct the one body potential from the HS transformation
@@ -170,7 +239,6 @@ class PlaneWave(object):
         # Operator terms contributing to propagator.
         VHS = self.construct_VHS_incore(system, xshifted)
 
-
         return (cxf, cfb, xshifted, VHS)
 
     def propagate_walker_free(self, system, walker, trial):
@@ -189,14 +257,19 @@ class PlaneWave(object):
 
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
         # B = numpy.array([self.BH1[0].dot(BV),self.BH1[1].dot(BV)])
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        
+        # print("B -- Hermitian error = {}".format(numpy.conj(numpy.transpose(B[0])) - B[0]))
+        # print("B -- Hermitian error = {}".format(numpy.linalg.norm(numpy.matrix(B[0]).H - B[0])))
 
         # B = numpy.array([BV.dot(self.BH1inv[0]),BV.dot(self.BH1inv[1])])
         # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        
         walker.stack.update(B)
 
         walker.ot = 1.0
