@@ -34,10 +34,12 @@ class PlaneWave(object):
         mf_core = system.ecore
 
         # square root is necessary for symmetric Trotter split
-        # self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
-        # self.BH1inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
-        self.BH1 = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
-        self.BH1inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+        self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
+        self.BH1inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+        
+        # self.BH1 = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
+        # self.BH1inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+
         self.mf_const_fac = 1
 
         # todo : ?
@@ -258,18 +260,18 @@ class PlaneWave(object):
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
-        # B = numpy.array([self.BH1[0].dot(BV),self.BH1[1].dot(BV)])
-        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(BV),self.BH1[1].dot(BV)])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         
         # print("B -- Hermitian error = {}".format(numpy.conj(numpy.transpose(B[0])) - B[0]))
         # print("B -- Hermitian error = {}".format(numpy.linalg.norm(numpy.matrix(B[0]).H - B[0])))
 
         # B = numpy.array([BV.dot(self.BH1inv[0]),BV.dot(self.BH1inv[1])])
         # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        
+
         walker.stack.update(B)
 
         walker.ot = 1.0
