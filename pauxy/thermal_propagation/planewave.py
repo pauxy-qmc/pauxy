@@ -259,7 +259,7 @@ class PlaneWave(object):
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
         # B = numpy.array([self.BH1[0].dot(BV),self.BH1[1].dot(BV)])
         # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
