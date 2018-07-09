@@ -281,6 +281,8 @@ class PlaneWave(object):
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
 
+
+    # This one loops over all fields
     def propagate_walker_phaseless(self, system, walker, time_slice):
         # """Phaseless propagator
         # Parameters
@@ -294,17 +296,34 @@ class PlaneWave(object):
         # Returns
         # -------
         # """
+        
         (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         BVinv = scipy.linalg.expm(-VHS) # could use a power-series method to build this
+        
+        for x in range(0, system.nfields):
+            probs = self.calculate_overlap_ratio(walker, i)
+            phaseless_ratio = numpy.maximum(probs.real, [0,0])
+            norm = sum(phaseless_ratio)
+            r = numpy.random.random()
+            if norm > 0:
+                walker.weight = walker.weight * norm
+                if r < phaseless_ratio[0] / norm:
+                    xi = 0
+                else:
+                    xi = 1
+                self.update_greens_function(walker, i, xi)
+                self.BV[0,i] = self.auxf[xi, 0]
+                self.BV[1,i] = self.auxf[xi, 1]
+            else:
+                walker.weight = 0
+        
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         walker.stack.update(B)
 
-        Binv = numpy.array([BVinv.dot(self.BH1inv[0]),BVinv.dot(self.BH1inv[1])])
-        Binv = numpy.array([self.BH1inv[0].dot(Binv[0]),self.BH1inv[1].dot(Binv[1])])
-
-    # def propagate_greens_function(self, walker, B, Binv):
+        # Binv = numpy.array([BVinv.dot(self.BH1inv[0]),BVinv.dot(self.BH1inv[1])])
+        # Binv = numpy.array([self.BH1inv[0].dot(Binv[0]),self.BH1inv[1].dot(Binv[1])])
 
         # Walker's phase.
         importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot

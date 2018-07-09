@@ -68,7 +68,7 @@ class ThermalWalker(object):
     def greens_function_svd(self, trial, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
-        bin_ix = slice_ix // self.stack.stack_width
+        bin_ix = slice_ix // self.stack.stack_size
         # For final time slice want first block to be the rightmost (for energy
         # evaluation).
         if bin_ix == self.stack.nbins:
@@ -102,7 +102,7 @@ class ThermalWalker(object):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
 
-        bin_ix = slice_ix // self.stack.stack_width
+        bin_ix = slice_ix // self.stack.stack_size
         # For final time slice want first block to be the rightmost (for energy
         # evaluation).
         if bin_ix == self.stack.nbins:
@@ -179,7 +179,7 @@ class ThermalWalker(object):
 class PropagatorStack:
     def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT=None, sparse=True):
         self.time_slice = 0
-        self.stack_width = bin_size
+        self.stack_size = bin_size
         self.ntime_slices = ntime_slices
         self.nbins = ntime_slices // bin_size
         self.nbasis = nbasis
@@ -196,7 +196,7 @@ class PropagatorStack:
 
     def set_all(self, BT):
         for i in range(0, self.ntime_slices):
-            ix = i // self.stack_width
+            ix = i // self.stack_size
             self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
             self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
 
@@ -214,8 +214,8 @@ class PropagatorStack:
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
         self.time_slice = self.time_slice + 1
-        self.block = self.time_slice // self.stack_width
-        self.counter = (self.counter + 1) % self.stack_width
+        self.block = self.time_slice // self.stack_size
+        self.counter = (self.counter + 1) % self.stack_size
 
 def unit_test():
     from pauxy.systems.ueg import UEG
