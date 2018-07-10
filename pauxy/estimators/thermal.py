@@ -64,6 +64,26 @@ def inverse_greens_function(A):
     Ginv = (V3.conj().T).dot(D3).dot(U3.conj().T)
     return Ginv
 
+def inverse_greens_function_qr(A):
+    """Inverse greens function from A"""
+
+    Ginv = numpy.zeros(A.shape, dtype=A.dtype)
+    
+    (U1, V1) = scipy.linalg.qr(A, pivoting = False)
+    V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
+    T = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
+    (U2, V2) = scipy.linalg.qr(T, pivoting = False)
+    U3 = numpy.dot(U1, U2)
+    V3 = numpy.dot(V2, V1)
+    Ginv = U3.dot(V3)
+    # (U1,S1,V1) = scipy.linalg.svd(A)
+    # T = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
+    # (U2,S2,V2) = scipy.linalg.svd(T)
+    # U3 = numpy.dot(U1, U2)
+    # D3 = numpy.diag(S2)
+    # V3 = numpy.dot(V2, V1)
+    # Ginv = (V3.conj().T).dot(D3).dot(U3.conj().T)
+    return Ginv
 
 
 def one_rdm(A):
