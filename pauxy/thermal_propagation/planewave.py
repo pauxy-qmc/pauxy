@@ -34,16 +34,18 @@ class PlaneWave(object):
         mf_core = system.ecore
 
         # square root is necessary for symmetric Trotter split
-        # self.BH1 = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
-        # self.BH1inv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+        # self.BT = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
+        # self.BTinv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
+
+        self.construct_one_body_propagator(system, qmc.dt)
         
-        self.BH1 = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
-        self.BH1inv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+        self.BT = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
+        self.BTinv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
 
         self.mf_const_fac = 1
 
         # todo : ?
-        self.BT_BP = self.BH1
+        self.BT_BP = self.BT
         self.nstblz = qmc.nstblz
 
         # Temporary array for matrix exponentiation.
@@ -61,6 +63,26 @@ class PlaneWave(object):
 
         if verbose:
             print ("# Finished setting up propagator.")
+
+    def construct_one_body_propagator(self, system, dt):
+        """Construct the one-body propagator Exp(-dt/2 H0)
+        Parameters
+        ----------
+        system :
+            system class
+        dt : float
+            time-step
+        Returns
+        -------
+        self.BH1 : numpy array
+            Exp(-dt/2 H0)
+        """
+        H1 = system.h1e_mod
+        I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
+        # No spin dependence for the moment.
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
+                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
+
 
     # def apply_exponential(self, phi, VHS, debug=False):
     #     """Apply exponential propagator of the HS transformation
@@ -261,16 +283,16 @@ class PlaneWave(object):
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
-        # B = numpy.array([self.BH1[0].dot(BV),self.BH1[1].dot(BV)])
-        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        # B = numpy.array([self.BT[0].dot(BV),self.BT[1].dot(BV)])
+        # B = numpy.array([BV.dot(self.BT[0]),BV.dot(self.BT[1])])
         
         # print("B -- Hermitian error = {}".format(numpy.conj(numpy.transpose(B[0])) - B[0]))
         # print("B -- Hermitian error = {}".format(numpy.linalg.norm(numpy.matrix(B[0]).H - B[0])))
 
-        # B = numpy.array([BV.dot(self.BH1inv[0]),BV.dot(self.BH1inv[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        # B = numpy.array([BV.dot(self.BTinv[0]),BV.dot(self.BTinv[1])])
+        # B = numpy.array([self.BT[0].dot(B[0]),self.BT[1].dot(B[1])])
 
         walker.stack.update(B)
 
@@ -318,7 +340,7 @@ class PlaneWave(object):
         # IplusA = [inverse_greens_function(A0[0]),inverse_greens_function(A0[1])]
         # Mprev = [numpy.linalg.det(IplusA[0]), numpy.linalg.det(IplusA[1])]
 
-        # Anew = [self.BH1inv[0].dot(A0[0]), self.BH1inv[1].dot(A0[1])]
+        # Anew = [self.BTinv[0].dot(A0[0]), self.BTinv[1].dot(A0[1])]
         # A contributions
         # for x in range(0, system.nfields/2):
         #     Bx = system.iA[:,x] * xshifted[x]
@@ -338,14 +360,13 @@ class PlaneWave(object):
         A0 = walker.compute_A() # A matrix as in the partition function
         M0 = [numpy.linalg.det(inverse_greens_function(A0[0])), numpy.linalg.det(inverse_greens_function(A0[1]))]
         
-        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+
+        # B = numpy.array([self.BT[0].dot(B[0]),self.BT[1].dot(B[1])])
 
 
-        Anew = [B[0].dot(self.BH1inv[0].dot(A0[0])), B[1].dot(self.BH1inv[1].dot(A0[1]))]
+        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
         # print(Anew[0])
         Mnew = [numpy.linalg.det(inverse_greens_function(Anew[0])), numpy.linalg.det(inverse_greens_function(Anew[1]))]
 
@@ -367,6 +388,8 @@ class PlaneWave(object):
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
+        # print("walker.weight = ", walker.weight)
+
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
@@ -377,8 +400,8 @@ class PlaneWave(object):
 
     def propagate_greens_function(self, walker):
         if walker.stack.time_slice < walker.stack.ntime_slices:
-            walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1inv[0])
-            walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1inv[1])
+            walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
+            walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BTinv[1])
 
 
 def unit_test():

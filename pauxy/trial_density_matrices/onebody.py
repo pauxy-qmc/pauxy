@@ -12,6 +12,9 @@ class OneBody(object):
         else:
             self.H1 = H1
 
+        print("# beta in OneBody = {}".format(beta))
+        print("# dt in OneBody = {}".format(dt))
+
         dmat_up = scipy.linalg.expm(-dt*(self.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(self.H1[1]))
 
@@ -24,8 +27,11 @@ class OneBody(object):
         self.mu = options.get('mu', None)
         if self.mu is None:
             self.mu = self.find_chemical_potential(system, beta, verbose)
+
         if verbose:
             print("# chemical potential (mu) = %10.5f"%self.mu)
+
+        system.mu = self.mu
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
