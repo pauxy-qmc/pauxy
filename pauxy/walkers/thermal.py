@@ -65,6 +65,89 @@ class ThermalWalker(object):
         # self.greens_function_svd(trial, slice_ix)
         self.greens_function_qr(trial, slice_ix)
 
+    def identity_plus_A(self, slice_ix = None):
+        return self.identity_plus_A_svd(slice_ix)
+        # return self.identity_plus_A_qr(trial, slice_ix)
+
+    def compute_A(self, slice_ix = None):
+        return self.compute_A_svd(slice_ix)
+        # return self.compute_A_qr(trial, slice_ix)
+    
+    def compute_A_svd(self, slice_ix = None):
+        if (slice_ix == None):
+            slice_ix = self.stack.time_slice
+        bin_ix = slice_ix // self.stack.stack_size
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
+
+        A = []
+        
+        for spin in [0, 1]:
+            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
+            # in stable way. Iteratively construct SVD decompositions starting
+            # from the rightmost (product of) propagator(s).
+
+            # This is l + 1
+            B = self.stack.get((bin_ix+1)%self.stack.nbins)
+            (U1, S1, V1) = scipy.linalg.svd(B[spin])
+
+            # Computing A from the right most of B_l B_{l-1}..B_L...B_{l+2} * B_{l+1} (obtained above)
+            for i in range(2, self.stack.nbins+1):
+                ix = (bin_ix + i) % self.stack.nbins
+                B = self.stack.get(ix)
+                T1 = numpy.dot(B[spin], U1)
+                # todo optimise
+                T2 = numpy.dot(T1, numpy.diag(S1))
+                (U1, S1, V) = scipy.linalg.svd(T2)
+                V1 = numpy.dot(V, V1)
+            
+            A += [ (U1.dot(numpy.diag(S1))).dot(V1.conj().T)]
+        
+        return A
+
+    def identity_plus_A_svd(self, slice_ix = None):
+        if (slice_ix == None):
+            slice_ix = self.stack.time_slice
+        bin_ix = slice_ix // self.stack.stack_size
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
+
+        IpA = []
+        
+        for spin in [0, 1]:
+            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
+            # in stable way. Iteratively construct SVD decompositions starting
+            # from the rightmost (product of) propagator(s).
+            B = self.stack.get((bin_ix+1)%self.stack.nbins)
+            (U1, S1, V1) = scipy.linalg.svd(B[spin])
+
+            # Computing A
+            for i in range(2, self.stack.nbins+1):
+                ix = (bin_ix + i) % self.stack.nbins
+                B = self.stack.get(ix)
+                T1 = numpy.dot(B[spin], U1)
+                # todo optimise
+                T2 = numpy.dot(T1, numpy.diag(S1))
+                (U1, S1, V) = scipy.linalg.svd(T2)
+                V1 = numpy.dot(V, V1)
+            
+            # Doing I + A
+            T3 = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
+            
+            # \TODO remove this SVD. THis is not necessary for I + A
+            (U2, S2, V2) = scipy.linalg.svd(T3)
+            U3 = numpy.dot(U1, U2)
+            D3 = numpy.diag(S2)
+            V3 = numpy.dot(V2, V1)
+            
+            IpA += [(V3.conj().T).dot(D3).dot(U3.conj().T)]
+        
+        return IpA
+
     def greens_function_svd(self, trial, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -133,16 +216,6 @@ class ThermalWalker(object):
             # G(l) = (U3 S2 V3)^{-1}
             #      = V3^{\dagger} D3 U3^{\dagger}
             self.G[spin] = (V3inv).dot(U3.conj().T)
-
-    # def construct_greens_function_unstable(self, slice_ix):
-    #     I = numpy.identity(self.G.shape[-1], dtype=self.G.dtype)
-    #     A = numpy.array([I,I])
-    #     for i in range(0, self.stack.nbins):
-    #         ix = (slice_ix + i) % self.stack.nbins
-    #         B = self.stack.get(ix)
-    #         A[0] = B[0].dot(A[0])
-    #         A[1] = B[1].dot(A[1])
-    #     self.G = greens_function(A)
 
     def local_energy(self, system):
         rdm = one_rdm_from_G(self.G)

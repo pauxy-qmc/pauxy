@@ -4,7 +4,7 @@ import numpy
 import scipy.sparse.linalg
 from scipy.linalg import sqrtm
 import time
-from pauxy.estimators.thermal import one_rdm_from_G
+from pauxy.estimators.thermal import one_rdm_from_G, inverse_greens_function
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
@@ -296,46 +296,85 @@ class PlaneWave(object):
         # Returns
         # -------
         # """
+        # Normally distrubted auxiliary fields.
+        # xi = numpy.random.normal(0.0, 1.0, system.nfields)
+
+        # # Optimal force bias.
+        # xbar = numpy.zeros(system.nfields)
+        # if (fb):
+        #     rdm = one_rdm_from_G(walker.G)
+        #     xbar = self.construct_force_bias_incore(system, rdm)
         
-        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
+        # xshifted = xi - xbar
+
+        # # Constant factor arising from force bias and mean field shift
+        # # Mean field shift is zero for UEG in HF basis
+        # cxf = 1.0
+        # # Constant factor arising from shifting the propability distribution.
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        
+        # A0 = walker.compute_A() # A matrix as in the partition function
+
+        # IplusA = [inverse_greens_function(A0[0]),inverse_greens_function(A0[1])]
+        # Mprev = [numpy.linalg.det(IplusA[0]), numpy.linalg.det(IplusA[1])]
+
+        # Anew = [self.BH1inv[0].dot(A0[0]), self.BH1inv[1].dot(A0[1])]
+        # A contributions
+        # for x in range(0, system.nfields/2):
+        #     Bx = system.iA[:,x] * xshifted[x]
+        #     Bx = Bx.reshape(system.nbasis, system.nbasis) * self.sqrt_dt
+        #     Bx = scipy.linalg.expm(Bx) # could use a power-series method to build this
+        #     Anew = Bx.dot(Anew)
+        #     Mnew = [numpy.linalg.det(inverse_greens_function(A0[0])),
+        #             numpy.linalg.det(inverse_greens_function(A0[1]))]
+            
+        #     prob = Mnew[0]*Mnew[1] / (Mprev[0]*Mprev[1])
+
+        #     Mprev = Mnew
+
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        BVinv = scipy.linalg.expm(-VHS) # could use a power-series method to build this
-        
-        for x in range(0, system.nfields):
-            probs = self.calculate_overlap_ratio(walker, i)
-            phaseless_ratio = numpy.maximum(probs.real, [0,0])
-            norm = sum(phaseless_ratio)
-            r = numpy.random.random()
-            if norm > 0:
-                walker.weight = walker.weight * norm
-                if r < phaseless_ratio[0] / norm:
-                    xi = 0
-                else:
-                    xi = 1
-                self.update_greens_function(walker, i, xi)
-                self.BV[0,i] = self.auxf[xi, 0]
-                self.BV[1,i] = self.auxf[xi, 1]
-            else:
-                walker.weight = 0
+        A0 = walker.compute_A() # A matrix as in the partition function
+        M0 = [numpy.linalg.det(inverse_greens_function(A0[0])), numpy.linalg.det(inverse_greens_function(A0[1]))]
         
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        walker.stack.update(B)
 
-        # Binv = numpy.array([BVinv.dot(self.BH1inv[0]),BVinv.dot(self.BH1inv[1])])
-        # Binv = numpy.array([self.BH1inv[0].dot(Binv[0]),self.BH1inv[1].dot(Binv[1])])
+        Anew = [B[0].dot(self.BH1inv[0].dot(A0[0])), B[1].dot(self.BH1inv[1].dot(A0[1]))]
+        # print(Anew[0])
+        Mnew = [numpy.linalg.det(inverse_greens_function(Anew[0])), numpy.linalg.det(inverse_greens_function(Anew[1]))]
+
+        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
         # Walker's phase.
-        importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
+        Q = cmath.exp(cmath.log (oratio) + cfb)
+        expQ = self.mf_const_fac * cxf * Q
+        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
-        dtheta = cmath.phase(importance_function)
+        if (not math.isinf(magn)):
+            cfac = max(0, math.cos(dtheta))
+            rweight = abs(expQ)
+            walker.weight *= rweight * cfac
+            # walker.ot = ot_new
+            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        else:
+            # walker.ot = ot_new
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
-        cfac = max(0, math.cos(dtheta))
+        walker.stack.update(B)
+        # Need to recompute Green's function from scratch before we propagate it
+        # to the next time slice due to stack structure.
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
+        
+        self.propagate_greens_function(walker)
 
-        rweight = abs(importance_function)
-        walker.weight *= rweight * cfac
-        walker.ot = ot_new
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+    def propagate_greens_function(self, walker):
+        if walker.stack.time_slice < walker.stack.ntime_slices:
+            walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1inv[0])
+            walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1inv[1])
+
 
 def unit_test():
     from pauxy.systems.ueg import UEG
