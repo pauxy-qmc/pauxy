@@ -4,7 +4,7 @@ import numpy
 import scipy.sparse.linalg
 from scipy.linalg import sqrtm
 import time
-from pauxy.estimators.thermal import one_rdm_from_G, inverse_greens_function
+from pauxy.estimators.thermal import one_rdm_from_G, inverse_greens_function_qr
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
@@ -318,57 +318,18 @@ class PlaneWave(object):
         # Returns
         # -------
         # """
-        # Normally distrubted auxiliary fields.
-        # xi = numpy.random.normal(0.0, 1.0, system.nfields)
-
-        # # Optimal force bias.
-        # xbar = numpy.zeros(system.nfields)
-        # if (fb):
-        #     rdm = one_rdm_from_G(walker.G)
-        #     xbar = self.construct_force_bias_incore(system, rdm)
-        
-        # xshifted = xi - xbar
-
-        # # Constant factor arising from force bias and mean field shift
-        # # Mean field shift is zero for UEG in HF basis
-        # cxf = 1.0
-        # # Constant factor arising from shifting the propability distribution.
-        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-        
-        # A0 = walker.compute_A() # A matrix as in the partition function
-
-        # IplusA = [inverse_greens_function(A0[0]),inverse_greens_function(A0[1])]
-        # Mprev = [numpy.linalg.det(IplusA[0]), numpy.linalg.det(IplusA[1])]
-
-        # Anew = [self.BTinv[0].dot(A0[0]), self.BTinv[1].dot(A0[1])]
-        # A contributions
-        # for x in range(0, system.nfields/2):
-        #     Bx = system.iA[:,x] * xshifted[x]
-        #     Bx = Bx.reshape(system.nbasis, system.nbasis) * self.sqrt_dt
-        #     Bx = scipy.linalg.expm(Bx) # could use a power-series method to build this
-        #     Anew = Bx.dot(Anew)
-        #     Mnew = [numpy.linalg.det(inverse_greens_function(A0[0])),
-        #             numpy.linalg.det(inverse_greens_function(A0[1]))]
-            
-        #     prob = Mnew[0]*Mnew[1] / (Mprev[0]*Mprev[1])
-
-        #     Mprev = Mnew
 
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        
-        A0 = walker.compute_A() # A matrix as in the partition function
-        M0 = [numpy.linalg.det(inverse_greens_function(A0[0])), numpy.linalg.det(inverse_greens_function(A0[1]))]
-        
+
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-
-        # B = numpy.array([self.BT[0].dot(B[0]),self.BT[1].dot(B[1])])
-
+        
+        A0 = walker.compute_A() # A matrix as in the partition function
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
 
         Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
-        # print(Anew[0])
-        Mnew = [numpy.linalg.det(inverse_greens_function(Anew[0])), numpy.linalg.det(inverse_greens_function(Anew[1]))]
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
