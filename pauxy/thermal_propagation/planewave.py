@@ -243,6 +243,29 @@ class PlaneWave(object):
         xshifted : numpy array
             shifited auxiliary field
         """
+
+        # # Normally distrubted auxiliary fields.
+        # xi = numpy.random.normal(0.0, 1.0, system.nfields)
+
+        # # Optimal force bias.
+        # xbar = numpy.zeros(system.nfields)
+        # if (fb):
+        #     rdm = one_rdm_from_G(walker.G)
+        #     xbar = self.construct_force_bias_incore(system, rdm)
+        
+        # xshifted = xi - xbar
+
+        # # Constant factor arising from force bias and mean field shift
+        # # Mean field shift is zero for UEG in HF basis
+        # cxf = 1.0
+
+        # # Constant factor arising from shifting the propability distribution.
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+
+        # # Operator terms contributing to propagator.
+        # VHS = self.construct_VHS_incore(system, xshifted)
+
+        # return (cxf, cfb, xshifted, VHS)
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nfields)
 
@@ -251,14 +274,22 @@ class PlaneWave(object):
         if (fb):
             rdm = one_rdm_from_G(walker.G)
             xbar = self.construct_force_bias_incore(system, rdm)
-        
+
+        for i in range(system.nfields):
+            if (numpy.absolute(xbar[i]) > 1.0):
+                print ("# Rescaling force bias is triggered")
+                xbar[i] /= numpy.absolute(xbar[i])
+
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
         # Mean field shift is zero for UEG in HF basis
         cxf = 1.0
         # Constant factor arising from shifting the propability distribution.
-        cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
+
+        # print(xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
         VHS = self.construct_VHS_incore(system, xshifted)
@@ -326,10 +357,12 @@ class PlaneWave(object):
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
         A0 = walker.compute_A() # A matrix as in the partition function
-        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
 
         Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
-        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
@@ -337,6 +370,8 @@ class PlaneWave(object):
         Q = cmath.exp(cmath.log (oratio) + cfb)
         expQ = self.mf_const_fac * cxf * Q
         (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+
+        wi = walker.weight
 
         if (not math.isinf(magn)):
             cfac = max(0, math.cos(dtheta))
@@ -349,7 +384,7 @@ class PlaneWave(object):
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
-        # print("walker.weight = ", walker.weight)
+        # print("rweight = {}, walker.weight = {}, oratio = {}, cfac = {}, cxf = {}".format(rweight, walker.weight,oratio,cfac,cxf))
 
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
