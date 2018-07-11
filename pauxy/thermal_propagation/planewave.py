@@ -244,28 +244,6 @@ class PlaneWave(object):
             shifited auxiliary field
         """
 
-        # # Normally distrubted auxiliary fields.
-        # xi = numpy.random.normal(0.0, 1.0, system.nfields)
-
-        # # Optimal force bias.
-        # xbar = numpy.zeros(system.nfields)
-        # if (fb):
-        #     rdm = one_rdm_from_G(walker.G)
-        #     xbar = self.construct_force_bias_incore(system, rdm)
-        
-        # xshifted = xi - xbar
-
-        # # Constant factor arising from force bias and mean field shift
-        # # Mean field shift is zero for UEG in HF basis
-        # cxf = 1.0
-
-        # # Constant factor arising from shifting the propability distribution.
-        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-
-        # # Operator terms contributing to propagator.
-        # VHS = self.construct_VHS_incore(system, xshifted)
-
-        # return (cxf, cfb, xshifted, VHS)
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nfields)
 
@@ -316,15 +294,6 @@ class PlaneWave(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
-        # B = numpy.array([self.BT[0].dot(BV),self.BT[1].dot(BV)])
-        # B = numpy.array([BV.dot(self.BT[0]),BV.dot(self.BT[1])])
-        
-        # print("B -- Hermitian error = {}".format(numpy.conj(numpy.transpose(B[0])) - B[0]))
-        # print("B -- Hermitian error = {}".format(numpy.linalg.norm(numpy.matrix(B[0]).H - B[0])))
-
-        # B = numpy.array([BV.dot(self.BTinv[0]),BV.dot(self.BTinv[1])])
-        # B = numpy.array([self.BT[0].dot(B[0]),self.BT[1].dot(B[1])])
-
         walker.stack.update(B)
 
         walker.ot = 1.0
@@ -386,7 +355,8 @@ class PlaneWave(object):
 
         # print("rweight = {}, walker.weight = {}, oratio = {}, cfac = {}, cxf = {}".format(rweight, walker.weight,oratio,cfac,cxf))
 
-        walker.stack.update(B)
+        # walker.stack.update(B)
+        walker.stack.update_new(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:

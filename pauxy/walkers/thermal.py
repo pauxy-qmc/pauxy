@@ -19,6 +19,7 @@ class ThermalWalker(object):
             dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
+
         if (self.stack_size == None):
             if verbose:
                 print ("# Stack size is determined by BT")
@@ -32,6 +33,7 @@ class ThermalWalker(object):
         # adjust stack size
         lower_bound = min(self.stack_size, self.num_slices)
         upper_bound = min(self.stack_size, self.num_slices)
+
         while ((self.num_slices//lower_bound) * lower_bound < self.num_slices):
             lower_bound -= 1
         while ((self.num_slices//upper_bound) * upper_bound < self.num_slices):
@@ -50,7 +52,7 @@ class ThermalWalker(object):
         self.stack_length = self.num_slices // self.stack_size
 
         self.stack = PropagatorStack(self.stack_size, trial.ntime_slices,
-                                     trial.dmat.shape[-1], dtype)
+                                     trial.dmat.shape[-1], dtype, BT=trial.dmat,BTinv=trial.dmat_inv)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
@@ -93,7 +95,7 @@ class ThermalWalker(object):
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
             (U1, S1, V1) = scipy.linalg.svd(B[spin])
 
-            # Computing A from the right most of B_l B_{l-1}..B_L...B_{l+2} * B_{l+1} (obtained above)
+            # Computing A from the right most of B_l B_{l-1}..B_1*B_L..B_{l+2} * B_{l+1} (obtained above)
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
@@ -250,16 +252,22 @@ class ThermalWalker(object):
 
 
 class PropagatorStack:
-    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT=None, sparse=True):
+    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT, BTinv, sparse=True):
         self.time_slice = 0
         self.stack_size = bin_size
         self.ntime_slices = ntime_slices
         self.nbins = ntime_slices // bin_size
         self.nbasis = nbasis
         self.dtype = dtype
+        self.BT = BT
+        self.BTinv = BTinv
         self.counter = 0
         self.block = 0
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
+                                 dtype=dtype)
+        self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
+                                 dtype=dtype)
+        self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         # set all entries to be the identity matrix
         self.reset()
@@ -269,9 +277,11 @@ class PropagatorStack:
 
     def set_all(self, BT):
         for i in range(0, self.ntime_slices):
-            ix = i // self.stack_size
+            ix = i // self.stack_size # bin index
             self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
             self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
+            self.left[ix,0] = BT[0].dot(self.left[ix,0])
+            self.left[ix,1] = BT[1].dot(self.left[ix,1])
 
     def reset(self):
         self.time_slice = 0
@@ -279,6 +289,10 @@ class PropagatorStack:
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
+            self.right[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
+            self.right[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
+            self.left[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
+            self.left[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
 
     def update(self, B):
         if self.counter == 0:
@@ -286,6 +300,24 @@ class PropagatorStack:
             self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
+        self.time_slice = self.time_slice + 1
+        self.block = self.time_slice // self.stack_size
+        self.counter = (self.counter + 1) % self.stack_size
+
+    def update_new(self, B):
+        if self.counter == 0:
+            self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
+
+        self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
+        self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
+
+        self.right[self.block,0] = B[0].dot(self.right[self.block,0])
+        self.right[self.block,1] = B[1].dot(self.right[self.block,1])
+
+        self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
+        self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
+
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
