@@ -319,19 +319,27 @@ class PlaneWave(object):
         # -------
         # """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        # BV = 0.5*(BV.conj().T + BV)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
         
         A0 = walker.compute_A() # A matrix as in the partition function
+        
         M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
                 numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
 
         Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
         Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
                 numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+
+        # BVmat  = numpy.matrix(BV)
+        # Amat  = numpy.matrix(Anew[0])
+        # print("Anew hermitian? {}".format(numpy.linalg.norm(Amat - Amat.H)))
+        # print("BV hermitian? {}".format(numpy.linalg.norm(BVmat - BVmat.H)))
+
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
