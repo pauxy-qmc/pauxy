@@ -6,6 +6,13 @@ import json
 
 
 def main(input_file):
+    """Simple launcher for pauxy via input file.
+
+    Parameters
+    ----------
+    input_file : string
+        JSON input file name.
+    """
     (afqmc, comm) = setup_calculation(input_file)
     afqmc.run(comm=comm)
     afqmc.finalise(verbose=True)

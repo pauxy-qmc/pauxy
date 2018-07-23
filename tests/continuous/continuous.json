@@ -9,13 +9,11 @@
         "ndown": 5
     },
     "qmc_options": {
-        "method": "CPMC",
         "dt": 0.05,
         "nsteps": 100,
         "nmeasure": 5,
         "nwalkers": 30,
         "npop_control": 10,
-        "temperature": 0.0,
         "rng_seed": 7
     },
     "trial_wavefunction": {

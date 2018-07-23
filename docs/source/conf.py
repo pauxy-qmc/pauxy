@@ -38,7 +38,8 @@ for mod_name in MOCK_MODULES:
 # ones.
 extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.mathjax',
               'sphinx.ext.ifconfig', 'sphinx.ext.autodoc',
-              'matplotlib.sphinxext.plot_directive', 'sphinx.ext.napoleon']
+              'matplotlib.sphinxext.plot_directive', 'sphinx.ext.napoleon',
+              'sphinx.ext.viewcode']
 
 try:
     import matplotlib.style
