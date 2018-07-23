@@ -201,7 +201,7 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
         self.Gmod[0] = self.phi[:,:nup].dot(self.inv_ovlp[0])
-        self.Gmod[1] = np.zeros(self.Gmod[0].shape)
+        self.Gmod[1] = numpy.zeros(self.Gmod[0].shape)
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
