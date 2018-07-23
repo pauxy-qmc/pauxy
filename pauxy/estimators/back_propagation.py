@@ -16,7 +16,7 @@ class BackPropagation(object):
     Parameters
     ----------
     bp : dict
-        Input options for mixed estimates.
+        Input options for BP estimates.
     root : bool
         True if on root/master processor.
     h5f : :class:`h5py.File`
@@ -98,7 +98,7 @@ class BackPropagation(object):
                 self.back_propagate = pauxy.propagation.hubbard.back_propagate
 
     def update_uhf(self, system, qmc, trial, psi, step, free_projection=False):
-        """Calculate back-propagated estimates for UHF walkers.
+        """Calculate back-propagated estimates for RHF/UHF walkers.
 
         Parameters
         ----------

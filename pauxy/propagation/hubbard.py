@@ -10,6 +10,21 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
 class Discrete(object):
+    """Propagator for discrete HS transformation.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.options.QMCOpts`
+        QMC options.
+    system : :class:`pauxy.system.System`
+        System object.
+    trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        Trial wavefunction object.
+    verbose : bool
+        If true print out more information during setup.
+    """
 
     def __init__(self, options, qmc, system, trial, verbose=False):
 
@@ -58,6 +73,19 @@ class Discrete(object):
             print ("# Finished setting up propagator.")
 
     def update_greens_function_uhf(self, walker, trial, i, nup):
+        """Fast update of walker's Green's function for RHF/UHF walker.
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walkers.SingleDet`
+            Walker's wavefunction.
+        trial : :class:`pauxy.trial_wavefunction`
+            Trial wavefunction.
+        i : int
+            Basis index.
+        nup : int
+            Number of up electrons.
+        """
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
         q = numpy.dot(walker.inv_ovlp[0], vup)
@@ -68,6 +96,19 @@ class Discrete(object):
         walker.G[1][i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
+        """Update of walker's Green's function for UHF walker.
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walkers.SingleDet`
+            Walker's wavefunction.
+        trial : :class:`pauxy.trial_wavefunction`
+            Trial wavefunction.
+        i : int
+            Basis index.
+        nup : int
+            Number of up electrons.
+        """
         walker.greens_function(trial)
 
     def kinetic_importance_sampling(self, walker, system, trial):
@@ -75,12 +116,13 @@ class Discrete(object):
 
         Parameters
         ----------
-        walker : :class:`pauxy.walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B_{T/2}` and updated the weight
-            appropriately.  updates inplace.
-        state : :class:`pauxy.state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker`
+            Walker object to be updated. On output we have acted on phi by
+            B_{T/2} and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
         self.kinetic(walker.phi, system, self.bt2)
         # Update inverse overlap
@@ -100,12 +142,13 @@ class Discrete(object):
 
         Parameters
         ----------
-        walker : :class:`pauxy.walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`b_V` and updated the weight appropriately.
-            updates inplace.
-        state : :class:`pauxy.state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
         # Construct random auxilliary field.
         delta = self.delta
@@ -142,17 +185,18 @@ class Discrete(object):
         r"""Wrapper function for propagation using discrete transformation
 
         The discrete transformation allows us to split the application of the
-        projector up a bit more, which allows up to make use of fast matrix update
-        routines since only a row might change.
+        projector up a bit more, which allows up to make use of fast matrix
+        update routines since only a row might change.
 
         Parameters
         ----------
-        walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
 
         if abs(walker.weight) > 0:
@@ -162,37 +206,6 @@ class Discrete(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
 
-    def propagate_walker_multi_site(self, walker, system, trial):
-        r"""Wrapper function for propagation using discrete transformation
-
-        The discrete transformation allows us to split the application of the
-        projector up a bit more, which allows up to make use of fast matrix update
-        routines since only a row might change.
-
-        Parameters
-        ----------
-        walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
-        """
-
-        # 1. Apply kinetic projector.
-        self.kinetic(walker.phi, system, self.bt2)
-        # 2. Apply potential projector.
-        propagate_potential_auxf(walker, state)
-        # 3. Apply kinetic projector.
-        self.kinetic(walker.phi, state)
-        walker.inverse_overlap(trial.psi)
-        # Calculate new total overlap and update components of overlap
-        ot_new = walker.calc_otrial(trial.psi)
-        # Now apply phaseless approximation
-        dtheta = cmath.phase(ot_new/walker.ot)
-        walker.weight = walker.weight * max(0, math.cos(dtheta))
-        walker.ot = ot_new
-
     def propagate_walker_free(self, walker, system, trial):
         r"""Propagate walker without imposing constraint.
 
@@ -200,12 +213,13 @@ class Discrete(object):
 
         Parameters
         ----------
-        walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
         kinetic_real(walker.phi, system, self.bt2)
         delta = self.delta
@@ -228,8 +242,23 @@ class Discrete(object):
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
 
+# todo: stucture is the same for all continuous HS transformations.
 class Continuous(object):
-    '''Base propagator class'''
+    """Propagator for continuous HS transformation, specialised for Hubbard model.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.options.QMCOpts`
+        QMC options.
+    system : :class:`pauxy.system.System`
+        System object.
+    trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        Trial wavefunction object.
+    verbose : bool
+        If true print out more information during setup.
+    """
 
     def __init__(self, options, qmc, system, trial, verbose=False):
         if verbose:
@@ -303,12 +332,13 @@ class Continuous(object):
 
         Parameters
         ----------
-        walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
         nup = system.nup
         # 1. Apply kinetic projector.
@@ -341,12 +371,13 @@ class Continuous(object):
 
         Parameters
         ----------
-        walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunction.Trial`
+            Trial wavefunction object.
         """
 
         # 1. Apply kinetic projector.

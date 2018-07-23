@@ -7,7 +7,23 @@ from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
 
 class GenericContinuous(object):
-    '''Base propagator class'''
+    """Propagator for generic many-electron Hamiltonian.
+
+    Uses continuous HS transformation for exponential of two body operator.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.options.QMCOpts`
+        QMC options.
+    system : :class:`pauxy.system.System`
+        System object.
+    trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        Trial wavefunction object.
+    verbose : bool
+        If true print out more information during setup.
+    """
 
     def __init__(self, options, qmc, system, trial, verbose=False):
         if verbose:
@@ -28,13 +44,12 @@ class GenericContinuous(object):
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
-        # todo : ?
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
         # Temporary array for matrix exponentiation.
         self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
                                 dtype=trial.psi.dtype)
-        # Rotated cholesky vectors.
+        # Half rotated cholesky vectors (by trial wavefunction).
         # Assuming nup = ndown here
         rotated_up = numpy.einsum('rp,lpq->lrq',
                                   trial.psi[:,:system.nup].conj().T,
@@ -43,7 +58,6 @@ class GenericContinuous(object):
                                     trial.psi[:,system.nup:].conj().T,
                                     system.chol_vecs)
         self.rchol_vecs = numpy.array([rotated_up, rotated_down])
-        # todo : remove
         self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
@@ -56,59 +70,106 @@ class GenericContinuous(object):
 
 
     def construct_one_body_propagator(self, dt, chol_vecs, h1e_mod):
+        """Construct mean-field shifted one-body propagator.
+
+        Parameters
+        ----------
+        dt : float
+            Timestep.
+        chol_vecs : :class:`numpy.ndarray`
+            Cholesky vectors.
+        h1e_mod : :class:`numpy.ndarray`
+            One-body operator including factor from factorising two-body
+            Hamiltonian.
+        """
         shift = 1j*numpy.einsum('l,lpq->pq', self.mf_shift, chol_vecs)
         H1 = h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
-    def construct_force_bias_opt(self, Gmod):
+    def construct_force_bias(self, Gmod):
+        """Compute optimal force bias.
+
+        Uses rotated Green's function.
+
+        Parameters
+        ----------
+        Gmod : :class:`numpy.ndarray`
+            Half-rotated walker's Green's function.
+
+        Returns
+        -------
+        xbar : :class:`numpy.ndarray`
+            Force bias.
+        """
         vbias = 1j*numpy.einsum('slrp,spr->l', self.rchol_vecs, Gmod)
         return - self.sqrt_dt * (vbias-self.mf_shift)
 
-    def construct_force_bias(self, G):
+    def construct_force_bias_full(self, G):
+        """Compute optimal force bias.
+
+        Uses explicit expression.
+
+        Parameters
+        ----------
+        G: :class:`numpy.ndarray`
+            Walker's Green's function.
+
+        Returns
+        -------
+        xbar : :class:`numpy.ndarray`
+            Force bias.
+        """
         vbias = numpy.einsum('lpq,pq->l', self.chol_vecs, G[0])
         vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def two_body(self, walker, system, trial):
-        r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
-
-        Only requires M auxiliary fields.
+        r"""Apply continuous Hubbard-Statonovich transformation for Hubbard model.
 
         Parameters
         ----------
-        walker : :class:`pauxy.walker.Walker`
-            walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
-            updates inplace.
-        state : :class:`pauxy.state.State`
-            Simulation state.
+        walker : :class:`pauxy.walker.Walker` walker object to be updated. On
+            output we have acted on phi by B_V(x).
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
-        # Construct walker modified Green's function.
-        # walker.rotated_greens_function()
+        # Construct walker's modified Green's function (without Psi_T).
         walker.inverse_overlap(trial.psi)
-        # walker.greens_function(trial)
         walker.rotated_greens_function()
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
         # Optimal force bias.
-        xbar = self.construct_force_bias_opt(walker.Gmod)
-        # xbar2 = self.construct_force_bias(walker.G)
+        xbar = self.construct_force_bias(walker.Gmod)
+        # Shifted auxiliary fields.
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
-        c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        c_mf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
         # Constant factor arising from shifting the propability distribution.
         c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
-        nup = system.nup
         # Apply propagator
-        self.apply_exponential(walker.phi[:,:nup], VHS)
-        self.apply_exponential(walker.phi[:,nup:], VHS)
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (c_xf, c_fb, shifted)
+        return (c_mf, c_fb, shifted)
 
     def apply_exponential(self, phi, VHS, debug=False):
+        """Apply matrix expoential to wavefunction approximately.
+
+        Parameters
+        ----------
+        phi : :class:`numpy.ndarray`
+            Walker's wavefunction. On output phi = exp(VHS)*phi.
+        VHS : :class:`numpy.ndarray`
+            Hubbard Stratonovich matrix (~1j*sqrt_dt*\sum_\gamma x_\gamma v_\gamma)
+        debug : bool
+            If true check accuracy of matrix exponential through direct
+            exponentiation.
+        """
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
@@ -122,7 +183,9 @@ class GenericContinuous(object):
     def propagate_walker_free(self, walker, system, trial):
         r"""Free projection for continuous HS transformation.
 
-        TODO: update if ever adapted to other model types.
+        .. Warning::
+            Currently not implemented.
+
 
         Parameters
         ----------
@@ -133,49 +196,50 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        nup = system.nup
-        # 1. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.bt2)
-        # Normally distributed random numbers.
-        xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
-        sxf = sum(xfields)
-        # Constant, field dependent term emerging when subtracting mean-field.
-        sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
-        c_xf = cmath.exp(sc)
-        # Potential propagator.
-        s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
-        bv = numpy.diag(numpy.exp(s))
-        # 2. Apply potential projector.
-        walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
-        walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
-        # 3. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.bt2)
-        walker.inverse_overlap(trial.psi)
-        walker.ot = walker.calc_otrial(trial.psi)
-        walker.greens_function(trial)
-        # Constant terms are included in the walker's weight.
-        walker.weight = walker.weight * c_xf
+        # nup = system.nup
+        # # 1. Apply kinetic projector.
+        # kinetic_real(walker.phi, system, self.bt2)
+        # # Normally distributed random numbers.
+        # xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
+        # sxf = sum(xfields)
+        # # Constant, field dependent term emerging when subtracting mean-field.
+        # sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
+        # c_xf = cmath.exp(sc)
+        # # Potential propagator.
+        # s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
+        # bv = numpy.diag(numpy.exp(s))
+        # # 2. Apply potential projector.
+        # walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
+        # walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
+        # # 3. Apply kinetic projector.
+        # kinetic_real(walker.phi, system, self.bt2)
+        # walker.inverse_overlap(trial.psi)
+        # walker.ot = walker.calc_otrial(trial.psi)
+        # walker.greens_function(trial)
+        # # Constant terms are included in the walker's weight.
+        # walker.weight = walker.weight * c_xf
 
     def propagate_walker_phaseless(self, walker, system, trial):
-        r"""Wrapper function for propagation using continuous transformation.
+        r"""Propagate walker using phaseless approximation.
 
-        This applied the phaseless, local energy approximation and uses importance
-        sampling.
+        Uses importance sampling and the hybrid method.
 
         Parameters
         ----------
         walker : :class:`walker.Walker`
-            Walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`B` and updated the weight
-            appropriately. Updates inplace.
-        state : :class:`state.State`
-            Simulation state.
+            Walker object to be updated. On output we have acted on phi with the
+            propagator B(x), and updated the weight appropriately.  Updates
+            inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
         """
 
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
+        (cmf, cfb, xmxbar) = self.two_body(walker, system, trial)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
@@ -183,7 +247,7 @@ class GenericContinuous(object):
         walker.inverse_overlap(trial.psi)
         ot_new = walker.calc_otrial(trial.psi)
         # Walker's phase.
-        importance_function = self.mf_const_fac*cxf*cfb*ot_new / walker.ot
+        importance_function = self.mf_const_fac*cmf*cfb*ot_new / walker.ot
         dtheta = cmath.phase(importance_function)
         cfac = max(0, math.cos(dtheta))
         rweight = abs(importance_function)
@@ -210,7 +274,7 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     Returns
     -------
     B : :class:`numpy.ndarray`
-        Full projector matrix.
+        Full propagator matrix.
     """
     VHS = 1j*dt**0.5*numpy.einsum('l,lpq->pq', config, system.chol_vecs)
     EXP_VHS = exponentiate_matrix(VHS)
@@ -224,7 +288,7 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
 
 
 def back_propagate(system, psi, trial, nstblz, BT2, dt):
-    r"""Perform back propagation for UHF style wavefunction.
+    r"""Perform back propagation for RHF/UHF style wavefunction.
 
     For use with generic system hamiltonian.
 
@@ -257,9 +321,8 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
             # routines.
             B = construct_propagator_matrix_generic(system, BT2,
                                                     c, dt, conjt=True)
-            psi_bp[iw].phi[:, :nup] = B[0].dot(psi_bp[iw].phi[:, :nup])
-            psi_bp[iw].phi[:, nup:] = B[1].dot(psi_bp[iw].phi[:, nup:])
+            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
+            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i != 0 and i % nstblz == 0:
                 psi_bp[iw].reortho(trial)
     return psi_bp
-

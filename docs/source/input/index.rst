@@ -15,6 +15,7 @@ A standard input file for pauxy is made up of a json dict like that below:
         "model": { },
         "qmc_options": { },
         "trial_wavefunction": { },
+        "propagator": { },
         "estimates": {
             "mixed": { },
             "back_propagated": { },
@@ -126,13 +127,6 @@ Generic
 
 QMC options
 ^^^^^^^^^^^
-``method``
-    type: string
-
-    Required.
-
-    QMC method. Currently only allowed value is `CPMC`.
-
 ``dt``
     type: float
 
@@ -168,21 +162,6 @@ QMC options
     Default 10.
 
     Number of steps between population control.
-
-``hubbard_stratonovich``
-    type: string
-
-    Default `discrete`.
-
-    Type of Hubbard-Stratonovich transformation to use. Options: `discrete`, `continuous`
-    or `generic`. See ref:`theory/hubbard_stratonovich` for an explanation.
-
-``importance_sampling``
-    type: bool
-
-    Default true
-
-    Whether to use importance sampling or not. false is synonymous with free projection.
 
 ``rng_seed``
     type: int
@@ -313,6 +292,25 @@ Multi-Determinant options
 
     File containing multi-determinant expansion coefficients. Expects one (fortran
     formatted) complex number per line.
+
+
+Propagator Options
+^^^^^^^^^^^^^^^^^^
+
+``free_projection``
+    type: bool
+
+    Default False.
+
+    Whether to perform free projection or not.
+
+``hubbard_stratonovich``
+    type: string
+
+    Default None.
+
+    Type of Hubbard-Stratonovich transformation to use. Options: `discrete`, `continuous`
+    or `generic`. See ref:`theory/hubbard_stratonovich` for an explanation.
 
 Estimator Options
 ^^^^^^^^^^^^^^^^^

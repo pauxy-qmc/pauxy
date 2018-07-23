@@ -16,24 +16,18 @@ import glob
 
 
 def parse_args(args):
-    '''Parse command-line arguments.
+    """Parse command-line arguments.
 
-Parameters
-----------
-args : list of strings
-    command-line arguments.
+    Parameters
+    ----------
+    args : list of strings
+        command-line arguments.
 
-Returns
--------
-(filenames, start_iteration)
-
-where
-
-filenames : list of strings
-    list of QMC output files
-start_iteration : int
-    iteration number from which statistics should be gathered.
-'''
+    Returns
+    -------
+    options : :class:`argparse.ArgumentParser`
+        Command line arguments.
+    """
 
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--start', type=int, dest='start_time',
@@ -58,17 +52,17 @@ start_iteration : int
 
 
 def main(args):
-    '''Run reblocking and data analysis on HANDE output.
+    """Run reblocking and data analysis on PAUXY output.
 
-Parameters
-----------
-args : list of strings
-    command-line arguments.
+    Parameters
+    ----------
+    args : list of strings
+        command-line arguments.
 
-Returns
--------
-None.
-'''
+    Returns
+    -------
+    None.
+    """
 
     options = parse_args(args)
     if '*' in options.filenames[0]:

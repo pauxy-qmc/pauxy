@@ -15,24 +15,18 @@ from pauxy.analysis.extraction import analysed_energies
 
 
 def parse_args(args):
-    '''Parse command-line arguments.
+    """Parse command-line arguments.
 
-Parameters
-----------
-args : list of strings
-    command-line arguments.
+    Parameters
+    ----------
+    args : list of strings
+        command-line arguments.
 
-Returns
--------
-(filenames, start_iteration)
-
-where
-
-filenames : list of strings
-    list of QMC output files
-start_iteration : int
-    iteration number from which statistics should be gathered.
-'''
+    Returns
+    -------
+    options : :class:`argparse.ArgumentParser`
+        Command line arguments.
+    """
 
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--spin', type=str, dest='spin',
@@ -62,17 +56,18 @@ start_iteration : int
 
 
 def main(args):
-    '''Run reblocking and data analysis on HANDE output.
+    """Extract observable from analysed output.
 
-Parameters
-----------
-args : list of strings
-    command-line arguments.
+    Parameters
+    ----------
+    args : list of strings
+        command-line arguments.
 
-Returns
--------
-None.
-'''
+    Returns
+    -------
+    results : :class:`pandas.DataFrame`
+        Anysed results.
+    """
 
     options = parse_args(args)
     print_index = False
