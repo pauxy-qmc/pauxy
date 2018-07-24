@@ -8,20 +8,21 @@
     },
     "qmc_options": {
         "method": "ThermalAFQMC",
-        "dt": 0.000005,
-        "nsteps": 10000,
+        "dt": 0.01,
+        "nsteps": 2,
         "nmeasure": 1,
-        "nwalkers": 20,
+        "nwalkers": 1,
         "npop_control": 1,
         "nstabilise": 1,
-	   "beta":0.001953125,
+	   "beta":1.0,
         "rng_seed": 7
     },
     "walkers":{
 	   "stack_size": 100
 	},
     "trial": {
-        "name": "one_body"
+        "name": "one_body",
+	   "mu": 0.142838
     },
     "propagator": {
         "hubbard_stratonovich": "plane_wave",

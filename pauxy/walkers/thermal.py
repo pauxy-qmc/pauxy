@@ -309,10 +309,8 @@ class PropagatorStack:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
-        # self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
-        # self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
-        self.left[self.block,0] = self.BTinv[0].dot(self.left[self.block,0])
-        self.left[self.block,1] = self.BTinv[1].dot(self.left[self.block,1])
+        self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
+        self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
 
         self.right[self.block,0] = B[0].dot(self.right[self.block,0])
         self.right[self.block,1] = B[1].dot(self.right[self.block,1])
