@@ -293,17 +293,29 @@ class PlaneWave(object):
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        
-        # print("JOONHO")
-        walker.stack.update_new(B)
-        # walker.stack.update(B)
 
-        walker.ot = 1.0
+        A0 = walker.compute_A() # A matrix as in the partition function
+        
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+
+        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+
+        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+        
+        walker.stack.update_new(B)
+
+        # walker.ot = 1.0
         # Constant terms are included in the walker's weight.
-        walker.weight = walker.weight * cxf
+        # walker.weight = walker.weight * cxf
+        walker.weight *= oratio * cxf
 
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
+        
+        self.propagate_greens_function(walker)
 
 
     # This one loops over all fields
@@ -336,12 +348,6 @@ class PlaneWave(object):
         Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
         Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
                 numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
-
-        # BVmat  = numpy.matrix(BV)
-        # Amat  = numpy.matrix(Anew[0])
-        # print("Anew hermitian? {}".format(numpy.linalg.norm(Amat - Amat.H)))
-        # print("BV hermitian? {}".format(numpy.linalg.norm(BVmat - BVmat.H)))
-
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
