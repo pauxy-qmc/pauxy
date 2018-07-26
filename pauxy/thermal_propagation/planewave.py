@@ -313,7 +313,7 @@ class PlaneWave(object):
         cfac = math.cos(dtheta) + 1j * math.sin(dtheta)
         rweight = abs(expQ)
         walker.weight *= rweight * cfac
-        walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        # walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
 
         walker.stack.update_new(B)
         
