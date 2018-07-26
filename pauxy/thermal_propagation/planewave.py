@@ -287,13 +287,13 @@ class PlaneWave(object):
         Returns
         -------
         """
-
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        # BV = 0.5*(BV.conj().T + BV)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-
+        
         A0 = walker.compute_A() # A matrix as in the partition function
         
         M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
@@ -304,18 +304,58 @@ class PlaneWave(object):
                 numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
-        
+
+        # Walker's phase.
+        Q = cmath.exp(cmath.log (oratio) + cfb)
+        expQ = self.mf_const_fac * cxf * Q
+        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+
+        if (not math.isinf(magn)):
+            cfac = max(0, math.cos(dtheta))
+            rweight = abs(expQ)
+            walker.weight *= rweight * cfac
+            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        else:
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+
         walker.stack.update_new(B)
-
-        # walker.ot = 1.0
-        # Constant terms are included in the walker's weight.
-        # walker.weight = walker.weight * cxf
-        walker.weight *= oratio * cxf
-
+        
+        # Need to recompute Green's function from scratch before we propagate it
+        # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
         
         self.propagate_greens_function(walker)
+
+        # (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        # BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+
+        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+
+        # A0 = walker.compute_A() # A matrix as in the partition function
+        
+        # M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+        #         numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+
+        # Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
+        # Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+        #         numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+
+        # oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+        
+        # walker.stack.update_new(B)
+
+        # # walker.ot = 1.0
+        # # Constant terms are included in the walker's weight.
+        # # walker.weight = walker.weight * cxf
+        # walker.weight *= oratio * cxf
+
+        # if walker.stack.time_slice % self.nstblz == 0:
+        #     walker.greens_function(None, walker.stack.time_slice-1)
+        
+        # self.propagate_greens_function(walker)
 
 
     # This one loops over all fields
@@ -356,23 +396,17 @@ class PlaneWave(object):
         expQ = self.mf_const_fac * cxf * Q
         (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
-        wi = walker.weight
-
         if (not math.isinf(magn)):
             cfac = max(0, math.cos(dtheta))
             rweight = abs(expQ)
             walker.weight *= rweight * cfac
-            # walker.ot = ot_new
             walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
         else:
-            # walker.ot = ot_new
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
-        # print("rweight = {}, walker.weight = {}, oratio = {}, cfac = {}, cxf = {}".format(rweight, walker.weight,oratio,cfac,cxf))
-
-        # walker.stack.update(B)
         walker.stack.update_new(B)
+        
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:

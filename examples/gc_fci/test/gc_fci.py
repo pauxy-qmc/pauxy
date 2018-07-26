@@ -47,8 +47,8 @@ def energy(data, beta, mu):
 # mus = numpy.linspace(1.8,2.0,20)
 # beta = 1.0 / utils.calcT(1, 0.25, 0)
 
-mus = numpy.linspace(0.0,0.2,20)
-beta = 1.0 / utils.calcT(1, 0.0625, 0)
+mus = numpy.linspace(0.18,0.25,20)
+beta = 1.0 / utils.calcT(1, 0.01, 0)
 
 nelec = 2
 navs = [nav(m, eigs, beta) for m in mus]
