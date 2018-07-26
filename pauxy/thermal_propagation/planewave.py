@@ -287,7 +287,7 @@ class PlaneWave(object):
         Returns
         -------
         """
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         # BV = 0.5*(BV.conj().T + BV)
 
