@@ -116,8 +116,7 @@ class Mixed(object):
         free_projection : bool
             True if doing free projection.
         """
-        # if free_projection:
-        if False:
+        if free_projection:
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
                 E, T, V = w.local_energy(system)
