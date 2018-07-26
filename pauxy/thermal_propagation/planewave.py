@@ -310,14 +310,10 @@ class PlaneWave(object):
         expQ = self.mf_const_fac * cxf * Q
         (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
-        if (not math.isinf(magn)):
-            cfac = max(0, math.cos(dtheta))
-            rweight = abs(expQ)
-            walker.weight *= rweight * cfac
-            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
-        else:
-            walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+        cfac = math.cos(dtheta) + 1j * math.sin(dtheta)
+        rweight = abs(expQ)
+        walker.weight *= rweight * cfac
+        walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
 
         walker.stack.update_new(B)
         
@@ -406,7 +402,7 @@ class PlaneWave(object):
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
         walker.stack.update_new(B)
-        
+
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:
