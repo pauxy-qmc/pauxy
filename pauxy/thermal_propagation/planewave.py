@@ -287,7 +287,7 @@ class PlaneWave(object):
         Returns
         -------
         """
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         # BV = 0.5*(BV.conj().T + BV)
 
@@ -308,11 +308,13 @@ class PlaneWave(object):
         # Walker's phase.
         Q = cmath.exp(cmath.log (oratio) + cfb)
         expQ = self.mf_const_fac * cxf * Q
-        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+        # (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
-        cfac = math.cos(dtheta) + 1j * math.sin(dtheta)
-        rweight = abs(expQ)
-        walker.weight *= rweight * cfac
+        walker.weight *= expQ
+
+        # cfac = math.cos(dtheta) + 1j * math.sin(dtheta)
+        # rweight = abs(expQ)
+        # walker.weight *= rweight * cfac
         # walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
 
         walker.stack.update_new(B)
