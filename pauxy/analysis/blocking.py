@@ -10,19 +10,20 @@ import pyblock
 import scipy.stats
 import pauxy.analysis.extraction
 
-def average_single(frame):
-    short = frame.drop(['time', 'iteration', 'E_denom', 'E_num', 'Weight'], axis=1)
-    short = short.groupby(['dt','ndets'])
-    means = short.mean()
-    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
+def average_single(frame, free_projection):
+    short = frame
+    means = short.mean().to_frame().T
+    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).to_frame().T
     averaged = means.merge(err, left_index=True, right_index=True,
                            suffixes=('', '_error'))
     columns = [c for c in averaged.columns.values if '_error' not in c]
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    columns = numpy.insert(columns, 0, 'dt')
-    columns = numpy.insert(columns, 0, 'ndets')
+    delete = ['E_num', 'E_num_error', 'E_denom',
+              'E_denom_error', 'Weight', 'Weight_error']
+    for d in delete:
+        columns.remove(d)
     return averaged[columns]
 
 def reblock_mixed(frame):
@@ -148,11 +149,8 @@ def analyse_simple(files, start_time):
         step = m.get('qmc').get('nmeasure')
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
-        # Fix this
-        if not free_projection:
-            reblocked = reblock_mixed(norm[start:nzero].apply(numpy.real))
-        else:
-            reblocked = None
+        reblocked = average_single(norm[start:nzero].apply(numpy.real),
+                                   free_projection)
         norm_data.append(pauxy.analysis.extraction.set_info(reblocked, m))
     return pd.concat(norm_data)
 
