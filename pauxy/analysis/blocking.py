@@ -138,6 +138,25 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
+def analyse_simple(files, start_time):
+    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
+    norm_data = []
+    for g in data:
+        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
+        dt = m.get('qmc').get('dt')
+        free_projection = m.get('propagators').get('free_projection')
+        step = m.get('qmc').get('nmeasure')
+        print (step, dt)
+        nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
+        start = int(start_time/(step*dt)) + 1
+        # Fix this
+        if not free_projection:
+            reblocked = reblock_mixed(norm[start:nzero].apply(numpy.real))
+        else:
+            reblocked = None
+        norm_data.append(pauxy.analysis.extraction.set_info(reblocked, m))
+    return pd.concat(norm_data)
+
 def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
     data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
     bp_data = []

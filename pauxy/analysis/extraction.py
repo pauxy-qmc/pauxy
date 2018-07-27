@@ -103,3 +103,17 @@ def analysed_energies(filename, name):
     results = pd.DataFrame(output, columns=columns)
 
     return results
+
+def set_info(frame, md):
+    system = md.get('system')
+    qmc = md.get('qmc')
+    frame['dt'] = qmc.get('dt')
+    frame['nwalkers'] = qmc.get('nwalkers')
+    frame['beta'] = qmc.get('beta')
+    print (system["name"])
+    if system['name'] == "UEG":
+        frame['rs'] = system.get('rs')
+        frame['ecut'] = system.get('ecut')
+        frame['nup'] = system.get('nup')
+        frame['ndown'] = system['ndown']
+    return frame
