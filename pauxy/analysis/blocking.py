@@ -146,7 +146,6 @@ def analyse_simple(files, start_time):
         dt = m.get('qmc').get('dt')
         free_projection = m.get('propagators').get('free_projection')
         step = m.get('qmc').get('nmeasure')
-        print (step, dt)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         # Fix this

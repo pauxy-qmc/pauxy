@@ -110,7 +110,7 @@ def set_info(frame, md):
     frame['dt'] = qmc.get('dt')
     frame['nwalkers'] = qmc.get('nwalkers')
     frame['beta'] = qmc.get('beta')
-    print (system["name"])
+    frame['free_projection'] = md.get('propagators').get('free_projection')
     if system['name'] == "UEG":
         frame['rs'] = system.get('rs')
         frame['ecut'] = system.get('ecut')
