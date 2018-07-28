@@ -117,10 +117,13 @@ def analysed_energies(filename, name):
 def set_info(frame, md):
     system = md.get('system')
     qmc = md.get('qmc')
+    propg = md.get('propagators')
+    trial = md.get('trial')
     frame['dt'] = qmc.get('dt')
     frame['nwalkers'] = qmc.get('nwalkers')
     frame['beta'] = qmc.get('beta')
-    frame['free_projection'] = md.get('propagators').get('free_projection')
+    frame['free_projection'] = propg.get('free_projection')
+    frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
         frame['rs'] = system.get('rs')
         frame['ecut'] = system.get('ecut')
