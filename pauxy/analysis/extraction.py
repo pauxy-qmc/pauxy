@@ -48,6 +48,16 @@ def extract_hdf5(filename):
 
     return (metadata, basic, bp_data, itcf, kspace_itcf, mixed_rdm, bp_rdm)
 
+def extract_hdf5_simple(filename):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    estimates = metadata.get('estimators').get('estimators')
+    basic = data['mixed_estimates/energies'][:]
+    headers = data['mixed_estimates/headers'][:]
+    basic = pd.DataFrame(basic)
+    basic.columns = headers
+    return (metadata, basic)
+
 def extract_test_data_hdf5(filename):
     (md, data, bp, itcf, kitcf, mrdm, bprdm) = extract_hdf5(filename)
     if (bp is not None):
