@@ -20,34 +20,34 @@ def average_single(frame, delete=True):
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    delete = ['E_num', 'E_num_error', 'E_denom',
+    delcol = ['E_num', 'E_num_error', 'E_denom',
               'E_denom_error', 'Weight', 'Weight_error']
-    for d in delete:
+    for d in delcol:
         if delete:
             columns.remove(d)
     return averaged[columns]
 
-def average_fp(frame, free_projection):
+def average_fp(frame):
     real = average_single(frame.apply(numpy.real), False)
     imag = average_single(frame.apply(numpy.imag), False)
-    frame = pd.DataFrame()
+    results = pd.DataFrame()
     re_num = real.E_num
     re_den = real.E_denom
     im_num = imag.E_num
     im_den = imag.E_denom
     # When doing FP we need to compute E = \bar{E_num} / \bar{E_denom}
     # Only compute real part of the energy
-    frame['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2) 
+    results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
     # Doing error analysis properly is complicated. This is not correct.
     re_nume= real.E_num_error
     re_dene = real.E_denom_error
     # Ignoring the fact that the mean includes complex components.
     cov = frame.apply(numpy.real).cov()
-    cov_nd = cov.iloc('E_num')['E_den']
+    cov_nd = cov['E_num']['E_denom']
     nsmpl = len(frame)
-    frame['E_error'] = frame.E * ((re_nume/re_num)**2+(im_nume/im_num)**2
-                                  -2*cov_nd/ns)**0.5 
-    return frame
+    results['E_error'] = results.E * ((re_nume/re_num)**2+(re_dene/re_den)**2
+                                      -2*cov_nd/(nsmpl*re_num*re_den))**0.5
+    return results
 
 def reblock_mixed(frame):
     short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
