@@ -388,7 +388,7 @@ class UEG(object):
         rho_qH = self.scaled_density_operator_incore(True)
 
         iA = 1j * (rho_q + rho_qH)
-        iB = - (rho_q - rho_qH) 
+        iB = - (rho_q - rho_qH)
 
         return (iA, iB)
 
