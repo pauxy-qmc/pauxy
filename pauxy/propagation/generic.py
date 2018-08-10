@@ -307,7 +307,7 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
     psi_bp : list of :class:`pauxy.walker.Walker` objects
         Back propagated list of walkers.
     """
-    psi_bp = [SingleDetWalker(1,system,trial,w) for w in range(len(psi))]
+    psi_bp = [SingleDetWalker({}, system, trial, index=w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order

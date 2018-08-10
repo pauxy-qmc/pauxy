@@ -560,7 +560,7 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
         Back propagated list of walkers.
     """
 
-    psi_bp = [SingleDetWalker(1, system, trial, w) for w in range(len(psi))]
+    psi_bp = [SingleDetWalker({}, system, trial, index=w) for w in range(len(psi))]
     nup = system.nup
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order
@@ -596,7 +596,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     psi_bp : list of :class:`pauxy.walker.Walker` objects
         Back propagated list of walkers.
     """
-    psi_bp = [MultiGHFWalker(1, system, trial, w, weights='ones', wfn0='GHF')
+    psi_bp = [MultiGHFWalker({}, system, trial, index=w, weights='ones', wfn0='GHF')
               for w in range(len(psi))]
     for (iw, w) in enumerate(psi):
         # propagators should be applied in reverse order

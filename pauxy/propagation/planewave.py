@@ -289,7 +289,7 @@ class PlaneWave(object):
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * cxf
 
-    def propagate_walker_phaseless(self, walker, system, trial, hybrid = False):
+    def propagate_walker_phaseless(self, walker, system, trial, hybrid = True):
         """Phaseless propagator
         Parameters
         ----------
