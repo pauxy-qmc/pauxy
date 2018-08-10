@@ -1,6 +1,7 @@
 import copy
 import numpy
 import math
+import cmath
 import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
@@ -65,7 +66,9 @@ class Walkers(object):
         for w in self.walkers:
             detR = w.reortho(trial)
             if free_projection:
-                w.weight = detR * w.weight
+                (magn, dtheta) = cmath.polar(detR)
+                w.weight *= magn
+                w.phase *= cmath.exp(1j*dtheta)
 
     def add_field_config(self, nprop_tot, nbp, nfields, dtype):
         """Add FieldConfig object to walker object.

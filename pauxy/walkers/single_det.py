@@ -22,6 +22,7 @@ class SingleDetWalker(object):
 
     def __init__(self, walker_opts, system, trial, index=0):
         self.weight = walker_opts.get('weight', 1)
+        self.phase = 1 + 0j
         self.alive = 1
         if trial.initial_wavefunction == 'free_electron':
             self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
@@ -68,11 +69,11 @@ class SingleDetWalker(object):
         """
         nup = self.nup
         ndown = self.ndown
-        
+
         self.inv_ovlp[0] = (
             scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         )
-        
+
         self.inv_ovlp[1] = numpy.zeros(self.inv_ovlp[0].shape)
         if (ndown>0):
             self.inv_ovlp[1] = (
@@ -150,21 +151,20 @@ class SingleDetWalker(object):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
                                                   mode='economic')
         Rdown = numpy.zeros(Rup.shape)
-        if (ndown >0):
+        if (ndown > 0):
             (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
                                                         mode='economic')
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
-        if (ndown >0):
+        if (ndown > 0):
             signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
         self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        if (ndown >0):
+        if (ndown > 0):
             self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
         drup = scipy.linalg.det(signs_up.dot(Rup))
         drdn = 1.0
-        if (ndown >0):
+        if (ndown > 0):
             drdn = scipy.linalg.det(signs_down.dot(Rdown))
         detR = drup * drdn
-        self.ot = self.ot / detR
         return detR
 
     def greens_function(self, trial):
