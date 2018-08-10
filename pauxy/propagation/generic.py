@@ -203,7 +203,7 @@ class GenericContinuous(object):
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
+        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial, False)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
