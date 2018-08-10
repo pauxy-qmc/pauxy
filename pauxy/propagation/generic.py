@@ -210,8 +210,9 @@ class GenericContinuous(object):
         # Now apply hybrid phaseless approximation
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
+        walker.greens_function(trial)
         # Walker's phase.
-        walker.weight *= cxf
+        walker.weight = walker.weight * cxf
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Propagate walker using phaseless approximation.
