@@ -136,12 +136,12 @@ class GenericContinuous(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-        # Construct walker's modified Green's function (without Psi_T).
-        walker.inverse_overlap(trial.psi)
-        walker.rotated_greens_function()
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
         if (fb):
+            # Construct walker modified Green's function.
+            walker.inverse_overlap(trial.psi)
+            walker.rotated_greens_function()
             # Optimal force bias.
             xbar = self.construct_force_bias_opt(walker.Gmod)
         else:
