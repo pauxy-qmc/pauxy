@@ -158,7 +158,7 @@ class GenericContinuous(object):
         self.apply_exponential(walker.phi[:,:system.nup], VHS)
         self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (c_mf, c_fb, shifted)
+        return (c_xf, c_fb, shifted)
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply matrix expoential to wavefunction approximately.
@@ -207,12 +207,12 @@ class GenericContinuous(object):
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
-        # Now apply hybrid phaseless approximation
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
-        # Walker's phase.
-        walker.weight = walker.weight * cxf
+        (magn, dtheta) = cmath.polar(cxf)
+        walker.weight *= magn
+        walker.phase *= cmath.exp(1j*dtheta)
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Propagate walker using phaseless approximation.
