@@ -10,8 +10,8 @@ _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
 import matplotlib.pyplot as plt
 from pauxy.analysis.extraction import analysed_itcf
-from pauxy.analysis.extraction import analysed_energies
-# from pauxy.analysis.extraction import correlation_function
+from pauxy.analysis.extraction import analysed_energies, extract_hdf5_simple
+import matplotlib.pyplot as pl
 
 
 def parse_args(args):
@@ -42,7 +42,9 @@ def parse_args(args):
                         dest='elements', default=None,
                         help='Element to extract.')
     parser.add_argument('-o', '--observable', type=str, dest='obs',
-                        default='energy', help='Data to extract')
+                        default='None', help='Data to extract')
+    parser.add_argument('-p', '--plot-energy', action='store_true', dest='plot',
+                        default=False, help='Plot energy trace.')
     parser.add_argument('-f', nargs='+', dest='filename',
                         help='Space-separated list of files to analyse.')
 
@@ -84,11 +86,20 @@ def main(args):
                                        ctype,
                                        options.elements)
         print_index = True
+    elif options.plot:
+        (md, data) = extract_hdf5_simple(options.filename[0])
+        fp = md['propagators']['free_projection']
+        if fp:
+            pl.plot((data.E_num/data.E_denom).real)
+            pl.show()
+        else:
+            pl.plot(data.E.real)
+            pl.show()
     else:
-        results = None
         print ('Unknown observable')
 
-    print (results.to_string(index=print_index))
+    if not options.plot:
+        print (results.to_string(index=print_index))
 
 if __name__ == '__main__':
 
