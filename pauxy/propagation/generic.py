@@ -124,8 +124,8 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def two_body(self, walker, system, trial):
-        r"""Apply continuous Hubbard-Statonovich transformation for Hubbard model.
+    def two_body(self, walker, system, trial, fb=True):
+        r"""Continuous Hubbard-Statonovich transformation.
 
         Parameters
         ----------
@@ -141,14 +141,17 @@ class GenericContinuous(object):
         walker.rotated_greens_function()
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
-        # Optimal force bias.
-        xbar = self.construct_force_bias(walker.Gmod)
-        # Shifted auxiliary fields.
-        shifted = xi - xbar
-        # Constant factor arising from force bias and mean field shift
-        c_mf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        if (fb):
+            # Optimal force bias.
+            xbar = self.construct_force_bias_opt(walker.Gmod)
+        else:
+            xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
         c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        shifted = xi - xbar
+        # Constant factor arising from force bias and mean field shift
+        c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
         # Apply propagator
@@ -196,28 +199,20 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        # nup = system.nup
-        # # 1. Apply kinetic projector.
-        # kinetic_real(walker.phi, system, self.bt2)
-        # # Normally distributed random numbers.
-        # xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
-        # sxf = sum(xfields)
-        # # Constant, field dependent term emerging when subtracting mean-field.
-        # sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
-        # c_xf = cmath.exp(sc)
-        # # Potential propagator.
-        # s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
-        # bv = numpy.diag(numpy.exp(s))
-        # # 2. Apply potential projector.
-        # walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
-        # walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
-        # # 3. Apply kinetic projector.
-        # kinetic_real(walker.phi, system, self.bt2)
-        # walker.inverse_overlap(trial.psi)
-        # walker.ot = walker.calc_otrial(trial.psi)
-        # walker.greens_function(trial)
-        # # Constant terms are included in the walker's weight.
-        # walker.weight = walker.weight * c_xf
+
+        # 1. Apply one_body propagator.
+        kinetic_real(walker.phi, system, self.BH1)
+        # 2. Apply two_body propagator.
+        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial)
+        # 3. Apply one_body propagator.
+        kinetic_real(walker.phi, system, self.BH1)
+
+        # Now apply hybrid phaseless approximation
+        walker.inverse_overlap(trial.psi)
+        walker.ot = walker.calc_otrial(trial.psi)
+        # Walker's phase.
+        walker.weight *= rweight * cxf
+        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Propagate walker using phaseless approximation.
