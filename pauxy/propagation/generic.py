@@ -211,8 +211,7 @@ class GenericContinuous(object):
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         # Walker's phase.
-        walker.weight *= rweight * cxf
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+        walker.weight *= cxf
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Propagate walker using phaseless approximation.
