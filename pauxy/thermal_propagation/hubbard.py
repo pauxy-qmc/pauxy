@@ -78,28 +78,20 @@ class ThermalDiscrete(object):
         self.propagate_greens_function(walker)
 
     def propagate_walker_free(self, system, walker, time_slice):
-        # for i in range(0, system.nbasis):
-            # r = numpy.random.random()
-            # if r < 0.5:
-                # xi = 0
-            # else:
-                # xi = 1
-            # self.BV[0,i] = self.auxf[xi, 0]
-            # self.BV[1,i] = self.auxf[xi, 1]
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
-            # phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(numpy.abs(probs))
             sgns = numpy.sign(probs) / numpy.sign(sum(probs))
             r = numpy.random.random()
-            # print (probs, sum(probs))
             if norm > 0:
                 if r < abs(probs[0]) / norm:
                     xi = 0
-                    walker.weight = walker.weight * norm * sgns[0]
+                    walker.weight *= norm
+                    walker.phase *= sgns[0]
                 else:
                     xi = 1
-                    walker.weight = walker.weight * norm * sgns[1]
+                    walker.weight = walker.weight * norm
+                    walker.phase *= sgns[1]
                 self.update_greens_function(walker, i, xi)
                 self.BV[0,i] = self.auxf[xi, 0]
                 self.BV[1,i] = self.auxf[xi, 1]
