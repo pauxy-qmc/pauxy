@@ -204,6 +204,7 @@ class Walkers(object):
             w.stack.set_all(trial.dmat)
             w.greens_function(trial)
             w.weight = 1.0
+            w.phase = 1.0 + 0.0j
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
