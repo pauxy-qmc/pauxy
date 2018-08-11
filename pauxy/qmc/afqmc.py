@@ -142,20 +142,19 @@ class AFQMC(object):
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
-            # Orthogononalise before propagation to avoid recomputing the
-            # overlap or dividing by detR when doing free projection.
             if step % self.qmc.nstblz == 0:
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
             for w in self.psi.walkers:
-                # Want to possibly allow for walkers with negative / complex weights
-                # when not using a constraint. I'm not so sure about the criteria
-                # for complex weighted walkers.
-                if abs(w.weight) > 1e-8 and w.alive:
+                if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system,
                                                       self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt * E_T.real)
+            # calculate estimators
+            self.estimators.update(self.system, self.qmc,
+                                   self.trial, self.psi, step,
+                                   self.propagators.free_projection)
             if step % self.qmc.nupdate_shift == 0:
                 E_T = self.estimators.estimators['mixed'].projected_energy()
             if step < self.qmc.nequilibrate:
@@ -163,10 +162,6 @@ class AFQMC(object):
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
                 self.psi.pop_control(comm)
-            # calculate estimators
-            self.estimators.update(self.system, self.qmc,
-                                   self.trial, self.psi, step,
-                                   self.propagators.free_projection)
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
