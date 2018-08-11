@@ -140,9 +140,7 @@ class AFQMC(object):
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
         if verbose and self.root:
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
-        self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
+            self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
             for w in self.psi.walkers:

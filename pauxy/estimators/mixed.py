@@ -55,7 +55,7 @@ class Mixed(object):
 
     def __init__(self, mixed, root, h5f, qmc, trial, dtype):
         self.rdm = mixed.get('rdm', False)
-        self.verbose = mixed.get('verbose', False)
+        self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
         self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
                        'EKin', 'EPot', 'time']

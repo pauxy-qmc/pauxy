@@ -31,7 +31,7 @@ def main(input_file):
                       options.get('trial_wavefunction'),
                       options.get('propagator', {}),
                       verbose=True)
-    afqmc.run(comm=comm)
+    afqmc.run(comm=comm, verbose=True)
     afqmc.finalise(verbose=True)
 
 
