@@ -8,6 +8,8 @@ import uuid
 from math import exp
 import copy
 import h5py
+from pauxy.analysis import blocking
+from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator
 from pauxy.qmc.options import QMCOpts
@@ -115,16 +117,15 @@ class AFQMC(object):
                                                data=numpy.array([json_string],
                                                                 dtype=object),
                                                dtype=h5py.special_dtype(vlen=str))
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            if verbose:
+                self.estimators.estimators['mixed'].print_key()
+                self.estimators.estimators['mixed'].print_header()
 
-    def run(self, psi=None, comm=None):
+    def run(self, psi=None, comm=None, verbose=True):
         """Perform AFQMC simulation on state object using open-ended random walk.
 
         Parameters
         ----------
-        state : :class:`pauxy.state.State` object
-            Model and qmc parameters.
         psi : :class:`pauxy.walker.Walkers` object
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
@@ -138,7 +139,7 @@ class AFQMC(object):
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
-        if self.root:
+        if verbose and self.root:
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
@@ -171,7 +172,7 @@ class AFQMC(object):
             if step % self.qmc.npop_control == 0:
                 self.psi.pop_control(comm)
 
-    def finalise(self, verbose):
+    def finalise(self, verbose=False):
         """Tidy up.
 
         Parameters
@@ -183,6 +184,7 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
+                print("# Mixed estimate for total energy: %f +/- %f"%self.get_energy())
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
@@ -202,3 +204,31 @@ class AFQMC(object):
         continuous = 'continuous' in hs_type
         twist = system.ktwist.all() is not None
         return continuous or twist
+
+    def get_energy(self, skip=0):
+        """Get mixed estimate for the energy.
+
+        Returns
+        -------
+        energy : float
+            Mixed estimate for the energy.
+        error : float
+            Standard error in the energy.
+        """
+        filename = self.estimators.h5f_name
+        eloc, eloc_err = blocking.reblock_local_energy(filename, skip)
+        return (eloc, eloc_err)
+
+    def get_one_rdm(self, skip=0):
+        """Get back-propagated estimate for the one RDM.
+
+        Returns
+        -------
+        energy : float
+            Mixed estimate for the energy.
+        error : float
+            Standard error in the energy.
+        """
+        filename = self.estimators.h5f_name
+        bp_rdm, bp_rdm_err = blocking.reblock_bp_rdm(filename)
+        return (bp_rdm, bp_rdm_err)
