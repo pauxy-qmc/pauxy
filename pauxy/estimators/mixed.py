@@ -120,12 +120,17 @@ class Mixed(object):
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
                 E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += w.weight*E*w.ot*w.phase
-                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot*w.phase
+                # For T > 0 w.ot = 1 always.
+                wfac = w.weight * w.ot * w.phase
+                self.estimates[self.names.enumer] += wfac * E
+                self.estimates[self.names.ekin:self.names.epot+1] += (
+                        wfac * numpy.array([T,V])
+                )
                 if self.thermal:
-                    self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))*w.ot*w.phase
+                    nav = particle_number(one_rdm_from_G(w.G))
+                    self.estimates[self.names.nav] += wfac * nav
                 self.estimates[self.names.weight] += w.weight
-                self.estimates[self.names.edenom] += w.weight * w.ot * w.phase
+                self.estimates[self.names.edenom] += wfac
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -138,7 +143,8 @@ class Mixed(object):
                         w.weight*numpy.array([T,V]).real
                 )
                 if self.thermal:
-                    self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))
+                    nav = particle_number(one_rdm_from_G(w.G))
+                    self.estimates[self.names.nav] += w.weight * nav
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:

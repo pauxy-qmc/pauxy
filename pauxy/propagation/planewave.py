@@ -270,24 +270,24 @@ class PlaneWave(object):
             walker class
         system :
             system class
-        trial : 
+        trial :
             trial wavefunction class
         Returns
         -------
         """
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
-        #
         # 2. Apply 2-body projector
         (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system, False)
-        #
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
-        walker.weight = walker.weight * cxf
+        (magn, dtheta) = cmath.polar(cxf)
+        walker.weight *= magn
+        walker.phase *= cmath.exp(1j*dtheta)
 
     def propagate_walker_phaseless(self, walker, system, trial, hybrid = True):
         """Phaseless propagator
@@ -297,7 +297,7 @@ class PlaneWave(object):
             walker class
         system :
             system class
-        trial : 
+        trial :
             trial wavefunction class
         Returns
         -------

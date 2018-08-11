@@ -9,6 +9,7 @@ class ThermalWalker(object):
 
     def __init__(self, walker_opts, system, trial, verbose=False):
         self.weight = walker_opts.get('weight', 1.0)
+        self.phase = 1.0 + 0.0j
         self.alive = True
         self.num_slices = trial.ntime_slices
         if verbose:
