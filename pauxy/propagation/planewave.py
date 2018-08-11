@@ -3,7 +3,7 @@ import math
 import numpy
 import scipy.sparse.linalg
 import time
-from pauxy.propagation.operations import kinetic_real
+from pauxy.propagation.operations import kinetic_real, local_energy_bound
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
 
@@ -53,33 +53,6 @@ class PlaneWave(object):
         if verbose:
             print ("# Finished setting up propagator.")
 
-    def two_body_potentials(self, system, q):
-        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
-        Parameters
-        ----------
-        system :
-            system class
-        q : float
-            a plane-wave vector
-        Returns
-        -------
-        iA : numpy array
-            Eq.(13a)
-        iB : numpy array
-            Eq.(13b)
-        """
-        rho_q = system.density_operator(q)
-        qscaled = system.kfac * q
-
-        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
-        piovol = math.pi / (system.vol)
-        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
-
-        # JOONHO: include a factor of 1j
-        iA = 1j * factor * (rho_q + rho_q.conj().T) 
-        iB = - factor * (rho_q - rho_q.conj().T) 
-        return (iA, iB)
-
     def construct_one_body_propagator(self, system, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
         Parameters
@@ -128,6 +101,33 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
+    def two_body_potentials(self, system, iq):
+        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
+        Parameters
+        ----------
+        system :
+            system class
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        iA : numpy array
+            Eq.(13a)
+        iB : numpy array
+            Eq.(13b)
+        """
+        rho_q = system.density_operator(iq)
+        qscaled = system.kfac * system.qvecs[iq]
+
+        # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+        piovol = math.pi / (system.vol)
+        factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+
+        # JOONHO: include a factor of 1j
+        iA = 1j * factor * (rho_q + rho_q.getH()) 
+        iB = - factor * (rho_q - rho_q.getH()) 
+        return (iA, iB)
+
     def construct_force_bias(self, system, G):
         """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
         Parameters
@@ -142,13 +142,14 @@ class PlaneWave(object):
             -sqrt(dt) * vbias
         """
         for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
+            (iA, iB) = self.two_body_potentials(system, i)
             # Deal with spin more gracefully
-            self.vbias[i] = numpy.einsum('ij,kij->', iA, G)
-            self.vbias[i+self.num_vplus] = numpy.einsum('ij,kij->', iB, G)
+            self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
+            self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
         return - self.sqrt_dt * self.vbias
 
     def construct_VHS(self, system, xshifted):
+        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -161,13 +162,51 @@ class PlaneWave(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = numpy.zeros(shape=(system.nbasis,system.nbasis),
-                          dtype=numpy.complex128)
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+
         for (i, qi) in enumerate(system.qvecs):
-            (iA, iB) = self.two_body_potentials(system, qi)
-            VHS = VHS + xshifted[i] * iA 
-            VHS = VHS + xshifted[i+self.num_vplus] * iB 
+            (iA, iB) = self.two_body_potentials(system, i)
+            VHS = VHS + (xshifted[i] * iA).todense()
+            VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
         return  VHS * self.sqrt_dt
+
+
+    def construct_VHS_incore(self, system, xshifted):
+        import numpy.matlib
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
+        VHS = numpy.zeros((system.nbasis, system.nbasis), dtype=numpy.complex128 )
+        VHS = system.iA * xshifted[:self.num_vplus] + system.iB * xshifted[self.num_vplus:]
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
+        return  VHS * self.sqrt_dt
+
+    def construct_force_bias_incore(self, system, G):
+        """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
+        Parameters
+        ----------
+        system :
+            system class
+        G : numpy array
+            Green's function
+        Returns
+        -------
+        force bias : numpy array
+            -sqrt(dt) * vbias
+        """
+        Gvec = G.reshape(2, system.nbasis*system.nbasis)
+        self.vbias[:self.num_vplus] = Gvec[0].T*system.iA + Gvec[1].T*system.iA
+        self.vbias[self.num_vplus:] = Gvec[0].T*system.iB + Gvec[1].T*system.iB
+        return - self.sqrt_dt * self.vbias
 
     def two_body_propagator(self, walker, system, fb = True):
         """It appliese the two-body propagator
@@ -194,18 +233,27 @@ class PlaneWave(object):
         # Optimal force bias.
         xbar = numpy.zeros(system.nfields)
         if (fb):
-            xbar = self.construct_force_bias(system, walker.G)
-        
+            xbar = self.construct_force_bias_incore(system, walker.G)
+
+        for i in range(system.nfields):
+            if (numpy.absolute(xbar[i]) > 1.0):
+                print ("# Rescaling force bias is triggered")
+                xbar[i] /= numpy.absolute(xbar[i])
+
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
         # Mean field shift is zero for UEG in HF basis
         cxf = 1.0
         # Constant factor arising from shifting the propability distribution.
-        cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
+
+        # print(xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
-        VHS = self.construct_VHS(system, xshifted)
+        # VHS = self.construct_VHS(system, xshifted)
+        VHS = self.construct_VHS_incore(system, xshifted)
 
         # Apply propagator
         walker.phi[:,:system.nup] = self.apply_exponential(walker.phi[:,:system.nup], VHS, False)
@@ -241,7 +289,7 @@ class PlaneWave(object):
         # Constant terms are included in the walker's weight.
         walker.weight = walker.weight * cxf
 
-    def propagate_walker_phaseless(self, walker, system, trial):
+    def propagate_walker_phaseless(self, walker, system, trial, hybrid = True):
         """Phaseless propagator
         Parameters
         ----------
@@ -262,21 +310,40 @@ class PlaneWave(object):
         kinetic_real(walker.phi, system, self.BH1)
 
         # Now apply hybrid phaseless approximation
-        walker.inverse_overlap(trial.psi)
-        walker.greens_function(trial)
-        ot_new = walker.calc_otrial(trial.psi)
 
-        # Walker's phase.
-        importance_function = self.mf_const_fac*cxf*cfb * ot_new / walker.ot
+        if (hybrid):
+            walker.inverse_overlap(trial.psi)
+            walker.greens_function(trial)        
+            ot_new = walker.calc_otrial(trial.psi)
 
-        dtheta = cmath.phase(importance_function)
+            # Walker's phase.
+            Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
+            expQ = self.mf_const_fac * cxf * Q
+            (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
 
-        cfac = max(0, math.cos(dtheta))
-
-        rweight = abs(importance_function)
-        walker.weight *= rweight * cfac
-        walker.ot = ot_new
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+            if (not math.isinf(magn)):
+                cfac = max(0, math.cos(dtheta))
+                rweight = abs(expQ)
+                walker.weight *= rweight * cfac
+                walker.ot = ot_new
+                walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+            else:
+                walker.ot = ot_new
+                walker.weight = 0.0
+                walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+        else: # local energy approach
+            walker.inverse_overlap(trial.psi)
+            walker.greens_function(trial)        
+            E_L = walker.local_energy(system)[0].real
+            # Check for large population fluctuations
+            E_L = local_energy_bound(E_L, self.mean_local_energy,
+                                     self.ebound)
+            ot_new = walker.calc_otrial(trial.psi)
+            # Walker's phase.
+            dtheta = cmath.phase(cxf*ot_new/walker.ot)
+            walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
+                                           * max(0, math.cos(dtheta)))
+            walker.E_L = E_L
 
 def unit_test():
     from pauxy.systems.ueg import UEG

@@ -10,20 +10,44 @@ import pyblock
 import scipy.stats
 import pauxy.analysis.extraction
 
-def average_single(frame):
-    short = frame.drop(['time', 'iteration', 'E_denom', 'E_num', 'Weight'], axis=1)
-    short = short.groupby(['dt','ndets'])
-    means = short.mean()
-    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
+def average_single(frame, delete=True):
+    short = frame
+    means = short.mean().to_frame().T
+    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).to_frame().T
     averaged = means.merge(err, left_index=True, right_index=True,
                            suffixes=('', '_error'))
     columns = [c for c in averaged.columns.values if '_error' not in c]
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    columns = numpy.insert(columns, 0, 'dt')
-    columns = numpy.insert(columns, 0, 'ndets')
+    delcol = ['E_num', 'E_num_error', 'E_denom',
+              'E_denom_error', 'Weight', 'Weight_error']
+    for d in delcol:
+        if delete:
+            columns.remove(d)
     return averaged[columns]
+
+def average_fp(frame):
+    real = average_single(frame.apply(numpy.real), False)
+    imag = average_single(frame.apply(numpy.imag), False)
+    results = pd.DataFrame()
+    re_num = real.E_num
+    re_den = real.E_denom
+    im_num = imag.E_num
+    im_den = imag.E_denom
+    # When doing FP we need to compute E = \bar{E_num} / \bar{E_denom}
+    # Only compute real part of the energy
+    results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
+    # Doing error analysis properly is complicated. This is not correct.
+    re_nume= real.E_num_error
+    re_dene = real.E_denom_error
+    # Ignoring the fact that the mean includes complex components.
+    cov = frame.apply(numpy.real).cov()
+    cov_nd = cov['E_num']['E_denom']
+    nsmpl = len(frame)
+    results['E_error'] = results.E * ((re_nume/re_num)**2+(re_dene/re_den)**2
+                                      -2*cov_nd/(nsmpl*re_num*re_den))**0.5
+    return results
 
 def reblock_mixed(frame):
     short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
@@ -31,9 +55,37 @@ def reblock_mixed(frame):
     (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
     reblocked = pd.DataFrame()
     for c in short.columns:
-        rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
-        reblocked[c] = rb['mean'].values
-        reblocked[c+'_error'] = rb['standard error'].values
+        try:
+            rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
+            reblocked[c] = rb['mean'].values
+            reblocked[c+'_error'] = rb['standard error'].values
+        except KeyError:
+            print ("Reblocking of {:4} failed. Insufficient "
+                    "statistics.".format(c))
+    analysed.append(reblocked)
+
+    return pd.concat(analysed)
+
+def reblock_free_projection(frame):
+    short = frame.drop(['time', 'Weight', 'E'], axis=1)
+    analysed = []
+    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+    reblocked = pd.DataFrame()
+    denom = blocked_data.loc[:,'E_denom']
+    for c in short.columns:
+        if c != 'E_denom':
+            nume = blocked_data.loc[:,c]
+            cov = covariance.xs('E_denom', level=1)[c]
+            ratio = pyblock.error.ratio(nume, denom, cov, data_len)
+            rb = pyblock.pd_utils.reblock_summary(ratio)
+            try:
+                if c == 'E_num':
+                    c = 'E'
+                reblocked[c] = rb['mean'].values
+                reblocked[c+'_error'] = rb['standard error'].values
+            except KeyError:
+                print ("Reblocking of {:4} failed. Insufficient "
+                        "statistics.".format(c))
     analysed.append(reblocked)
 
     return pd.concat(analysed)
@@ -110,6 +162,23 @@ def analyse_itcf(itcf):
     )
     return (means, errs)
 
+def analyse_simple(files, start_time):
+    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
+    norm_data = []
+    for g in data:
+        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
+        dt = m.get('qmc').get('dt')
+        free_projection = m.get('propagators').get('free_projection')
+        step = m.get('qmc').get('nmeasure')
+        nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
+        start = int(start_time/(step*dt)) + 1
+        if free_projection:
+            reblocked = average_fp(norm[start:nzero])
+        else:
+            reblocked = average_single(norm[start:nzero].apply(numpy.real))
+        norm_data.append(pauxy.analysis.extraction.set_info(reblocked, m))
+    return pd.concat(norm_data)
+
 def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
     data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
     bp_data = []
@@ -124,6 +193,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         dt = m.get('qmc').get('dt')
         step = m.get('qmc').get('nmeasure')
         ndets = m.get('trial').get('ndets')
+        free_projection = m.get('propagators').get('free_projection', False)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
         norm_data.append(norm[start:nzero].apply(numpy.real))
@@ -197,7 +267,10 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         norm_av = average_tau(norm_data)
     else:
         norm_data = pd.concat(norm_data)
-        norm_av = reblock_mixed(norm_data)
+        if free_projection:
+            norm_av = reblock_free_projection(norm_data)
+        else:
+            norm_av = reblock_mixed(norm_data)
     basic = store.create_group('mixed')
     basic.create_dataset('estimates', data=norm_av.as_matrix().astype(float))
     basic.create_dataset('headers', data=norm_av.columns.values,

@@ -116,7 +116,17 @@ class Mixed(object):
         free_projection : bool
             True if doing free projection.
         """
-        if not free_projection:
+        if free_projection:
+            for i, w in enumerate(psi.walkers):
+                w.greens_function(trial)
+                E, T, V = w.local_energy(system)
+                self.estimates[self.names.enumer] += w.weight*E*w.ot*w.phase
+                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot*w.phase
+                if self.thermal:
+                    self.estimates[self.names.nav] += w.weight*particle_number(one_rdm_from_G(w.G))*w.ot*w.phase
+                self.estimates[self.names.weight] += w.weight
+                self.estimates[self.names.edenom] += w.weight * w.ot * w.phase
+        else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
@@ -133,14 +143,6 @@ class Mixed(object):
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
                     self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
-        else:
-            for i, w in enumerate(psi.walkers):
-                w.greens_function(trial)
-                E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += w.weight*E*w.ot
-                self.estimates[self.names.ekin:self.names.epot+1] += w.weight*numpy.array([T,V])*w.ot
-                self.estimates[self.names.weight] += w.weight
-                self.estimates[self.names.edenom] += w.weight * w.ot
 
     def print_step(self, comm, nprocs, step, nmeasure):
         """Print mixed estimates to file.

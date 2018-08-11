@@ -23,9 +23,9 @@ class MultiGHFWalker(object):
         Initial wavefunction.
     """
 
-    def __init__(self, weight, system, trial, index=0,
+    def __init__(self, walker_opts, system, trial, index=0,
                  weights='zeros', wfn0='init'):
-        self.weight = nw
+        self.weight = walker_opts.get('weight', 1)
         self.alive = 1
         # Initialise to a particular free electron slater determinant rather
         # than GHF. Can actually initialise to GHF by passing single GHF with

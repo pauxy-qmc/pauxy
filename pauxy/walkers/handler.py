@@ -1,6 +1,7 @@
 import copy
 import numpy
 import math
+import cmath
 import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
@@ -25,16 +26,17 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, system, trial, nwalkers, nprop_tot, nbp, verbose=False):
+    def __init__(self, walker_opts, system, trial, nwalkers,
+                 nprop_tot, nbp, verbose=False):
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
-                self.walkers = [MultiGHFWalker(1, system, trial)
+                self.walkers = [MultiGHFWalker(walker_opts, system, trial)
                                 for w in range(nwalkers)]
         elif trial.name == 'thermal':
-            self.walkers = [ThermalWalker(1, system, trial) for w in
-                            range(nwalkers)]
+            self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
+                            for w in range(nwalkers)]
         else:
-            self.walkers = [SingleDetWalker(1, system, trial, w)
+            self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
                             for w in range(nwalkers)]
         if system.name == "Generic" or system.name == "UEG":
             dtype = complex
@@ -64,7 +66,9 @@ class Walkers(object):
         for w in self.walkers:
             detR = w.reortho(trial)
             if free_projection:
-                w.weight = detR * w.weight
+                (magn, dtheta) = cmath.polar(detR)
+                w.weight *= magn
+                w.phase *= cmath.exp(1j*dtheta)
 
     def add_field_config(self, nprop_tot, nbp, nfields, dtype):
         """Add FieldConfig object to walker object.
@@ -127,12 +131,13 @@ class Walkers(object):
         new_psi = copy.deepcopy(self.walkers)
         # todo : add phase to walker for free projection
         weights = numpy.array([abs(w.weight) for w in self.walkers])
-        global_weights = numpy.zeros(len(weights)*comm.size)
+        global_weights = None
         if comm.rank == 0:
+            global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.zeros(len(global_weights), dtype='i')
         else:
+            global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.empty(len(global_weights), dtype='i')
-
         comm.Gather(weights, global_weights, root=0)
         if comm.rank == 0:
             total_weight = sum(global_weights)
@@ -189,16 +194,16 @@ class Walkers(object):
         for w in self.walkers:
             w.weight = 1.0
 
-    def recompute_greens_function(self, time_slice):
+    def recompute_greens_function(self, trial, time_slice=None):
         for w in self.walkers:
-            w.construct_greens_function_stable(time_slice)
+            w.greens_function(trial, time_slice)
 
     def reset(self, trial):
         for w in self.walkers:
             w.stack.reset()
             w.stack.set_all(trial.dmat)
             w.greens_function(trial)
-            w.weight = 1
+            w.weight = 1.0
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.

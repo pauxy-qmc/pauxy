@@ -4,26 +4,34 @@
         "nup": 1,
         "ndown": 1,
         "rs": 1.0,
-        "ecut": 6
+        "ecut": 0.5
     },
     "qmc_options": {
-        "method": "CPMC",
-        "dt": 0.010,
-        "nsteps": 1000,
-        "nmeasure": 10,
-        "nwalkers": 10,
+        "method": "ThermalAFQMC",
+        "dt": 0.01,
+        "nsteps": 2,
+        "nmeasure": 1,
+        "nwalkers": 1,
         "npop_control": 1,
         "nstabilise": 1,
-        "temperature": 0.0,
+	   "beta":1.0,
         "rng_seed": 7
     },
-    "trial_wavefunction": {
-        "name": "hartree_fock"
+    "walkers":{
+	   "stack_size": 100
+	},
+    "trial": {
+        "name": "one_body",
+	   "mu": 0.142838
     },
     "propagator": {
         "hubbard_stratonovich": "plane_wave",
         "expansion_order": 6,
         "free_projection": true
     },
-    "estimates": { }
+    "estimates": { 
+        "mixed": {
+            "thermal": true
+        }
+	}
 }

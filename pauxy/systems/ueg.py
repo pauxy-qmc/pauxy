@@ -52,6 +52,8 @@ class UEG(object):
         print("# Number of spin-down electrons = %i"%self.ndown)
         print("# rs = %10.5f"%self.rs)
 
+        self.thermal = inputs.get('thermal', False)
+
         # total # of electrons
         self.ne = self.nup + self.ndown
         # core energy
@@ -100,11 +102,63 @@ class UEG(object):
         # Can reduce by symmetry but be stupid for the moment.
         self.nfields = 2*len(self.qvecs)
         T = numpy.diag(self.sp_eigv)
-        self.T = numpy.array([T, T]) # Making alpha and beta
+        self.H1 = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         if verbose:
             print ("# Finished setting up Generic system object.")
+    
+
+        nlimit = self.nup
+
+        if (self.thermal):
+            nlimit = self.nbasis
+
+        self.ikpq_i = []
+        self.ikpq_kpq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxkpq_list_i =[]
+            idxkpq_list_kpq =[]
+            for i, k in enumerate(self.basis[0:nlimit]):
+                kpq = k + q
+                idxkpq = self.lookup_basis(kpq)
+                if idxkpq is not None:
+                    idxkpq_list_i += [i]
+                    idxkpq_list_kpq += [idxkpq]
+            self.ikpq_i += [idxkpq_list_i]
+            self.ikpq_kpq += [idxkpq_list_kpq]
+
+        self.ipmq_i = []
+        self.ipmq_pmq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxpmq_list_i =[]
+            idxpmq_list_pmq =[]
+            for i, p in enumerate(self.basis[0:nlimit]):
+                pmq = p - q
+                idxpmq = self.lookup_basis(pmq)
+                if idxpmq is not None:
+                    idxpmq_list_i += [i]
+                    idxpmq_list_pmq += [idxpmq]
+            self.ipmq_i += [idxpmq_list_i]
+            self.ipmq_pmq += [idxpmq_list_pmq]
+
+
+
+        # self.ikpq_i = numpy.array(self.ikpq_i)
+        # self.ikpq_kpq = numpy.array(self.ikpq_kpq)
+        # self.ipmq_i = numpy.array(self.ipmq_i)
+        # self.ipmq_pmq = numpy.array(self.ipmq_pmq)
+        for (iq, q) in enumerate(self.qvecs):
+            self.ikpq_i[iq]  = numpy.array(self.ikpq_i[iq], dtype=numpy.int64)
+            self.ikpq_kpq[iq] = numpy.array(self.ikpq_kpq[iq], dtype=numpy.int64)
+            self.ipmq_i[iq]  = numpy.array(self.ipmq_i[iq], dtype=numpy.int64)
+            self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
+
+
+        print("# Constructing two_body_potentials_incore")
+        (self.iA, self.iB) = self.two_body_potentials_incore()
+        print("# Constructing two_body_potentials_incore finished")
+
 
     def sp_energies(self, kfac, ecut):
         """Calculate the allowed kvectors and resulting single particle eigenvalues (basically kinetic energy)
@@ -227,7 +281,7 @@ class UEG(object):
                     h1e_mod[i,i] = h1e_mod[i,i] - fac * self.vq(q)
         return h1e_mod
 
-    def density_operator(self, q):
+    def density_operator(self, iq):
         """ Density operator as defined in Eq.(6) of PRB(75)245123
         Parameters
         ----------
@@ -238,34 +292,192 @@ class UEG(object):
         rho_q: float
             density operator
         """
-        assert (q[0] != 0 or q[1] != 0 or q[2] !=0)
-        rho_q = numpy.zeros(shape=(self.nbasis, self.nbasis))
+        nnz = self.rho_ikpq_kpq[iq].shape[0] # Number of non-zeros
+        ones = numpy.ones((nnz), dtype=numpy.complex128)
+        rho_q = scipy.sparse.csc_matrix((ones, (self.rho_ikpq_kpq[iq], self.rho_ikpq_i[iq])), 
+            shape = (self.nbasis, self.nbasis) ,dtype=numpy.complex128 )
+        return rho_q
+    
+    def scaled_density_operator_incore(self, transpose):
+        """ Density operator as defined in Eq.(6) of PRB(75)245123
+        Parameters
+        ----------
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        rho_q: float
+            density operator
+        """
+        rho_ikpq_i = []
+        rho_ikpq_kpq = []
+        for (iq, q) in enumerate(self.qvecs):
+            idxkpq_list_i =[]
+            idxkpq_list_kpq =[]
+            for i, k in enumerate(self.basis):
+                kpq = k + q
+                idxkpq = self.lookup_basis(kpq)
+                if idxkpq is not None:
+                    idxkpq_list_i += [i]
+                    idxkpq_list_kpq += [idxkpq]
+            rho_ikpq_i += [idxkpq_list_i]
+            rho_ikpq_kpq += [idxkpq_list_kpq]
 
-        idxkpq = []
-        for (i, ki) in enumerate(self.basis):
-            kipq = ki+q
-            e = numpy.sum(kipq**2 /2.0)
-            if (e <= self.ecut):
-                idx = self.lookup_basis(kipq)
-                if (idx != None):
-                    idxkpq += [(idx,i)]
+        for (iq, q) in enumerate(self.qvecs):
+            rho_ikpq_i[iq]  = numpy.array(rho_ikpq_i[iq], dtype=numpy.int64)
+            rho_ikpq_kpq[iq] = numpy.array(rho_ikpq_kpq[iq], dtype=numpy.int64)
 
-        for (i,j) in idxkpq:
-            rho_q[i,j] = 1
+        nq = len(self.qvecs)
+        nnz = 0
+        for iq in range(nq):
+            nnz += rho_ikpq_kpq[iq].shape[0]
+        
+        col_index = []
+        row_index = []
+        
+        values = []
+
+        if (transpose):
+            for iq in range(nq):
+                qscaled = self.kfac * self.qvecs[iq]
+                # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+                piovol = math.pi / (self.vol)
+                factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+
+                for (innz, kpq) in enumerate(rho_ikpq_kpq[iq]):
+                    row_index += [rho_ikpq_kpq[iq][innz] + rho_ikpq_i[iq][innz]*self.nbasis]
+                    col_index += [iq]
+                    values += [factor]
+        else:
+            for iq in range(nq):
+                qscaled = self.kfac * self.qvecs[iq]
+                # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+                piovol = math.pi / (self.vol)
+                factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+
+                for (innz, kpq) in enumerate(rho_ikpq_kpq[iq]):
+                    row_index += [rho_ikpq_kpq[iq][innz]*self.nbasis + rho_ikpq_i[iq][innz]]
+                    col_index += [iq]
+                    values += [factor]
+
+        rho_q = scipy.sparse.csc_matrix((values, (row_index, col_index)), 
+            shape = (self.nbasis*self.nbasis, nq) ,dtype=numpy.complex128 )
 
         return rho_q
+    
+    def two_body_potentials_incore(self):
+        """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
+        Parameters
+        ----------
+        system :
+            system class
+        q : float
+            a plane-wave vector
+        Returns
+        -------
+        iA : numpy array
+            Eq.(13a)
+        iB : numpy array
+            Eq.(13b)
+        """
+        # qscaled = self.kfac * self.qvecs
+
+        # # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
+
+        rho_q = self.scaled_density_operator_incore(False)
+        rho_qH = self.scaled_density_operator_incore(True)
+
+        iA = 1j * (rho_q + rho_qH)
+        iB = - (rho_q - rho_qH) 
+
+        return (iA, iB)
 
 def unit_test():
-    inputs = {'nup':1, 
-    'ndown':1,
+    from scipy.sparse import csr_matrix
+    # from openfermion.ops import FermionOperator 
+    # from openfermion.transforms import get_sparse_operator
+    from scipy.linalg import eigvalsh
+    from scipy.sparse.linalg import eigsh
+    from numpy import linalg as LA
+
+    inputs = {'nup':2,
+    'ndown':2,
     'rs':1.0,
-    'ecut':1.0}
+    'thermal':True,    
+    'ecut':21}
     system = UEG(inputs, True)
 
-    for (i, qi) in enumerate(system.qvecs):
-        rho_q = system.density_operator(qi)
-        rho_mq = system.density_operator(-qi)
-        print (numpy.linalg.norm(rho_q-rho_mq.T))
+    # n_spatial = system.nbasis
+    # n_qubits = system.nbasis * 2
+    # n_electrons = system.nup + system.ndown
+
+    # vacuum = csr_matrix((2 ** n_qubits, 1))
+    # vacuum[0, 0] = 1
+
+    # cre_op = FermionOperator()
+    # coeff = 1.0
+
+    # site_list = [0 for i in range (n_qubits)]
+    # for i in range(n_qubits-n_electrons, n_qubits):
+    #     site_list[i] = 1
+    # term_list = []
+    # for i, index in enumerate(reversed(site_list)):
+    #     if index:
+    #         term_list.insert(0, (i, 1))
+    # term_tuple = tuple(term_list)
+    # cre_op += coeff * FermionOperator(term_tuple)
+
+    # cre_op_mat = get_sparse_operator(cre_op, n_qubits)
+    # psi0 = cre_op_mat.dot(vacuum)
+
+    # Hamiltonian = FermionOperator()
+    # for p in range(n_spatial):
+    #     pa = 2*p
+    #     pb = 2*p+1
+    #     tpp = system.H1[0][p,p]
+    #     Hamiltonian += FermionOperator(((pa, 1),(pa, 0)), tpp)
+    #     Hamiltonian += FermionOperator(((pb, 1),(pb, 0)), tpp)
+
+    # nq = numpy.shape(system.qvecs)[0]
+
+    # for iq in range(nq):
+    #     vq = (1.0/(2.0*system.vol))*system.vqvec[iq]
+    #     for (idxkpq,k) in zip(system.ikpq_kpq[iq],system.ikpq_i[iq]):
+    #         for (idxpmq,p) in zip(system.ipmq_pmq[iq],system.ipmq_i[iq]):
+    #             idxkpqa = (idxkpq*2)
+    #             idxkpqb = (idxkpq*2+1)
+    #             idxpmqa = (idxpmq*2)
+    #             idxpmqb = (idxpmq*2+1)
+    #             pa =      (p*2)
+    #             pb =      (p*2+1)
+    #             ka =      (k*2)
+    #             kb =      (k*2+1)
+    #             Hamiltonian += 0.5*FermionOperator(((idxkpqa,1),(idxpmqa,1),(pa, 0),(ka, 0)), vq)
+    #             Hamiltonian += 0.5*FermionOperator(((idxkpqb,1),(idxpmqb,1),(pb, 0),(kb, 0)), vq)
+    #             Hamiltonian += 0.5*FermionOperator(((idxkpqa,1),(idxpmqb,1),(pa, 0),(kb, 0)), vq)
+    #             Hamiltonian += 0.5*FermionOperator(((idxkpqb,1),(idxpmqa,1),(pb, 0),(ka, 0)), vq)
+
+    # hammat = get_sparse_operator(Hamiltonian, n_qubits)
+    # Hpsi0 = hammat.dot(psi0)
+    # E0 = psi0.H.dot(Hpsi0)
+    # print(E0[0,0]) #((5.7804249284991878+0j), (6.0292135933516064+0j), (-0.24878866485241879+0j))
+
+    # Number = FermionOperator()
+    # for p in range(n_spatial):
+    #     pa = 2*p
+    #     pb = 2*p+1
+    #     Number += FermionOperator(((pa, 1),(pa, 0)), 1.0)
+    #     Number += FermionOperator(((pb, 1),(pb, 0)), 1.0)
+
+    # evalues, evectors = eigsh(hammat, k=6, which='SA')
+    # print(evalues)
+    # number = get_sparse_operator(Number, n_qubits)
+
+    # print(hammat.shape)
+    # Nevec = number.dot(evectors)
+    # enumbers = numpy.einsum("ij,ij->j",Nevec,numpy.conj(evectors))
+    # print(enumbers)
+
 
 if __name__=="__main__":
     unit_test()

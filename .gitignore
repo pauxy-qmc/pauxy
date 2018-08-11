@@ -20,3 +20,6 @@ out
 *build*
 *.so
 *.c
+*.swo
+*.gz
+*.core

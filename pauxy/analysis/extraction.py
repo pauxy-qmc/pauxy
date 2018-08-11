@@ -48,6 +48,16 @@ def extract_hdf5(filename):
 
     return (metadata, basic, bp_data, itcf, kspace_itcf, mixed_rdm, bp_rdm)
 
+def extract_hdf5_simple(filename):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    estimates = metadata.get('estimators').get('estimators')
+    basic = data['mixed_estimates/energies'][:]
+    headers = data['mixed_estimates/headers'][:]
+    basic = pd.DataFrame(basic)
+    basic.columns = headers
+    return (metadata, basic)
+
 def extract_test_data_hdf5(filename):
     (md, data, bp, itcf, kitcf, mrdm, bprdm) = extract_hdf5(filename)
     if (bp is not None):
@@ -103,3 +113,20 @@ def analysed_energies(filename, name):
     results = pd.DataFrame(output, columns=columns)
 
     return results
+
+def set_info(frame, md):
+    system = md.get('system')
+    qmc = md.get('qmc')
+    propg = md.get('propagators')
+    trial = md.get('trial')
+    frame['dt'] = qmc.get('dt')
+    frame['nwalkers'] = qmc.get('nwalkers')
+    frame['beta'] = qmc.get('beta')
+    frame['free_projection'] = propg.get('free_projection')
+    frame['E_T'] = trial.get('energy')
+    if system['name'] == "UEG":
+        frame['rs'] = system.get('rs')
+        frame['ecut'] = system.get('ecut')
+        frame['nup'] = system.get('nup')
+        frame['ndown'] = system['ndown']
+    return frame

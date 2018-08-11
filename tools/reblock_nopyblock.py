@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 '''Simple analysis of PAUXY QMC output files.
-
 By default data will be aggregated into a single output file with analysed_
 prefixed to input filename.
 '''
@@ -11,26 +10,28 @@ import pandas as pd
 import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
-from pauxy.analysis.blocking import analyse_estimates
+from pauxy.analysis.blocking_nopyblock import analyse_estimates
 import glob
 
 
 def parse_args(args):
-    """Parse command-line arguments.
-
-    Parameters
-    ----------
-    args : list of strings
-        command-line arguments.
-
-    Returns
-    -------
-    options : :class:`argparse.ArgumentParser`
-        Command line arguments.
-    """
+    '''Parse command-line arguments.
+Parameters
+----------
+args : list of strings
+    command-line arguments.
+Returns
+-------
+(filenames, start_iteration)
+where
+filenames : list of strings
+    list of QMC output files
+start_iteration : int
+    iteration number from which statistics should be gathered.
+'''
 
     parser = argparse.ArgumentParser(description = __doc__)
-    parser.add_argument('-s', '--start', type=float, dest='start_time',
+    parser.add_argument('-s', '--start', type=int, dest='start_time',
                         default=0, help='Imaginary time after which we '
                         'gather statistics.  Default: 0')
     parser.add_argument('-l', '--multi-sim', action='store_true',
@@ -52,17 +53,15 @@ def parse_args(args):
 
 
 def main(args):
-    """Run reblocking and data analysis on PAUXY output.
-
-    Parameters
-    ----------
-    args : list of strings
-        command-line arguments.
-
-    Returns
-    -------
-    None.
-    """
+    '''Run reblocking and data analysis on HANDE output.
+Parameters
+----------
+args : list of strings
+    command-line arguments.
+Returns
+-------
+None.
+'''
 
     options = parse_args(args)
     if '*' in options.filenames[0]:
