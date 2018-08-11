@@ -182,7 +182,9 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
-                print("# Mixed estimate for total energy: %f +/- %f"%self.get_energy())
+                energy = self.get_energy()
+                if energy is not None:
+                    print("# Mixed estimate for total energy: %f +/- %f"%energy)
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
@@ -208,24 +210,22 @@ class AFQMC(object):
 
         Returns
         -------
-        energy : float
-            Mixed estimate for the energy.
-        error : float
-            Standard error in the energy.
+        (energy, error) : tuple
+            Mixed estimate for the energy and standard error.
         """
         filename = self.estimators.h5f_name
-        eloc, eloc_err = blocking.reblock_local_energy(filename, skip)
-        return (eloc, eloc_err)
+        eloc = blocking.reblock_local_energy(filename, skip)
+        return eloc
 
     def get_one_rdm(self, skip=0):
         """Get back-propagated estimate for the one RDM.
 
         Returns
         -------
-        energy : float
-            Mixed estimate for the energy.
-        error : float
-            Standard error in the energy.
+        rdm : :class:`numpy.ndarray`
+            Back propagated estimate for 1RMD.
+        error : :class:`numpy.ndarray`
+            Standard error in the RDM.
         """
         filename = self.estimators.h5f_name
         bp_rdm, bp_rdm_err = blocking.reblock_bp_rdm(filename)
