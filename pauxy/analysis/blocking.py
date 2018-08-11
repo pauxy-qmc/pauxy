@@ -38,6 +38,13 @@ def reblock_mixed(frame):
 
     return pd.concat(analysed)
 
+def reblock_local_energy(filename, skip=0):
+    data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
+    results = reblock_mixed(data.apply(numpy.real))
+    energy = results['E'].values[0]
+    error = results['E_error'].values[0]
+    return (energy, error)
+
 def reblock_bp_rdm(filename, skip=1):
     bp_rdm = pauxy.analysis.extraction.extract_bp_rdm(filename, skip)
     rdm, rdm_err = average_rdm(bp_rdm)

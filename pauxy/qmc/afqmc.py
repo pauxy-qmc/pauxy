@@ -205,7 +205,7 @@ class AFQMC(object):
         twist = system.ktwist.all() is not None
         return continuous or twist
 
-    def get_energy(self):
+    def get_energy(self, skip=0):
         """Get mixed estimate for the energy.
 
         Returns
@@ -216,13 +216,10 @@ class AFQMC(object):
             Standard error in the energy.
         """
         filename = self.estimators.h5f_name
-        data = extraction.extract_hdf5(filename)
-        results = blocking.reblock_mixed(data[1])
-        energy = results['E'].values[0].real
-        error = results['E_error'].values[0].real
-        return (energy, error)
+        eloc, eloc_err = blocking.reblock_local_energy(filename, skip)
+        return (eloc, eloc_err)
 
-    def get_one_rdm(self):
+    def get_one_rdm(self, skip=0):
         """Get back-propagated estimate for the one RDM.
 
         Returns

@@ -38,7 +38,7 @@ estimators = {
 comm = init_communicator()
 afqmc = AFQMC(system, qmc_options, estimators, trial_wavefunction, propagator)
 afqmc.run(comm=comm, verbose=False)
-(energy, error) = afqmc.get_energy()
+(energy, error) = afqmc.get_energy(skip=100)
 print ("Mixed estimate for the energy: %f +/- %f"%(energy, error))
 (one_rdm, one_rdm_error) = afqmc.get_one_rdm()
 print ("Total number of electrons: %f"%numpy.einsum('kii->', one_rdm).real)

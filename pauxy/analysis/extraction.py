@@ -9,6 +9,16 @@ def extract_hdf5_data_sets(files):
 
     return data
 
+def extract_mixed_estimates(filename, skip=0):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    basic = data['mixed_estimates/energies'][:]
+    headers = data['mixed_estimates/headers'][:]
+    basic = pd.DataFrame(basic)
+    basic.columns = headers
+    nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
+    return (basic[skip:nzero])
+
 def extract_bp_rdm(filename, skip):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
