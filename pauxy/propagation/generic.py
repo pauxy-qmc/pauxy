@@ -143,7 +143,7 @@ class GenericContinuous(object):
             walker.inverse_overlap(trial.psi)
             walker.rotated_greens_function()
             # Optimal force bias.
-            xbar = self.construct_force_bias_opt(walker.Gmod)
+            xbar = self.construct_force_bias(walker.Gmod)
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
