@@ -165,6 +165,7 @@ class SingleDetWalker(object):
         if (ndown > 0):
             drdn = scipy.linalg.det(signs_down.dot(Rdown))
         detR = drup * drdn
+        self.ot = self.ot / detR
         return detR
 
     def greens_function(self, trial):
