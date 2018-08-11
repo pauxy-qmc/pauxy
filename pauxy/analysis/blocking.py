@@ -38,6 +38,11 @@ def reblock_mixed(frame):
 
     return pd.concat(analysed)
 
+def reblock_bp_rdm(filename, skip=1):
+    bp_rdm = pauxy.analysis.extraction.extract_bp_rdm(filename, skip)
+    rdm, rdm_err = average_rdm(bp_rdm)
+    return rdm, rdm_err
+
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)
     gf_err = gf.std(axis=0) / len(gf)**0.5

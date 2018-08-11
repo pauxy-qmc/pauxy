@@ -8,8 +8,8 @@ import uuid
 from math import exp
 import copy
 import h5py
-from pauxy.analysis.blocking import reblock_mixed
-from pauxy.analysis.extraction import extract_hdf5
+from pauxy.analysis import blocking
+from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator
 from pauxy.qmc.options import QMCOpts
@@ -216,8 +216,22 @@ class AFQMC(object):
             Standard error in the energy.
         """
         filename = self.estimators.h5f_name
-        data = extract_hdf5(filename)
-        results = reblock_mixed(data[1])
+        data = extraction.extract_hdf5(filename)
+        results = blocking.reblock_mixed(data[1])
         energy = results['E'].values[0].real
         error = results['E_error'].values[0].real
         return (energy, error)
+
+    def get_one_rdm(self):
+        """Get back-propagated estimate for the one RDM.
+
+        Returns
+        -------
+        energy : float
+            Mixed estimate for the energy.
+        error : float
+            Standard error in the energy.
+        """
+        filename = self.estimators.h5f_name
+        bp_rdm, bp_rdm_err = blocking.reblock_bp_rdm(filename)
+        return (bp_rdm, bp_rdm_err)
