@@ -25,7 +25,6 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
-        
         print("# Number of fields = %i"%system.nfields)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
@@ -348,7 +347,9 @@ class PlaneWave(object):
         # walker.ot = 1.0
         # Constant terms are included in the walker's weight.
         # walker.weight = walker.weight * cxf
-        walker.weight *= oratio * cxf
+        (magn, dtheta) = cmath.polar(oratio*cxf)
+        walker.weight *= magn
+        walker.phase *= cmath.exp(1j*dtheta)
 
         # if walker.stack.time_slice % self.nstblz == 0:
         #     walker.greens_function(None, walker.stack.time_slice-1)

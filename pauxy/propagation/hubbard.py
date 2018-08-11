@@ -227,7 +227,6 @@ class Discrete(object):
         for i in range(0, system.nbasis):
             if abs(walker.weight) > 0:
                 r = numpy.random.random()
-                # TODO: remove code repition.
                 if r < 0.5:
                     xi = 0
                 else:
@@ -361,7 +360,9 @@ class Continuous(object):
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
-        walker.weight = walker.weight * c_xf
+        (magn, dtheta) = cmath.polar(c_xf)
+        walker.weight *= magn
+        walker.phase *= cmath.exp(1j*dtheta)
 
     def propagate_walker_constrained_continuous(self, walker, system, trial):
         r"""Wrapper function for propagation using continuous transformation.
