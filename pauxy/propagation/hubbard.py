@@ -239,7 +239,6 @@ class Discrete(object):
         walker.inverse_overlap(trial.psi)
         # Update walker weight
         walker.ot = walker.calc_otrial(trial.psi)
-        walker.greens_function(trial)
 
 # todo: stucture is the same for all continuous HS transformations.
 class Continuous(object):
