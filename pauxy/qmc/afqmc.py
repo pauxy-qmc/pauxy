@@ -117,10 +117,11 @@ class AFQMC(object):
                                                data=numpy.array([json_string],
                                                                 dtype=object),
                                                dtype=h5py.special_dtype(vlen=str))
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            if verbose:
+                self.estimators.estimators['mixed'].print_key()
+                self.estimators.estimators['mixed'].print_header()
 
-    def run(self, psi=None, comm=None):
+    def run(self, psi=None, comm=None, verbose=True):
         """Perform AFQMC simulation on state object using open-ended random walk.
 
         Parameters
@@ -138,7 +139,7 @@ class AFQMC(object):
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
-        if self.root:
+        if verbose and self.root:
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
@@ -171,7 +172,7 @@ class AFQMC(object):
             if step % self.qmc.npop_control == 0:
                 self.psi.pop_control(comm)
 
-    def finalise(self, verbose):
+    def finalise(self, verbose=False):
         """Tidy up.
 
         Parameters
@@ -183,6 +184,7 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
+                print("# Mixed estimate for total energy: %f +/- %f"%self.get_energy())
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
