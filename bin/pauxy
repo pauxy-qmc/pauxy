@@ -21,7 +21,7 @@ def main(input_file):
     """
     comm = init_communicator()
     options = read_input(input_file, comm, verbose=True)
-    set_rng_seed(options, comm)
+    set_rng_seed(options['qmc_options'], comm)
     if comm.size > 1:
         afqmc = setup_parallel(options, comm, verbose=True)
     else:

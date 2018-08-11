@@ -2,7 +2,7 @@
 # Integral file generated using PYSCF.
 import numpy
 from pauxy.qmc.afqmc import AFQMC
-from pauxy.qmc.calc import init_communicator
+from pauxy.qmc.calc import init_communicator, set_rng_seed
 
 system = {
     "name": "Generic", # Descriptive
@@ -29,6 +29,9 @@ propagator = {
     "free_projection": False
 }
 estimators = {
+    "mixed": {
+        "verbose": False,
+    },
     "back_propagated": {
         "nback_prop": 40,
         "rdm": True
@@ -36,6 +39,7 @@ estimators = {
 }
 
 comm = init_communicator()
+set_rng_seed(qmc_options, comm)
 afqmc = AFQMC(system, qmc_options, estimators, trial_wavefunction, propagator)
 afqmc.run(comm=comm, verbose=False)
 (energy, error) = afqmc.get_energy(skip=100)
