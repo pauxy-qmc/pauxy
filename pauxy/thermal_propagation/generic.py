@@ -49,6 +49,8 @@ class GenericContinuous(object):
 
         self.mu = system.mu
 
+        print("self.mu = {}".format(self.mu))
+
         # Temporary array for matrix exponentiation.
         # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
         #                         dtype=trial.psi.dtype)
