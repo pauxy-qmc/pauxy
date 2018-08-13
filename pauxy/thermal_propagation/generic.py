@@ -180,7 +180,7 @@ class GenericContinuous(object):
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
 
-    def propagate_walker_free(self, walker, system, trial):
+    def propagate_walker_free(self, system, walker, trial):
         r"""Free projection for continuous HS transformation.
 
         .. Warning::
@@ -210,7 +210,7 @@ class GenericContinuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-    def propagate_walker_phaseless(self, walker, system, trial):
+    def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
 
         Uses importance sampling and the hybrid method.
