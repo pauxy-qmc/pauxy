@@ -203,7 +203,7 @@ class GenericContinuous(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        walker.stack.update_new(B)
+        walker.stack.update(B)
 
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
