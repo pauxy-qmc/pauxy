@@ -32,10 +32,6 @@ class PlaneWave(object):
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore
 
-        # square root is necessary for symmetric Trotter split
-        # self.BT = numpy.array([sqrtm(trial.dmat[0]),sqrtm(trial.dmat[1])])
-        # self.BTinv = numpy.array([sqrtm(trial.dmat_inv[0]),sqrtm(trial.dmat_inv[1])])
-
         self.construct_one_body_propagator(system, qmc.dt)
         
         self.BT = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
@@ -331,25 +327,28 @@ class PlaneWave(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        A0 = walker.compute_A() # A matrix as in the partition function
+        # A0 = walker.compute_A() # A matrix as in the partition function
         
-        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
-                numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+        # M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+        #         numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
 
-        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
-        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
-                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+        # Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
+        # Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+        #         numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
 
-        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+        # oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
         
         walker.stack.update_new(B)
 
-        # walker.ot = 1.0
+        walker.ot = 1.0
         # Constant terms are included in the walker's weight.
-        # walker.weight = walker.weight * cxf
-        (magn, dtheta) = cmath.polar(oratio*cxf)
+        (magn, dtheta) = cmath.polar(cxf)
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
+
+        # (magn, dtheta) = cmath.polar(oratio*cxf)
+        # walker.weight *= magn
+        # walker.phase *= cmath.exp(1j*dtheta)
 
         # if walker.stack.time_slice % self.nstblz == 0:
         #     walker.greens_function(None, walker.stack.time_slice-1)

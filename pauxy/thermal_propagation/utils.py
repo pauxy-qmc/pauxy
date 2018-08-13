@@ -28,6 +28,8 @@ def get_propagator(options, qmc, system, trial, verbose=False):
         propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
     elif hs_type == "plane_wave":
         propagator = PlaneWave(options, qmc, system, trial, verbose)
+    elif hs_type == "continuous":
+        propagator = GenericContinuous(options, qmc, system, trial, verbose)
     else:
         propagator = None
 
