@@ -197,7 +197,7 @@ class GenericContinuous(object):
             Simulation state.
         """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, walker, system, trial, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
