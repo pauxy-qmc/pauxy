@@ -203,12 +203,14 @@ class GenericContinuous(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        walker.inverse_overlap(trial.psi)
-        walker.ot = walker.calc_otrial(trial.psi)
-        walker.greens_function(trial)
+        walker.stack.update_new(B)
+
+        walker.ot = 1.0
+        # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cxf)
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
+
 
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
