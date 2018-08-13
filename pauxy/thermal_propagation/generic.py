@@ -46,6 +46,8 @@ class GenericContinuous(object):
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
+
+        self.trial = trial
         # Temporary array for matrix exponentiation.
         # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
         #                         dtype=trial.psi.dtype)
@@ -84,8 +86,14 @@ class GenericContinuous(object):
         """
         shift = 1j*numpy.einsum('l,lpq->pq', self.mf_shift, chol_vecs)
         H1 = h1e_mod - numpy.array([shift,shift])
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
-                                scipy.linalg.expm(-0.5*dt*H1[1])])
+        
+        I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
+        # No spin dependence for the moment.
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*self.trial.mu*I),
+                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*self.trial.mu*I)])
+
+        # self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
+                                # scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def construct_force_bias(self, Gmod):
         """Compute optimal force bias.
