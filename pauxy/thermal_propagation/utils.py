@@ -1,5 +1,6 @@
 """Routines for performing propagation of a walker"""
 
+from pauxy.thermal_propagation.generic import GenericContinuous
 from pauxy.thermal_propagation.hubbard import ThermalDiscrete
 from pauxy.thermal_propagation.planewave import PlaneWave
 
