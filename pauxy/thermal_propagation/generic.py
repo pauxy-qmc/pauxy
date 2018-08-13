@@ -47,7 +47,6 @@ class GenericContinuous(object):
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
 
-        self.trial = trial
         # Temporary array for matrix exponentiation.
         # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
         #                         dtype=trial.psi.dtype)

@@ -62,6 +62,7 @@ class Generic(object):
         self.nchol_vec = self.chol_vecs.shape[0]
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.mu = None
         if verbose:
             print ("# Finished setting up Generic system object.")
 
