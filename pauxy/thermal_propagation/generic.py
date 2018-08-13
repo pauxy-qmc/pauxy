@@ -39,6 +39,7 @@ class GenericContinuous(object):
         # Mean field shifts (2,nchol_vec).
         self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
         # Mean field shifted one-body propagator
+        self.mu = system.mu
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
                                            system.h1e_mod)
         # Constant core contribution modified by mean field shift.
@@ -47,9 +48,6 @@ class GenericContinuous(object):
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
 
-        self.mu = system.mu
-
-        print("self.mu = {}".format(self.mu))
 
         # Temporary array for matrix exponentiation.
         # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
