@@ -88,8 +88,8 @@ class GenericContinuous(object):
         
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*self.trial.mu*I),
-                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*self.trial.mu*I)])
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
+                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
 
         # self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 # scipy.linalg.expm(-0.5*dt*H1[1])])
