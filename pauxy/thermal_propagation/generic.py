@@ -42,6 +42,10 @@ class GenericContinuous(object):
         self.mu = system.mu
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
                                            system.h1e_mod)
+
+        self.BT = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
+        self.BTinv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
@@ -188,6 +192,11 @@ class GenericContinuous(object):
             phi += self.Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+    
+    def propagate_greens_function(self, walker):
+        if walker.stack.time_slice < walker.stack.ntime_slices:
+            walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
+            walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BTinv[1])
 
     def propagate_walker_free(self, system, walker, trial):
         r"""Free projection for continuous HS transformation.
@@ -224,7 +233,7 @@ class GenericContinuous(object):
             walker.greens_function(None, walker.stack.time_slice-1)
         
         self.propagate_greens_function(walker)
-        
+
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
 
