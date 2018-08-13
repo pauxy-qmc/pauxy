@@ -209,7 +209,7 @@ class GenericContinuous(object):
         (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[0])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         walker.stack.update(B)
@@ -220,7 +220,11 @@ class GenericContinuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
+        
+        self.propagate_greens_function(walker)
+        
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
 

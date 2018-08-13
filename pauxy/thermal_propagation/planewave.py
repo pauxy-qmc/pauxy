@@ -324,7 +324,7 @@ class PlaneWave(object):
         (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[0])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         # A0 = walker.compute_A() # A matrix as in the partition function
