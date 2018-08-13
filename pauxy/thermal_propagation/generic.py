@@ -47,17 +47,17 @@ class GenericContinuous(object):
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
         # Temporary array for matrix exponentiation.
-        self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
-                                dtype=trial.psi.dtype)
+        # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
+        #                         dtype=trial.psi.dtype)
         # Half rotated cholesky vectors (by trial wavefunction).
         # Assuming nup = ndown here
-        rotated_up = numpy.einsum('rp,lpq->lrq',
-                                  trial.psi[:,:system.nup].conj().T,
-                                  system.chol_vecs)
-        rotated_down = numpy.einsum('rp,lpq->lrq',
-                                    trial.psi[:,system.nup:].conj().T,
-                                    system.chol_vecs)
-        self.rchol_vecs = numpy.array([rotated_up, rotated_down])
+        # rotated_up = numpy.einsum('rp,lpq->lrq',
+        #                           trial.psi[:,:system.nup].conj().T,
+        #                           system.chol_vecs)
+        # rotated_down = numpy.einsum('rp,lpq->lrq',
+        #                             trial.psi[:,system.nup:].conj().T,
+        #                             system.chol_vecs)
+        # self.rchol_vecs = numpy.array([rotated_up, rotated_down])
         self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
