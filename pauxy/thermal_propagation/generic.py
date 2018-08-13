@@ -5,6 +5,7 @@ import scipy.linalg
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.estimators.thermal import one_rdm_from_G
 
 class GenericContinuous(object):
     """Propagator for generic many-electron Hamiltonian.
@@ -37,7 +38,8 @@ class GenericContinuous(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         # Mean field shifts (2,nchol_vec).
-        self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
+        P = one_rdm_from_G(trial.G)
+        self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, P)
         # Mean field shifted one-body propagator
         self.mu = system.mu
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
