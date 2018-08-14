@@ -250,7 +250,7 @@ class GenericContinuous(object):
             Trial wavefunction object.
         """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         # BV = 0.5*(BV.conj().T + BV)
 
