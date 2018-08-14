@@ -157,7 +157,7 @@ class GenericContinuous(object):
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
         if (fb):
             rdm = one_rdm_from_G(walker.G)
-            xbar = self.construct_force_bias(rdm)
+            xbar = self.construct_force_bias_full(rdm)
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
