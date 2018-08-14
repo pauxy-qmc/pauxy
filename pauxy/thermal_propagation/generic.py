@@ -156,11 +156,8 @@ class GenericContinuous(object):
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
         if (fb):
-            # Construct walker modified Green's function.
-            walker.inverse_overlap(trial.psi)
-            walker.rotated_greens_function()
-            # Optimal force bias.
-            xbar = self.construct_force_bias(walker.Gmod)
+            rdm = one_rdm_from_G(walker.G)
+            xbar = self.construct_force_bias(rdm)
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
