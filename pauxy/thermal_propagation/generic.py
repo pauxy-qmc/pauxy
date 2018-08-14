@@ -31,17 +31,21 @@ class GenericContinuous(object):
     def __init__(self, options, qmc, system, trial, verbose=False):
         if verbose:
             print ("# Parsing continuous propagator input options.")
+
         # Input options
         self.hs_type = 'continuous'
         self.free_projection = options.get('free_projection', False)
         self.exp_nmax = options.get('expansion_order', 6)
+
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
+
         # Mean field shifts (2,nchol_vec).
         P = one_rdm_from_G(trial.G)
         self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, P)
+
         # Mean field shifted one-body propagator
         self.mu = system.mu
         self.construct_one_body_propagator(qmc.dt, system.chol_vecs,
@@ -56,19 +60,6 @@ class GenericContinuous(object):
         self.BT_BP = self.BH1
         self.nstblz = qmc.nstblz
 
-
-        # Temporary array for matrix exponentiation.
-        # self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
-        #                         dtype=trial.psi.dtype)
-        # Half rotated cholesky vectors (by trial wavefunction).
-        # Assuming nup = ndown here
-        # rotated_up = numpy.einsum('rp,lpq->lrq',
-        #                           trial.psi[:,:system.nup].conj().T,
-        #                           system.chol_vecs)
-        # rotated_down = numpy.einsum('rp,lpq->lrq',
-        #                             trial.psi[:,system.nup:].conj().T,
-        #                             system.chol_vecs)
-        # self.rchol_vecs = numpy.array([rotated_up, rotated_down])
         self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
@@ -161,7 +152,8 @@ class GenericContinuous(object):
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
-        c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        # c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        c_fb = xi.dot(xbar)-0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
         c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
@@ -249,7 +241,6 @@ class GenericContinuous(object):
 
         (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # BV = 0.5*(BV.conj().T + BV)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
