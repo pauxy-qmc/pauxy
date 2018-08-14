@@ -1,11 +1,13 @@
 import cmath
 import math
 import numpy
-import scipy.linalg
+import scipy.sparse.linalg
+from scipy.linalg import sqrtm
+import time
+from pauxy.estimators.thermal import one_rdm_from_G, inverse_greens_function_qr
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
-from pauxy.estimators.thermal import one_rdm_from_G
 
 class GenericContinuous(object):
     """Propagator for generic many-electron Hamiltonian.
@@ -231,11 +233,6 @@ class GenericContinuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-        if walker.stack.time_slice % self.nstblz == 0:
-            walker.greens_function(None, walker.stack.time_slice-1)
-        
-        self.propagate_greens_function(walker)
-
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
 
@@ -253,21 +250,43 @@ class GenericContinuous(object):
             Trial wavefunction object.
         """
 
-        # 1. Apply one_body propagator.
-        kinetic_real(walker.phi, system, self.BH1)
-        # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar) = self.two_body(walker, system, trial)
-        # 3. Apply one_body propagator.
-        kinetic_real(walker.phi, system, self.BH1)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
+        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        # BV = 0.5*(BV.conj().T + BV)
 
-        # Now apply hybrid phaseless approximation
-        walker.inverse_overlap(trial.psi)
-        ot_new = walker.calc_otrial(trial.psi)
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        
+        A0 = walker.compute_A() # A matrix as in the partition function
+        
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+
+        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+
+        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+
         # Walker's phase.
-        importance_function = self.mf_const_fac*cmf*cfb*ot_new / walker.ot
-        dtheta = cmath.phase(importance_function)
-        cfac = max(0, math.cos(dtheta))
-        rweight = abs(importance_function)
-        walker.weight *= rweight * cfac
-        walker.ot = ot_new
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+        Q = cmath.exp(cmath.log (oratio) + cfb)
+        expQ = self.mf_const_fac * cxf * Q
+        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+
+        if (not math.isinf(magn)):
+            cfac = max(0, math.cos(dtheta))
+            rweight = abs(expQ)
+            walker.weight *= rweight * cfac
+            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        else:
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+
+        walker.stack.update_new(B)
+
+        # Need to recompute Green's function from scratch before we propagate it
+        # to the next time slice due to stack structure.
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
+        
+        self.propagate_greens_function(walker)
