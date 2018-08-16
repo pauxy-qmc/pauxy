@@ -166,7 +166,8 @@ class ThermalAFQMC(object):
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
-            self.estimators.print_step(comm, self.nprocs, step, 1)
+            self.estimators.print_step(comm, self.nprocs, step, 1,
+                                       self.propagators.free_projection)
             self.psi.reset(self.trial)
 
     def finalise(self, verbose):

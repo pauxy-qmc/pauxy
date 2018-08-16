@@ -201,7 +201,7 @@ class BackPropagation(object):
                 factor /= c[0]
         return factor
 
-    def print_step(self, comm, nprocs, step, nmeasure=1):
+    def print_step(self, comm, nprocs, step, nmeasure=1, free_projection=False):
         """Print back-propagated estimates to file.
 
         Parameters

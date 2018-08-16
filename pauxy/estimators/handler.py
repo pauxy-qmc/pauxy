@@ -110,7 +110,7 @@ class Estimators(object):
         h5f_name = 'estimates.%s.h5' % self.index
         self.h5f = h5py.File(h5f_name, 'w')
 
-    def print_step(self, comm, nprocs, step, nmeasure):
+    def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
         """Print QMC estimates.
 
         Parameters
@@ -125,7 +125,7 @@ class Estimators(object):
             Number of steps between measurements.
         """
         for k, e in self.estimators.items():
-            e.print_step(comm, nprocs, step, nmeasure)
+            e.print_step(comm, nprocs, step, nmeasure, free_projection)
         if comm.Get_rank() == 0:
             self.h5f.flush()
 

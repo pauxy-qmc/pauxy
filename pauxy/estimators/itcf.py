@@ -484,7 +484,7 @@ class ITCF(object):
         Gls = (Gnn_ls.dot(scipy.linalg.inv(B))).dot(Gls)
         return Ggr, Gls
 
-    def print_step(self, comm, nprocs, step, nmeasure=1):
+    def print_step(self, comm, nprocs, step, nmeasure=1, free_projection=False):
         """Print ITCF to file.
 
         Parameters

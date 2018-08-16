@@ -150,7 +150,7 @@ class Mixed(object):
                 if self.rdm:
                     self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
 
-    def print_step(self, comm, nprocs, step, nmeasure):
+    def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
         """Print mixed estimates to file.
 
         This reduces estimates arrays over processors. On return estimates
@@ -172,7 +172,10 @@ class Mixed(object):
         denom = es[ns.edenom]*nprocs / nmeasure
         es[ns.eproj] = es[ns.enumer] / denom
         if self.thermal:
-            es[ns.nav] = es[ns.nav] / denom
+            if free_projection:
+                es[ns.nav] = es[ns.nav]
+            else:
+                es[ns.nav] = es[ns.nav] / denom
         es[ns.ekin:ns.epot+1] /= denom
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
