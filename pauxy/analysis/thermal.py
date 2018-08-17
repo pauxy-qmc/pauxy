@@ -1,4 +1,5 @@
-from pauxy.analysis.extraction import extract_hdf5_data_sets
+from pauxy.analysis.extraction import extract_hdf5_data_sets, set_info
+from pauxy.analysis.blocking import average_ratio
 import pandas as pd
 import scipy.stats
 import numpy
@@ -8,15 +9,31 @@ def analyse_energy(files):
     sims = []
     for (i, g) in enumerate(data):
         (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
-        dt = m.get('qmc').get('dt')
-        mu = m.get('trial').get('mu')
+        free_projection = m.get('propagators').get('free_projection', False)
+        # norm = set_info(norm, m)
         norm['sim'] = i
-        norm['mu'] = mu
-        norm['dt'] = dt
-        sims.append(norm[1:].apply(numpy.real))
-    full = pd.concat(sims).groupby(['sim','dt', 'mu'])
-    means = full.mean()
-    err = full.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
-    averaged = means.merge(err, left_index=True, right_index=True,
-                           suffixes=('', '_error'))
-    return (averaged.reset_index())
+        sims.append(norm[1:])
+    full = pd.concat(sims).groupby(['sim'])
+    # full = pd.concat(sims)
+    analysed = []
+    for (i, g) in full:
+        if free_projection:
+            cols = ['E_num', 'Nav']
+            obs = ['E', 'Nav']
+            averaged = pd.DataFrame(index=[0])
+            for (c, o) in zip(cols, obs):
+                (value, error)  = average_ratio(g[c].values, g['E_denom'].values)
+                averaged[o] = [value]
+                averaged[o+'_error'] = [error]
+            analysed.append(averaged)
+        else:
+            g.apply(numpy.real)
+            means = g.mean()
+            err = g.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
+            averaged = means.merge(err, left_index=True, right_index=True,
+                                   suffixes=('', '_error'))
+            analysed.append(averaged)
+    for (g, a) in zip(data, analysed):
+        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
+        set_info(a, m)
+    return (pd.concat(analysed).reset_index())
