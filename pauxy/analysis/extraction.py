@@ -121,12 +121,18 @@ def set_info(frame, md):
     trial = md.get('trial')
     frame['dt'] = qmc.get('dt')
     frame['nwalkers'] = qmc.get('nwalkers')
-    frame['beta'] = qmc.get('beta')
+    beta = qmc.get('beta')
+    frame['beta'] = beta
     frame['free_projection'] = propg.get('free_projection')
+    frame['mu'] = trial.get('mu')
     frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
         frame['rs'] = system.get('rs')
         frame['ecut'] = system.get('ecut')
         frame['nup'] = system.get('nup')
         frame['ndown'] = system['ndown']
+    elif system['name'] == "Hubbard":
+        frame['U'] = system.get('U')
+        frame['nx'] = system.get('nx')
+        frame['ny'] = system.get('ny')
     return frame

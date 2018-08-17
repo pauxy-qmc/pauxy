@@ -27,6 +27,27 @@ def average_single(frame, delete=True):
             columns.remove(d)
     return averaged[columns]
 
+def average_ratio(numerator, denominator):
+    re_num = numerator.real
+    re_den = denominator.real
+    im_num = numerator.imag
+    im_den = denominator.imag
+    # When doing FP we need to compute E = \bar{E_num} / \bar{E_denom}
+    # Only compute real part of the energy
+    num_av = (re_num.mean()*re_den.mean()+im_num.mean()*im_den.mean())
+    den_av = (re_den.mean()**2 + im_den.mean()**2)
+    mean = num_av / den_av
+    # Doing error analysis properly is complicated. This is not correct.
+    re_nume = scipy.stats.sem(re_num)
+    re_dene = scipy.stats.sem(re_den)
+    # Ignoring the fact that the mean includes complex components.
+    cov = numpy.cov(re_num, re_den)[0,1]
+    nsmpl = len(re_num)
+    error = abs(mean) * ((re_nume/re_num.mean())**2 + (re_dene/re_den.mean())**2
+                    -2*cov/(nsmpl*re_num.mean()*re_den.mean()))**0.5
+
+    return (mean, error)
+
 def average_fp(frame):
     real = average_single(frame.apply(numpy.real), False)
     imag = average_single(frame.apply(numpy.imag), False)
