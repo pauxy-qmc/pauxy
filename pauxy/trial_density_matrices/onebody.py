@@ -7,7 +7,7 @@ class OneBody(object):
     def __init__(self, options, system, beta, dt, H1=None, verbose=False):
         self.name = 'thermal'
         self.ntime_slices = int(beta/dt)
-        if ((H1 == None).any()):
+        if (H1 == None):
             self.H1 = system.H1
         else:
             self.H1 = H1
