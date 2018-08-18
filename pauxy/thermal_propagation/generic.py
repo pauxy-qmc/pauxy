@@ -152,16 +152,16 @@ class GenericContinuous(object):
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
-        # c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-        c_fb = xi.dot(xbar)-0.5*xbar.dot(xbar)
+        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
-        c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        cxf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
 
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
 
-        return (c_xf, c_fb, shifted, VHS)
+        return (cxf, cfb, shifted, VHS)
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply matrix expoential to wavefunction approximately.
