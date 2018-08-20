@@ -207,7 +207,7 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
