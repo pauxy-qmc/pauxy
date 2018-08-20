@@ -235,6 +235,7 @@ class SingleDetWalker(object):
             'phi_init': self.phi_init,
             'phi_bp': self.phi_bp,
             'weight': self.weight,
+            'phase': self.phase,
             'inv_ovlp': self.inv_ovlp,
             'G': self.G,
             'overlap': self.ot,
@@ -261,6 +262,7 @@ class SingleDetWalker(object):
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
+        self.phase = buff['phase']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
         self.ots = numpy.copy(buff['overlaps'])

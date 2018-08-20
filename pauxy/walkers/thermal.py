@@ -277,6 +277,7 @@ class ThermalWalker(object):
             'stack': self.stack.stack,
             'G': self.G,
             'weight': self.weight,
+            'phase': self.phase,
         }
         return buff
 
@@ -291,6 +292,7 @@ class ThermalWalker(object):
         self.stack.stack = numpy.copy(buff['stack'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
+        self.phase = buff['phase']
 
 
 class PropagatorStack:
