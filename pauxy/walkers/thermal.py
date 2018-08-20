@@ -14,10 +14,10 @@ class ThermalWalker(object):
         self.num_slices = trial.ntime_slices
         if verbose:
             print("# Number of slices = {}".format(self.num_slices))
-        if system.name == "UEG":
+        if system.name == "UEG" or system.name == "Generic":
             dtype = numpy.complex128
         else:
-            dtype = numpy.float64
+            dtype = numpy.complex64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
 
