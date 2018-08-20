@@ -75,7 +75,7 @@ class ThermalWalker(object):
     def compute_A(self, slice_ix = None):
         # return self.compute_A_svd(slice_ix)
         return self.compute_A_qr(slice_ix)
-    
+
     def compute_A_qr(self, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -85,8 +85,8 @@ class ThermalWalker(object):
         # evaluation).
         if bin_ix == self.stack.nbins:
             bin_ix = -1
-        
-        A = []
+
+        A = numpy.zeros(self.stack.stack.shape[1:], dtype=self.stack.stack.dtype)
 
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
@@ -115,6 +115,7 @@ class ThermalWalker(object):
             #      = V3^{\dagger} D3 U3^{\dagger}
             A[spin] = (U3).dot(V3)
 
+        return A
 
     def compute_A_svd(self, slice_ix = None):
         if (slice_ix == None):
