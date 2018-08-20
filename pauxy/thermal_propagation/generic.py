@@ -185,7 +185,7 @@ class GenericContinuous(object):
             phi += self.Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-    
+
     def propagate_greens_function(self, walker):
         if walker.stack.time_slice < walker.stack.ntime_slices:
             walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
@@ -207,20 +207,36 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[0])])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        walker.stack.update(B)
+        A0 = walker.compute_A() # A matrix as in the partition function
+
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])),
+              numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
+
+        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])),
+                B[1].dot(self.BTinv[1].dot(A0[1]))]
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])),
+                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
+
+        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+
+        walker.stack.update_new(B)
 
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(cxf)
+        (magn, dtheta) = cmath.polar(cxf*oratio)
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
+
+        if walker.stack.time_slice % self.nstblz == 0:
+            walker.greens_function(None, walker.stack.time_slice-1)
+
+        self.propagate_greens_function(walker)
 
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
