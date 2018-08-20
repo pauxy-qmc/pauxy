@@ -109,6 +109,8 @@ class ThermalAFQMC(object):
         convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
+        # Overide whatever's in the input file due to structure of FT algorithm.
+        self.qmc.nmeasure = 1
         if verbose:
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
