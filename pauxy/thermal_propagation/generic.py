@@ -86,7 +86,7 @@ class GenericContinuous(object):
         """
         shift = 1j*numpy.einsum('l,lpq->pq', self.mf_shift, chol_vecs)
         H1 = h1e_mod - numpy.array([shift,shift])
-        
+
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*self.mu*I),
@@ -153,7 +153,7 @@ class GenericContinuous(object):
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
         # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar)
+        cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
         cxf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
