@@ -92,9 +92,6 @@ class GenericContinuous(object):
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*self.mu*I),
                                 scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*self.mu*I)])
 
-        # self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
-                                # scipy.linalg.expm(-0.5*dt*H1[1])])
-
     def construct_force_bias(self, Gmod):
         """Compute optimal force bias.
 
@@ -132,7 +129,7 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def two_body(self, walker, system, trial, fb=True):
+    def two_body(self, walker, system, trial, force_bias=True):
         r"""Continuous Hubbard-Statonovich transformation.
 
         Parameters
@@ -146,20 +143,20 @@ class GenericContinuous(object):
         """
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
-        if (fb):
+        if force_bias:
             rdm = one_rdm_from_G(walker.G)
             xbar = self.construct_force_bias_full(rdm)
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
-        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
         cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
         cxf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
 
         # Operator terms contributing to propagator.
-        VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
+        VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq',
+                                         shifted, system.chol_vecs)
 
         return (cxf, cfb, shifted, VHS)
 
@@ -207,7 +204,8 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, False)
+        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial,
+                                                force_bias=False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
