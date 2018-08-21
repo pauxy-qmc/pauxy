@@ -73,7 +73,6 @@ class ThermalWalker(object):
         # return self.identity_plus_A_qr(trial, slice_ix)
 
     def compute_A(self, slice_ix = None):
-        # return self.compute_A_svd(slice_ix)
         return self.compute_A_qr(slice_ix)
 
     def compute_A_qr(self, slice_ix = None):
@@ -127,7 +126,7 @@ class ThermalWalker(object):
             bin_ix = -1
 
         A = []
-        
+
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -147,7 +146,7 @@ class ThermalWalker(object):
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
             
-            A += [ (U1.dot(numpy.diag(S1))).dot(V1.conj().T)]
+            A += [ (U1.dot(numpy.diag(S1))).dot(V1)]
         
         return A
 
