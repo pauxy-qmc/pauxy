@@ -14,10 +14,10 @@ class ThermalWalker(object):
         self.num_slices = trial.ntime_slices
         if verbose:
             print("# Number of slices = {}".format(self.num_slices))
-        if system.name == "UEG":
+        if system.name == "UEG" or system.name == "Generic":
             dtype = numpy.complex128
         else:
-            dtype = numpy.float64
+            dtype = numpy.complex64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.stack_size = walker_opts.get('stack_size', None)
 
@@ -73,9 +73,49 @@ class ThermalWalker(object):
         # return self.identity_plus_A_qr(trial, slice_ix)
 
     def compute_A(self, slice_ix = None):
-        return self.compute_A_svd(slice_ix)
-        # return self.compute_A_qr(trial, slice_ix)
-    
+        return self.compute_A_qr(slice_ix)
+
+    def compute_A_qr(self, slice_ix = None):
+        if (slice_ix == None):
+            slice_ix = self.stack.time_slice
+
+        bin_ix = slice_ix // self.stack.stack_size
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
+
+        A = numpy.zeros(self.stack.stack.shape[1:], dtype=self.stack.stack.dtype)
+
+        for spin in [0, 1]:
+            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
+            # in stable way. Iteratively construct SVD decompositions starting
+            # from the rightmost (product of) propagator(s).
+            B = self.stack.get((bin_ix+1)%self.stack.nbins)
+            (U1, V1) = numpy.linalg.qr(B[spin])
+            for i in range(2, self.stack.nbins+1):
+                ix = (bin_ix + i) % self.stack.nbins
+                B = self.stack.get(ix)
+                T1 = numpy.dot(B[spin], U1)
+                (U1, V) = scipy.linalg.qr(T1, pivoting = False)
+                V1 = numpy.dot(V, V1)
+
+            # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
+            # Care needs to be taken when adding the identity matrix.
+            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
+
+            T3 = numpy.identity(V1.shape[0])
+            (U2, V2) = scipy.linalg.qr(T3, pivoting = False)
+
+            U3 = numpy.dot(U1, U2)
+            V3 = numpy.dot(V2, V1)
+            # V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]))
+            # G(l) = (U3 S2 V3)^{-1}
+            #      = V3^{\dagger} D3 U3^{\dagger}
+            A[spin] = (U3).dot(V3)
+
+        return A
+
     def compute_A_svd(self, slice_ix = None):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -86,7 +126,7 @@ class ThermalWalker(object):
             bin_ix = -1
 
         A = []
-        
+
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -106,7 +146,7 @@ class ThermalWalker(object):
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
             
-            A += [ (U1.dot(numpy.diag(S1))).dot(V1.conj().T)]
+            A += [ (U1.dot(numpy.diag(S1))).dot(V1)]
         
         return A
 
@@ -236,6 +276,7 @@ class ThermalWalker(object):
             'stack': self.stack.stack,
             'G': self.G,
             'weight': self.weight,
+            'phase': self.phase,
         }
         return buff
 
@@ -250,6 +291,7 @@ class ThermalWalker(object):
         self.stack.stack = numpy.copy(buff['stack'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
+        self.phase = buff['phase']
 
 
 class PropagatorStack:

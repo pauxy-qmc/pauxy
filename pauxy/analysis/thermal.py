@@ -27,9 +27,9 @@ def analyse_energy(files):
                 averaged[o+'_error'] = [error]
             analysed.append(averaged)
         else:
-            g.apply(numpy.real)
-            means = g.mean()
-            err = g.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
+            real_g = g.apply(numpy.real)
+            means = real_g.mean().to_frame().T
+            err = real_g.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).to_frame().T
             averaged = means.merge(err, left_index=True, right_index=True,
                                    suffixes=('', '_error'))
             analysed.append(averaged)
