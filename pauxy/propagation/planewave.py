@@ -22,7 +22,7 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
-        
+
         print("# Number of fields = %i"%system.nfields)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
@@ -92,7 +92,7 @@ class PlaneWave(object):
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
-        
+
         numpy.copyto(self.Temp, phi)
         for n in range(1, self.exp_nmax+1):
             self.Temp = VHS.dot(self.Temp) / n
@@ -124,8 +124,8 @@ class PlaneWave(object):
         factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
 
         # JOONHO: include a factor of 1j
-        iA = 1j * factor * (rho_q + rho_q.getH()) 
-        iB = - factor * (rho_q - rho_q.getH()) 
+        iA = 1j * factor * (rho_q + rho_q.getH())
+        iB = - factor * (rho_q - rho_q.getH())
         return (iA, iB)
 
     def construct_force_bias(self, system, G):
@@ -289,7 +289,7 @@ class PlaneWave(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-    def propagate_walker_phaseless(self, walker, system, trial, hybrid = True):
+    def propagate_walker_phaseless(self, walker, system, trial, hybrid=True):
         """Phaseless propagator
         Parameters
         ----------
@@ -311,9 +311,9 @@ class PlaneWave(object):
 
         # Now apply hybrid phaseless approximation
 
-        if (hybrid):
+        if hybrid:
             walker.inverse_overlap(trial.psi)
-            walker.greens_function(trial)        
+            walker.greens_function(trial)
             ot_new = walker.calc_otrial(trial.psi)
 
             # Walker's phase.
@@ -333,7 +333,7 @@ class PlaneWave(object):
                 walker.field_configs.push_full(xmxbar, 0.0, 0.0)
         else: # local energy approach
             walker.inverse_overlap(trial.psi)
-            walker.greens_function(trial)        
+            walker.greens_function(trial)
             E_L = walker.local_energy(system)[0].real
             # Check for large population fluctuations
             E_L = local_energy_bound(E_L, self.mean_local_energy,
