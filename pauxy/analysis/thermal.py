@@ -10,11 +10,9 @@ def analyse_energy(files):
     for (i, g) in enumerate(data):
         (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
         free_projection = m.get('propagators').get('free_projection', False)
-        # norm = set_info(norm, m)
-        norm['sim'] = i
+        set_info(norm, m)
         sims.append(norm[1:])
-    full = pd.concat(sims).groupby(['sim'])
-    # full = pd.concat(sims)
+    full = pd.concat(sims).groupby(['dt', 'mu', 'beta', 'free_projection', 'rs', 'ecut', 'nup', 'ndown', 'nwalkers'])
     analysed = []
     for (i, g) in full:
         if free_projection:
@@ -25,6 +23,8 @@ def analyse_energy(files):
                 (value, error)  = average_ratio(g[c].values, g['E_denom'].values)
                 averaged[o] = [value]
                 averaged[o+'_error'] = [error]
+            for (k, v) in zip(full.keys, i):
+                averaged[k] = v
             analysed.append(averaged)
         else:
             real_g = g.apply(numpy.real)
@@ -33,7 +33,4 @@ def analyse_energy(files):
             averaged = means.merge(err, left_index=True, right_index=True,
                                    suffixes=('', '_error'))
             analysed.append(averaged)
-    for (g, a) in zip(data, analysed):
-        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
-        set_info(a, m)
     return (pd.concat(analysed).reset_index())
