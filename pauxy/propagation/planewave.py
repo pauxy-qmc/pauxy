@@ -244,7 +244,7 @@ class PlaneWave(object):
 
         # Constant factor arising from force bias and mean field shift
         # Mean field shift is zero for UEG in HF basis
-        cxf = 1.0
+        cmf = 0.0
         # Constant factor arising from shifting the propability distribution.
         # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
         cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
@@ -260,7 +260,7 @@ class PlaneWave(object):
         if (system.ndown >0):
             walker.phi[:,system.nup:] = self.apply_exponential(walker.phi[:,system.nup:], VHS, False)
 
-        return (cxf, cfb, xshifted)
+        return (cmf, cfb, xshifted)
 
     def propagate_walker_free(self, walker, system, trial):
         """Free projection propagator
@@ -278,14 +278,14 @@ class PlaneWave(object):
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply 2-body projector
-        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system, False)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, False)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.BH1)
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(cxf)
+        (magn, dtheta) = cmath.polar(cmath.exp(cmf))
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
@@ -305,7 +305,7 @@ class PlaneWave(object):
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb, xmxbar) = self.two_body_propagator(walker, system)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
@@ -315,35 +315,39 @@ class PlaneWave(object):
             walker.inverse_overlap(trial.psi)
             walker.greens_function(trial)
             ot_new = walker.calc_otrial(trial.psi)
+            # Might want to cap this at some point
+            hybrid_energy = cmath.log(ot_new) - cmath.log(walker.ot) + cfb + cmf
+            importance_function = self.mf_const_fac * cmath.exp(hybrid_energy)
+            # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
+            (magn, phase) = cmath.polar(importance_function)
 
-            # Walker's phase.
-            Q = cmath.exp(cmath.log (ot_new) - cmath.log(walker.ot) + cfb)
-            expQ = self.mf_const_fac * cxf * Q
-            (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
-
-            if (not math.isinf(magn)):
-                cfac = max(0, math.cos(dtheta))
-                rweight = abs(expQ)
-                walker.weight *= rweight * cfac
+            if not math.isinf(magn):
+                # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)
+                # Note this doesn't include exponential factor from shifting
+                # propability distribution.
+                dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+                cosine_fac = max(0, math.cos(dtheta))
+                walker.weight *= magn * cosine_fac
                 walker.ot = ot_new
-                walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+                walker.field_configs.push_full(xmxbar, cosine_fac,
+                                               importance_function/magn)
             else:
                 walker.ot = ot_new
                 walker.weight = 0.0
                 walker.field_configs.push_full(xmxbar, 0.0, 0.0)
-        else: # local energy approach
-            walker.inverse_overlap(trial.psi)
-            walker.greens_function(trial)
-            E_L = walker.local_energy(system)[0].real
-            # Check for large population fluctuations
-            E_L = local_energy_bound(E_L, self.mean_local_energy,
-                                     self.ebound)
-            ot_new = walker.calc_otrial(trial.psi)
-            # Walker's phase.
-            dtheta = cmath.phase(cxf*ot_new/walker.ot)
-            walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
-                                           * max(0, math.cos(dtheta)))
-            walker.E_L = E_L
+        # else: # local energy approach
+            # walker.inverse_overlap(trial.psi)
+            # walker.greens_function(trial)
+            # E_L = walker.local_energy(system)[0].real
+            # # Check for large population fluctuations
+            # E_L = local_energy_bound(E_L, self.mean_local_energy,
+                                     # self.ebound)
+            # ot_new = walker.calc_otrial(trial.psi)
+            # # Walker's phase.
+            # dtheta = cmath.phase(cmath.exp(cmf)*ot_new/walker.ot)
+            # walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
+                                           # * max(0, math.cos(dtheta)))
+            # walker.E_L = E_L
 
 def unit_test():
     from pauxy.systems.ueg import UEG
