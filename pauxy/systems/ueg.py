@@ -39,7 +39,7 @@ class UEG(object):
         Scale factor (2pi/L).
     """
 
-    def __init__(self, inputs, verbose):
+    def __init__(self, inputs, verbose=False):
         if verbose:
             print ("# Parsing input options.")
         self.name = "UEG"
@@ -156,7 +156,7 @@ class UEG(object):
 
 
         print("# Constructing two_body_potentials_incore")
-        (self.iA, self.iB) = self.two_body_potentials_incore()
+        (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
         print("# Constructing two_body_potentials_incore finished")
 
 
@@ -390,7 +390,7 @@ class UEG(object):
         iA = 1j * (rho_q + rho_qH)
         iB = - (rho_q - rho_qH)
 
-        return (iA, iB)
+        return (rho_q, iA, iB)
 
 def unit_test():
     from scipy.sparse import csr_matrix

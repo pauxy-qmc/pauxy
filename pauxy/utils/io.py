@@ -42,41 +42,43 @@ def to_json(afqmc):
                              sort_keys=False, indent=4)
     return json_string
 
-def to_qmcpack_index(matrix):
+def to_qmcpack_index(matrix, offset=0):
     try:
         indptr = matrix.indptr
         indices = matrix.indices
         data = matrix.data
     except AttributeError:
-        print ("Matrix provided was not in CSC format. Converting.")
-        matrix = scipy.sparse.csc_matrix(matrix)
+        matrix = scipy.sparse.csr_matrix(matrix)
         indptr = matrix.indptr
         indices = matrix.indices
         data = matrix.data
     # QMCPACK expects ([i,j], m_{ij}) pairs
     unpacked = []
     idx = []
-    for col in range(0, len(indptr)-1):
-        idx += [[i, col] for i in indices[indptr[col]:indptr[col+1]]]
-        unpacked += [[v.real, v.imag] for v in data[indptr[col]:indptr[col+1]]]
+    counter = 0
+    for row in range(0, len(indptr)-1):
+        idx += [[row, i+offset] for i in indices[indptr[row]:indptr[row+1]]]
+        unpacked += [[v.real, v.imag] for v in data[indptr[row]:indptr[row+1]]]
+        # print ("NZ: %d %d"%(row, len(indices[indptr[row]:indptr[row+1]])))
+        if (len(data[indptr[row]:indptr[row+1]])) > 0:
+            counter = counter + 1
+            # print (row, len(data[indptr[row]:indptr[row+1]]))
     return (unpacked, numpy.array(idx).flatten())
 
-def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, name='hamiltonian.h5'):
-    dump = h5py.File(name, 'w')
+def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5'):
+    dump = h5py.File(filename, 'w')
     dump['Hamiltonian/Energies'] = numpy.array([e0.real, e0.imag])
     (h1_unpacked, idx) = to_qmcpack_index(h1[0])
     dump['Hamiltonian/H1_indx'] = idx
     dump['Hamiltonian/H1'] = h1_unpacked
-    if len(h2) == 2:
-        # Number of non zero elements for two-body
-        nnz = h2[0].nnz + h2[1].nnz
-        # number of cholesky vectors
-        nchol_vecs = h2[0].shape[-1] + h2[1].shape[-1]
-        dump['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
-        (h2_unpacked_a, idx_a) = to_qmcpack_index(h2[0])
-        (h2_unpacked_b, idx_b) = to_qmcpack_index(h2[1])
-        dump['Hamiltonian/Factorized/index_0'] = numpy.array(idx_a+idx_b)
-        dump['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked_a+h2_unpacked_b)
+    # Number of non zero elements for two-body
+    nnz = h2.nnz
+    # number of cholesky vectors
+    nchol_vecs = h2.shape[-1]
+    dump['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
+    (h2_unpacked, idx) = to_qmcpack_index(scipy.sparse.csr_matrix(h2))
+    dump['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
+    dump['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
     # Number of integral blocks used for chunked HDF5 storage.
     # Currently hardcoded for simplicity.
     nint_block = 1
