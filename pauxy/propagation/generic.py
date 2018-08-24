@@ -124,7 +124,7 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def two_body(self, walker, system, trial, fb=True):
+    def two_body(self, walker, system, trial, force_bias=True):
         r"""Continuous Hubbard-Statonovich transformation.
 
         Parameters
@@ -138,7 +138,7 @@ class GenericContinuous(object):
         """
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
-        if (fb):
+        if force_bias:
             # Construct walker modified Green's function.
             walker.inverse_overlap(trial.psi)
             walker.rotated_greens_function()
@@ -147,10 +147,10 @@ class GenericContinuous(object):
         else:
             xbar = numpy.zeros(xi.shape)
         # Constant factor arising from shifting the propability distribution.
-        c_fb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
+        cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
-        c_xf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        cmf = -self.sqrt_dt * shifted.dot(self.mf_shift)
 
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq', shifted, system.chol_vecs)
@@ -158,7 +158,7 @@ class GenericContinuous(object):
         self.apply_exponential(walker.phi[:,:system.nup], VHS)
         self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (c_xf, c_fb, shifted)
+        return (cmf, cfb, shifted)
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply matrix expoential to wavefunction approximately.
@@ -203,16 +203,16 @@ class GenericContinuous(object):
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
         # 2. Apply two_body propagator.
-        (cxf, cfb, xmxbar) = self.two_body(walker, system, trial, False)
+        (cmf, cfb, xmxbar) = self.two_body(walker, system, trial, False)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.BH1)
 
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
-        (magn, dtheta) = cmath.polar(cxf)
+        (magn, phase) = cmath.polar(cmath.exp(cmf))
         walker.weight *= magn
-        walker.phase *= cmath.exp(1j*dtheta)
+        walker.phase *= cmath.exp(1j*phase)
 
     def propagate_walker_phaseless(self, walker, system, trial):
         r"""Propagate walker using phaseless approximation.
@@ -242,13 +242,24 @@ class GenericContinuous(object):
         walker.inverse_overlap(trial.psi)
         ot_new = walker.calc_otrial(trial.psi)
         # Walker's phase.
-        importance_function = self.mf_const_fac*cmf*cfb*ot_new / walker.ot
-        dtheta = cmath.phase(importance_function)
-        cfac = max(0, math.cos(dtheta))
-        rweight = abs(importance_function)
-        walker.weight *= rweight * cfac
-        walker.ot = ot_new
-        walker.field_configs.push_full(xmxbar, cfac, importance_function/rweight)
+        hybrid_energy = cmath.log(ot_new) - cmath.log(walker.ot) + cfb + cmf
+        importance_function = self.mf_const_fac * cmath.exp(hybrid_energy)
+        # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
+        (magn, phase) = cmath.polar(importance_function)
+        if not math.isinf(magn):
+            # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)
+            # Note this doesn't include exponential factor from shifting
+            # propability distribution.
+            dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+            cosine_fac = max(0, math.cos(dtheta))
+            walker.weight *= magn * cosine_fac
+            walker.ot = ot_new
+            walker.field_configs.push_full(xmxbar, cosine_fac,
+                                           importance_function/magn)
+        else:
+            walker.ot = ot_new
+            walker.weight = 0.0
+            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.

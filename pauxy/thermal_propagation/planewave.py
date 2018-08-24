@@ -219,7 +219,7 @@ class PlaneWave(object):
             walker.G[0] = B[0].dot(walker.G[0]).dot(Binv[0])
             walker.G[1] = B[1].dot(walker.G[1]).dot(Binv[1])
 
-    def two_body_propagator(self, walker, system, fb = True):
+    def two_body_propagator(self, walker, system, force_bias=True):
         """It appliese the two-body propagator
         Parameters
         ----------
@@ -244,7 +244,7 @@ class PlaneWave(object):
 
         # Optimal force bias.
         xbar = numpy.zeros(system.nfields)
-        if (fb):
+        if force_bias:
             rdm = one_rdm_from_G(walker.G)
             xbar = self.construct_force_bias_incore(system, rdm)
 
@@ -255,21 +255,21 @@ class PlaneWave(object):
 
         xshifted = xi - xbar
 
+        # Constant factors: Note they are not exponentiated.
         # Constant factor arising from force bias and mean field shift
         # Mean field shift is zero for UEG in HF basis
-        cxf = 1.0
+        cmf = 0.0
         # Constant factor arising from shifting the propability distribution.
-        # cfb = cmath.exp(xi.dot(xbar)-0.5*xbar.dot(xbar))
-        cfb = xi.dot(xbar)-0.5*xbar.dot(xbar) # JOONHO not exponentiated
+        cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
 
         # print(xbar.dot(xbar))
 
         # Operator terms contributing to propagator.
         VHS = self.construct_VHS_incore(system, xshifted)
 
-        return (cxf, cfb, xshifted, VHS)
+        return (cmf, cfb, xshifted, VHS)
 
-    def propagate_walker_free(self, system, walker, trial):
+    def propagate_walker_free(self, system, walker, trial, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -277,13 +277,14 @@ class PlaneWave(object):
             walker class
         system :
             system class
-        trial : 
+        trial :
             trial wavefunction class
         Returns
         -------
         """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, False)
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system,
+                                                           force_bias=False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
@@ -304,9 +305,9 @@ class PlaneWave(object):
 
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(cxf*oratio)
+        (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
         walker.weight *= magn
-        walker.phase *= cmath.exp(1j*dtheta)
+        walker.phase *= cmath.exp(1j*phase)
 
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
@@ -329,7 +330,7 @@ class PlaneWave(object):
         # -------
         # """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
         # BV = 0.5*(BV.conj().T + BV)
 
@@ -347,19 +348,21 @@ class PlaneWave(object):
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
-        # Walker's phase.
-        Q = cmath.exp(cmath.log (oratio) + cfb)
-        expQ = self.mf_const_fac * cxf * Q
-        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+        # Might want to cap this at some point
+        hybrid_energy = cmath.log(oratio) + cfb + cmf
+        Q = cmath.exp(hybrid_energy)
+        expQ = self.mf_const_fac * Q
+        (magn, phase) = cmath.polar(expQ)
 
-        if (not math.isinf(magn)):
-            cfac = max(0, math.cos(dtheta))
-            rweight = abs(expQ)
-            walker.weight *= rweight * cfac
-            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        if not math.isinf(magn):
+            # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
+            # Note this doesn't include exponential factor from shifting
+            # propability distribution.
+            dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+            cosine_fac = max(0, math.cos(dtheta))
+            walker.weight *= magn * cosine_fac
         else:
             walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
         walker.stack.update_new(B)
 
@@ -367,7 +370,7 @@ class PlaneWave(object):
         # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
-        
+
         self.propagate_greens_function(walker)
 
     def propagate_greens_function(self, walker):
