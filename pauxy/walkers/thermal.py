@@ -145,9 +145,9 @@ class ThermalWalker(object):
                 T2 = numpy.dot(T1, numpy.diag(S1))
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
-            
+
             A += [ (U1.dot(numpy.diag(S1))).dot(V1)]
-        
+
         return A
 
     def identity_plus_A_svd(self, slice_ix = None):
@@ -160,7 +160,7 @@ class ThermalWalker(object):
             bin_ix = -1
 
         IpA = []
-        
+
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -177,18 +177,18 @@ class ThermalWalker(object):
                 T2 = numpy.dot(T1, numpy.diag(S1))
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
-            
+
             # Doing I + A
             T3 = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
-            
+
             # \TODO remove this SVD. THis is not necessary for I + A
             (U2, S2, V2) = scipy.linalg.svd(T3)
             U3 = numpy.dot(U1, U2)
             D3 = numpy.diag(S2)
             V3 = numpy.dot(V2, V1)
-            
+
             IpA += [(V3.conj().T).dot(D3).dot(U3.conj().T)]
-        
+
         return IpA
 
     def greens_function_svd(self, trial, slice_ix = None):
@@ -371,7 +371,7 @@ def unit_test():
     from pauxy.thermal_propagation.planewave import PlaneWave
     from pauxy.qmc.options import QMCOpts
 
-    inputs = {'nup':1, 
+    inputs = {'nup':1,
     'ndown':1,
     'rs':1.0,
     'ecut':0.5,

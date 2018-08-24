@@ -259,14 +259,14 @@ class GenericContinuous(object):
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        
+
         A0 = walker.compute_A() # A matrix as in the partition function
-        
-        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])), 
+
+        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])),
                 numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
 
         Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
-        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])), 
+        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])),
                 numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])

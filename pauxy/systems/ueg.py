@@ -107,7 +107,7 @@ class UEG(object):
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         if verbose:
             print ("# Finished setting up Generic system object.")
-    
+
 
         nlimit = self.nup
 
@@ -294,10 +294,10 @@ class UEG(object):
         """
         nnz = self.rho_ikpq_kpq[iq].shape[0] # Number of non-zeros
         ones = numpy.ones((nnz), dtype=numpy.complex128)
-        rho_q = scipy.sparse.csc_matrix((ones, (self.rho_ikpq_kpq[iq], self.rho_ikpq_i[iq])), 
+        rho_q = scipy.sparse.csc_matrix((ones, (self.rho_ikpq_kpq[iq], self.rho_ikpq_i[iq])),
             shape = (self.nbasis, self.nbasis) ,dtype=numpy.complex128 )
         return rho_q
-    
+
     def scaled_density_operator_incore(self, transpose):
         """ Density operator as defined in Eq.(6) of PRB(75)245123
         Parameters
@@ -331,10 +331,10 @@ class UEG(object):
         nnz = 0
         for iq in range(nq):
             nnz += rho_ikpq_kpq[iq].shape[0]
-        
+
         col_index = []
         row_index = []
-        
+
         values = []
 
         if (transpose):
@@ -360,11 +360,11 @@ class UEG(object):
                     col_index += [iq]
                     values += [factor]
 
-        rho_q = scipy.sparse.csc_matrix((values, (row_index, col_index)), 
+        rho_q = scipy.sparse.csc_matrix((values, (row_index, col_index)),
             shape = (self.nbasis*self.nbasis, nq) ,dtype=numpy.complex128 )
 
         return rho_q
-    
+
     def two_body_potentials_incore(self):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
         Parameters
@@ -394,7 +394,7 @@ class UEG(object):
 
 def unit_test():
     from scipy.sparse import csr_matrix
-    # from openfermion.ops import FermionOperator 
+    # from openfermion.ops import FermionOperator
     # from openfermion.transforms import get_sparse_operator
     from scipy.linalg import eigvalsh
     from scipy.sparse.linalg import eigsh
@@ -403,7 +403,7 @@ def unit_test():
     inputs = {'nup':2,
     'ndown':2,
     'rs':1.0,
-    'thermal':True,    
+    'thermal':True,
     'ecut':21}
     system = UEG(inputs, True)
 
