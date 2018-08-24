@@ -119,13 +119,16 @@ def set_info(frame, md):
     qmc = md.get('qmc')
     propg = md.get('propagators')
     trial = md.get('trial')
+    ncols = len(frame.columns)
     frame['dt'] = qmc.get('dt')
     frame['nwalkers'] = qmc.get('nwalkers')
-    beta = qmc.get('beta')
-    frame['beta'] = beta
     frame['free_projection'] = propg.get('free_projection')
-    frame['mu'] = trial.get('mu')
-    frame['E_T'] = trial.get('energy')
+    beta = qmc.get('beta')
+    if beta is not None:
+        frame['beta'] = beta
+        frame['mu'] = trial.get('mu')
+    else:
+        frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
         frame['rs'] = system.get('rs')
         frame['ecut'] = system.get('ecut')
@@ -135,4 +138,4 @@ def set_info(frame, md):
         frame['U'] = system.get('U')
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
-    return frame
+    return list(frame.columns[ncols:])
