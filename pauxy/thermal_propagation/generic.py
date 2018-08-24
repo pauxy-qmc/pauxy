@@ -152,13 +152,13 @@ class GenericContinuous(object):
         cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
         shifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
-        cxf = cmath.exp(-self.sqrt_dt*shifted.dot(self.mf_shift))
+        cmf = -self.sqrt_dt * shifted.dot(self.mf_shift)
 
         # Operator terms contributing to propagator.
         VHS = self.isqrt_dt*numpy.einsum('l,lpq->pq',
                                          shifted, system.chol_vecs)
 
-        return (cxf, cfb, shifted, VHS)
+        return (cmf, cfb, shifted, VHS)
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply matrix expoential to wavefunction approximately.
@@ -204,7 +204,7 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial,
+        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial,
                                                 force_bias=False)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
@@ -227,9 +227,10 @@ class GenericContinuous(object):
 
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(cxf*oratio)
+        # TODO: Think about mean field subtraction.
+        (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
         walker.weight *= magn
-        walker.phase *= cmath.exp(1j*dtheta)
+        walker.phase *= cmath.exp(1j*phase)
 
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
@@ -253,7 +254,7 @@ class GenericContinuous(object):
             Trial wavefunction object.
         """
 
-        (cxf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
+        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
@@ -270,19 +271,22 @@ class GenericContinuous(object):
 
         oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
 
-        # Walker's phase.
-        Q = cmath.exp(cmath.log (oratio) + cfb)
-        expQ = self.mf_const_fac * cxf * Q
-        (magn, dtheta) = cmath.polar(expQ) # dtheta is phase
+        # Might want to cap this at some point
+        hybrid_energy = cmath.log(oratio) + cfb + cmf
+        Q = cmath.exp(hybrid_energy)
+        expQ = self.mf_const_fac * Q
+        (magn, phase) = cmath.polar(expQ)
 
-        if (not math.isinf(magn)):
-            cfac = max(0, math.cos(dtheta))
-            rweight = abs(expQ)
-            walker.weight *= rweight * cfac
-            walker.field_configs.push_full(xmxbar, cfac, expQ/rweight)
+        if not math.isinf(magn):
+            # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
+            # Note this doesn't include exponential factor from shifting
+            # propability distribution.
+            # TODO: Think about mean field subtraction.
+            dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+            cosine_fac = max(0, math.cos(dtheta))
+            walker.weight *= magn * cosine_fac
         else:
             walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
         walker.stack.update_new(B)
 
@@ -290,5 +294,5 @@ class GenericContinuous(object):
         # to the next time slice due to stack structure.
         if walker.stack.time_slice % self.nstblz == 0:
             walker.greens_function(None, walker.stack.time_slice-1)
-        
+
         self.propagate_greens_function(walker)
