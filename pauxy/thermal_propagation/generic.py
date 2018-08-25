@@ -211,17 +211,17 @@ class GenericContinuous(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        A0 = walker.compute_A() # A matrix as in the partition function
-
-        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])),
-              numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
-
-        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])),
-                B[1].dot(self.BTinv[1].dot(A0[1]))]
-        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])),
-                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
-
-        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+        # Compute determinant ratio det(1+A')/det(1+A).
+        # 1. Current walker's green's function.
+        G = walker.greens_function(trial, inplace=False)
+        # 2. Compute updated green's function.
+        walker.stack.update_new(B)
+        walker.greens_function(trial, inplace=True)
+        # 3. Compute det(G/G')
+        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
+        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        # Could save M0 rather than recompute.
+        oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
         walker.stack.update_new(B)
 
@@ -260,16 +260,17 @@ class GenericContinuous(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        A0 = walker.compute_A() # A matrix as in the partition function
-
-        M0 = [numpy.linalg.det(inverse_greens_function_qr(A0[0])),
-                numpy.linalg.det(inverse_greens_function_qr(A0[1]))]
-
-        Anew = [B[0].dot(self.BTinv[0].dot(A0[0])), B[1].dot(self.BTinv[1].dot(A0[1]))]
-        Mnew = [numpy.linalg.det(inverse_greens_function_qr(Anew[0])),
-                numpy.linalg.det(inverse_greens_function_qr(Anew[1]))]
-
-        oratio = Mnew[0] * Mnew[1] / (M0[0] * M0[1])
+        # Compute determinant ratio det(1+A')/det(1+A).
+        # 1. Current walker's green's function.
+        G = walker.greens_function(trial, inplace=False)
+        # 2. Compute updated green's function.
+        walker.stack.update_new(B)
+        walker.greens_function(trial, inplace=True)
+        # 3. Compute det(G/G')
+        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
+        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        # Could save M0 rather than recompute.
+        oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
         # Might want to cap this at some point
         hybrid_energy = cmath.log(oratio) + cfb + cmf
