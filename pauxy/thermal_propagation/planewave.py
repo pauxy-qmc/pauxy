@@ -294,10 +294,12 @@ class PlaneWave(object):
 
         # Compute determinant ratio det(1+A')/det(1+A).
         # 1. Current walker's green's function.
-        G = walker.greens_function(trial, inplace=False)
+        G = walker.greens_function(trial, slice_ix=walker.stack.ntime_slices,
+                                   inplace=False)
         # 2. Compute updated green's function.
         walker.stack.update_new(B)
-        walker.greens_function(trial, inplace=True)
+        walker.greens_function(trial, slice_ix=walker.stack.ntime_slices,
+                               inplace=True)
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
         Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
