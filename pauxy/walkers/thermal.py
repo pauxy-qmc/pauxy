@@ -282,7 +282,7 @@ class ThermalWalker(object):
             Relevant walker information for population control.
         """
         buff = {
-            'stack': self.stack.stack,
+            'stack': self.stack.get_buffer(),
             'G': self.G,
             'weight': self.weight,
             'phase': self.phase,
@@ -297,7 +297,7 @@ class ThermalWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.stack.stack = numpy.copy(buff['stack'])
+        self.stack.set_buffer(buff['stack'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
         self.phase = buff['phase']
@@ -326,6 +326,19 @@ class PropagatorStack:
 
     def get(self, ix):
         return self.stack[ix]
+
+    def get_buffer(self):
+        buff = {
+            'left': self.left,
+            'right': self.right,
+            'stack': self.stack,
+        }
+        return buff
+
+    def set_buffer(self, buff):
+        self.stack = numpy.copy(buff['stack'])
+        self.left = numpy.copy(buff['left'])
+        self.right = numpy.copy(buff['right'])
 
     def set_all(self, BT):
         for i in range(0, self.ntime_slices):
