@@ -26,11 +26,11 @@ def analyse_energy(files):
                 averaged[k] = v
             analysed.append(averaged)
         else:
-            cols = ['E', 'T', 'V', 'Nav']
+            cols = ['E', 'EKin', 'EPot', 'Nav']
             averaged = pd.DataFrame(index=[0])
             for c in cols:
                 mean = numpy.real(g[c].values).mean()
-                error = scipy.stats.sem(numpy.real(g[c].values).mean(), ddof=1)
+                error = scipy.stats.sem(numpy.real(g[c].values), ddof=1)
                 averaged[c] = [mean]
                 averaged[c+'_error'] = [error]
             for (k, v) in zip(full.keys, i):
