@@ -27,6 +27,7 @@ def analyse_energy(files):
             analysed.append(averaged)
         else:
             cols = ['E', 'T', 'V', 'Nav']
+            averaged = pd.DataFrame(index=[0])
             for c in cols:
                 mean = numpy.real(g[c].values).mean()
                 error = scipy.stats.sem(numpy.real(g[c].values).mean(), ddof=1)
