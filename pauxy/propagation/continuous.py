@@ -1,3 +1,9 @@
+import cmath
+import math
+import numpy
+from pauxy.propagation.utils import get_continuous_propagator
+from pauxy.propagation.operations import kinetic_real
+
 class Continuous(object):
     """Propagation with continuous HS transformation.
     """
@@ -11,18 +17,18 @@ class Continuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
-        self.num_vplus = system.nfields // 2
+        # Fix this!
+        self.propagator = get_continuous_propagator(options, qmc, system,
+                                                    trial, verbose)
 
         if verbose:
             print("# Number of fields = %i"%system.nfields)
 
-        self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
         # Constant core contribution modified by mean field shift.
-        mf_core = system.ecore
-        self.construct_one_body_propagator(system, qmc.dt)
-        self.mf_const_fac = 1
-        # todo : ?
-        self.BT_BP = self.BH1
+        mf_core = self.propagator.mf_core
+        self.mf_const_fac = cmath.exp(-self.dt*mf_core)
+        self.propagator.construct_one_body_propagator(system, qmc.dt)
+        self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz
 
         # Temporary array for matrix exponentiation.
@@ -69,7 +75,7 @@ class Continuous(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def two_body_propagator(self, walker, system, force_bias=True):
+    def two_body_propagator(self, walker, system, trial, force_bias=True):
         """It appliese the two-body propagator
         Parameters
         ----------
@@ -94,17 +100,17 @@ class Continuous(object):
         # Optimal force bias.
         xbar = numpy.zeros(system.nfields)
         if force_bias:
-            xbar = self.propagator.construct_force_bias(system, walker.G)
+            xbar = self.propagator.construct_force_bias(system, walker, trial)
 
         for i in range(system.nfields):
-            if (numpy.absolute(xbar[i]) > 1.0):
+            if numpy.absolute(xbar[i]) > 1.0:
                 print ("# Rescaling force bias is triggered")
                 xbar[i] /= numpy.absolute(xbar[i])
 
         xshifted = xi - xbar
 
         # Constant factor arising from force bias and mean field shift
-        cmf = -self.sqrt_dt * shifted.dot(self.mf_shift)
+        cmf = -self.sqrt_dt * xshifted.dot(self.propagator.mf_shift)
         # Constant factor arising from shifting the propability distribution.
         cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
 
@@ -112,9 +118,9 @@ class Continuous(object):
         VHS = self.propagator.construct_VHS(system, xshifted)
 
         # Apply propagator
-        walker.phi[:,:system.nup] = self.apply_exponential(walker.phi[:,:system.nup], VHS, False)
-        if (system.ndown > 0):
-            walker.phi[:,system.nup:] = self.apply_exponential(walker.phi[:,system.nup:], VHS, False)
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        if system.ndown > 0:
+            self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
         return (cmf, cfb, xshifted)
 
@@ -132,11 +138,11 @@ class Continuous(object):
         -------
         """
         # 1. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.BH1)
+        kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply 2-body projector
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, False)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial, False)
         # 3. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.BH1)
+        kinetic_real(walker.phi, system, self.propagator.BH1)
         walker.inverse_overlap(trial.psi)
         walker.ot = walker.calc_otrial(trial.psi)
         walker.greens_function(trial)
@@ -159,11 +165,11 @@ class Continuous(object):
         -------
         """
         # 1. Apply one_body propagator.
-        kinetic_real(walker.phi, system, self.BH1)
+        kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply one_body propagator.
-        kinetic_real(walker.phi, system, self.BH1)
+        kinetic_real(walker.phi, system, self.propagator.BH1)
 
         # Now apply hybrid phaseless approximation
         walker.inverse_overlap(trial.psi)
@@ -189,3 +195,20 @@ class Continuous(object):
             walker.ot = ot_new
             walker.weight = 0.0
             walker.field_configs.push_full(xmxbar, 0.0, 0.0)
+
+
+def unit_test():
+    from pauxy.systems.ueg import UEG
+    from pauxy.qmc.options import QMCOpts
+    from pauxy.trial_wavefunction.hartree_fock import HartreeFock
+
+    inputs = {'nup':1, 'ndown':1,
+    'rs':1.0, 'ecut':1.0, 'dt':0.05, 'nwalkers':10}
+
+    system = UEG(inputs, True)
+
+    qmc = QMCOpts(inputs, system, True)
+
+    trial = HartreeFock(system, False, inputs, True)
+
+    driver = Continuous({}, qmc, system, trial, True)

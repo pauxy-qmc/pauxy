@@ -2,8 +2,7 @@
 
 from pauxy.propagation.hubbard import HirschSpin, HubbardContinuous
 from pauxy.propagation.planewave import PlaneWave
-from pauxy.propagation.generic import Generic
-
+from pauxy.propagation.generic import GenericContinuous
 
 def get_continuous_propagator(options, qmc, system, trial, verbose=False):
     """Wrapper to select propagator class.
