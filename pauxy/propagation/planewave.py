@@ -172,7 +172,6 @@ class PlaneWave(object):
 
 
     def construct_VHS_incore(self, system, xshifted):
-        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
