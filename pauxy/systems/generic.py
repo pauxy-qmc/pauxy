@@ -52,6 +52,7 @@ class Generic(object):
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.decomopsition = inputs.get('decomposition', 'cholesky')
+        self.cutoff = inputs.get('sparse_cutoff', None)
         self.threshold = inputs.get('threshold', 1e-5)
         if verbose:
             print ("# Reading integrals from %s." % self.integral_file)
@@ -60,6 +61,11 @@ class Generic(object):
             print ("# Decomposing two-body operator.")
         (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
         self.nchol_vec = self.chol_vecs.shape[0]
+        if self.cutoff is not None:
+            self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
+        tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
+        tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
+        self.schol_vecs = scipy.sparse.csr_matrix(tmp)
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
