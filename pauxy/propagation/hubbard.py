@@ -9,7 +9,7 @@ from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
-class Discrete(object):
+class HirschSpin(object):
     """Propagator for discrete HS transformation.
 
     Parameters
@@ -241,7 +241,7 @@ class Discrete(object):
         walker.ot = walker.calc_otrial(trial.psi)
 
 # todo: stucture is the same for all continuous HS transformations.
-class Continuous(object):
+class HubbardContinuous(object):
     """Propagator for continuous HS transformation, specialised for Hubbard model.
 
     Parameters

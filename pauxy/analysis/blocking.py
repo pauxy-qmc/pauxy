@@ -186,7 +186,7 @@ def analyse_itcf(itcf):
 def analyse_simple(files, start_time):
     data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
     norm_data = []
-    for g in data:
+    for (g, f) in zip(data, files):
         (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
         dt = m.get('qmc').get('dt')
         free_projection = m.get('propagators').get('free_projection')
@@ -196,8 +196,9 @@ def analyse_simple(files, start_time):
         if free_projection:
             reblocked = average_fp(norm[start:nzero])
         else:
-            reblocked = average_single(norm[start:nzero].apply(numpy.real))
-        norm_data.append(pauxy.analysis.extraction.set_info(reblocked, m))
+            reblocked = reblock_mixed(norm[start:nzero].apply(numpy.real))
+            columns = pauxy.analysis.extraction.set_info(reblocked, m)
+        norm_data.append(reblocked)
     return pd.concat(norm_data)
 
 def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):

@@ -9,7 +9,7 @@ from math import exp
 import copy
 import h5py
 from pauxy.estimators.handler import Estimators
-from pauxy.propagation.utils import get_propagator
+from pauxy.qmc.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
@@ -99,8 +99,9 @@ class AFQMC(object):
             get_trial_wavefunction(trial, self.system, self.cplx,
                                    parallel, verbose)
         )
-        self.propagators = get_propagator(propagator, self.qmc, self.system,
-                                          self.trial, verbose)
+        self.propagators = get_propagator_driver(propagator, self.qmc,
+                                                 self.system, self.trial,
+                                                 verbose)
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
