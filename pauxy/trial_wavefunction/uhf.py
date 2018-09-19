@@ -1,7 +1,8 @@
 import copy
 import numpy
 import time
-from pauxy.estimators.mixed import gab, local_energy
+from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.greens_function import gab
 from pauxy.utils.linalg import diagonalise_sorted
 
 class UHF(object):

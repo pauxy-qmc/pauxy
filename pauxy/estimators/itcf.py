@@ -5,7 +5,7 @@ try:
 except ImportError:
     mpi_sum = None
 import scipy.linalg
-from pauxy.estimators.mixed import gab
+from pauxy.estimators.greens_function import gab, gab_multi_ghf
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.propagation.hubbard import (
     back_propagate_single_ghf,
@@ -325,7 +325,7 @@ class ITCF(object):
         G_nn : :class:`numpy.ndarray`
             Green's function.
         """
-        GAB = construct_multi_ghf_gab_back_prop(A, B, trial.coeffs, weights)
+        GAB = gab_multi_ghf(A, B, trial.coeffs, weights)
         Ggr = self.I - GAB
         Gls = self.I - Ggr
         return (Ggr, Gls)

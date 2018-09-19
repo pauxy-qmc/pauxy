@@ -2,7 +2,8 @@ import numpy
 import time
 from pauxy.utils.io import read_fortran_complex_numbers
 from pauxy.utils.linalg import diagonalise_sorted
-from pauxy.estimators.mixed import gab, local_energy
+from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.greens_function import gab
 
 class FreeElectron(object):
 

@@ -6,7 +6,8 @@ try:
 except ImportError:
     mpi_sum = None
 from pauxy.estimators.utils import H5EstimatorHelper
-from pauxy.estimators.mixed import gab, local_energy, gab_mod
+from pauxy.estimators.greens_function import gab, gab_mod
+from pauxy.estimators.mixed import local_energy
 import pauxy.propagation.generic
 import pauxy.propagation.hubbard
 

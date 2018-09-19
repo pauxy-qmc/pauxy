@@ -1,5 +1,6 @@
 import numpy
-from pauxy.estimators.mixed import gab, local_energy, gab_multi_det_full
+from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.greens_function import gab, gab_multi_det_full
 from pauxy.utils.linalg import diagonalise_sorted
 from pauxy.utils.io import read_fortran_complex_numbers
 
