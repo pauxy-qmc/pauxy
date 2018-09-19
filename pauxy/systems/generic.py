@@ -1,6 +1,7 @@
 import numpy
 import sys
 import scipy.linalg
+import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 
@@ -56,13 +57,16 @@ class Generic(object):
         self.decomopsition = inputs.get('decomposition', 'cholesky')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
-        self.threshold = inputs.get('threshold', 1e-5)
+        self.threshold = inputs.get('cholesky_threshold', 1e-5)
         if verbose:
             print ("# Reading integrals from %s." % self.integral_file)
         (self.T, self.h2e, self.ecore) = self.read_integrals()
         if verbose:
             print ("# Decomposing two-body operator.")
+        init = time.time()
         (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
+        if verbose:
+            print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
         self.nchol_vec = self.chol_vecs.shape[0]
         if self.cutoff is not None:
             self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
@@ -141,18 +145,18 @@ class Generic(object):
         chol_vecs : :class:`numpy.ndarray`
             Cholesky vectors.
         """
-        # Subtract one-body bit following reordering of 2-body operators.
-        # Eqn (17) of [Motta17]_
-        h1e_mod = self.T[0] - 0.5 * numpy.einsum('ijjl->il', self.h2e)
-        h1e_mod = numpy.array([h1e_mod, h1e_mod])
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
         V = numpy.transpose(self.h2e, (0, 2, 1, 3)).reshape(self.nbasis**2,
                                                             self.nbasis**2)
         if (numpy.sum(V - V.T) != 0):
             print("Warning: Supermatrix is not symmetric")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
-        return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
-                                            self.nbasis)))
+        chol_vecs = chol_vecs.reshape((chol_vecs.shape[0], self.nbasis, self.nbasis))
+        # Subtract one-body bit following reordering of 2-body operators.
+        # Eqn (17) of [Motta17]_
+        h1e_mod = self.T[0] - 0.5 * numpy.einsum('lik,ljk->ij', chol_vecs, chol_vecs)
+        h1e_mod = numpy.array([h1e_mod, h1e_mod])
+        return (h1e_mod, chol_vecs)
 
     def construct_integral_tensors(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).
@@ -174,17 +178,15 @@ class Generic(object):
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
                       numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
         self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
-                           csr_matrix(rotated_up.reshape((M*nb, -1)))]
+                           csr_matrix(rotated_down.reshape((M*nb, -1)))]
         vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
                        numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
                       numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
         self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
-                           csr_matrix(rotated_up.reshape((M*nb, -1)))]
+                           csr_matrix(rotated_down.reshape((M*nb, -1)))]
         self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
-                      csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]
-        self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
-                      csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]
+                      csr_matrix(vaklb_beta.reshape((M*nb, M*nb)))]
         if self.verbose:
             nnz = self.rchol_vecs[0].nnz
             print ("# Number of non-zero elements in rotated cholesky: %d"%nnz)
