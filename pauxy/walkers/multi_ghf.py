@@ -1,6 +1,6 @@
 import copy
 import numpy
-from pauxy.estimators.mixed import local_energy_ghf
+from pauxy.estimators.hubbard import local_energy_hubbard_ghf
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.io import read_fortran_complex_numbers
 

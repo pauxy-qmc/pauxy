@@ -1,6 +1,7 @@
 import numpy
 import time
-from pauxy.estimators.mixed import gab, local_energy, gab_mod
+from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.greens_function import gab, gab_mod
 
 class HartreeFock(object):
 

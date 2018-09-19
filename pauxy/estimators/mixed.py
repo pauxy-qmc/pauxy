@@ -8,7 +8,6 @@ except ImportError:
 import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
-from pauxy.estimators.greens_function import local_energy_ueg
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 from pauxy.estimators.ueg import local_energy_ueg
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
