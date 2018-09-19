@@ -44,15 +44,6 @@ class GenericContinuous(object):
         else:
             self.construct_force_bias = self.construct_force_bias_direct
             self.construct_VHS = self.construct_VHS_direct
-        # Half rotated cholesky vectors (by trial wavefunction).
-        # Assuming nup = ndown here
-        rotated_up = numpy.einsum('ia,lik->lak',
-                                  trial.psi[:,:system.nup].conj(),
-                                  system.chol_vecs)
-        rotated_down = numpy.einsum('ia,lik->lak',
-                                    trial.psi[:,system.nup:].conj(),
-                                    system.chol_vecs)
-        self.rchol_vecs = numpy.array([rotated_up, rotated_down])
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         if verbose:
@@ -93,7 +84,10 @@ class GenericContinuous(object):
             Force bias.
         """
         # Construct walker modified Green's function.
-        vbias = 1j*numpy.einsum('slak,sak->l', self.rchol_vecs, walker.Gmod)
+        rchol = system.rchol_vecs[0].todense()
+        vbias = 1j*numpy.einsum('a,al->l', walker.Gmod[0].ravel(), rchol)
+        rchol = system.rchol_vecs[1].todense()
+        vbias += 1j*numpy.einsum('a,al->l', walker.Gmod[1].ravel(), rchol)
         return - self.sqrt_dt * (vbias-self.mf_shift)
 
     def construct_force_bias_full(self, system, walker, trial):
@@ -130,9 +124,9 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        # Construct walker modified Green's function.
-        G = walker.G
-        self.vbias = (G[0]+G[1]).flatten() * system.schol_vecs
+        G = walker.Gmod
+        self.vbias = G[0].ravel() * system.rchol_vecs[0]
+        self.vbias += G[1].ravel() * system.rchol_vecs[1]
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_VHS_direct(self, system, shifted):
@@ -152,11 +146,9 @@ class GenericContinuous(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = numpy.zeros((system.nbasis, system.nbasis),
-                          dtype=numpy.complex128)
-        VHS = system.schol_vecs * xshifted
+        VHS = system.schol_vecs.dot(xshifted)
         VHS = VHS.reshape(system.nbasis, system.nbasis)
-        return  self.sqrt_dt * VHS
+        return  self.isqrt_dt * VHS
 
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.

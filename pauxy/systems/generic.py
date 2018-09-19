@@ -170,6 +170,5 @@ class Generic(object):
                       numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
         self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
                            csr_matrix(rotated_up.reshape((M*nb, -1)))]
-        self.rrchol = [rotated_up, rotated_up]
         self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
                       csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]

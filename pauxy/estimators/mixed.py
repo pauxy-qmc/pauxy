@@ -436,7 +436,7 @@ def local_energy_generic(system, G, Ghalf=None):
 
 def local_energy_generic_opt(system, G, Ghalf=None):
     # Element wise multiplication.
-    e1b = (system.T[0]*G[0]).trace() + (system.T[1]*G[1]).trace()
+    e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
     Gup = Ghalf[0].ravel()
     Gdn = Ghalf[1].ravel()
     euu = 0.5 * Gup.dot(system.vaklb[0].dot(Gup))
