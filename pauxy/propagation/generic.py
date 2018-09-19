@@ -25,6 +25,7 @@ class GenericContinuous(object):
     """
 
     def __init__(self, options, qmc, system, trial, verbose=False):
+        optimised = options.get('optimised', False)
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
@@ -37,16 +38,21 @@ class GenericContinuous(object):
         self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.nstblz = qmc.nstblz
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
+        if optimised:
+            self.construct_force_bias = self.construct_force_bias_incore
+            self.construct_VHS = self.construct_VHS_incore
+        else:
+            self.construct_force_bias = self.construct_force_bias_direct
+            self.construct_VHS = self.construct_VHS_direct
         # Half rotated cholesky vectors (by trial wavefunction).
         # Assuming nup = ndown here
-        rotated_up = numpy.einsum('rp,lpq->lrq',
-                                  trial.psi[:,:system.nup].conj().T,
+        rotated_up = numpy.einsum('ia,lik->lak',
+                                  trial.psi[:,:system.nup].conj(),
                                   system.chol_vecs)
-        rotated_down = numpy.einsum('rp,lpq->lrq',
-                                    trial.psi[:,system.nup:].conj().T,
+        rotated_down = numpy.einsum('ia,lik->lak',
+                                    trial.psi[:,system.nup:].conj(),
                                     system.chol_vecs)
         self.rchol_vecs = numpy.array([rotated_up, rotated_down])
-        self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         if verbose:
@@ -71,7 +77,7 @@ class GenericContinuous(object):
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
-    def construct_force_bias(self, system, walker, trial):
+    def construct_force_bias_direct(self, system, walker, trial):
         """Compute optimal force bias.
 
         Uses rotated Green's function.
@@ -87,9 +93,7 @@ class GenericContinuous(object):
             Force bias.
         """
         # Construct walker modified Green's function.
-        walker.inverse_overlap(trial.psi)
-        walker.rotated_greens_function()
-        vbias = 1j*numpy.einsum('slrp,spr->l', self.rchol_vecs, walker.Gmod)
+        vbias = 1j*numpy.einsum('slak,sak->l', self.rchol_vecs, walker.Gmod)
         return - self.sqrt_dt * (vbias-self.mf_shift)
 
     def construct_force_bias_full(self, system, walker, trial):
@@ -107,16 +111,52 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        vbias = numpy.einsum('lpq,pq->l', self.chol_vecs, G[0])
-        vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
+        vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
+        vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def construct_VHS(self, system, shifted):
+    def construct_force_bias_incore(self, system, walker, trial):
+        """Compute optimal force bias.
+
+        Uses rotated Green's function.
+
+        Parameters
+        ----------
+        Gmod : :class:`numpy.ndarray`
+            Half-rotated walker's Green's function.
+
+        Returns
+        -------
+        xbar : :class:`numpy.ndarray`
+            Force bias.
+        """
+        # Construct walker modified Green's function.
+        G = walker.G
+        self.vbias = (G[0]+G[1]).flatten() * system.schol_vecs
+        return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
+
+    def construct_VHS_direct(self, system, shifted):
         return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
                                             system.chol_vecs)
 
-    def construct_VHS_incore(self, system, shifted):
-        pass
+    def construct_VHS_incore(self, system, xshifted):
+        """Construct the one body potential from the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        xshifted : numpy array
+            shifited auxiliary field
+        Returns
+        -------
+        VHS : numpy array
+            the HS potential
+        """
+        VHS = numpy.zeros((system.nbasis, system.nbasis),
+                          dtype=numpy.complex128)
+        VHS = system.schol_vecs * xshifted
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
+        return  self.sqrt_dt * VHS
 
 def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
