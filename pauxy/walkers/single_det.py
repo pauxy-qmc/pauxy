@@ -40,13 +40,13 @@ class SingleDetWalker(object):
         self.inverse_overlap(trial.psi)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
-        self.Gmod = numpy.zeros(shape=(2, system.nbasis, system.nup),
+        self.Gmod = numpy.zeros(shape=(2, system.nup, system.nbasis),
                                 dtype=trial.psi.dtype)
         self.greens_function(trial)
         self.ot = 1.0
         # interface consistency
         self.ots = numpy.zeros(1)
-        self.E_L = local_energy(system, self.G)[0].real
+        self.E_L = local_energy(system, self.G, self.Gmod)[0].real
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
@@ -171,6 +171,8 @@ class SingleDetWalker(object):
     def greens_function(self, trial):
         """Compute walker's green's function.
 
+        Also updates walker's inverse overlap.
+
         Parameters
         ----------
         trial : object
@@ -179,15 +181,15 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
 
-        t = trial.psi
-        self.G[0] = (
-            (self.phi[:,:nup].dot(self.inv_ovlp[0]).dot(t[:,:nup].conj().T)).T
-        )
-        self.G[1] = numpy.zeros(self.G[0].shape)
-        if (ndown >0 ):
-            self.G[1] = (
-                (self.phi[:,nup:].dot(self.inv_ovlp[1]).dot(t[:,nup:].conj().T)).T
-            )
+        ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
+        # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
+        self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
+        self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
+        if ndown > 0:
+            # self.inv_ovlp[1] = scipy.linalg.inv(ovlp)
+            ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
+            self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
+            self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.
@@ -219,7 +221,7 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G)
+        return local_energy(system, self.G, Ghalf=self.Gmod)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

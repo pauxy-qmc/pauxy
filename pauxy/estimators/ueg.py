@@ -22,7 +22,7 @@ def coulomb_greens_function(nq, kpq_i, kpq, pmq_i, pmq, Gkpq, Gpmq, G):
         for (idxpmq,i) in zip(pmq[iq],pmq_i[iq]):
             Gpmq[iq] += G[i,idxpmq]
 
-def local_energy_ueg(system, G):
+def local_energy_ueg(system, G, Ghalf=None):
     """Local energy computation for uniform electron gas
     Parameters
     ----------

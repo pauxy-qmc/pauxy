@@ -9,6 +9,7 @@ import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
+from pauxy.estimators.ueg import local_energy_ueg
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 
 
@@ -261,8 +262,7 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy(system, G):
-    from pauxy.estimators.ueg import local_energy_ueg
+def local_energy(system, G, Ghalf=None, opt=True):
     """Helper routine to compute local energy.
 
     Parameters
@@ -286,9 +286,12 @@ def local_energy(system, G):
     elif system.name == "UEG":
         return local_energy_ueg(system, G)
     else:
-        return local_energy_generic(system, G)
+        if opt:
+            return local_energy_generic_opt(system, G, Ghalf)
+        else:
+            return local_energy_generic(system, G)
 
-def local_energy_hubbard(system, G):
+def local_energy_hubbard(system, G, Ghalf=None):
     r"""Calculate local energy of walker for the Hubbard model.
 
     Parameters
@@ -304,6 +307,7 @@ def local_energy_hubbard(system, G):
         Local, kinetic and potential energies of given walker phi.
     """
     ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
+    # Todo: Stupid
     pe = sum(system.U * G[0][i][i] * G[1][i][i]
              for i in range(0, system.nbasis))
 
@@ -400,7 +404,7 @@ def local_energy_ghf_full(system, GAB, weights):
     pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag) / denom
     return (ke+pe, ke, pe)
 
-def local_energy_generic(system, G):
+def local_energy_generic(system, G, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
 
     This uses the full form for the two-electron integrals.
@@ -430,7 +434,21 @@ def local_energy_generic(system, G):
     e2 = euu + edd + eud + edu
     return (e1+e2+system.ecore, e1+system.ecore, e2)
 
-def local_energy_generic_cholesky(system, G):
+def local_energy_generic_opt(system, G, Ghalf=None):
+    # Element wise multiplication.
+    e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
+    Gup = Ghalf[0].ravel()
+    Gdn = Ghalf[1].ravel()
+    euu = 0.5 * Gup.dot(system.vaklb[0].dot(Gup))
+    edd = 0.5 * Gdn.dot(system.vaklb[1].dot(Gdn))
+    eud = 0.5 * numpy.dot(Gup.T*system.rchol_vecs[0],
+                          Gdn.T*system.rchol_vecs[1])
+    edu = 0.5 * numpy.dot(Gdn.T*system.rchol_vecs[1],
+                          Gup.T*system.rchol_vecs[0])
+    e2b = euu + edd + eud + edu
+    return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
+
+def local_energy_generic_cholesky(system, G, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
 
     This uses the cholesky decomposed two-electron integrals.
@@ -442,46 +460,6 @@ def local_energy_generic_cholesky(system, G):
     G : :class:`numpy.ndarray`
         Walker's "green's function"
 
-    Returns
-    -------
-    (E, T, V): tuple
-        Local, kinetic and potential energies.
-    """
-    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
-          numpy.einsum('ij,ji->', system.T[1], G[1]))
-    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                            system.chol_vecs, G[0], G[0]) -
-               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
-                            system.chol_vecs, G[0], G[0]))
-    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                            system.chol_vecs, G[1], G[1]) -
-               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
-                            system.chol_vecs, G[1], G[1]))
-    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                           system.chol_vecs, G[0], G[1])
-    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                           system.chol_vecs, G[1], G[0])
-    e2 = euu + edd + eud + edu
-    return (e1+e2+system.ecore, e1+system.ecore, e2)
-
-def local_energy_generic_cholesky_opt(system, Theta, L):
-    r"""Calculate local for generic two-body hamiltonian.
-
-    This uses the cholesky decomposed two-electron integrals and the optimised
-    algorithm using precomputed tensors.
-
-    .. warning::
-
-            Doesn't work.
-
-    Parameters
-    ----------
-    system : :class:`hubbard`
-        System information for the hubbard model.
-    Theta : :class:`numpy.ndarray`
-        Rotated Green's function.
-    L : :class:`numpy.ndarray`
-        Rotated Cholesky vectors.
     Returns
     -------
     (E, T, V): tuple
@@ -573,9 +551,10 @@ def gab_mod(A, B):
     """
     # Todo: check energy evaluation at later point, i.e., if this needs to be
     # transposed. Shouldn't matter for Hubbard model.
-    inv_O = scipy.linalg.inv((A.conj().T).dot(B))
-    GAB = B.dot(inv_O)
-    return GAB
+    O = numpy.dot(B.T, A.conj())
+    GHalf = numpy.dot(scipy.linalg.inv(O), B.T)
+    G = numpy.dot(A.conj(), GHalf)
+    return (G, GHalf)
 
 
 def gab_multi_det(A, B, coeffs):

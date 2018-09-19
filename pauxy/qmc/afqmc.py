@@ -99,6 +99,8 @@ class AFQMC(object):
             get_trial_wavefunction(trial, self.system, self.cplx,
                                    parallel, verbose)
         )
+        if self.system.name == "Generic":
+            self.system.construct_integral_tensors(self.trial)
         self.propagators = get_propagator_driver(propagator, self.qmc,
                                                  self.system, self.trial,
                                                  verbose)

@@ -6,7 +6,7 @@ try:
 except ImportError:
     mpi_sum = None
 from pauxy.estimators.utils import H5EstimatorHelper
-from pauxy.estimators.mixed import gab, local_energy
+from pauxy.estimators.mixed import gab, local_energy, gab_mod
 import pauxy.propagation.generic
 import pauxy.propagation.hubbard
 
@@ -122,9 +122,9 @@ class BackPropagation(object):
         nup = system.nup
         denominator = 0
         for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
-            self.G[0] = gab(wb.phi[:,:nup], wnm.phi_old[:,:nup]).T
-            self.G[1] = gab(wb.phi[:,nup:], wnm.phi_old[:,nup:]).T
-            energies = numpy.array(list(local_energy(system, self.G)))
+            (self.G[0], Gmod_a) = gab_mod(wb.phi[:,:nup], wnm.phi_old[:,:nup])
+            (self.G[1], Gmod_b) = gab_mod(wb.phi[:,nup:], wnm.phi_old[:,nup:])
+            energies = numpy.array(list(local_energy(system, self.G, [Gmod_a, Gmod_b])))
             if self.restore_weights is not None:
                 weight = wnm.weight * self.calculate_weight_factor(wnm)
             else:
