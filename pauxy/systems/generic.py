@@ -48,6 +48,7 @@ class Generic(object):
         if verbose:
             print ("# Parsing input options.")
         self.name = "Generic"
+        self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
         self.ne = self.nup + self.ndown
@@ -159,11 +160,21 @@ class Generic(object):
         M = self.nbasis
         na = self.nup
         nb = self.ndown
+        if self.verbose:
+            print ("# Constructing half rotated Cholesky vectors.")
         rotated_up = numpy.einsum('ia,lik->akl', trial.psi[:,:na].conj(),
                                   self.chol_vecs)
         rotated_down = numpy.einsum('ia,lik->akl', trial.psi[:,na:].conj(),
                                     self.chol_vecs)
         # Todo: Fix for complex Cholesky
+        if self.verbose:
+            print ("# Constructing half rotated V_{(ab)(kl)}.")
+        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
+                       numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
+        vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
+                      numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
+        self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
+                           csr_matrix(rotated_up.reshape((M*nb, -1)))]
         vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
                        numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
@@ -172,3 +183,14 @@ class Generic(object):
                            csr_matrix(rotated_up.reshape((M*nb, -1)))]
         self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
                       csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]
+        self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
+                      csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]
+        if self.verbose:
+            nnz = self.rchol_vecs[0].nnz
+            print ("# Number of non-zero elements in rotated cholesky: %d"%nnz)
+            nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
+            print ("# Sparsity: %f"%(nnz/nelem))
+            nnz = self.vaklb[0].nnz
+            print ("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
+            nelem = self.vaklb[0].shape[0] * self.rchol_vecs[0].shape[1]
+            print ("# Sparsity: %f"%(nnz/nelem))
