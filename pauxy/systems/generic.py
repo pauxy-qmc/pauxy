@@ -1,6 +1,7 @@
 import numpy
 import sys
 import scipy.linalg
+from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 
 class Generic(object):
@@ -53,6 +54,7 @@ class Generic(object):
         self.integral_file = inputs.get('integrals')
         self.decomopsition = inputs.get('decomposition', 'cholesky')
         self.cutoff = inputs.get('sparse_cutoff', None)
+        self.sparse = inputs.get('sparse', True)
         self.threshold = inputs.get('threshold', 1e-5)
         if verbose:
             print ("# Reading integrals from %s." % self.integral_file)
@@ -65,7 +67,7 @@ class Generic(object):
             self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
         tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
         tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
-        self.schol_vecs = scipy.sparse.csr_matrix(tmp)
+        self.schol_vecs = csr_matrix(tmp)
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
@@ -150,3 +152,24 @@ class Generic(object):
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         return (h1e_mod, chol_vecs.reshape((chol_vecs.shape[0], self.nbasis,
                                             self.nbasis)))
+
+    def construct_integral_tensors(self, trial):
+        # Half rotated cholesky vectors (by trial wavefunction).
+        # Assuming nup = ndown here
+        M = self.nbasis
+        na = self.nup
+        nb = self.ndown
+        rotated_up = numpy.einsum('ia,lik->akl', trial.psi[:,:na].conj(),
+                                  self.chol_vecs)
+        rotated_down = numpy.einsum('ia,lik->akl', trial.psi[:,na:].conj(),
+                                    self.chol_vecs)
+        # Todo: Fix for complex Cholesky
+        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
+                       numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
+        vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
+                      numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
+        self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
+                           csr_matrix(rotated_up.reshape((M*nb, -1)))]
+        self.rrchol = [rotated_up, rotated_up]
+        self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
+                      csr_matrix(vaklb_alpha.reshape((M*nb, M*nb)))]

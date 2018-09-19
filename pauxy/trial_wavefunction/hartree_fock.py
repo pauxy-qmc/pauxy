@@ -1,6 +1,6 @@
 import numpy
 import time
-from pauxy.estimators.mixed import gab, local_energy
+from pauxy.estimators.mixed import gab, local_energy, gab_mod
 
 class HartreeFock(object):
 
@@ -19,14 +19,17 @@ class HartreeFock(object):
         occdown = numpy.identity(system.ndown)
         self.psi[:system.nup,:system.nup] = occup
         self.psi[:system.ndown,system.nup:] = occdown
-        gup = gab(self.psi[:,:system.nup],
-                                   self.psi[:,:system.nup])
+        gup, gup_half = gab_mod(self.psi[:,:system.nup],
+                                self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
-        if (system.ndown >0):
-            gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:])
+        gdown_half  = numpy.zeros(gup_half.shape)
+        if system.ndown > 0:
+            gdown, gdown_half = gab_mod(self.psi[:,system.nup:], self.psi[:,system.nup:])
 
         self.G = numpy.array([gup,gdown],dtype=self.trial_type)
-        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
+        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
+                                                         Ghalf=[gup_half, gdown_half],
+                                                         opt=False)
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
