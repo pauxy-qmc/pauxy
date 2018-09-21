@@ -125,7 +125,7 @@ def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
             nao = wfn[1].shape[-1]
             write_qmcpack_wfn(f, wfn[1], nao)
         else:
-            write_mo_matrix(f, wfn, nao)
+            write_qmcpack_wfn(f, wfn, nao)
 
 def write_qmcpack_wfn(out, mos, nao):
     for i in range(0, nao):
