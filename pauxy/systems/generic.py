@@ -182,10 +182,9 @@ class Generic(object):
             Cholesky vectors.
         """
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
-        V = numpy.transpose(self.h2e, (0, 2, 1, 3)).reshape(self.nbasis**2,
-                                                            self.nbasis**2)
-        if (numpy.sum(V - V.T) != 0):
-            print("Warning: Supermatrix is not symmetric")
+        V = self.h2e.reshape(self.nbasis**2, self.nbasis**2)
+        if (numpy.sum(V - V.conj().T) != 0):
+            print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0], self.nbasis, self.nbasis))
         # Subtract one-body bit following reordering of 2-body operators.
