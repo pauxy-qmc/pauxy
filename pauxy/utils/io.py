@@ -92,13 +92,16 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
 
-def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc):
-    print (" # Constructing Trial wavefunction.")
+def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
+    if verbose:
+        print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
-        print (" # Writing UHF trial wavefunction.")
+        if verbose:
+            print (" # Writing UHF trial wavefunction.")
         (mo_energies, mo_coeff) = molecular_orbitals_uhf(fock, orthoAO)
     else:
-        print (" # Writing RHF trial wavefunction.")
+        if verbose:
+            print (" # Writing RHF trial wavefunction.")
         (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
     with h5py.File(filename, 'w') as fh5:
         fh5.create_dataset('hcore', data=hcore)

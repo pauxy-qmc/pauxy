@@ -183,7 +183,7 @@ def molecular_orbitals_uhf(fock, AORot):
     (mo_energies[1], mo_orbs[1]) = scipy.linalg.eigh(fock_ortho)
     return (mo_energies, mo_orbs)
 
-def get_orthoAO(S, LINDEP_CUTOFF):
+def get_orthoAO(S, LINDEP_CUTOFF=1e-14):
     sdiag, Us = numpy.linalg.eigh(S)
     X = Us[:,sdiag>LINDEP_CUTOFF] / numpy.sqrt(sdiag[sdiag>LINDEP_CUTOFF])
     return X
