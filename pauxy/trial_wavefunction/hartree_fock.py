@@ -16,10 +16,14 @@ class HartreeFock(object):
         self.trial_type = numpy.complex128
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
-        occup = numpy.identity(system.nup)
-        occdown = numpy.identity(system.ndown)
-        self.psi[:system.nup,:system.nup] = occup
-        self.psi[:system.ndown,system.nup:] = occdown
+        occup = numpy.arange(system.nup)
+        occdown = numpy.arange(system.ndown)
+        self.excite_ia = trial.get('excitation', None)
+        if self.excite_ia is not None:
+            occup[self.excite_ia[0]] = self.excite_ia[1]
+            self.full_mo = numpy.eye(system.nbasis)
+        self.psi[occup, numpy.arange(system.nup)] = 1
+        self.psi[occdown, numpy.arange(system.ndown)+system.nup] = 1
         gup, gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)

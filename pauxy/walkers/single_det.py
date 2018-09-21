@@ -58,6 +58,11 @@ class SingleDetWalker(object):
         # Historic wavefunction for ITCF.
         self.phi_bp = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
+        excite = trial.excite_ia
+        if excite is not None:
+            self.ia = trial.excite_ia
+            self.reortho = self.reortho_excite
+            self.trial_buff =  numpy.copy(trial.full_mo[:,:self.ia[1]+1])
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
@@ -165,6 +170,44 @@ class SingleDetWalker(object):
         if (ndown > 0):
             drdn = scipy.linalg.det(signs_down.dot(Rdown))
         detR = drup * drdn
+        self.ot = self.ot / detR
+        return detR
+
+    def reortho_excite(self, trial):
+        """reorthogonalise walker.
+
+        parameters
+        ----------
+        trial : object
+            trial wavefunction object. for interface consistency.
+        """
+        nup = self.nup
+        ndown = self.ndown
+        # print (self.phi[:,:self.nup])
+        buff = numpy.copy(self.trial_buff).astype(trial.psi.dtype)
+        buff[:,:self.ia[0]] = self.phi[:,:self.ia[0]]
+        buff[:,self.ia[0]+1:self.nup] = self.phi[:,self.ia[0]:self.nup-1]
+        buff[:,-1] = self.phi[:,self.nup-1]
+        (buff, Rup) = scipy.linalg.qr(buff, mode='economic')
+        Rdown = numpy.zeros(Rup.shape)
+        if (ndown > 0):
+            (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
+                                                        mode='economic')
+        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
+        if ndown > 0:
+            signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
+        buff = buff.dot(signs_up)
+        self.phi[:,:self.ia[0]] = numpy.copy(buff[:,:self.ia[0]])
+        self.phi[:,self.ia[0]:self.nup-1] = numpy.copy(buff[:,self.ia[0]+1:self.nup])
+        self.phi[:,self.nup-1] = numpy.copy(buff[:,-1])
+        if ndown > 0:
+            self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
+        drup = scipy.linalg.det(signs_up.dot(Rup))
+        drdn = 1.0
+        if ndown > 0:
+            drdn = scipy.linalg.det(signs_down.dot(Rdown))
+        detR = drup * drdn
+        # This only affects free projection
         self.ot = self.ot / detR
         return detR
 
