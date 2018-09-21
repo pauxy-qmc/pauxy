@@ -11,7 +11,10 @@ from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 from pauxy.estimators.ueg import local_energy_ueg
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
-from pauxy.estimators.generic import local_energy_generic_opt, local_energy_generic
+from pauxy.estimators.generic import (
+    local_energy_generic_opt,
+    local_energy_generic_cholesky
+)
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 
 
@@ -293,7 +296,7 @@ def local_energy(system, G, Ghalf=None, opt=True):
         if opt:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic(system, G)
+            return local_energy_generic_cholesky(system, G)
 
 def local_energy_multi_det(system, Gi, weights):
     """Calculate local energy of GHF walker for the Hubbard model.
