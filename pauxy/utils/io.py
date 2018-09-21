@@ -92,7 +92,7 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
 
-def dump_native(hcore, eri, orthoAO, fock, nelec, enuc):
+def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc):
     print (" # Constructing Trial wavefunction.")
     if len(fock.shape) == 3:
         print (" # Writing UHF trial wavefunction.")
@@ -100,7 +100,7 @@ def dump_native(hcore, eri, orthoAO, fock, nelec, enuc):
     else:
         print (" # Writing RHF trial wavefunction.")
         (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
-    with h5py.File('qmc.dump', 'w') as fh5:
+    with h5py.File(filename, 'w') as fh5:
         fh5.create_dataset('hcore', data=hcore)
         fh5.create_dataset('nelec', data=nelec)
         # We use physics notation for integrals.
