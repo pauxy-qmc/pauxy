@@ -28,6 +28,8 @@ class Walkers(object):
 
     def __init__(self, walker_opts, system, trial, nwalkers,
                  nprop_tot, nbp, verbose=False):
+        if verbose:
+            print ("# Setting up wavefunction object.")
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(walker_opts, system, trial)
@@ -46,6 +48,8 @@ class Walkers(object):
         self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
         self.calculate_total_weight()
         self.calculate_nwalkers()
+        if verbose:
+            print ("# Finished setting up wavefunction object.")
 
     def calculate_total_weight(self):
         self.total_weight = sum(w.weight for w in self.walkers if w.alive)

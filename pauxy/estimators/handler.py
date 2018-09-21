@@ -53,6 +53,8 @@ class Estimators(object):
     """
 
     def __init__(self, estimates, root, qmc, system, trial, BT2, verbose=False):
+        if verbose:
+            print ("# Setting up estimator object.")
         if root:
             index = estimates.get('index', 0)
             self.h5f_name = estimates.get('filename', None)
@@ -92,6 +94,8 @@ class Estimators(object):
                                            system.nbasis, dtype,
                                            self.nprop_tot, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
+        if verbose:
+            print ("# Finished settting up estimator object.")
 
     def reset(self, root):
         if root:
