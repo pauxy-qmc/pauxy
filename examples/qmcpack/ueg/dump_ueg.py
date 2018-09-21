@@ -9,6 +9,6 @@ options = {'rs': 1, 'nup': 7, 'ndown': 7, 'ecut': 1}
 ueg = UEG(options, verbose=True)
 
 # Factor of 4 is down to conventions in factorisations.
-dump_qmcpack_cholesky(ueg.h1e_mod, 4*ueg.chol_vecs, (ueg.nup, ueg.ndown),
+dump_qmcpack_cholesky(ueg.T, 4*ueg.chol_vecs, (ueg.nup, ueg.ndown),
                       ueg.nbasis, ueg.ecore)
 dump_qmcpack_trial_wfn(numpy.eye(ueg.nbasis), ueg.ne)
