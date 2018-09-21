@@ -105,8 +105,7 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
     with h5py.File(filename, 'w') as fh5:
         fh5.create_dataset('hcore', data=hcore)
         fh5.create_dataset('nelec', data=nelec)
-        # We use physics notation for integrals.
-        fh5.create_dataset('eri', data=numpy.transpose(eri, axes=(0,2,1,3)))
+        fh5.create_dataset('eri', data=eri)
         fh5.create_dataset('enuc', data=[enuc])
         fh5.create_dataset('mo_coeff', data=mo_coeff)
 
