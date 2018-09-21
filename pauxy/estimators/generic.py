@@ -61,8 +61,8 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
-          numpy.einsum('ij,ji->', system.T[1], G[1]))
+    # Element wise multiplication.
+    e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
     euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
                             system.chol_vecs, G[0], G[0]) -
                numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
@@ -75,5 +75,5 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
                            system.chol_vecs, G[0], G[1])
     edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
                            system.chol_vecs, G[1], G[0])
-    e2 = euu + edd + eud + edu
-    return (e1+e2+system.ecore, e1+system.ecore, e2)
+    e2b = euu + edd + eud + edu
+    return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
