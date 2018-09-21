@@ -16,7 +16,7 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash
-from pauxy.utils.io import  to_json
+from pauxy.utils.io import  to_json, serialise
 from pauxy.walkers.handler import Walkers
 
 
@@ -144,7 +144,7 @@ class AFQMC(object):
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
-        if verbose and self.root:
+        if verbose:
             self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
