@@ -13,7 +13,6 @@ def format_fixed_width_strings(strings):
 def format_fixed_width_floats(floats):
     return ' '.join('{: .10e}'.format(f) for f in floats)
 
-
 def read_fortran_complex_numbers(filename):
     with open(filename) as f:
         content = f.readlines()
@@ -110,3 +109,36 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
         fh5.create_dataset('eri', data=numpy.transpose(eri, axes=(0,2,1,3)))
         fh5.create_dataset('enuc', data=[enuc])
         fh5.create_dataset('mo_coeff', data=mo_coeff)
+
+def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
+    UHF = len(wfn.shape) == 3
+    namelist = "&FCI\n UHF = %d\n FullMO \n NCI = 1\n TYPE = matrix\n/"%UHF
+    # Single determinant for the moment.
+    with open(filename, 'w') as f:
+        f.write(namelist+'\n')
+        f.write('Coefficients: 1.0\n')
+        f.write('Determinant: 1\n')
+        nao = wfn.shape[-1]
+        if UHF:
+            nao = wfn[0].shape[-1]
+            write_qmcpack_wfn(f, wfn[0], nao)
+            nao = wfn[1].shape[-1]
+            write_qmcpack_wfn(f, wfn[1], nao)
+        else:
+            write_mo_matrix(f, wfn, nao)
+
+def write_qmcpack_wfn(out, mos, nao):
+    for i in range(0, nao):
+        for j in range(0, nao):
+            val = mos[i,j]
+            out.write('(%.10e,%.10e) '%(val.real, val.imag))
+        out.write('\n')
+
+def read_qmcpack_wfn(filename):
+    with open(filename) as f:
+        content = f.readlines()[9:]
+    useable = numpy.array([c.split() for c in content]).flatten()
+    tuples = [ast.literal_eval(u) for u in useable]
+    orbs = [complex(t[0], t[1]) for t in tuples]
+    orbs = [float(u) for u in useable]
+    return numpy.array(orbs)
