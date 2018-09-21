@@ -3,7 +3,7 @@ import functools
 import numpy
 import h5py
 import sys
-from pauxy.utils.io import dump_native
+from pauxy.utils.from_pyscf import dump_pauxy
 
 def parse_args(args):
     """Parse command-line arguments.
@@ -43,7 +43,7 @@ def main(args):
     """
 
     options = parse_args(args)
-    dump_pauxy_chkfile(options.input_scf, outfile=options.output)
+    dump_pauxy(options.input_scf, outfile=options.output)
 
 if __name__ == '__main__':
 
