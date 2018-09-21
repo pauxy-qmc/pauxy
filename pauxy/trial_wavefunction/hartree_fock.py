@@ -23,7 +23,7 @@ class HartreeFock(object):
                 self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[1][:,:system.ndown])
             else:
                 self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[:,:system.nup])
-                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[:,:system.nup])
+                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[:,:system.ndown])
         else:
             occup = numpy.arange(system.nup)
             occdown = numpy.arange(system.ndown)
@@ -43,6 +43,8 @@ class HartreeFock(object):
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
                                                          Ghalf=[gup_half, gdown_half],
                                                          opt=False)
+        if verbose:
+            print ("# (E, E1B, E2B): (%f, %f, %f)"%(self.energy.real, self.e1b.real, self.e2b.real))
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
