@@ -3,7 +3,7 @@ from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
 
 
-def get_system(model, dt, verbose):
+def get_system(model, verbose):
     """Wrapper to select system class
 
     Parameters
@@ -20,9 +20,9 @@ def get_system(model, dt, verbose):
         :ref:`pauxy.system.hubbard`.
     """
     if model['name'] == 'Hubbard':
-        system = Hubbard(model, dt, verbose)
+        system = Hubbard(model, verbose)
     elif model['name'] == 'Generic':
-        system = Generic(model, dt, verbose)
+        system = Generic(model, verbose)
     elif model['name'] == 'UEG':
         system = UEG(model, verbose)
     else:

@@ -46,7 +46,7 @@ class Generic(object):
         Number of field configurations per walker for back propagation.
     """
 
-    def __init__(self, inputs, dt, verbose=False):
+    def __init__(self, inputs, verbose=False):
         if verbose:
             print ("# Parsing input options.")
         self.name = "Generic"

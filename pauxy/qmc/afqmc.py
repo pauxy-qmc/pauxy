@@ -94,7 +94,7 @@ class AFQMC(object):
         self.init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        self.system = get_system(model, qmc_opts['dt'], verbose)
+        self.system = get_system(model, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (

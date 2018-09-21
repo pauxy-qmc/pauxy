@@ -105,7 +105,7 @@ class ThermalAFQMC(object):
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         model['thermal'] = True # Add thermal keyword to model
-        self.system = get_system(model, qmc_opts['dt'], verbose)
+        self.system = get_system(model, verbose)
         convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)

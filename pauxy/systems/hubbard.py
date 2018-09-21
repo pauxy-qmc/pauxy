@@ -42,7 +42,7 @@ class Hubbard(object):
         Super matrix (not currently implemented).
     """
 
-    def __init__(self, inputs, dt, verbose=False):
+    def __init__(self, inputs, verbose=False):
         if verbose:
             print ("# Parsing input options.")
         self.nup = inputs['nup']
@@ -68,10 +68,6 @@ class Hubbard(object):
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
-        self.gamma = numpy.arccosh(numpy.exp(0.5*dt*self.U))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-        self.auxf = self.auxf * numpy.exp(-0.5*dt*self.U)
         # For interface consistency.
         self.ecore = 0.0
         # Number of field configurations per walker.
