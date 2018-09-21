@@ -96,8 +96,8 @@ def read_input(input_file, comm, verbose=False):
     return options
 
 
-def set_rng_seed(options, comm):
-    seed = options['qmc_options'].get('rng_seed', None)
+def set_rng_seed(qmc_opts, comm):
+    seed = qmc_opts.get('rng_seed', None)
     if seed is None:
         # only set "random" part of seed on parent processor so we can reproduce
         # results in when running in parallel.

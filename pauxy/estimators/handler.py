@@ -54,16 +54,16 @@ class Estimators(object):
 
     def __init__(self, estimates, root, qmc, system, trial, BT2, verbose=False):
         if root:
-            self.index = estimates.get('index', 0)
-            h5f_name = estimates.get('filename', None)
-            if h5f_name is None:
+            index = estimates.get('index', 0)
+            self.h5f_name = estimates.get('filename', None)
+            if self.h5f_name is None:
                 overwrite = estimates.get('overwrite', True)
-                h5f_name = 'estimates.%s.h5' % self.index
-                while os.path.isfile(h5f_name) and not overwrite:
-                    self.index = int(h5f_name.split('.')[1])
-                    self.index = self.index + 1
-                    h5f_name = 'estimates.%s.h5' % self.index
-            self.h5f = h5py.File(h5f_name, 'w')
+                self.h5f_name = 'estimates.%s.h5' % index
+                while os.path.isfile(self.h5f_name) and not overwrite:
+                    index = int(self.h5f_name.split('.')[1])
+                    index = index + 1
+                    self.h5f_name = 'estimates.%s.h5' % index
+            self.h5f = h5py.File(self.h5f_name, 'w')
         else:
             self.h5f = None
         # Sub-members:

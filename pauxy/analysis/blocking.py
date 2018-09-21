@@ -109,7 +109,28 @@ def reblock_free_projection(frame):
                         "statistics.".format(c))
     analysed.append(reblocked)
 
-    return pd.concat(analysed)
+    if len(analysed) == 0:
+        return None
+    else:
+        return pd.concat(analysed)
+
+def reblock_local_energy(filename, skip=0):
+    data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
+    results = reblock_mixed(data.apply(numpy.real))
+    if results is None:
+        return None
+    else:
+        try:
+            energy = results['E'].values[0]
+            error = results['E_error'].values[0]
+            return (energy, error)
+        except KeyError:
+            return None
+
+def reblock_bp_rdm(filename, skip=1):
+    bp_rdm = pauxy.analysis.extraction.extract_bp_rdm(filename, skip)
+    rdm, rdm_err = average_rdm(bp_rdm)
+    return rdm, rdm_err
 
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)

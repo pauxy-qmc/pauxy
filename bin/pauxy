@@ -13,8 +13,19 @@ def main(input_file):
     input_file : string
         JSON input file name.
     """
-    (afqmc, comm) = setup_calculation(input_file)
-    afqmc.run(comm=comm)
+    comm = init_communicator()
+    options = read_input(input_file, comm, verbose=True)
+    set_rng_seed(options['qmc_options'], comm)
+    if comm.size > 1:
+        afqmc = setup_parallel(options, comm, verbose=True)
+    else:
+        afqmc = AFQMC(options.get('model'),
+                      options.get('qmc_options'),
+                      options.get('estimates'),
+                      options.get('trial_wavefunction'),
+                      options.get('propagator', {}),
+                      verbose=True)
+    afqmc.run(comm=comm, verbose=True)
     afqmc.finalise(verbose=True)
 
 

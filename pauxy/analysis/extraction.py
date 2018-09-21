@@ -9,6 +9,37 @@ def extract_hdf5_data_sets(files):
 
     return data
 
+def extract_mixed_estimates(filename, skip=0):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    basic = data['mixed_estimates/energies'][:]
+    headers = data['mixed_estimates/headers'][:]
+    basic = pd.DataFrame(basic)
+    basic.columns = headers
+    nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
+    return (basic[skip:nzero])
+
+def extract_bp_rdm(filename, skip):
+    data = h5py.File(filename, 'r')
+    metadata = json.loads(data['metadata'][:][0])
+    bpe = data['back_propagated_estimates/energies'][:]
+    headers = data['back_propagated_estimates/headers'][:]
+    bp_data = pd.DataFrame(bpe)
+    bp_data.columns = headers
+    nzero = numpy.nonzero(bp_data['E'].values)[0][-1]
+    try:
+        bp_rdm = data['back_propagated_estimates/single_particle_greens_function'][:]
+        weights = bp_data['weight'].values.real
+        if len(bp_rdm.shape) == 3:
+            # GHF format
+            w = weights[skip:nzero,None,None]
+        else:
+            # UHF format
+            w = weights[skip:nzero,None,None,None]
+        return (bp_rdm[skip:nzero]/w)
+    except KeyError:
+        return None
+
 def extract_hdf5(filename):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])

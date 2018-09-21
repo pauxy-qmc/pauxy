@@ -60,6 +60,7 @@ class Mixed(object):
     def __init__(self, mixed, root, h5f, qmc, trial, dtype):
         self.thermal = mixed.get('thermal', False)
         self.rdm = mixed.get('rdm', False)
+        self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
         if self.thermal:
             self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
@@ -184,7 +185,8 @@ class Mixed(object):
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
         if comm.Get_rank() == 0:
-            print (format_fixed_width_floats([step]+
+            if self.verbose:
+                print (format_fixed_width_floats([step]+
                    list(self.global_estimates[:ns.time+1].real/nmeasure)))
             self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
             if self.rdm:

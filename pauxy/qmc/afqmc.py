@@ -8,6 +8,8 @@ import uuid
 from math import exp
 import copy
 import h5py
+from pauxy.analysis import blocking
+from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
@@ -113,19 +115,22 @@ class AFQMC(object):
                                self.qmc.nwalkers,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
-            json_string = to_json(self)
-            self.estimators.json_string = json_string
-            self.estimators.dump_metadata()
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+            json_string = json.dumps(serialise(self, verbose=1),
+                                     sort_keys=False, indent=4)
+            self.estimators.h5f.create_dataset('metadata',
+                                               data=numpy.array([json_string],
+                                                                dtype=object),
+                                               dtype=h5py.special_dtype(vlen=str))
+            if verbose:
+                self.estimators.estimators['mixed'].print_key()
+                self.estimators.estimators['mixed'].print_header()
 
-    def run(self, psi=None, comm=None):
+    def run(self, psi=None, comm=None, verbose=True):
         """Perform AFQMC simulation on state object using open-ended random walk.
 
         Parameters
         ----------
-        state : :class:`pauxy.state.State` object
-            Model and qmc parameters.
         psi : :class:`pauxy.walker.Walkers` object
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
@@ -139,10 +144,8 @@ class AFQMC(object):
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
-        if self.root:
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
-        self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
+        if verbose and self.root:
+            self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
             if step % self.qmc.nstblz == 0:
@@ -169,7 +172,7 @@ class AFQMC(object):
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
 
-    def finalise(self, verbose):
+    def finalise(self, verbose=False):
         """Tidy up.
 
         Parameters
@@ -181,6 +184,9 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
+                energy = self.get_energy()
+                if energy is not None:
+                    print("# Mixed estimate for total energy: %f +/- %f"%energy)
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self.init_time))
@@ -200,3 +206,29 @@ class AFQMC(object):
         continuous = 'continuous' in hs_type
         twist = system.ktwist.all() is not None
         return continuous or twist
+
+    def get_energy(self, skip=0):
+        """Get mixed estimate for the energy.
+
+        Returns
+        -------
+        (energy, error) : tuple
+            Mixed estimate for the energy and standard error.
+        """
+        filename = self.estimators.h5f_name
+        eloc = blocking.reblock_local_energy(filename, skip)
+        return eloc
+
+    def get_one_rdm(self, skip=0):
+        """Get back-propagated estimate for the one RDM.
+
+        Returns
+        -------
+        rdm : :class:`numpy.ndarray`
+            Back propagated estimate for 1RMD.
+        error : :class:`numpy.ndarray`
+            Standard error in the RDM.
+        """
+        filename = self.estimators.h5f_name
+        bp_rdm, bp_rdm_err = blocking.reblock_bp_rdm(filename)
+        return (bp_rdm, bp_rdm_err)
