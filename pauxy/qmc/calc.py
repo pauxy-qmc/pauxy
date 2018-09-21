@@ -104,7 +104,7 @@ def set_rng_seed(qmc_opts, comm):
         if comm.rank == 0:
             seed = numpy.array([numpy.random.randint(0, 1e8)], dtype='i4')
             # Can't directly json serialise numpy arrays
-            options['qmc_options']['rng_seed'] = seed[0].item()
+            qmc_opts['qmc_options']['rng_seed'] = seed[0].item()
         else:
             seed = numpy.empty(1, dtype='i4')
         comm.Bcast(seed, root=0)
@@ -132,6 +132,7 @@ def setup_parallel(options, comm=None, verbose=False):
     """
     if comm.Get_rank() == 0:
         afqmc = get_driver(options, comm)
+        print ("# Setup base driver.")
     else:
         afqmc = None
     afqmc = comm.bcast(afqmc, root=0)
@@ -152,8 +153,8 @@ def setup_parallel(options, comm=None, verbose=False):
         if afqmc.root:
             warnings.warn('Not enough walkers for selected core count. There '
                           'must be at least one walker per core set in the '
-                          'input file. Exiting.')
-        sys.exit()
+                          'input file. Setting one walker per core.')
+        afqmc.qmc.nwalkers = 1
 
     afqmc.estimators = (
         Estimators(options.get('estimates', {}),
@@ -161,17 +162,22 @@ def setup_parallel(options, comm=None, verbose=False):
                    afqmc.qmc,
                    afqmc.system,
                    afqmc.trial,
-                   afqmc.propagators.BT_BP)
+                   afqmc.propagators.BT_BP,
+                   verbose=(comm.rank==0 and verbose))
     )
     afqmc.psi = Walkers(options.get('walkers', {'weight': 1}), afqmc.system,
                         afqmc.trial,
                         afqmc.qmc.nwalkers,
                         afqmc.estimators.nprop_tot,
                         afqmc.estimators.nbp,
-                        comm.rank==0 and verbose)
+                        verbose=(comm.rank==0 and verbose))
     if comm.rank == 0:
-        json_string = to_json(afqmc)
-        afqmc.estimators.json_string = json_string
-        afqmc.estimators.dump_metadata()
+        json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+        json_string = json.dumps(serialise(afqmc, verbose=1),
+                                 sort_keys=False, indent=4)
+        afqmc.estimators.h5f.create_dataset('metadata',
+                                           data=numpy.array([json_string],
+                                                            dtype=object),
+                                           dtype=h5py.special_dtype(vlen=str))
 
     return afqmc
