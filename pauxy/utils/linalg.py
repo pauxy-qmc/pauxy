@@ -164,3 +164,22 @@ def exponentiate_matrix(M, order=6):
         EXPM += T
         T = M.dot(T) / (n+1)
     return EXPM
+
+def molecular_orbitals_rhf(fock, AORot):
+    fock_ortho = unitary_transform(fock, AORot)
+    mo_energies, mo_orbs = scipy.linalg.eigh(fock_ortho)
+    return (mo_energies, mo_orbs)
+
+def molecular_orbitals_uhf(fock, AORot):
+    mo_energies = numpy.zeros((2, fock.shape[-1]))
+    mo_orbs = numpy.zeros((2, fock.shape[-1], fock.shape[-1]))
+    fock_ortho = unitary_transform(fock[0], AORot)
+    (mo_energies[0], mo_orbs[0]) = scipy.linalg.eigh(fock_ortho)
+    fock_ortho = unitary_transform(fock[1], AORot)
+    (mo_energies[1], mo_orbs[1]) = scipy.linalg.eigh(fock_ortho)
+    return (mo_energies, mo_orbs)
+
+def get_orthoAO(S, LINDEP_CUTOFF):
+    sdiag, Us = numpy.linalg.eigh(S)
+    X = Us[:,sdiag>LINDEP_CUTOFF] / numpy.sqrt(sdiag[sdiag>LINDEP_CUTOFF])
+    return X

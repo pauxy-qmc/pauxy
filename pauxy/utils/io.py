@@ -4,6 +4,7 @@ import json
 import numpy
 import scipy.sparse
 from pauxy.utils.misc import serialise
+from pauxy.utils.linalg import molecular_orbitals_rhf, molecular_orbitals_uhf
 
 def format_fixed_width_strings(strings):
     return ' '.join('{:>17}'.format(s) for s in strings)
@@ -90,3 +91,19 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups = [i for i in range(0, nalpha)]
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
+
+def dump_native(hcore, eri, orthoAO, fock, nelec, enuc):
+    print (" # Constructing Trial wavefunction.")
+    if len(fock.shape) == 3:
+        print (" # Writing UHF trial wavefunction.")
+        (mo_energies, mo_coeff) = molecular_orbitals_uhf(fock, orthoAO)
+    else:
+        print (" # Writing RHF trial wavefunction.")
+        (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+    with h5py.File('qmc.dump', 'w') as fh5:
+        fh5.create_dataset('hcore', data=hcore)
+        fh5.create_dataset('nelec', data=nelec)
+        # We use physics notation for integrals.
+        fh5.create_dataset('eri', data=numpy.transpose(eri, axes=(0,2,1,3)))
+        fh5.create_dataset('enuc', data=[enuc])
+        fh5.create_dataset('mo_coeff', data=mo_coeff)
