@@ -133,15 +133,14 @@ class Generic(object):
             elif i > 0  and j > 0 and k > 0 and l > 0:
                 # <ij|kl> = <ji|lk> = <kl|ij> = <lk|ji> =
                 # <kj|il> = <li|jk> = <il|kj> = <jk|li>
-                self.h2e[i-1,j-1,k-1,l-1] = integral
-                self.h2e[j-1,i-1,l-1,k-1] = integral
-                self.h2e[k-1,l-1,i-1,j-1] = integral
-                self.h2e[l-1,k-1,j-1,i-1] = integral
-                self.h2e[k-1,j-1,i-1,l-1] = integral
-                self.h2e[l-1,i-1,j-1,k-1] = integral
-                self.h2e[i-1,l-1,k-1,j-1] = integral
-                self.h2e[j-1,k-1,l-1,i-1] = integral
-        print (self.h1e)
+                self.h2e[i-1,k-1,j-1,l-1] = integral
+                self.h2e[k-1,i-1,l-1,j-1] = integral
+                self.h2e[j-1,l-1,i-1,k-1] = integral
+                self.h2e[l-1,j-1,k-1,i-1] = integral
+                self.h2e[j-1,k-1,i-1,l-1] = integral
+                self.h2e[l-1,i-1,k-1,j-1] = integral
+                self.h2e[i-1,l-1,j-1,k-1] = integral
+                self.h2e[k-1,j-1,l-1,i-1] = integral
         self.T = numpy.array([self.h1e, self.h1e])
         self.mo_coeff = None
 
