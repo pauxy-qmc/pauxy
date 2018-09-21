@@ -1,3 +1,4 @@
+import h5py
 import numpy
 import sys
 import scipy.linalg
@@ -60,7 +61,7 @@ class Generic(object):
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
         if verbose:
             print ("# Reading integrals from %s." % self.integral_file)
-        (self.T, self.h2e, self.ecore) = self.read_integrals()
+        self.read_integrals()
         if verbose:
             print ("# Decomposing two-body operator.")
         init = time.time()
@@ -80,6 +81,12 @@ class Generic(object):
             print ("# Finished setting up Generic system object.")
 
     def read_integrals(self):
+        try:
+            self.read_hdf5_integrals()
+        except OSError:
+            self.read_ascii_integrals()
+
+    def read_ascii_integrals(self):
         """Read in integrals from file.
 
         Returns
@@ -91,6 +98,8 @@ class Generic(object):
         ecore : float
             Core contribution to the total energy.
         """
+        if self.verbose:
+            print ("# Reading integrals in plain text FCIDUMP format.")
         f = open(self.integral_file)
         while True:
             line = f.readline()
@@ -104,8 +113,8 @@ class Generic(object):
                     if nelec != self.ne:
                         print("Number of electrons is inconsistent")
                         sys.exit()
-        h1e = numpy.zeros((self.nbasis, self.nbasis))
-        h2e = numpy.zeros((self.nbasis, self.nbasis, self.nbasis, self.nbasis))
+        self.h1e = numpy.zeros((self.nbasis, self.nbasis))
+        self.h2e = numpy.zeros((self.nbasis, self.nbasis, self.nbasis, self.nbasis))
         lines = f.readlines()
         for l in lines:
             s = l.split()
@@ -116,24 +125,52 @@ class Generic(object):
             integral = float(s[0])
             i, k, j, l = [int(x) for x in s[1:]]
             if i == j == k == l == 0:
-                ecore = integral
+                self.ecore = integral
             elif j == 0 and l == 0:
                 # <i|k> = <k|i>
-                h1e[i-1,k-1] = integral
-                h1e[k-1,i-1] = integral
+                self.h1e[i-1,k-1] = integral
+                self.h1e[k-1,i-1] = integral
             elif i > 0  and j > 0 and k > 0 and l > 0:
                 # <ij|kl> = <ji|lk> = <kl|ij> = <lk|ji> =
                 # <kj|il> = <li|jk> = <il|kj> = <jk|li>
-                h2e[i-1,j-1,k-1,l-1] = integral
-                h2e[j-1,i-1,l-1,k-1] = integral
-                h2e[k-1,l-1,i-1,j-1] = integral
-                h2e[l-1,k-1,j-1,i-1] = integral
-                h2e[k-1,j-1,i-1,l-1] = integral
-                h2e[l-1,i-1,j-1,k-1] = integral
-                h2e[i-1,l-1,k-1,j-1] = integral
-                h2e[j-1,k-1,l-1,i-1] = integral
+                self.h2e[i-1,j-1,k-1,l-1] = integral
+                self.h2e[j-1,i-1,l-1,k-1] = integral
+                self.h2e[k-1,l-1,i-1,j-1] = integral
+                self.h2e[l-1,k-1,j-1,i-1] = integral
+                self.h2e[k-1,j-1,i-1,l-1] = integral
+                self.h2e[l-1,i-1,j-1,k-1] = integral
+                self.h2e[i-1,l-1,k-1,j-1] = integral
+                self.h2e[j-1,k-1,l-1,i-1] = integral
+        print (self.h1e)
+        self.T = numpy.array([self.h1e, self.h1e])
+        self.mo_coeff = None
 
-        return (numpy.array([h1e, h1e]), h2e, ecore)
+    def read_hdf5_integrals(self):
+        """Read in integrals from file.
+
+        Returns
+        -------
+        T : :class:`numpy.ndarray`
+            One-body part of the Hamiltonian.
+        h2e : :class:`numpy.ndarray`
+            Two-electron integrals.
+        ecore : float
+            Core contribution to the total energy.
+        """
+        if self.verbose:
+            print ("# Reading integrals in PAUXY HDF5 format.")
+        with h5py.File(self.integral_file, 'r') as fh5:
+            h1e = fh5['hcore'][:]
+            self.nbasis = h1e.shape[-1]
+            self.h2e = fh5['eri'][:]
+            self.ecore = fh5['enuc'][:][0]
+            nelec = fh5['nelec'][:]
+            self.mo_coeff = fh5['mo_coeff'][:]
+        if (nelec[0] != self.nup) or nelec[1] != self.ndown:
+            print("Number of electrons is inconsistent")
+            print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
+            # sys.exit()
+        self.T = numpy.array([h1e, h1e])
 
     def construct_decomposition(self, verbose):
         """Decompose two-electron integrals.

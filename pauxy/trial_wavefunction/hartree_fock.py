@@ -16,14 +16,22 @@ class HartreeFock(object):
         self.trial_type = numpy.complex128
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
-        occup = numpy.arange(system.nup)
-        occdown = numpy.arange(system.ndown)
         self.excite_ia = trial.get('excitation', None)
-        if self.excite_ia is not None:
-            occup[self.excite_ia[0]] = self.excite_ia[1]
-            self.full_mo = numpy.eye(system.nbasis)
-        self.psi[occup, numpy.arange(system.nup)] = 1
-        self.psi[occdown, numpy.arange(system.ndown)+system.nup] = 1
+        if system.mo_coeff is not None:
+            if len(system.mo_coeff.shape) == 3:
+                self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[0][:,:system.nup])
+                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[1][:,:system.ndown])
+            else:
+                self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[:,:system.nup])
+                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[:,:system.nup])
+        else:
+            occup = numpy.arange(system.nup)
+            occdown = numpy.arange(system.ndown)
+            if self.excite_ia is not None:
+                occup[self.excite_ia[0]] = self.excite_ia[1]
+                self.full_mo = numpy.eye(system.nbasis)
+            self.psi[occup, numpy.arange(system.nup)] = 1
+            self.psi[occdown, numpy.arange(system.ndown)+system.nup] = 1
         gup, gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
