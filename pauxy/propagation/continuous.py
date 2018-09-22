@@ -31,9 +31,6 @@ class Continuous(object):
         self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz
 
-        # Temporary array for matrix exponentiation.
-        self.Temp = numpy.zeros(trial.psi[:,:system.nup].shape,
-                                dtype=trial.psi.dtype)
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
@@ -66,11 +63,13 @@ class Continuous(object):
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
+        # Temporary array for matrix exponentiation.
+        Temp = numpy.zeros(phi.shape, dtype=phi.dtype)
 
-        numpy.copyto(self.Temp, phi)
+        numpy.copyto(Temp, phi)
         for n in range(1, self.exp_nmax+1):
-            self.Temp = VHS.dot(self.Temp) / n
-            phi += self.Temp
+            Temp = VHS.dot(Temp) / n
+            phi += Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi

@@ -40,8 +40,10 @@ class SingleDetWalker(object):
         self.inverse_overlap(trial.psi)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
-        self.Gmod = numpy.zeros(shape=(2, system.nup, system.nbasis),
-                                dtype=trial.psi.dtype)
+        self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
+                                 dtype=trial.psi.dtype),
+                     numpy.zeros(shape=(system.ndown, system.nbasis),
+                                 dtype=trial.psi.dtype)]
         self.greens_function(trial)
         self.ot = 1.0
         # interface consistency
