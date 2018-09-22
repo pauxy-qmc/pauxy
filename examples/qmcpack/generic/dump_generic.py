@@ -8,7 +8,7 @@ from pauxy.utils.io import dump_qmcpack_cholesky, dump_qmcpack_trial_wfn
 options = {'nup': 5, 'ndown': 5, 'integrals': 'fcidump.h5'}
 
 atom = Generic(options, verbose=True)
-trial = HartreeFock(atom, True, {})
+trial = HartreeFock(atom, True, {}, verbose=True)
 
 # Factor of 4 is down to conventions in factorisations.
 dump_qmcpack_cholesky(atom.T, atom.schol_vecs, (atom.nup, atom.ndown),
