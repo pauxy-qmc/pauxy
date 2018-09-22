@@ -184,7 +184,7 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
-                energy = self.get_energy()
+                energy = self.get_energy(skip=int(0.1*self.qmc.nsteps))
                 if energy is not None:
                     print("# Mixed estimate for total energy: %f +/- %f"%energy)
                 print("# End Time: %s" % time.asctime())
