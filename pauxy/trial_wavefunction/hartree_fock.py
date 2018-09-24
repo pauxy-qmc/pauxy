@@ -49,12 +49,13 @@ class HartreeFock(object):
         else:
             # UHF
             self.psi[:,:system.nup] = mo_matrix[0][:,occ_a]
+            self.psi[:,system.nup:] = mo_matrix[1][:,occ_b]
             if self.excite_ia is not None:
+                # "Promotion energy" calculation.
                 # Only deal with alpha spin excitation for the moment.
                 i = self.excite_ia[0]
                 a = self.excite_ia[1]
                 self.psi[:,i] = mo_matrix[:,a]
-            self.psi[:,system.nup:] = mo_matrix[1][:,occ_b]
         gup, gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
