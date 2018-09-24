@@ -68,7 +68,7 @@ class Generic(object):
             if verbose:
                 print ("# Decomposing two-body operator.")
             init = time.time()
-            (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
+            self.chol_vecs = self.construct_decomposition(verbose)
             if verbose:
                 print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
             self.nchol_vec = self.chol_vecs.shape[0]
@@ -205,7 +205,7 @@ class Generic(object):
             print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0], self.nbasis, self.nbasis))
-        return (h1e_mod, chol_vecs)
+        return chol_vecs
 
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
