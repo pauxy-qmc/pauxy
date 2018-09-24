@@ -24,28 +24,37 @@ class HartreeFock(object):
             msq = system.nbasis**2
             if len(mo_matrix) == msq:
                 mo_matrix = mo_matrix.reshape((system.nbasis, system.nbasis))
-                self.psi[:,:system.nup] = mo_matrix[:,:system.nup]
-                self.psi[:,system.nup:] = mo_matrix[:,:system.ndown]
             else:
                 mo_alpha = mo_matrix[:msq].reshape((system.nbasis, system.nbasis))
                 mo_beta = mo_matrix[msq:].reshape((system.nbasis, system.nbasis))
-                self.psi[:,:system.nup] = mo_alpha[:,:system.nup]
-                self.psi[:,system.nup:] = mo_beta[:,:system.ndown]
+                mo_matrix = numpy.array([mo_alpha, mo_beta])
         elif system.mo_coeff is not None:
-            if len(system.mo_coeff.shape) == 3:
-                self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[0][:,:system.nup])
-                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[1][:,:system.ndown])
-            else:
-                self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[:,:system.nup])
-                self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[:,:system.ndown])
+            mo_matrix = system.mo_coeff
         else:
-            occup = numpy.arange(system.nup)
-            occdown = numpy.arange(system.ndown)
+            # Assuming we're in the MO basis.
+            mo_matrix = numpy.eye(system.nbasis)
+        # Assuming energy ordered basis set.
+        self.full_mo = mo_matrix
+        occ_a = numpy.arange(system.nup)
+        occ_b = numpy.arange(system.ndown)
+        if len(mo_matrix.shape) == 2:
+            # RHF
+            self.psi[:,:system.nup] = mo_matrix[:,occ_a]
+            self.psi[:,system.nup:] = mo_matrix[:,occ_b]
             if self.excite_ia is not None:
-                occup[self.excite_ia[0]] = self.excite_ia[1]
-                self.full_mo = numpy.eye(system.nbasis)
-            self.psi[occup, numpy.arange(system.nup)] = 1
-            self.psi[occdown, numpy.arange(system.ndown)+system.nup] = 1
+                # Only deal with alpha spin excitation for the moment.
+                i = self.excite_ia[0]
+                a = self.excite_ia[1]
+                self.psi[:,i] = mo_matrix[:,a]
+        else:
+            # UHF
+            self.psi[:,:system.nup] = mo_matrix[0][:,occ_a]
+            if self.excite_ia is not None:
+                # Only deal with alpha spin excitation for the moment.
+                i = self.excite_ia[0]
+                a = self.excite_ia[1]
+                self.psi[:,i] = mo_matrix[:,a]
+            self.psi[:,system.nup:] = mo_matrix[1][:,occ_b]
         gup, gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
