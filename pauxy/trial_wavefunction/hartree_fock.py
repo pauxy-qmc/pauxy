@@ -2,6 +2,7 @@ import numpy
 import time
 from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab, gab_mod
+from pauxy.utils.io import read_qmcpack_wfn
 
 class HartreeFock(object):
 
@@ -17,7 +18,20 @@ class HartreeFock(object):
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         self.excite_ia = trial.get('excitation', None)
-        if system.mo_coeff is not None:
+        self.wfn_file = trial.get('filename', None)
+        if self.wfn_file is not None:
+            mo_matrix = read_qmcpack_wfn(self.wfn_file)
+            msq = system.nbasis**2
+            if len(mo_matrix) == msq:
+                mo_matrix = mo_matrix.reshape((system.nbasis, system.nbasis))
+                self.psi[:,:system.nup] = mo_matrix[:,:system.nup]
+                self.psi[:,system.nup:] = mo_matrix[:,:system.ndown]
+            else:
+                mo_alpha = mo_matrix[:msq].reshape((system.nbasis, system.nbasis))
+                mo_beta = mo_matrix[msq:].reshape((system.nbasis, system.nbasis))
+                self.psi[:,:system.nup] = mo_alpha[:,:system.nup]
+                self.psi[:,system.nup:] = mo_beta[:,:system.ndown]
+        elif system.mo_coeff is not None:
             if len(system.mo_coeff.shape) == 3:
                 self.psi[:,:system.nup] = numpy.copy(system.mo_coeff[0][:,:system.nup])
                 self.psi[:,system.nup:] = numpy.copy(system.mo_coeff[1][:,:system.ndown])

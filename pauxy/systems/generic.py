@@ -5,6 +5,7 @@ import scipy.linalg
 import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
+from pauxy.utils.io import from_qmcpack_cholesky
 
 class Generic(object):
     """Generic system class (integrals read from fcidump)
@@ -61,19 +62,22 @@ class Generic(object):
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
         if verbose:
             print ("# Reading integrals from %s." % self.integral_file)
+        self.schol_vecs = None
         self.read_integrals()
-        if verbose:
-            print ("# Decomposing two-body operator.")
-        init = time.time()
-        (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
-        if verbose:
-            print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
-        self.nchol_vec = self.chol_vecs.shape[0]
-        if self.cutoff is not None:
-            self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
-        tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
-        tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
-        self.schol_vecs = csr_matrix(tmp)
+        if self.schol_vecs is None:
+            if verbose:
+                print ("# Decomposing two-body operator.")
+            init = time.time()
+            (self.h1e_mod, self.chol_vecs) = self.construct_decomposition(verbose)
+            if verbose:
+                print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
+            self.nchol_vec = self.chol_vecs.shape[0]
+            if self.cutoff is not None:
+                self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
+            tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
+            self.schol_vecs = csr_matrix(tmp)
+        self.construct_h1e_mod()
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
@@ -82,6 +86,8 @@ class Generic(object):
 
     def read_integrals(self):
         try:
+            self.read_qmcpack_integrals()
+        except KeyError:
             self.read_hdf5_integrals()
         except OSError:
             self.read_ascii_integrals()
@@ -171,6 +177,18 @@ class Generic(object):
             # sys.exit()
         self.T = numpy.array([h1e, h1e])
 
+    def read_qmcpack_integrals(self):
+        (h1e, self.schol_vecs, self.ecore,
+         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
+        if (nup != self.nup) or ndown != self.ndown:
+            print("Number of electrons is inconsistent")
+            print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
+        self.nchol_vec = self.schol_vecs.shape[-1]
+        self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
+                                                              self.nbasis))
+        self.T = numpy.array([h1e, h1e])
+        self.mo_coeff = None
+
     def construct_decomposition(self, verbose):
         """Decompose two-electron integrals.
 
@@ -187,11 +205,13 @@ class Generic(object):
             print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0], self.nbasis, self.nbasis))
+        return (h1e_mod, chol_vecs)
+
+    def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
-        h1e_mod = self.T[0] - 0.5 * numpy.einsum('lik,ljk->ij', chol_vecs, chol_vecs)
-        h1e_mod = numpy.array([h1e_mod, h1e_mod])
-        return (h1e_mod, chol_vecs)
+        v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs, self.chol_vecs)
+        self.h1e_mod = numpy.array([self.T[0]-v0, self.T[1]-v0])
 
     def construct_integral_tensors(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).

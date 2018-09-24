@@ -91,6 +91,25 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
 
+def from_qmcpack_cholesky(filename):
+    with h5py.File(filename, 'r') as fh5:
+        enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
+        idx = fh5['Hamiltonian/H1_indx'][:]
+        row_ix = idx[::2]
+        col_ix = idx[1::2]
+        h1 = fh5['Hamiltonian/H1'][:].view(numpy.complex128).ravel()
+        hcore = scipy.sparse.csr_matrix((h1, (row_ix, col_ix))).toarray()
+        idx = fh5['Hamiltonian/Factorized/index_0'][:]
+        h2 = fh5['Hamiltonian/Factorized/vals_0'][:].view(numpy.complex128).ravel()
+        dims = fh5['Hamiltonian/dims'][:]
+        nbasis = dims[3]
+        nalpha = dims[4]
+        nbeta = dims[5]
+        row_ix = idx[::2]
+        col_ix = idx[1::2]
+        chol_vecs = scipy.sparse.csr_matrix((h2, (row_ix, col_ix)))
+        return (hcore, chol_vecs, enuc, nbasis, nalpha, nbeta)
+
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
@@ -135,9 +154,8 @@ def write_qmcpack_wfn(out, mos, nao):
 
 def read_qmcpack_wfn(filename):
     with open(filename) as f:
-        content = f.readlines()[9:]
+        content = f.readlines()[8:]
     useable = numpy.array([c.split() for c in content]).flatten()
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
-    orbs = [float(u) for u in useable]
     return numpy.array(orbs)
