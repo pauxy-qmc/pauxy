@@ -20,7 +20,11 @@ class HartreeFock(object):
         self.excite_ia = trial.get('excitation', None)
         self.wfn_file = trial.get('filename', None)
         if self.wfn_file is not None:
+            if verbose:
+                print ("# Reading trial wavefunction from %s."%self.wfn_file)
             mo_matrix = read_qmcpack_wfn(self.wfn_file)
+            if verbose:
+                print ("# Finished reading wavefunction.")
             msq = system.nbasis**2
             if len(mo_matrix) == msq:
                 mo_matrix = mo_matrix.reshape((system.nbasis, system.nbasis))
@@ -64,6 +68,8 @@ class HartreeFock(object):
             gdown, gdown_half = gab_mod(self.psi[:,system.nup:], self.psi[:,system.nup:])
 
         self.G = numpy.array([gup,gdown],dtype=self.trial_type)
+        if verbose:
+            print ("# Computing trial energy.")
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
                                                          Ghalf=[gup_half, gdown_half],
                                                          opt=False)
