@@ -6,7 +6,8 @@ from pyscf.lib.chkfile import load_mol
 from pyscf import ao2mo, scf
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
-               verbose=True, qmcpack=False, wfn_file='wfn.dat'):
+               verbose=True, qmcpack=False, wfn_file='wfn.dat',
+               chol_cut=1e-5, sparse_zero=1e-16):
     if chkfile is not None:
         (hcore, fock, orthoAO, enuc, mol) = from_pyscf_chkfile(chkfile, verbose)
     else:
@@ -17,8 +18,8 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
     nbasis = h1e.shape[-1]
     eri = ao2mo.kernel(mol, orthoAO, compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
     if qmcpack:
-        dump_qmcpack(outfile, wfn_file, h1e, eri,
-                     orthoAO, fock, mol.nelec, enuc)
+        dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
+                     mol.nelec, enuc, threshold=chol_cut, sparse_zero=sparse_zero)
     else:
         dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc)
 

@@ -137,7 +137,7 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
         fh5.create_dataset('mo_coeff', data=mo_coeff)
 
 def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
-                 verbose=True, threshold=1e-5):
+                 verbose=True, threshold=1e-5, sparse_zero=1e-16):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
@@ -155,6 +155,7 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     msq = nbasis * nbasis
     chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
                                   verbose=verbose).T
+    chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
     chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
     mem = 64*chol_vecs.nnz/(1024.0**3)
     if verbose:

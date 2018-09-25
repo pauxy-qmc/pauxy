@@ -29,6 +29,10 @@ def parse_args(args):
                         default=False, help='Output to qmcpack format.')
     parser.add_argument('-w', '--wavefile', dest='wfn', type=str,
                         default='wfn.dat', help='Output file name for qmcpack trial.')
+    parser.add_argument('-c', '--cholesky', dest='cholesky', type=float,
+                        default=1e-5, help='Cholesky convergence threshold.')
+    parser.add_argument('-s', '--sparse', dest='sparse', type=float,
+                        default=1e-16, help='Sparse zero value.')
 
     options = parser.parse_args(args)
 
@@ -49,7 +53,8 @@ def main(args):
 
     options = parse_args(args)
     dump_pauxy(chkfile=options.input_scf, outfile=options.output,
-               qmcpack=options.qmcpack, wfn_file=options.wfn)
+               qmcpack=options.qmcpack, wfn_file=options.wfn,
+               chol_cut=options.cholesky, sparse_zero=options.sparse)
 
 if __name__ == '__main__':
 
