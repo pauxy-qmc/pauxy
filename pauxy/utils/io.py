@@ -154,7 +154,7 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
         print (" # Performing modified Cholesky decomposition on ERI tensor.")
     msq = nbasis * nbasis
     chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
-                                  verbose=verbose)
+                                  verbose=verbose).T
     chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
     mem = 64*chol_vecs.nnz/(1024.0**3)
     if verbose:
