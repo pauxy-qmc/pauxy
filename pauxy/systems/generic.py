@@ -72,11 +72,6 @@ class Generic(object):
             if verbose:
                 print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
             self.nchol_vec = self.chol_vecs.shape[0]
-            if self.cutoff is not None:
-                self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
-            tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
-            self.schol_vecs = csr_matrix(tmp)
         self.construct_h1e_mod()
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
@@ -214,6 +209,12 @@ class Generic(object):
         self.h1e_mod = numpy.array([self.T[0]-v0, self.T[1]-v0])
 
     def construct_integral_tensors(self, trial):
+        if self.schol_vecs is None:
+            if self.cutoff is not None:
+                self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
+            tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
+            self.schol_vecs = csr_matrix(tmp)
         # Half rotated cholesky vectors (by trial wavefunction).
         # Assuming nup = ndown here
         M = self.nbasis
@@ -232,8 +233,6 @@ class Generic(object):
                        numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
                       numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
-        self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
-                           csr_matrix(rotated_down.reshape((M*nb, -1)))]
         vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
                        numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
@@ -249,5 +248,5 @@ class Generic(object):
             print ("# Sparsity: %f"%(nnz/nelem))
             nnz = self.vaklb[0].nnz
             print ("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-            nelem = self.vaklb[0].shape[0] * self.rchol_vecs[0].shape[1]
+            nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
             print ("# Sparsity: %f"%(nnz/nelem))
