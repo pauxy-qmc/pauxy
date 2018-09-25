@@ -7,6 +7,7 @@ from pauxy.utils.io import read_qmcpack_wfn
 class HartreeFock(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        self.verbose = verbose
         if verbose:
             print ("# Parsing Hartree--Fock trial wavefunction input options.")
         init_time = time.time()
@@ -60,24 +61,29 @@ class HartreeFock(object):
                 i = self.excite_ia[0]
                 a = self.excite_ia[1]
                 self.psi[:,i] = mo_matrix[:,a]
-        gup, gup_half = gab_mod(self.psi[:,:system.nup],
+        gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
-        gdown_half  = numpy.zeros(gup_half.shape)
+        self.gdown_half  = numpy.zeros(self.gup_half.shape)
         if system.ndown > 0:
-            gdown, gdown_half = gab_mod(self.psi[:,system.nup:], self.psi[:,system.nup:])
+            gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:], self.psi[:,system.nup:])
 
         self.G = numpy.array([gup,gdown],dtype=self.trial_type)
-        if verbose:
-            print ("# Computing trial energy.")
-        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
-                                                         Ghalf=[gup_half, gdown_half],
-                                                         opt=False)
-        if verbose:
-            print ("# (E, E1B, E2B): (%f, %f, %f)"%(self.energy.real, self.e1b.real, self.e2b.real))
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
         self.initialisation_time = time.time() - init_time
         if verbose:
             print ("# Finished setting up trial wavefunction.")
+
+    def energy(self, system):
+        if self.verbose:
+            print ("# Computing trial energy.")
+        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
+                                                         Ghalf=[self.gup_half,
+                                                            self.gdown_half],
+                                                         opt=True)
+        if self.verbose:
+            print ("# (E, E1B, E2B): (%f, %f, %f)"%(self.energy.real,
+                                                    self.e1b.real,
+                                                    self.e2b.real))
