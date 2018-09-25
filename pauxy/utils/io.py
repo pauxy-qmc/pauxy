@@ -156,10 +156,10 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
                                   verbose=verbose)
     chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-    mem = 64*chol_vecs.nnz**4/(1024.0*1024.0*1024.0)
+    mem = 64*chol_vecs.nnz/(1024.0**3)
     if verbose:
-        print (" # Total number of non-zero in sparse cholesky ERI tensor:"
-               "%d"%chol_vecs.nnz)
+        print (" # Total number of non-zero elements in sparse cholesky ERI"
+               " tensor: %d"%chol_vecs.nnz)
         print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
     dump_qmcpack_cholesky(numpy.array([hcore, hcore]), chol_vecs, nelec,
                                       nbasis, enuc, filename=filename)
