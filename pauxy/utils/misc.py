@@ -1,6 +1,7 @@
 '''Various useful routines maybe not appropriate elsewhere'''
 
 import numpy
+import scipy.sparse
 import sys
 import subprocess
 import types
@@ -59,7 +60,11 @@ def serialise(obj, verbose=0):
         items = obj.__dict__.items()
 
     for k, v in items:
-        if is_class(v):
+        if isinstance(v, scipy.sparse.csr_matrix):
+            pass
+        elif isinstance(v, scipy.sparse.csc_matrix):
+            pass
+        elif is_class(v):
             # Object
             obj_dict[k] = serialise(v, verbose)
         elif isinstance(v, dict):
@@ -77,12 +82,12 @@ def serialise(obj, verbose=0):
         elif k == 'walkers':
             obj_dict[k] = [str(x) for x in v][0]
         elif isinstance(v, numpy.ndarray):
-            if verbose == 2:
+            if verbose == 3:
                 if v.dtype == complex:
                     obj_dict[k] = [v.real.tolist(), v.imag.tolist()]
                 else:
                     obj_dict[k] = v.tolist(),
-            elif verbose == 1:
+            elif verbose == 2:
                 if len(v.shape) == 1:
                     if v.dtype == complex:
                         obj_dict[k] = [[v.real.tolist(), v.imag.tolist()]]
