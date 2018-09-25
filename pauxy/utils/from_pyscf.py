@@ -1,11 +1,12 @@
 """Generate AFQMC data from PYSCF (molecular) simulation."""
 import h5py
-from pauxy.utils.io import dump_native
+from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import unitary, get_orthoAO
 from pyscf.lib.chkfile import load_mol
 from pyscf import ao2mo, scf
 
-def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5', verbose=True):
+def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
+               verbose=True, qmcpack=False, wfn_file='wfn.dat'):
     if chkfile is not None:
         (hcore, fock, orthoAO, enuc, mol) = from_pyscf_chkfile(chkfile, verbose)
     else:
@@ -14,12 +15,13 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5', verbose=Tr
         print (" # Transforming hcore and eri to ortho AO basis.")
     h1e = unitary(hcore, orthoAO)
     nbasis = h1e.shape[-1]
-    mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
-    if verbose:
-        print (" # Total number of elements in ERI tensor: %d"%nbasis**4)
-        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
     eri = ao2mo.kernel(mol, orthoAO, compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
-    dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc)
+    if qmcpack:
+        dump_qmcpack(outfile, wfn_file, h1e, eri,
+                     orthoAO, fock, mol.nelec, enuc)
+    else:
+        dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc)
+
 
 def from_pyscf_chkfile(chkfile, verbose=True):
     with h5py.File(chkfile, 'r') as fh5:

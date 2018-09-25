@@ -4,6 +4,7 @@ import numpy
 import h5py
 import sys
 from pauxy.utils.from_pyscf import dump_pauxy
+from pauxy.utils.from_pyscf import dump_pauxy
 
 def parse_args(args):
     """Parse command-line arguments.
@@ -24,6 +25,10 @@ def parse_args(args):
                         default=None, help='PYSCF scf chkfile.')
     parser.add_argument('-o', '--output', dest='output', type=str,
                         default='fcidump.h5', help='Output file name for PAUXY data.')
+    parser.add_argument('-q', '--qmcpack', dest='qmcpack', action='store_true',
+                        default=False, help='Output to qmcpack format.')
+    parser.add_argument('-w', '--wavefile', dest='wfn', type=str,
+                        default='wfn.dat', help='Output file name for qmcpack trial.')
 
     options = parser.parse_args(args)
 
@@ -43,7 +48,8 @@ def main(args):
     """
 
     options = parse_args(args)
-    dump_pauxy(options.input_scf, outfile=options.output)
+    dump_pauxy(chkfile=options.input_scf, outfile=options.output,
+               qmcpack=options.qmcpack, wfn_file=options.wfn)
 
 if __name__ == '__main__':
 

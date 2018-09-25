@@ -4,7 +4,10 @@ import json
 import numpy
 import scipy.sparse
 from pauxy.utils.misc import serialise
-from pauxy.utils.linalg import molecular_orbitals_rhf, molecular_orbitals_uhf
+from pauxy.utils.linalg import (
+        molecular_orbitals_rhf, molecular_orbitals_uhf,
+        modified_cholesky
+)
 
 def format_fixed_width_strings(strings):
     return ' '.join('{:>17}'.format(s) for s in strings)
@@ -121,12 +124,45 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
         if verbose:
             print (" # Writing RHF trial wavefunction.")
         (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+    nbasis = hcore.shape[-1]
+    mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
+    if verbose:
+        print (" # Total number of elements in ERI tensor: %d"%nbasis**4)
+        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
     with h5py.File(filename, 'w') as fh5:
         fh5.create_dataset('hcore', data=hcore)
         fh5.create_dataset('nelec', data=nelec)
         fh5.create_dataset('eri', data=eri)
         fh5.create_dataset('enuc', data=[enuc])
         fh5.create_dataset('mo_coeff', data=mo_coeff)
+
+def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
+                 verbose=True, threshold=1e-5):
+    if verbose:
+        print (" # Constructing trial wavefunctiom in ortho AO basis.")
+    if len(fock.shape) == 3:
+        if verbose:
+            print (" # Writing UHF trial wavefunction.")
+        (mo_energies, mo_coeff) = molecular_orbitals_uhf(fock, orthoAO)
+    else:
+        if verbose:
+            print (" # Writing RHF trial wavefunction.")
+        (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+    dump_qmcpack_trial_wfn(mo_coeff, nelec, wfn_file)
+    nbasis = hcore.shape[-1]
+    if verbose:
+        print (" # Performing modified Cholesky decomposition on ERI tensor.")
+    msq = nbasis * nbasis
+    chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
+                                  verbose=verbose)
+    chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
+    mem = 64*chol_vecs.nnz**4/(1024.0*1024.0*1024.0)
+    if verbose:
+        print (" # Total number of non-zero in sparse cholesky ERI tensor:"
+               "%d"%chol_vecs.nnz)
+        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
+    dump_qmcpack_cholesky(numpy.array([hcore, hcore]), chol_vecs, nelec,
+                                      nbasis, enuc, filename=filename)
 
 def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
     UHF = len(wfn.shape) == 3

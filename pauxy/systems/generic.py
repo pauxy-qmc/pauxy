@@ -200,7 +200,7 @@ class Generic(object):
             Cholesky vectors.
         """
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
-        V = self.h2e.reshape(self.nbasis**2, self.nbasis**2)
+        V = self.h2e.reshape((self.nbasis**2, self.nbasis**2))
         if (numpy.sum(V - V.conj().T) != 0):
             print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)

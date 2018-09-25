@@ -1,6 +1,7 @@
 import functools
 import numpy
 import scipy.linalg
+import time
 
 def sherman_morrison(Ainv, u, vt):
     r"""Sherman-Morrison update of a matrix inverse:
@@ -145,15 +146,18 @@ def modified_cholesky(M, kappa, verbose=False):
     nchol = 0
     while abs(delta_max) > kappa:
         # Update cholesky vector
+        start = time.time()
         L = (numpy.copy(delta[:,nu])/(delta_max)**0.5)
         chol_vecs.append(L)
-        Mapprox += numpy.einsum('i,j->ij', L, L)
+        Mapprox += numpy.outer(L, L)
         delta = M - Mapprox
         nu = numpy.argmax(delta.diagonal())
         delta_max = delta[nu,nu]
         nchol += 1
         if verbose:
-            print ("# iteration %d: delta_max = %f"%(nchol, delta_max))
+            step_time = time.time() - start
+            info = (nchol, delta_max, step_time)
+            print ("# iteration %d: delta_max = %13.8e: time = %13.8e"%info)
 
     return numpy.array(chol_vecs)
 
