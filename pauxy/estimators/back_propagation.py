@@ -219,9 +219,9 @@ class BackPropagation(object):
         if step != 0 and step % self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
             if comm.Get_rank() == 0:
-                self.output.push(self.global_estimates[:self.nreg]/(nprocs))
+                self.output.push(self.global_estimates[:self.nreg])
                 if self.rdm:
-                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)/(nprocs)
+                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
                     self.dm_output.push(rdm)
             self.zero()
 
