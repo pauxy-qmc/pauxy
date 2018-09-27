@@ -10,6 +10,7 @@ import pyblock
 import scipy.stats
 import pauxy.analysis.extraction
 
+
 def average_single(frame, delete=True):
     short = frame
     means = short.mean().to_frame().T
@@ -27,6 +28,7 @@ def average_single(frame, delete=True):
             columns.remove(d)
     return averaged[columns]
 
+
 def average_ratio(numerator, denominator):
     re_num = numerator.real
     re_den = denominator.real
@@ -43,10 +45,12 @@ def average_ratio(numerator, denominator):
     # Ignoring the fact that the mean includes complex components.
     cov = numpy.cov(re_num, re_den)[0,1]
     nsmpl = len(re_num)
-    error = abs(mean) * ((re_nume/re_num.mean())**2 + (re_dene/re_den.mean())**2
-                    -2*cov/(nsmpl*re_num.mean()*re_den.mean()))**0.5
+    error = abs(mean) * ((re_nume/re_num.mean())**2 +
+                         (re_dene/re_den.mean())**2 -
+                         2*cov/(nsmpl*re_num.mean()*re_den.mean()))**0.5
 
     return (mean, error)
+
 
 def average_fp(frame):
     real = average_single(frame.apply(numpy.real), False)
@@ -60,15 +64,17 @@ def average_fp(frame):
     # Only compute real part of the energy
     results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
     # Doing error analysis properly is complicated. This is not correct.
-    re_nume= real.E_num_error
+    re_nume = real.E_num_error
     re_dene = real.E_denom_error
     # Ignoring the fact that the mean includes complex components.
     cov = frame.apply(numpy.real).cov()
     cov_nd = cov['E_num']['E_denom']
     nsmpl = len(frame)
-    results['E_error'] = results.E * ((re_nume/re_num)**2+(re_dene/re_den)**2
-                                      -2*cov_nd/(nsmpl*re_num*re_den))**0.5
+    results['E_error'] = results.E * ((re_nume/re_num)**2 +
+                                      (re_dene/re_den)**2 -
+                                      2*cov_nd/(nsmpl*re_num*re_den))**0.5
     return results
+
 
 def reblock_mixed(frame):
     short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
@@ -81,11 +87,12 @@ def reblock_mixed(frame):
             reblocked[c] = rb['mean'].values
             reblocked[c+'_error'] = rb['standard error'].values
         except KeyError:
-            print ("Reblocking of {:4} failed. Insufficient "
-                    "statistics.".format(c))
+            print("Reblocking of {:4} failed. Insufficient "
+                  "statistics.".format(c))
     analysed.append(reblocked)
 
     return pd.concat(analysed)
+
 
 def reblock_free_projection(frame):
     short = frame.drop(['time', 'Weight', 'E'], axis=1)
@@ -114,6 +121,7 @@ def reblock_free_projection(frame):
     else:
         return pd.concat(analysed)
 
+
 def reblock_local_energy(filename, skip=0):
     data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
     results = reblock_mixed(data.apply(numpy.real))
@@ -127,15 +135,18 @@ def reblock_local_energy(filename, skip=0):
         except KeyError:
             return None
 
+
 def reblock_bp_rdm(filename, skip=1):
     bp_rdm = pauxy.analysis.extraction.extract_bp_rdm(filename, skip)
     rdm, rdm_err = average_rdm(bp_rdm)
     return rdm, rdm_err
 
+
 def average_rdm(gf):
     gf_av = gf.mean(axis=0)
     gf_err = gf.std(axis=0) / len(gf)**0.5
     return (gf_av, gf_err)
+
 
 def average_correlation(gf):
     ni = numpy.diagonal(gf, axis1=2, axis2=3)
@@ -146,12 +157,14 @@ def average_correlation(gf):
     spin_err = spin.std(axis=0, ddof=1) / len(hole)**0.5
     return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err, gf)
 
+
 def plot_correlations(cfunc, cfunc_err, ix, nx, ny, stag=False):
     c, err = get_strip(cfunc, cfunc_err, ix, nx, ny, stag)
     frame = pd.DataFrame({'iy': iy, 'c': c, 'c_err': err})
     pl.errorbar(iy, c, yerr=err, fmt='o')
     pl.show()
     return frame
+
 
 def average_tau(frames):
 
@@ -160,10 +173,12 @@ def average_tau(frames):
     err = numpy.sqrt(frames.var())
     covs = frames.cov().loc[:,'E_num'].loc[:, 'E_denom']
     energy = means['E_num'] / means['E_denom']
-    energy_err = abs(energy/numpy.sqrt(data_len))*((err['E_num']/means['E_num'])**2.0 +
-                                   (err['E_denom']/means['E_denom'])**2.0 -
-                                   2*covs/(means['E_num']*means['E_denom']))**0.5
+    sqrtn = numpy.sqrt(data_len)
+    energy_err = ((err['E_num']/means['E_num'])**2.0 +
+                  (err['E_denom']/means['E_denom'])**2.0 -
+                  2*covs/(means['E_num']*means['E_denom']))**0.5
 
+    energy_err = abs(energy/sqrtn) * energy_err
     eproj = means['E']
     eproj_err = err['E']/numpy.sqrt(data_len)
     weight = means['Weight']
@@ -196,6 +211,7 @@ def analyse_back_propagation(frames):
     columns = numpy.insert(columns, 1, 'dt')
     return full[columns]
 
+
 def analyse_itcf(itcf):
     means = itcf.mean(axis=(0,1), dtype=numpy.float64)
     n = itcf.shape[0]*itcf.shape[1]
@@ -203,6 +219,7 @@ def analyse_itcf(itcf):
         itcf.std(axis=(0,1), ddof=1, dtype=numpy.float64) / numpy.sqrt(n)
     )
     return (means, errs)
+
 
 def analyse_simple(files, start_time):
     data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
@@ -221,6 +238,7 @@ def analyse_simple(files, start_time):
             columns = pauxy.analysis.extraction.set_info(reblocked, m)
         norm_data.append(reblocked)
     return pd.concat(norm_data)
+
 
 def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
     data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
