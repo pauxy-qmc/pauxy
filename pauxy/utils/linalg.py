@@ -155,7 +155,7 @@ def modified_cholesky(M, kappa, verbose=False, cmax=10):
         nu = numpy.argmax(delta)
         delta_max = delta[nu]
         nchol += 1
-        Munu0 = numpy.einsum('lm,l->m', chol_vecs[:nchol,:], chol_vecs[:nchol,nu])
+        Munu0 = numpy.dot(chol_vecs[:nchol,nu], chol_vecs[:nchol,:])
         chol_vecs[nchol] = (M[:,nu] - Munu0) / (delta_max)**0.5
         if verbose:
             step_time = time.time() - start
