@@ -84,6 +84,5 @@ class HartreeFock(object):
                                                             self.gdown_half],
                                                          opt=True)
         if self.verbose:
-            print ("# (E, E1B, E2B): (%f, %f, %f)"%(self.energy.real,
-                                                    self.e1b.real,
-                                                    self.e2b.real))
+            print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
+                   %(self.energy.real, self.e1b.real, self.e2b.real))
