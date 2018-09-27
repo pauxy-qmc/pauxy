@@ -7,6 +7,7 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
 
+
 class Generic(object):
     """Generic system class (integrals read from fcidump)
 
@@ -49,7 +50,7 @@ class Generic(object):
 
     def __init__(self, inputs, verbose=False):
         if verbose:
-            print ("# Parsing input options.")
+            print("# Parsing input options.")
         self.name = "Generic"
         self.verbose = verbose
         self.nup = inputs['nup']
@@ -61,23 +62,24 @@ class Generic(object):
         self.sparse = inputs.get('sparse', True)
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
         if verbose:
-            print ("# Reading integrals from %s." % self.integral_file)
+            print("# Reading integrals from %s." % self.integral_file)
         self.schol_vecs = None
         self.read_integrals()
         if self.schol_vecs is None:
             if verbose:
-                print ("# Decomposing two-body operator.")
+                print("# Decomposing two-body operator.")
             init = time.time()
             self.chol_vecs = self.construct_decomposition(verbose)
             if verbose:
-                print ("# Time to perform Cholesky decomposition: %f s"%(time.time()-init))
+                print("# Time to perform Cholesky decomposition: %f s"
+                      %(time.time()-init))
             self.nchol_vec = self.chol_vecs.shape[0]
         self.construct_h1e_mod()
         self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
         if verbose:
-            print ("# Finished setting up Generic system object.")
+            print("# Finished setting up Generic system object.")
 
     def read_integrals(self):
         try:
@@ -115,7 +117,8 @@ class Generic(object):
                         print("Number of electrons is inconsistent")
                         sys.exit()
         self.h1e = numpy.zeros((self.nbasis, self.nbasis))
-        self.h2e = numpy.zeros((self.nbasis, self.nbasis, self.nbasis, self.nbasis))
+        self.h2e = numpy.zeros((self.nbasis, self.nbasis,
+                                self.nbasis, self.nbasis))
         lines = f.readlines()
         for l in lines:
             s = l.split()
@@ -199,7 +202,9 @@ class Generic(object):
         if (numpy.sum(V - V.conj().T) != 0):
             print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
-        chol_vecs = chol_vecs.reshape((chol_vecs.shape[0], self.nbasis, self.nbasis))
+        chol_vecs = chol_vecs.reshape((chol_vecs.shape[0],
+                                       self.nbasis,
+                                       self.nbasis))
         return chol_vecs
 
     def construct_h1e_mod(self):
@@ -221,32 +226,34 @@ class Generic(object):
         na = self.nup
         nb = self.ndown
         if self.verbose:
-            print ("# Constructing half rotated Cholesky vectors.")
-        rotated_up = numpy.einsum('ia,lik->akl', trial.psi[:,:na].conj(),
-                                  self.chol_vecs)
-        rotated_down = numpy.einsum('ia,lik->akl', trial.psi[:,na:].conj(),
-                                    self.chol_vecs)
+            print("# Constructing half rotated Cholesky vectors.")
+        rup = numpy.einsum('ia,lik->akl',
+                           trial.psi[:,:na].conj(),
+                           self.chol_vecs)
+        rdn = numpy.einsum('ia,lik->akl',
+                           trial.psi[:,na:].conj(),
+                           self.chol_vecs)
         # Todo: Fix for complex Cholesky
         if self.verbose:
-            print ("# Constructing half rotated V_{(ab)(kl)}.")
-        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
-                       numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
-        vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
-                      numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
-        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rotated_up, rotated_up) -
-                       numpy.einsum('bkg,alg->akbl', rotated_up, rotated_up))
-        vaklb_beta = (numpy.einsum('akg,blg->akbl', rotated_down, rotated_down) -
-                      numpy.einsum('bkg,alg->akbl', rotated_down, rotated_down))
-        self.rchol_vecs = [csr_matrix(rotated_up.reshape((M*na, -1))),
-                           csr_matrix(rotated_down.reshape((M*nb, -1)))]
+            print("# Constructing half rotated V_{(ab)(kl)}.")
+        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rup, rup) -
+                       numpy.einsum('bkg,alg->akbl', rup, rup))
+        vaklb_beta = (numpy.einsum('akg,blg->akbl', rdn, rdn) -
+                      numpy.einsum('bkg,alg->akbl', rdn, rdn))
+        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rup, rup) -
+                       numpy.einsum('bkg,alg->akbl', rup, rup))
+        vaklb_beta = (numpy.einsum('akg,blg->akbl', rdn, rdn) -
+                      numpy.einsum('bkg,alg->akbl', rdn, rdn))
+        self.rchol_vecs = [csr_matrix(rup.reshape((M*na, -1))),
+                           csr_matrix(rdn.reshape((M*nb, -1)))]
         self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
                       csr_matrix(vaklb_beta.reshape((M*nb, M*nb)))]
         if self.verbose:
             nnz = self.rchol_vecs[0].nnz
-            print ("# Number of non-zero elements in rotated cholesky: %d"%nnz)
+            print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
-            print ("# Sparsity: %f"%(nnz/nelem))
+            print("# Sparsity: %f"%(nnz/nelem))
             nnz = self.vaklb[0].nnz
-            print ("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
+            print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
-            print ("# Sparsity: %f"%(nnz/nelem))
+            print("# Sparsity: %f"%(nnz/nelem))
