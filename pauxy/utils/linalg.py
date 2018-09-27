@@ -114,7 +114,7 @@ def reortho(A):
     return (Q, detR)
 
 
-def modified_cholesky(M, kappa, verbose=False):
+def modified_cholesky(M, kappa, verbose=False, cmax=10):
     """Modified cholesky decomposition of matrix.
 
     See, e.g. [Motta17]_
@@ -134,32 +134,35 @@ def modified_cholesky(M, kappa, verbose=False):
         Matrix of cholesky vectors.
     """
     # matrix of residuals.
-    delta = numpy.copy(M)
+    delta = numpy.copy(M.diagonal())
+    nchol_max = int(cmax*M.shape[0]**0.5)
     # index of largest diagonal element of residual matrix.
-    nu = numpy.argmax(delta.diagonal())
-    delta_max = delta[nu,nu]
+    nu = numpy.argmax(delta)
+    delta_max = delta[nu]
     if verbose:
+        print ("# max number of cholesky vectors = %d"%nchol_max)
         print ("# iteration %d: delta_max = %f"%(0, delta_max))
     # Store for current approximation to input matrix.
-    Mapprox = numpy.zeros(M.shape)
-    chol_vecs = []
+    Mapprox = numpy.zeros(M.shape[0])
+    chol_vecs = numpy.zeros((nchol_max, M.shape[0]))
     nchol = 0
+    chol_vecs[0] = numpy.copy(M[:,nu])/delta_max**0.5
     while abs(delta_max) > kappa:
         # Update cholesky vector
         start = time.time()
-        L = (numpy.copy(delta[:,nu])/(delta_max)**0.5)
-        chol_vecs.append(L)
-        Mapprox += numpy.outer(L, L)
-        delta = M - Mapprox
-        nu = numpy.argmax(delta.diagonal())
-        delta_max = delta[nu,nu]
+        Mapprox += chol_vecs[nchol]*chol_vecs[nchol]
+        delta = M.diagonal() - Mapprox
+        nu = numpy.argmax(delta)
+        delta_max = delta[nu]
         nchol += 1
+        Munu0 = numpy.einsum('lm,l->m', chol_vecs[:nchol,:], chol_vecs[:nchol,nu])
+        chol_vecs[nchol] = (M[:,nu] - Munu0) / (delta_max)**0.5
         if verbose:
             step_time = time.time() - start
             info = (nchol, delta_max, step_time)
             print ("# iteration %d: delta_max = %13.8e: time = %13.8e"%info)
 
-    return numpy.array(chol_vecs)
+    return numpy.array(chol_vecs[:nchol+1])
 
 def exponentiate_matrix(M, order=6):
     """Taylor series approximation for matrix exponential"""
