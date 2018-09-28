@@ -33,7 +33,7 @@ def setup_calculation(input_options):
         options = read_input(input_options, comm, verbose=True)
     else:
         options = input_options
-    set_rng_seed(options, comm)
+    set_rng_seed(options['qmc_options'], comm)
     if comm.size > 1:
         afqmc = setup_parallel(options, comm, verbose=True)
     else:
