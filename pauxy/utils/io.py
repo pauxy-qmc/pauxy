@@ -71,9 +71,10 @@ def to_qmcpack_index(matrix, offset=0):
 def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5'):
     dump = h5py.File(filename, 'w')
     dump['Hamiltonian/Energies'] = numpy.array([e0.real, e0.imag])
-    (h1_unpacked, idx) = to_qmcpack_index(h1[0])
-    dump['Hamiltonian/H1_indx'] = idx
-    dump['Hamiltonian/H1'] = h1_unpacked
+    hcore = h1[0].astype(numpy.complex128).view(numpy.float64)
+    hcore = hcore.reshape(h1[0].shape+(2,))
+    dump['Hamiltonian/hcore'] = hcore
+    # dump['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
     # Number of non zero elements for two-body
     nnz = h2.nnz
     # number of cholesky vectors
@@ -88,7 +89,7 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     (nalpha, nbeta) = nelec
     # unused parameter as far as I can tell.
     unused = 0
-    dump['Hamiltonian/dims'] = numpy.array([len(h1_unpacked), nnz, nint_block, nmo,
+    dump['Hamiltonian/dims'] = numpy.array([unused, nnz, nint_block, nmo,
                                             nalpha, nbeta, unused, nchol_vecs])
     occups = [i for i in range(0, nalpha)]
     occups += [i+nmo for i in range(0, nbeta)]
@@ -97,15 +98,12 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
 def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
         enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
-        idx = fh5['Hamiltonian/H1_indx'][:]
-        row_ix = idx[::2]
-        col_ix = idx[1::2]
-        h1 = fh5['Hamiltonian/H1'][:].view(numpy.complex128).ravel()
-        hcore = scipy.sparse.csr_matrix((h1, (row_ix, col_ix))).toarray()
-        idx = fh5['Hamiltonian/Factorized/index_0'][:]
-        h2 = fh5['Hamiltonian/Factorized/vals_0'][:].view(numpy.complex128).ravel()
         dims = fh5['Hamiltonian/dims'][:]
         nbasis = dims[3]
+        hcore = fh5['Hamiltonian/hcore'][:]
+        hcore = hcore.view(numpy.complex128).reshape(nbasis,nbasis)
+        idx = fh5['Hamiltonian/Factorized/index_0'][:]
+        h2 = fh5['Hamiltonian/Factorized/vals_0'][:].view(numpy.complex128).ravel()
         nalpha = dims[4]
         nbeta = dims[5]
         row_ix = idx[::2]
