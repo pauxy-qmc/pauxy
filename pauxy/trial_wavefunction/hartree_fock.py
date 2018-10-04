@@ -16,6 +16,7 @@ class HartreeFock(object):
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
         self.trial_type = numpy.complex128
+        print (system.nup)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         self.excite_ia = trial.get('excitation', None)
@@ -30,8 +31,10 @@ class HartreeFock(object):
             if len(mo_matrix) == msq:
                 mo_matrix = mo_matrix.reshape((system.nbasis, system.nbasis))
             else:
-                mo_alpha = mo_matrix[:msq].reshape((system.nbasis, system.nbasis))
-                mo_beta = mo_matrix[msq:].reshape((system.nbasis, system.nbasis))
+                mo_alpha = mo_matrix[:msq].reshape((system.nbasis,
+                                                    system.nbasis))
+                mo_beta = mo_matrix[msq:].reshape((system.nbasis,
+                                                   system.nbasis))
                 mo_matrix = numpy.array([mo_alpha, mo_beta])
         elif system.mo_coeff is not None:
             mo_matrix = system.mo_coeff
@@ -42,6 +45,12 @@ class HartreeFock(object):
         self.full_mo = mo_matrix
         occ_a = numpy.arange(system.nup)
         occ_b = numpy.arange(system.ndown)
+        if system.frozen_core:
+            mo_full = numpy.copy(mo_matrix)
+            mo_core = mo_matrix[:,:system.ncore_alpha]
+            mo_matrix = mo_matrix[:,system.ncore_alpha:-system.nfv_alpha]
+            print ("mo matrix: ", mo_matrix.shape)
+            print (mo_matrix)
         if len(mo_matrix.shape) == 2:
             # RHF
             self.psi[:,:system.nup] = mo_matrix[:,occ_a]
@@ -66,9 +75,13 @@ class HartreeFock(object):
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
         if system.ndown > 0:
-            gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:], self.psi[:,system.nup:])
+            gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
+                                             self.psi[:,system.nup:])
 
         self.G = numpy.array([gup,gdown],dtype=self.trial_type)
+        if system.frozen_core:
+            self.Gcore, gcore_half = gab_mod(mo_core, mo_core)
+            self.Gfull, Gfull_half = gab_mod(mo_full[:,:system.nup+system.ncore_alpha],mo_full[:,:system.nup+system.ncore_alpha])
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False

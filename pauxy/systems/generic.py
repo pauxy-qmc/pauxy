@@ -6,6 +6,7 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.estimators.generic import local_energy_generic
 
 
 class Generic(object):
@@ -55,6 +56,14 @@ class Generic(object):
         self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
+        self.ncore_alpha = inputs.get('ncore_alpha', 0)
+        self.ncore_beta = inputs.get('ncore_beta', 0)
+        self.nfv_alpha = inputs.get('nfv_alpha', 0)
+        self.nfv_beta = inputs.get('nfv_beta', 0)
+        self.frozen_core = self.ncore_alpha > 0 or self.ncore_beta > 0
+        if self.frozen_core:
+            self.nup = self.nup - self.ncore_alpha
+            self.ndown = self.ndown - self.ncore_beta
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.decomopsition = inputs.get('decomposition', 'cholesky')
@@ -65,17 +74,18 @@ class Generic(object):
             print("# Reading integrals from %s." % self.integral_file)
         self.schol_vecs = None
         self.read_integrals()
-        if self.schol_vecs is None:
-            if verbose:
-                print("# Decomposing two-body operator.")
-            init = time.time()
-            self.chol_vecs = self.construct_decomposition(verbose)
-            if verbose:
-                print("# Time to perform Cholesky decomposition: %f s"
-                      %(time.time()-init))
-            self.nchol_vec = self.chol_vecs.shape[0]
-        self.construct_h1e_mod()
-        self.nfields = self.nchol_vec
+        if not self.frozen_core:
+            if self.schol_vecs is None:
+                if verbose:
+                    print("# Decomposing two-body operator.")
+                init = time.time()
+                self.chol_vecs = self.construct_decomposition(verbose)
+                if verbose:
+                    print("# Time to perform Cholesky decomposition: %f s"
+                          %(time.time()-init))
+                self.nchol_vec = self.chol_vecs.shape[0]
+            self.construct_h1e_mod()
+            self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
         if verbose:
@@ -212,6 +222,35 @@ class Generic(object):
         # Eqn (17) of [Motta17]_
         v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs, self.chol_vecs)
         self.h1e_mod = numpy.array([self.T[0]-v0, self.T[1]-v0])
+
+    def frozen_core_hamiltonian(self, trial):
+        # 1. Construct one-body hamiltonian
+        # print (trial.Gcore)
+        # print(local_energy_generic(self, numpy.array([trial.Gcore+trial.G[0],
+              # trial.Gcore+trial.G[1]])))
+        print ("ENERGY:")
+        P = numpy.dot(self.mo_coeff[:,:self.nup+self.ncore_alpha],
+                      self.mo_coeff[:,:self.nup+self.ncore_alpha].T)
+        print (self.ncore_alpha+self.nup)
+        print (self.T[0].trace())
+        print (numpy.dot(trial.Gfull, self.T[0]).trace())
+        print (numpy.dot(P, self.T[0]).trace())
+        print ("ECORE")
+        print(local_energy_generic(self, numpy.array([trial.Gfull, trial.Gfull])))
+        # exit()
+        # exit()
+        self.ecore = local_energy_generic(self, numpy.array([trial.Gcore,
+            trial.Gcore]))[0]
+        delta_core = (numpy.einsum('pqrs,qs', self.h2e, trial.Gcore) -
+                      numpy.einsum('pqsr,qs', self.h2e, trial.Gcore))
+        self.T[0] = self.T[0] + delta_core
+        self.T[1] = self.T[1] + delta_core
+        # 3. Cholesky Decompose ERIs.
+        self.chol_vecs = self.construct_decomposition(True)
+        self.nchol_vec = self.chol_vecs.shape[0]
+        # 4. Subtract one-body term from writing H2 as sum of squares.
+        self.construct_h1e_mod()
+        self.nfields = self.nchol_vec
 
     def construct_integral_tensors(self, trial):
         if self.schol_vecs is None:
