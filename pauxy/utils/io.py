@@ -111,7 +111,8 @@ def from_qmcpack_cholesky(filename):
         chol_vecs = scipy.sparse.csr_matrix((h2, (row_ix, col_ix)))
         return (hcore, chol_vecs, enuc, nbasis, nalpha, nbeta)
 
-def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
+def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
+        mo_coeff=None, verbose=True):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
@@ -121,7 +122,8 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc, verbose=True):
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+        # (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+        mo_coeff = mo_coeff
     nbasis = hcore.shape[-1]
     mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
     if verbose:
@@ -145,7 +147,8 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+        # (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
+        mo_coeff = mo_coeff
     dump_qmcpack_trial_wfn(mo_coeff, nelec, wfn_file)
     nbasis = hcore.shape[-1]
     if verbose:
