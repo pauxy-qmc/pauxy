@@ -57,4 +57,4 @@ with h5py.File(mf.chkfile) as fh5:
   fh5['scf/orthoAORot'] = mo_ordered
 
 # Dump necessary data using pyscf checkpoint file.
-dump_pauxy(chkfile=mf.chkfile)
+dump_pauxy(chkfile=mf.chkfile, outfile='naph.fcidump.h5')
