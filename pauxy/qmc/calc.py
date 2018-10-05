@@ -104,7 +104,7 @@ def set_rng_seed(qmc_opts, comm):
         if comm.rank == 0:
             seed = numpy.array([numpy.random.randint(0, 1e8)], dtype='i4')
             # Can't directly json serialise numpy arrays
-            qmc_opts['qmc_options']['rng_seed'] = seed[0].item()
+            qmc_opts['rng_seed'] = seed[0].item()
         else:
             seed = numpy.empty(1, dtype='i4')
         comm.Bcast(seed, root=0)
