@@ -126,8 +126,9 @@ class ThermalAFQMC(object):
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
+            self.qmc.ntot_walkers = self.qmc.nwalkers
             self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc.nwalkers,
+                               self.qmc,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
             json_string = to_json(self)

@@ -26,20 +26,22 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, nwalkers,
+    def __init__(self, walker_opts, system, trial, qmc,
                  nprop_tot, nbp, verbose=False):
+        self.nwalkers = qmc.nwalkers
+        self.ntot_walkers = qmc.ntot_walkers
         if verbose:
             print ("# Setting up wavefunction object.")
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(walker_opts, system, trial)
-                                for w in range(nwalkers)]
+                                for w in range(qmc.nwalkers)]
         elif trial.name == 'thermal':
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
-                            for w in range(nwalkers)]
+                            for w in range(qmc.nwalkers)]
         else:
             self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
-                            for w in range(nwalkers)]
+                            for w in range(qmc.nwalkers)]
         if system.name == "Generic" or system.name == "UEG":
             dtype = complex
         else:
@@ -136,6 +138,9 @@ class Walkers(object):
         # todo : add phase to walker for free projection
         weights = numpy.array([abs(w.weight) for w in self.walkers])
         global_weights = None
+        if self.ntot_walkers == 1:
+            self.walkers[0].weight = 1
+            return
         if comm.rank == 0:
             global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.zeros(len(global_weights), dtype='i')
