@@ -112,18 +112,18 @@ def from_qmcpack_cholesky(filename):
         return (hcore, chol_vecs, enuc, nbasis, nalpha, nbeta)
 
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
-        mo_coeff=None, verbose=True):
+                orbs=None, verbose=True):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
         if verbose:
             print (" # Writing UHF trial wavefunction.")
-        (mo_energies, mo_coeff) = molecular_orbitals_uhf(fock, orthoAO)
+        (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        # (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
-        mo_coeff = mo_coeff
+        # (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
+        orbs = orbs
     nbasis = hcore.shape[-1]
     mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
     if verbose:
@@ -134,31 +134,42 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
         fh5.create_dataset('nelec', data=nelec)
         fh5.create_dataset('eri', data=eri)
         fh5.create_dataset('enuc', data=[enuc])
-        fh5.create_dataset('mo_coeff', data=mo_coeff)
+        fh5.create_dataset('orbs', data=orbs)
 
 def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
-                 verbose=True, threshold=1e-5, sparse_zero=1e-16):
+                 verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
         if verbose:
             print (" # Writing UHF trial wavefunction.")
-        (mo_energies, mo_coeff) = molecular_orbitals_uhf(fock, orthoAO)
+        if orbs is not None:
+            (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
+        else:
+            orbs = orbs
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        # (mo_energies, mo_coeff) = molecular_orbitals_rhf(fock, orthoAO)
-        mo_coeff = mo_coeff
-    dump_qmcpack_trial_wfn(mo_coeff, nelec, wfn_file)
+        if orbs is not None:
+            (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
+        else:
+            orbs = orbs
+    dump_qmcpack_trial_wfn(orbs, nelec, wfn_file)
     nbasis = hcore.shape[-1]
     if verbose:
         print (" # Performing modified Cholesky decomposition on ERI tensor.")
     msq = nbasis * nbasis
-    chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
-                                  verbose=verbose).T
-    chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
-    chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-    mem = 64*chol_vecs.nnz/(1024.0**3)
+    if isinstance(eri, list):
+        chol_vecsa = modified_cholesky(eri[0].reshape((msq, msq)), threshold,
+                                       verbose=verbose).T
+        chol_vecsa = modified_cholesky(eri[1].reshape((msq, msq)), threshold,
+                                       verbose=verbose).T
+    else:
+        chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
+                                       verbose=verbose).T
+        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
+        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
+        mem = 64*chol_vecs.nnz/(1024.0**3)
     if verbose:
         print (" # Total number of non-zero elements in sparse cholesky ERI"
                " tensor: %d"%chol_vecs.nnz)

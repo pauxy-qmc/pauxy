@@ -9,21 +9,26 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
                chol_cut=1e-5, sparse_zero=1e-16):
     if chkfile is not None:
-        (hcore, fock, orthoAO, enuc, mol, mo_coeff) = from_pyscf_chkfile(chkfile, verbose)
+        (hcore, fock, orthoAO, enuc, mol, orbs) = from_pyscf_chkfile(chkfile, verbose)
     else:
         (hcore, fock, orthoAO, enuc) = from_pyscf_mol(mol, mf)
     if verbose:
         print (" # Transforming hcore and eri to ortho AO basis.")
     h1e = unitary(hcore, orthoAO)
     nbasis = h1e.shape[-1]
-    eri = ao2mo.kernel(mol, orthoAO, compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
+    if len(orthoAO.shape) == 3:
+        eria = ao2mo.kernel(mol, orthoAO[0], compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
+        erib = ao2mo.kernel(mol, orthoAO[1], compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
+        eri = [eria, erib]
+    else:
+        eri = ao2mo.kernel(mol, orthoAO, compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
     if qmcpack:
         dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
                      mol.nelec, enuc, threshold=chol_cut,
-                     sparse_zero=sparse_zero, mo_coeff=mo_coeff)
+                     sparse_zero=sparse_zero, orbs=orbs)
     else:
         dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc,
-                mo_coeff=mo_coeff)
+                orbs=orbs)
 
 
 def from_pyscf_chkfile(chkfile, verbose=True):
@@ -31,7 +36,7 @@ def from_pyscf_chkfile(chkfile, verbose=True):
         hcore = fh5['/scf/hcore'][:]
         fock = fh5['/scf/fock'][:]
         orthoAO = fh5['/scf/orthoAORot'][:]
-        mo_coeff = fh5['/scf/mo_coeff_oao'][:]
+        orbs = fh5['/scf/orbs'][:]
     mol = load_mol(chkfile)
     mf = scf.HF(mol)
     enuc = mf.energy_nuc()
@@ -39,7 +44,7 @@ def from_pyscf_chkfile(chkfile, verbose=True):
         print (" # Generating PAUXY input from %s."%chkfile)
         print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
         print (" # nbasis: %d"%hcore.shape[-1])
-    return (hcore, fock, orthoAO, enuc, mol, mo_coeff)
+    return (hcore, fock, orthoAO, enuc, mol, orbs)
 
 def from_pyscf_mol(mol, mf, verbose=True):
     hcore = mf.get_hcore()
