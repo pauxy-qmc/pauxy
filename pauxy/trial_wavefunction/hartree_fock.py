@@ -16,7 +16,6 @@ class HartreeFock(object):
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
         self.trial_type = numpy.complex128
-        print (system.nup)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         self.excite_ia = trial.get('excitation', None)
@@ -45,14 +44,16 @@ class HartreeFock(object):
         self.full_mo = mo_matrix
         occ_a = numpy.arange(system.nup)
         occ_b = numpy.arange(system.ndown)
-        if system.frozen_core:
-            mo_full = numpy.copy(mo_matrix)
-            mo_core = mo_matrix[:,:system.ncore_alpha]
-            mo_matrix = mo_matrix[:,system.ncore_alpha:-system.nfv_alpha]
-            print ("mo matrix: ", mo_matrix.shape)
-            print (mo_matrix)
+        nfv = system.nfv_alpha
+        nc = system.ncore_alpha
         if len(mo_matrix.shape) == 2:
             # RHF
+            if system.frozen_core:
+                mo_full = numpy.copy(mo_matrix)
+                mo_core = numpy.copy(mo_matrix[:,:nc])
+                mo_matrix = numpy.copy(mo_matrix[:,nc:-nfv])
+                Gcore, half = gab_mod(mo_core, mo_core)
+                self.Gcore = numpy.array([Gcore, Gcore])
             self.psi[:,:system.nup] = mo_matrix[:,occ_a]
             self.psi[:,system.nup:] = mo_matrix[:,occ_b]
             if self.excite_ia is not None:
@@ -62,6 +63,14 @@ class HartreeFock(object):
                 self.psi[:,i] = mo_matrix[:,a]
         else:
             # UHF
+            if system.frozen_core:
+                mo_full = numpy.copy(mo_matrix)
+                # Assuming core is doubly occupied
+                mo_core = numpy.copy(mo_matrix[:,:,:nc])
+                mo_matrix = numpy.copy(mo_matrix[:,:,nc:-nfv])
+                Gcore_a, half = gab_mod(mo_core[0], mo_core[0])
+                Gcore_b, half = gab_mod(mo_core[1], mo_core[1])
+                self.Gcore = numpy.array([Gcore_a, Gcore_b])
             self.psi[:,:system.nup] = mo_matrix[0][:,occ_a]
             self.psi[:,system.nup:] = mo_matrix[1][:,occ_b]
             if self.excite_ia is not None:
@@ -72,16 +81,17 @@ class HartreeFock(object):
                 self.psi[:,i] = mo_matrix[:,a]
         gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
+        gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
+                                self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
+        self.Gfull, g = gab_mod(mo_full[:,:nc+system.nup],
+                                mo_full[:,:nc+system.nup])
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])
 
         self.G = numpy.array([gup,gdown],dtype=self.trial_type)
-        if system.frozen_core:
-            self.Gcore, gcore_half = gab_mod(mo_core, mo_core)
-            self.Gfull, Gfull_half = gab_mod(mo_full[:,:system.nup+system.ncore_alpha],mo_full[:,:system.nup+system.ncore_alpha])
         self.coeffs = 1.0
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
