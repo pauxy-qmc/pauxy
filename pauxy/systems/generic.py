@@ -243,13 +243,13 @@ class Generic(object):
         self.nfields = self.nchol_vec
         if self.verbose:
             print("# Freezing core.")
-            print("# Freezing %d core states and %d virtuals : (%d, %d)"
+            print("# Freezing %d core states and %d virtuals :"
                   %(self.ncore, self.nfv))
             print("# Number of active electrons : (%d, %d)."
                   %(self.nup, self.ndown))
             print("# Number of active virtuals : %d"%self.nbasis)
             print("# Frozen core energy : %13.8e"%self.ecore.real)
-            print("# Active energy : %13.8e"%self.eactive.real)
+            print("# Active space energy : %13.8e"%self.eactive.real)
             print("# Total HF energy : %13.8e"%(self.eactive+self.ecore).real)
 
     def construct_integral_tensors(self, trial):
