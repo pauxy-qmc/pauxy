@@ -23,70 +23,70 @@ class HartreeFock(object):
         if self.wfn_file is not None:
             if verbose:
                 print ("# Reading trial wavefunction from %s."%self.wfn_file)
-            mo_matrix = read_qmcpack_wfn(self.wfn_file)
+            orbs_matrix = read_qmcpack_wfn(self.wfn_file)
             if verbose:
                 print ("# Finished reading wavefunction.")
             msq = system.nbasis**2
-            if len(mo_matrix) == msq:
-                mo_matrix = mo_matrix.reshape((system.nbasis, system.nbasis))
+            if len(orbs_matrix) == msq:
+                orbs_matrix = orbs_matrix.reshape((system.nbasis, system.nbasis))
             else:
-                mo_alpha = mo_matrix[:msq].reshape((system.nbasis,
+                orbs_alpha = orbs_matrix[:msq].reshape((system.nbasis,
                                                     system.nbasis))
-                mo_beta = mo_matrix[msq:].reshape((system.nbasis,
+                orbs_beta = orbs_matrix[msq:].reshape((system.nbasis,
                                                    system.nbasis))
-                mo_matrix = numpy.array([mo_alpha, mo_beta])
-        elif system.mo_coeff is not None:
-            mo_matrix = system.mo_coeff
+                orbs_matrix = numpy.array([orbs_alpha, orbs_beta])
+        elif system.orbs is not None:
+            orbs_matrix = system.orbs
         else:
             # Assuming we're in the MO basis.
-            mo_matrix = numpy.eye(system.nbasis)
+            orbs_matrix = numpy.eye(system.nbasis)
         # Assuming energy ordered basis set.
-        self.full_mo = mo_matrix
+        self.full_orbs = orbs_matrix
         occ_a = numpy.arange(system.nup)
         occ_b = numpy.arange(system.ndown)
-        nfv = system.nfv_alpha
-        nc = system.ncore_alpha
-        if len(mo_matrix.shape) == 2:
+        nfv = system.nfv
+        nc = system.ncore
+        if len(orbs_matrix.shape) == 2:
             # RHF
             if system.frozen_core:
-                mo_full = numpy.copy(mo_matrix)
-                mo_core = numpy.copy(mo_matrix[:,:nc])
-                mo_matrix = numpy.copy(mo_matrix[:,nc:-nfv])
-                Gcore, half = gab_mod(mo_core, mo_core)
+                orbs_full = numpy.copy(orbs_matrix)
+                orbs_core = numpy.copy(orbs_matrix[:,:nc])
+                orbs_matrix = numpy.copy(orbs_matrix[nc:-nfv,nc:-nfv])
+                Gcore, half = gab_mod(orbs_core, orbs_core)
                 self.Gcore = numpy.array([Gcore, Gcore])
-            self.psi[:,:system.nup] = mo_matrix[:,occ_a]
-            self.psi[:,system.nup:] = mo_matrix[:,occ_b]
+            self.psi[:,:system.nup] = orbs_matrix[:,occ_a]
+            self.psi[:,system.nup:] = orbs_matrix[:,occ_b]
             if self.excite_ia is not None:
                 # Only deal with alpha spin excitation for the moment.
                 i = self.excite_ia[0]
                 a = self.excite_ia[1]
-                self.psi[:,i] = mo_matrix[:,a]
+                self.psi[:,i] = orbs_matrix[:,a]
         else:
             # UHF
             if system.frozen_core:
-                mo_full = numpy.copy(mo_matrix)
+                orbs_full = numpy.copy(orbs_matrix)
                 # Assuming core is doubly occupied
-                mo_core = numpy.copy(mo_matrix[:,:,:nc])
-                mo_matrix = numpy.copy(mo_matrix[:,:,nc:-nfv])
-                Gcore_a, half = gab_mod(mo_core[0], mo_core[0])
-                Gcore_b, half = gab_mod(mo_core[1], mo_core[1])
+                orbs_core = numpy.copy(orbs_matrix[:,:,:nc])
+                orbs_matrix = numpy.copy(orbs_matrix[:,:,nc:-nfv])
+                Gcore_a, half = gab_orbsd(orbs_core[0], orbs_core[0])
+                Gcore_b, half = gab_mod(orbs_core[1], orbs_core[1])
                 self.Gcore = numpy.array([Gcore_a, Gcore_b])
-            self.psi[:,:system.nup] = mo_matrix[0][:,occ_a]
-            self.psi[:,system.nup:] = mo_matrix[1][:,occ_b]
+            self.psi[:,:system.nup] = orbs_matrix[0][:,occ_a]
+            self.psi[:,system.nup:] = orbs_matrix[1][:,occ_b]
             if self.excite_ia is not None:
                 # "Promotion energy" calculation.
                 # Only deal with alpha spin excitation for the moment.
                 i = self.excite_ia[0]
                 a = self.excite_ia[1]
-                self.psi[:,i] = mo_matrix[:,a]
+                self.psi[:,i] = orbs_matrix[:,a]
         gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
-        self.Gfull, g = gab_mod(mo_full[:,:nc+system.nup],
-                                mo_full[:,:nc+system.nup])
+        self.Gfull, g = gab_mod(orbs_full[:,:nc+system.nup],
+                                orbs_full[:,:nc+system.nup])
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])
