@@ -235,6 +235,10 @@ class Generic(object):
         nc = self.ncore
         self.h2e = self.h2e[nc:-nfv,nc:-nfv,nc:-nfv,nc:-nfv]
         self.T = self.T[:,nc:-nfv,nc:-nfv]
+        if len(self.orbs.shape) == 3:
+            self.orbs = self.orbs[:,nc:-nfv,nc:-nfv]
+        else:
+            self.orbs = self.orbs[nc:-nfv,nc:-nfv]
         self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
         self.chol_vecs = self.construct_decomposition(True)
         self.nchol_vec = self.chol_vecs.shape[0]
