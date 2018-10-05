@@ -77,3 +77,10 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
                            system.chol_vecs, G[1], G[0])
     e2b = euu + edd + eud + edu
     return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
+
+def core_contribution(system, Gcore):
+    hc_a = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[0]) -
+            0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[0]))
+    hc_b = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[1]) -
+            0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[1]))
+    return (hc_a, hc_b)
