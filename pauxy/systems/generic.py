@@ -72,9 +72,8 @@ class Generic(object):
             print("# Reading integrals from %s." % self.integral_file)
         self.schol_vecs = None
         self.read_integrals()
-        if self.frozen_core:
-            self.nbasis = self.nbasis - self.ncore - self.nfv
-        else:
+        self.nactive = self.nbasis - self.ncore - self.nfv
+        if not self.frozen_core:
             if self.schol_vecs is None:
                 if verbose:
                     print("# Decomposing two-body operator.")
@@ -233,13 +232,15 @@ class Generic(object):
         # 3. Cholesky Decompose ERIs.
         nfv = self.nfv
         nc = self.ncore
-        self.h2e = self.h2e[nc:-nfv,nc:-nfv,nc:-nfv,nc:-nfv]
-        self.T = self.T[:,nc:-nfv,nc:-nfv]
+        nb = self.nbasis
+        self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
+        self.T = self.T[:,nc:nb-nfv,nc:nb-nfv]
         if len(self.orbs.shape) == 3:
-            self.orbs = self.orbs[:,nc:-nfv,nc:-nfv]
+            self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
         else:
-            self.orbs = self.orbs[nc:-nfv,nc:-nfv]
+            self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
         self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
+        self.nbasis = self.nbasis - self.ncore - self.nfv
         self.chol_vecs = self.construct_decomposition(True)
         self.nchol_vec = self.chol_vecs.shape[0]
         # 4. Subtract one-body term from writing H2 as sum of squares.

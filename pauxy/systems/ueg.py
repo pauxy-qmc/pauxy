@@ -92,6 +92,9 @@ class UEG(object):
 
         # Number of plane waves.
         self.nbasis = len(self.sp_eigv)
+        self.nactive = self.nbasis
+        self.ncore = 0
+        self.nfv = 0
         self.mo_coeff = None
         print("# Number of plane waves = %i"%self.nbasis)
         # Allowed momentum transfers (4*ecut)

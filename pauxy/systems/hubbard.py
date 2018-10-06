@@ -54,6 +54,9 @@ class Hubbard(object):
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.nbasis = self.nx * self.ny
+        self.nactive = self.nbasis
+        self.nfv = 0
+        self.ncore = 0
         (self.kpoints, self.kc, self.eks) = kpoints(self.t, self.nx, self.ny)
         self.pinning = inputs.get('pinning_fields', False)
         if verbose:
