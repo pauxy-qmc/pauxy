@@ -3,7 +3,7 @@ import h5py
 from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import unitary, get_orthoAO
 from pyscf.lib.chkfile import load_mol
-from pyscf import ao2mo, scf
+from pyscf import ao2mo, scf, fci, mcscf, hci
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
@@ -57,3 +57,39 @@ def from_pyscf_mol(mol, mf, verbose=True):
         print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
         print (" # nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc)
+
+def sci_wavefunction(mf, nelecas, ncas, ncore, select_cutoff=1e-10,
+                     ci_coeff_cutoff=1e-3, verbose=False):
+    """Generate SCI trial wavefunction.
+
+    Parameters
+    ----------
+    nelecas : int
+        Number of active orbitals.
+    ncas : int or tuple of ints.
+        Total number of active electrons, or number of active alpha and beta
+        electrons.
+    ncore : int
+        Total number of core electrons.
+    select_cutoff : float
+        Selection criteria.
+    ci_coeff_cutoff : float
+        CI coefficient cutoff.
+    """
+    mc = mcscf.CASCI(mf, ncas, nelecas, ncore=ncore)
+    mc.fcisolver = hci.SCI(mol)
+    mc.fcisolver.select_cutoff = select_cutoff
+    mc.fcisolver.ci_coeff_cutoff = ci_coeff_cutoff
+    mc.kernel()
+    occlists = fci.cistring._gen_occslst(range(cas), nelec//2)
+
+    if verbose:
+        print ("Max number of dets : %d"%len(occlists)**2)
+        print ("Non-zero : %d"%non_zero)
+
+    coeffs = []
+    # for i, ia in enumerate(occlists):
+        # for j, ib in enumerate(occlists):
+            # coeffs.append(%mc.ci[i,j])
+            # oup =
+            # odown = ' '.join('{:d}'.format(x+norb+1) for x in ib)
