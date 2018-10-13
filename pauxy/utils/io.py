@@ -143,14 +143,14 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     if len(fock.shape) == 3:
         if verbose:
             print (" # Writing UHF trial wavefunction.")
-        if orbs is not None:
+        if orbs is None:
             (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
         else:
             orbs = orbs
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        if orbs is not None:
+        if orbs is None:
             (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
         else:
             orbs = orbs
