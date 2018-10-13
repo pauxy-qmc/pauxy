@@ -47,10 +47,10 @@ class HartreeFock(object):
         nc = system.ncore
         nfv = system.nfv
         nb = system.nbasis
+        orbs_full = numpy.copy(orbs_matrix)
         if len(orbs_matrix.shape) == 2:
             # RHF
             if system.frozen_core:
-                orbs_full = numpy.copy(orbs_matrix)
                 orbs_core = numpy.copy(orbs_matrix[:,:nc])
                 orbs_matrix = numpy.copy(orbs_matrix[nc:nb-nfv,nc:nb-nfv])
                 Gcore, half = gab_mod(orbs_core, orbs_core)
@@ -65,7 +65,6 @@ class HartreeFock(object):
         else:
             # UHF
             if system.frozen_core:
-                orbs_full = numpy.copy(orbs_matrix)
                 # Assuming core is doubly occupied
                 orbs_core = numpy.copy(orbs_matrix[:,:,:nc])
                 orbs_matrix = numpy.copy(orbs_matrix[:,nc:nb-nfv,nc:nb-nfv])
