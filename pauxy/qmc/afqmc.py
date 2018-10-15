@@ -102,6 +102,8 @@ class AFQMC(object):
                                    parallel, verbose)
         )
         if self.system.name == "Generic":
+            if self.system.frozen_core:
+                self.system.frozen_core_hamiltonian(self.trial)
             self.system.construct_integral_tensors(self.trial)
         self.trial.energy(self.system)
         self.propagators = get_propagator_driver(propagator, self.qmc,
@@ -112,8 +114,9 @@ class AFQMC(object):
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
+            self.qmc.ntot_walkers = self.qmc.nwalkers
             self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc.nwalkers,
+                               self.qmc,
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')

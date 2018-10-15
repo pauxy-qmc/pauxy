@@ -6,6 +6,7 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.estimators.generic import local_energy_generic, core_contribution
 
 
 class Generic(object):
@@ -55,6 +56,12 @@ class Generic(object):
         self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
+        self.ncore= inputs.get('nfrozen_core', 0)
+        self.nfv = inputs.get('nfrozen_virt', 0)
+        self.frozen_core = self.ncore > 0
+        if self.frozen_core:
+            self.nup = self.nup - self.ncore
+            self.ndown = self.ndown - self.ncore
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.decomopsition = inputs.get('decomposition', 'cholesky')
@@ -65,17 +72,19 @@ class Generic(object):
             print("# Reading integrals from %s." % self.integral_file)
         self.schol_vecs = None
         self.read_integrals()
-        if self.schol_vecs is None:
-            if verbose:
-                print("# Decomposing two-body operator.")
-            init = time.time()
-            self.chol_vecs = self.construct_decomposition(verbose)
-            if verbose:
-                print("# Time to perform Cholesky decomposition: %f s"
-                      %(time.time()-init))
-            self.nchol_vec = self.chol_vecs.shape[0]
-        self.construct_h1e_mod()
-        self.nfields = self.nchol_vec
+        self.nactive = self.nbasis - self.ncore - self.nfv
+        if not self.frozen_core:
+            if self.schol_vecs is None:
+                if verbose:
+                    print("# Decomposing two-body operator.")
+                init = time.time()
+                self.chol_vecs = self.construct_decomposition(verbose)
+                if verbose:
+                    print("# Time to perform Cholesky decomposition: %f s"
+                          %(time.time()-init))
+                self.nchol_vec = self.chol_vecs.shape[0]
+            self.construct_h1e_mod()
+            self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
         if verbose:
@@ -146,7 +155,7 @@ class Generic(object):
                 self.h2e[i-1,l-1,j-1,k-1] = integral
                 self.h2e[k-1,j-1,l-1,i-1] = integral
         self.T = numpy.array([self.h1e, self.h1e])
-        self.mo_coeff = None
+        self.orbs = None
 
     def read_hdf5_integrals(self):
         """Read in integrals from file.
@@ -168,8 +177,9 @@ class Generic(object):
             self.h2e = fh5['eri'][:]
             self.ecore = fh5['enuc'][:][0]
             nelec = fh5['nelec'][:]
-            self.mo_coeff = fh5['mo_coeff'][:]
-        if (nelec[0] != self.nup) or nelec[1] != self.ndown:
+            self.orbs = fh5['orbs'][:]
+        fc = self.frozen_core
+        if (nelec[0] != self.nup or nelec[1] != self.ndown) and not fc:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
             # sys.exit()
@@ -178,16 +188,16 @@ class Generic(object):
     def read_qmcpack_integrals(self):
         (h1e, self.schol_vecs, self.ecore,
          self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
-        if (nup != self.nup) or ndown != self.ndown:
+        if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
         self.nchol_vec = self.schol_vecs.shape[-1]
         self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
                                                               self.nbasis))
         self.T = numpy.array([h1e, h1e])
-        self.mo_coeff = None
+        self.orbs = None
 
-    def construct_decomposition(self, verbose):
+    def construct_decomposition(self, verbose=False):
         """Decompose two-electron integrals.
 
         Returns
@@ -199,7 +209,7 @@ class Generic(object):
         """
         # Super matrix of v_{ijkl}. V[mu(ik),nu(jl)] = v_{ijkl}.
         V = self.h2e.reshape((self.nbasis**2, self.nbasis**2))
-        if (numpy.sum(V - V.conj().T) != 0):
+        if (abs(numpy.sum(V - V.conj().T)) > 1e-12):
             print("Warning: Supermatrix is not Hermitian")
         chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0],
@@ -212,6 +222,40 @@ class Generic(object):
         # Eqn (17) of [Motta17]_
         v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs, self.chol_vecs)
         self.h1e_mod = numpy.array([self.T[0]-v0, self.T[1]-v0])
+
+    def frozen_core_hamiltonian(self, trial):
+        # 1. Construct one-body hamiltonian
+        self.ecore = local_energy_generic(self, trial.Gcore)[0]
+        (hc_a, hc_b) = core_contribution(self, trial.Gcore)
+        self.T[0] = self.T[0] + 2*hc_a
+        self.T[1] = self.T[1] + 2*hc_b
+        # 3. Cholesky Decompose ERIs.
+        nfv = self.nfv
+        nc = self.ncore
+        nb = self.nbasis
+        self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
+        self.T = self.T[:,nc:nb-nfv,nc:nb-nfv]
+        if len(self.orbs.shape) == 3:
+            self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
+        else:
+            self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
+        self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
+        self.nbasis = self.nbasis - self.ncore - self.nfv
+        self.chol_vecs = self.construct_decomposition(True)
+        self.nchol_vec = self.chol_vecs.shape[0]
+        # 4. Subtract one-body term from writing H2 as sum of squares.
+        self.construct_h1e_mod()
+        self.nfields = self.nchol_vec
+        if self.verbose:
+            print("# Freezing core.")
+            print("# Freezing %d core states and %d virtuals :"
+                  %(self.ncore, self.nfv))
+            print("# Number of active electrons : (%d, %d)."
+                  %(self.nup, self.ndown))
+            print("# Number of active virtuals : %d"%self.nbasis)
+            print("# Frozen core energy : %13.8e"%self.ecore.real)
+            print("# Active space energy : %13.8e"%self.eactive.real)
+            print("# Total HF energy : %13.8e"%(self.eactive+self.ecore).real)
 
     def construct_integral_tensors(self, trial):
         if self.schol_vecs is None:

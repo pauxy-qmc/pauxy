@@ -19,14 +19,14 @@ def local_energy_generic(system, G, Ghalf=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    e1 = (numpy.einsum('ij,ji->', system.T[0], G[0]) +
-          numpy.einsum('ij,ji->', system.T[1], G[1]))
-    euu = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[0]) -
-               numpy.einsum('pqrs,ps,qr->', system.h2e, G[0], G[0]))
-    edd = 0.5*(numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[1]) -
-               numpy.einsum('pqrs,ps,qr->', system.h2e, G[1], G[1]))
-    eud = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[0], G[1])
-    edu = 0.5*numpy.einsum('pqrs,pr,qs->', system.h2e, G[1], G[0])
+    e1 = (numpy.einsum('ij,ij->', system.T[0], G[0]) +
+          numpy.einsum('ij,ij->', system.T[1], G[1]))
+    euu = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[0]) -
+               numpy.einsum('prqs,ps,qr->', system.h2e, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[1]) -
+               numpy.einsum('prqs,ps,qr->', system.h2e, G[1], G[1]))
+    eud = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[1])
+    edu = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[0])
     e2 = euu + edd + eud + edu
     return (e1+e2+system.ecore, e1+system.ecore, e2)
 
@@ -77,3 +77,10 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
                            system.chol_vecs, G[1], G[0])
     e2b = euu + edd + eud + edu
     return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
+
+def core_contribution(system, Gcore):
+    hc_a = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[0]) -
+            0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[0]))
+    hc_b = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[1]) -
+            0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[1]))
+    return (hc_a, hc_b)

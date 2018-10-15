@@ -147,6 +147,7 @@ def setup_parallel(options, comm=None, verbose=False):
     # of estimators object to after MPI communication.
     # Simpler to just ensure a fixed number of walkers per core.
     afqmc.qmc.nwalkers = int(afqmc.qmc.nwalkers/afqmc.nprocs)
+    afqmc.qmc.ntot_walkers = afqmc.qmc.nwalkers * afqmc.nprocs
     if afqmc.qmc.nwalkers == 0:
         # This should occur on all processors so we don't need to worry about
         # race conditions / mpi4py hanging.
@@ -167,7 +168,7 @@ def setup_parallel(options, comm=None, verbose=False):
     )
     afqmc.psi = Walkers(options.get('walkers', {'weight': 1}), afqmc.system,
                         afqmc.trial,
-                        afqmc.qmc.nwalkers,
+                        afqmc.qmc,
                         afqmc.estimators.nprop_tot,
                         afqmc.estimators.nbp,
                         verbose=(comm.rank==0 and verbose))

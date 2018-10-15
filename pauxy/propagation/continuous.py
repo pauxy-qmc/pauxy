@@ -30,6 +30,7 @@ class Continuous(object):
         self.propagator.construct_one_body_propagator(system, qmc.dt)
         self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz
+        self.nfb_trig = 0
 
 
         self.ebound = (2.0/self.dt)**0.5
@@ -103,7 +104,9 @@ class Continuous(object):
 
         for i in range(system.nfields):
             if numpy.absolute(xbar[i]) > 1.0:
-                print ("# Rescaling force bias is triggered")
+                if self.nfb_trig < 10:
+                    print ("# Rescaling force bias is triggered")
+                    self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
 
         xshifted = xi - xbar
