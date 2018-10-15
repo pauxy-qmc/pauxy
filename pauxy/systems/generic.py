@@ -146,14 +146,22 @@ class Generic(object):
             elif i > 0  and j > 0 and k > 0 and l > 0:
                 # <ij|kl> = <ji|lk> = <kl|ij> = <lk|ji> =
                 # <kj|il> = <li|jk> = <il|kj> = <jk|li>
+                # (ik|jl)
                 self.h2e[i-1,k-1,j-1,l-1] = integral
-                self.h2e[k-1,i-1,l-1,j-1] = integral
+                # (jl|ik)
                 self.h2e[j-1,l-1,i-1,k-1] = integral
+                # (ki|lj)
+                self.h2e[k-1,i-1,l-1,j-1] = integral
+                # (lj|ki)
                 self.h2e[l-1,j-1,k-1,i-1] = integral
-                self.h2e[j-1,k-1,i-1,l-1] = integral
-                self.h2e[l-1,i-1,k-1,j-1] = integral
-                self.h2e[i-1,l-1,j-1,k-1] = integral
-                self.h2e[k-1,j-1,l-1,i-1] = integral
+                # (ki|jl)
+                self.h2e[k-1,i-1,j-1,l-1] = integral
+                # (lj|ik)
+                self.h2e[l-1,j-1,i-1,k-1] = integral
+                # (ik|lj)
+                self.h2e[i-1,k-1,l-1,j-1] = integral
+                # (jl|ki)
+                self.h2e[j-1,l-1,k-1,i-1] = integral
         self.T = numpy.array([self.h1e, self.h1e])
         self.orbs = None
 
