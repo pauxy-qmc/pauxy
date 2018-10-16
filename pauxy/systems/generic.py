@@ -1,3 +1,4 @@
+import ast
 import h5py
 import numpy
 import sys
@@ -135,7 +136,13 @@ class Generic(object):
             # each line contains v_{ijkl} i k j l
             # Note (ik|jl) = <ij|kl>.
             # Assuming real integrals
-            integral = float(s[0])
+            try:
+                integral = float(s[0])
+            except ValueError:
+                ig = ast.literal_eval(s[0].strip())
+                # Hack for the moment, not dealing with complex fcidumps, just
+                # the format
+                integral = ig[0]
             i, k, j, l = [int(x) for x in s[1:]]
             if i == j == k == l == 0:
                 self.ecore = integral
