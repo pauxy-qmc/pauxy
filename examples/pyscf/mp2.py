@@ -2,6 +2,8 @@ import numpy as np
 from pyscf import scf
 from dfmp2 import *
 from pyscf import gto
+import h5py
+from pauxy.utils.from_pyscf import dump_pauxy
 
 mol = gto.M(
     atom = [['C',  -2.433661,   0.708302,   0.000000],
@@ -30,7 +32,10 @@ mol = gto.M(
     spin = 0
 )
 
-mf = scf.RHF(mol).run()
+mf = scf.RHF(mol)
+mf.chkfile = 'scf.naph.dump'
+mf.kernel()
+
 nfc = 10
 nfv = 5
 pt = DFMP2(mf, frozen=nfc, nfv = nfv)
@@ -76,4 +81,24 @@ print("Total {} determinants selcted above tthresh of {}".format(len(coefs),tthr
 for idx in reversed(sortidx):
     slaters_ordered += [slaters[idx]]
     coefs_ordered += [coefs[idx]]
-print(coefs_ordered)
+
+reorder_mo = [i for i in range (26)]
+reorder_mo += [i+27 for i in range(3)]
+reorder_mo += [26]
+reorder_mo += [i+30 for i in range(9)]
+reorder_mo += [i+39 for i in range(19)]
+mo_ordered = np.zeros(mf.mo_coeff.shape)
+for inew, imo in enumerate(reorder_mo):
+  mo_ordered[:,inew] = mf.mo_coeff[:,imo].copy()
+mf.mo_coeff = mo_ordered.copy()
+hcore = mf.get_hcore()
+fock = hcore + mf.get_veff()
+with h5py.File(mf.chkfile) as fh5:
+  fh5['scf/orbs'] = numpy.array(slaters_ordered)
+  fh5['scf/coeffs'] = numpy.array(coefs_ordered)
+  fh5['scf/hcore'] = hcore
+  fh5['scf/fock'] = fock
+  fh5['scf/orthoAORot'] = mo_ordered
+
+# Dump necessary data using pyscf checkpoint file.
+dump_pauxy(chkfile=mf.chkfile, outfile='naph.fcidump.h5')

@@ -39,6 +39,12 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
     return eri
 
 def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
+    if pbc:
+        mol = chkfile.load_cell(scfdump)
+        mf = pbcscf.KRHF(mol)
+    else:
+        mol = load_mol(scfdump)
+        mf = scf.RHF(mol)
     with h5py.File(scfdump, 'r') as fh5:
         hcore = fh5['/scf/hcore'][:]
         fock = fh5['/scf/fock'][:]
@@ -48,12 +54,6 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
             enuc = fh5['/scf/enuc'][()]
         except KeyError:
             enuc = mf.energy_nuc()
-    if pbc:
-        mol = chkfile.load_cell(scfdump)
-        mf = pbcscf.KRHF(mol)
-    else:
-        mol = load_mol(scfdump)
-        mf = scf.RHF(mol)
     if verbose:
         print (" # Generating PAUXY input from %s."%chkfile)
         print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
