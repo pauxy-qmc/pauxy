@@ -235,6 +235,7 @@ def gab_multi_det_full(A, B, coeffsA, coeffsB, GAB, weights):
             # construct "local" green's functions for each component of A
             inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
             GAB[ix,iy] = (Biy.dot(inv_O)).dot(Aix.conj().T)
+            GAB[ix,iy] = (Biy.dot(inv_O)).dot(Aix.conj().T)
             weights[ix,iy] =  cix*(ciy.conj()) / scipy.linalg.det(inv_O)
     denom = numpy.sum(weights)
     G = numpy.einsum('ij,ijkl->kl', weights, GAB) / denom

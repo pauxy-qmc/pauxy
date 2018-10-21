@@ -14,7 +14,6 @@ from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic_cholesky
-    local_energy_generic_multi_det
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 

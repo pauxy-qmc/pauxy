@@ -1,6 +1,7 @@
 import numpy
+import time
 from pauxy.estimators.mixed import local_energy
-from pauxy.estimators.greens_function import gab, gab_multi_det_full
+from pauxy.estimators.greens_function import gab, gab_multi_det_full, gab_mod
 from pauxy.utils.linalg import diagonalise_sorted
 from pauxy.utils.io import read_fortran_complex_numbers
 
@@ -10,67 +11,59 @@ class MultiDeterminant(object):
         self.verbose = verbose
         if verbose:
             print ("# Parsing multi-determinant trial wavefunction input"
-                   "options.")
+                   " options.")
         init_time = time.time()
         self.name = "multi_determinant"
         self.expansion = "multi_determinant"
-        self.type = trial.get('type')
-        self.ndets = trial.get('ndets', None)
         self.eigs = numpy.array([0.0])
-        self.initial_wavefunction = trial.get('initial_wavefunction',
-                                              'free_electron')
-        self.bp_wfn = trial.get('bp_wfn', 'init')
-        if cplx or self.type == 'GHF':
-            self.trial_type = complex
+        if cplx:
+            self.trial_type = numpy.complex128
         else:
-            self.trial_type = float
-        if self.type == 'UHF':
-            nbasis = system.nbasis
-        else:
-            nbasis = 2 * system.nbasis
-        self.GAB = numpy.zeros(shape=(self.ndets, self.ndets, nbasis, nbasis),
-                               dtype=self.trial_type)
-        self.weights = numpy.zeros(shape=(self.ndets, self.ndets),
-                                   dtype=self.trial_type)
+            self.trial_type = numpy.float64
         # For debugging purposes.
         self.error = False
-        if self.type == 'free_electron':
-            (self.eigs, self.eigv) = diagonalise_sorted(system.T[0])
-            psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
-            psi[:,:system.nup] = self.eigv[:,:system.nup]
-            psi[:,system.nup:] = self.eigv[:,:system.ndown]
-            self.psi = numpy.array([copy.deepcopy(psi) for i in range(0,self.ndets)])
-            self.G = numpy.zeros(2, nbasis, nbasis)
-            self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
-            self.coeffs = numpy.ones(self.ndets)
-        else:
-            self.orbital_file = trial.get('orbitals', None)
-            self.coeffs_file = trial.get('coefficients', None)
-            if self.orbital_file is not None:
-                self.from_ascii(system)
-            elif system.orbs is not None:
-                orbs = system.orbs.copy()
+        self.orbital_file = trial.get('orbitals', None)
+        self.coeffs_file = trial.get('coefficients', None)
+        if self.orbital_file is not None:
+            self.ndets = trial.get('ndets', None)
+            self.psi = numpy.zeros((ndets, nbasis, system.ne),
+                                   dtype=self.trial_type)
+            self.from_ascii(system)
+        elif system.orbs is not None:
+            orbs = system.orbs.copy()
+            self.ndets = orbs.shape[0]
+            if system.frozen_core:
                 nc = system.ncore
                 nfv = system.nfv
                 nb = system.nbasis
-                if frozen_core:
-                    orbs = orbs[:,nc:nb-nfv:nc:nb-nfv]
-                    orbs_core = orbs[0,:,:nc]
-                    Gcore, half = gab_mod(orbs_core, orbs_core)
-                    self.Gcore = numpy.array([Gcore, Gcore])
-                self.psi[:,:,:system.nup] = orbs[:,:,:system.nup].copy()
-                self.psi[:,:,system.nup:] = orbs[:,:,system.nup:].copy()
-                self.coeffs = system.coeffs
-            else:
-                print("Could not construct trial wavefunction.")
-                self.error = True
-            # Store the complex conjugate of the multi-determinant trial
-            # wavefunction expansion coefficients for ease later.
-            self.G = gab_multi_det_full(self.psi, self.psi,
-                                        self.coeffs, self.coeffs,
-                                        self.GAB, self.weights)
-            self.trial = (local_energy_ghf_full(system, self.GAB,
-                                                self.weights)[0].real)
+                orbs = orbs[:,nc:nb-nfv,nc:nb-nfv]
+                orbs_core = orbs[0,:,:nc]
+                Gcore, half = gab_mod(orbs_core, orbs_core)
+                self.Gcore = numpy.array([Gcore, Gcore])
+            self.psi = numpy.zeros(shape=(self.ndets, system.nactive, system.ne),
+                                   dtype=self.trial_type)
+            self.psi[:,:,:system.nup] = orbs[:,:,:system.nup].copy()
+            self.psi[:,:,system.nup:] = orbs[:,:,:system.nup].copy()
+            self.coeffs = system.coeffs
+        else:
+            print("Could not construct trial wavefunction.")
+        self.error = True
+        nbasis = system.nbasis
+        self.GAB = numpy.zeros(shape=(2, self.ndets, self.ndets, nactive, nactive),
+                               dtype=self.trial_type)
+        self.weights = numpy.zeros(shape=(2, self.ndets, self.ndets),
+                                   dtype=self.trial_type)
+        # Store the complex conjugate of the multi-determinant trial
+        # wavefunction expansion coefficients for ease later.
+        Gup = gab_multi_det_full(self.psi[:,:,:system.nup],
+                                 self.psi[:,:,:system.nup],
+                                 self.coeffs, self.coeffs,
+                                 self.GAB[0], self.weights[0])
+        Gdn = gab_multi_det_full(self.psi[:,:,system.nup:],
+                                 self.psi[:,:,system.nup:],
+                                 self.coeffs, self.coeffs,
+                                 self.GAB[1], self.weights[1])
+        self.G = numpy.array([Gup,Gdn])
         self.initialisation_time = time.time() - init_time
         if verbose:
             print ("# Finished setting up trial wavefunction.")
@@ -79,8 +72,6 @@ class MultiDeterminant(object):
         if self.verbose:
             print ("# Reading wavefunction from %s." % self.coeffs_file)
         self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
-        self.psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne),
-                               dtype=self.coeffs.dtype)
         orbitals = read_fortran_complex_numbers(self.orbital_file)
         start = 0
         skip = system.nbasis * system.ne

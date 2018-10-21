@@ -8,6 +8,7 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
 from pauxy.estimators.generic import local_energy_generic, core_contribution
+from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
 class Generic(object):
@@ -79,7 +80,7 @@ class Generic(object):
                 if verbose:
                     print("# Decomposing two-body operator.")
                 init = time.time()
-                self.chol_vecs = self.construct_decomposition(verbose)
+                self.chol_vecs = self.construct_decomposition()
                 if verbose:
                     print("# Time to perform Cholesky decomposition: %f s"
                           %(time.time()-init))
@@ -213,7 +214,7 @@ class Generic(object):
         self.T = numpy.array([h1e, h1e])
         self.orbs = None
 
-    def construct_decomposition(self, verbose=False):
+    def construct_decomposition(self):
         """Decompose two-electron integrals.
 
         Returns
@@ -227,7 +228,7 @@ class Generic(object):
         V = self.h2e.reshape((self.nbasis**2, self.nbasis**2))
         if (abs(numpy.sum(V - V.conj().T)) > 1e-12):
             print("Warning: Supermatrix is not Hermitian")
-        chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
+        chol_vecs = modified_cholesky(V, self.threshold, verbose=self.verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0],
                                        self.nbasis,
                                        self.nbasis))
@@ -255,9 +256,13 @@ class Generic(object):
             self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
         else:
             self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
-        self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
+        if trial.name == "multi_determinant":
+            self.eactive = local_energy_multi_det(self, trial.psi, trial.psi,
+                                                  trial.coeffs, trial.coeffs)[0] - self.ecore
+        else:
+            self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
         self.nbasis = self.nbasis - self.ncore - self.nfv
-        self.chol_vecs = self.construct_decomposition(True)
+        self.chol_vecs = self.construct_decomposition()
         self.nchol_vec = self.chol_vecs.shape[0]
         # 4. Subtract one-body term from writing H2 as sum of squares.
         self.construct_h1e_mod()
