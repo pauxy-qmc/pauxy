@@ -193,6 +193,7 @@ class Generic(object):
             self.ecore = fh5['enuc'][:][0]
             nelec = fh5['nelec'][:]
             self.orbs = fh5['orbs'][:]
+            self.coeffs = fh5['coeffs'][:]
         fc = self.frozen_core
         if (nelec[0] != self.nup or nelec[1] != self.ndown) and not fc:
             print("Number of electrons is inconsistent")
@@ -202,7 +203,7 @@ class Generic(object):
 
     def read_qmcpack_integrals(self):
         (h1e, self.schol_vecs, self.ecore,
-         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
+        self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
