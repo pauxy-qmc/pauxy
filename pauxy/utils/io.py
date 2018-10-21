@@ -112,7 +112,7 @@ def from_qmcpack_cholesky(filename):
         return (hcore, chol_vecs, enuc, nbasis, nalpha, nbeta)
 
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
-                orbs=None, verbose=True):
+                orbs=None, verbose=True, coeffs=None):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(fock.shape) == 3:
@@ -122,8 +122,10 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
     else:
         if verbose:
             print (" # Writing RHF trial wavefunction.")
-        # (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
-        orbs = orbs
+        if orbs is not None:
+            (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
+        else:
+            orbs = orbs
     nbasis = hcore.shape[-1]
     mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
     if verbose:
@@ -135,6 +137,7 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
         fh5.create_dataset('eri', data=eri)
         fh5.create_dataset('enuc', data=[enuc])
         fh5.create_dataset('orbs', data=orbs)
+        fh5.create_dataset('coeffs', data=coeffs)
 
 def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
                  verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):

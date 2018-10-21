@@ -12,7 +12,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
                chol_cut=1e-5, sparse_zero=1e-16, pbc=False):
     if chkfile is not None:
-        (hcore, fock, orthoAO, enuc, mol, orbs, mf) = from_pyscf_chkfile(chkfile, verbose, pbc)
+        (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose, pbc)
     else:
         (hcore, fock, orthoAO, enuc) = from_pyscf_mol(mol, mf)
     if verbose:
@@ -35,7 +35,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                      sparse_zero=sparse_zero, orbs=orbs)
     else:
         dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc,
-                    orbs=orbs)
+                    orbs=orbs, coeffs=coeffs)
     return eri
 
 def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
@@ -50,6 +50,7 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         fock = fh5['/scf/fock'][:]
         orthoAO = fh5['/scf/orthoAORot'][:]
         orbs = fh5['/scf/orbs'][:]
+        coeffs = fh5['/scf/coeffs'][:]
         try:
             enuc = fh5['/scf/enuc'][()]
         except KeyError:
@@ -58,7 +59,7 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         print (" # Generating PAUXY input from %s."%chkfile)
         print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
         print (" # nbasis: %d"%hcore.shape[-1])
-    return (hcore, fock, orthoAO, enuc, mol, orbs, mf)
+    return (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs)
 
 def from_pyscf_mol(mol, mf, verbose=True):
     hcore = mf.get_hcore()
