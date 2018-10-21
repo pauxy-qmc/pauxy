@@ -78,6 +78,28 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     e2b = euu + edd + eud + edu
     return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
 
+def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
+    weight = 0
+    energies = 0
+    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
+        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
+            # construct "local" green's functions for each component of A
+            inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
+            GAB = (Biy.dot(inv_O)).dot(Aix.conj().T)
+            weight = cix*(ciy.conj()) / scipy.linalg.det(inv_O)
+            energies += weight * numpy.array(local_energy_generic(system, GAB))
+            denom += weight
+    return tuple(energies/denom)
+
+def local_energy_multi_det(system, Gi, weights):
+    weight = 0
+    energies = 0
+    for w, G in zip(weights, Gi):
+        # construct "local" green's functions for each component of A
+        energies += w * numpy.array(local_energy_generic(system, G))
+        denom += w
+    return tuple(energies/denom)
+
 def core_contribution(system, Gcore):
     hc_a = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[0]) -
             0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[0]))

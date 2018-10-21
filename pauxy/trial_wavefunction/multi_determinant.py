@@ -7,6 +7,7 @@ from pauxy.utils.io import read_fortran_complex_numbers
 class MultiDeterminant(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        self.verbose = verbose
         if verbose:
             print ("# Parsing multi-determinant trial wavefunction input"
                    "options.")
@@ -32,6 +33,7 @@ class MultiDeterminant(object):
         self.weights = numpy.zeros(shape=(self.ndets, self.ndets),
                                    dtype=self.trial_type)
         # For debugging purposes.
+        self.error = False
         if self.type == 'free_electron':
             (self.eigs, self.eigv) = diagonalise_sorted(system.T[0])
             psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne))
@@ -42,30 +44,60 @@ class MultiDeterminant(object):
             self.emin = sum(self.eigs[:system.nup]) + sum(self.eigs[:system.ndown])
             self.coeffs = numpy.ones(self.ndets)
         else:
-            self.orbital_file = trial.get('orbitals')
-            self.coeffs_file = trial.get('coefficients')
+            self.orbital_file = trial.get('orbitals', None)
+            self.coeffs_file = trial.get('coefficients', None)
+            if self.orbital_file is not None:
+                self.from_ascii(system)
+            elif system.orbs is not None:
+                orbs = system.orbs.copy()
+                nc = system.ncore
+                nfv = system.nfv
+                nb = system.nbasis
+                if frozen_core:
+                    orbs = orbs[:,nc:nb-nfv:nc:nb-nfv]
+                    orbs_core = orbs[0,:,:nc]
+                    Gcore, half = gab_mod(orbs_core, orbs_core)
+                    self.Gcore = numpy.array([Gcore, Gcore])
+                self.psi[:,:,:system.nup] = orbs[:,:,:system.nup].copy()
+                self.psi[:,:,system.nup:] = orbs[:,:,system.nup:].copy()
+                self.coeffs = system.coeffs
+            else:
+                print("Could not construct trial wavefunction.")
+                self.error = True
             # Store the complex conjugate of the multi-determinant trial
             # wavefunction expansion coefficients for ease later.
-            if verbose:
-                print ("# Reading wavefunction from %s." % self.coeffs_file)
-            self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
-            self.psi = numpy.zeros(shape=(self.ndets, nbasis, system.ne),
-                                   dtype=self.coeffs.dtype)
-            orbitals = read_fortran_complex_numbers(self.orbital_file)
-            start = 0
-            skip = nbasis * system.ne
-            end = skip
-            for i in range(self.ndets):
-                self.psi[i] = orbitals[start:end].reshape((nbasis, system.ne),
-                                                          order='F')
-                start = end
-                end += skip
             self.G = gab_multi_det_full(self.psi, self.psi,
                                         self.coeffs, self.coeffs,
                                         self.GAB, self.weights)
             self.trial = (local_energy_ghf_full(system, self.GAB,
                                                 self.weights)[0].real)
-        self.error = False
         self.initialisation_time = time.time() - init_time
         if verbose:
             print ("# Finished setting up trial wavefunction.")
+
+    def from_ascii(self, system):
+        if self.verbose:
+            print ("# Reading wavefunction from %s." % self.coeffs_file)
+        self.coeffs = read_fortran_complex_numbers(self.coeffs_file)
+        self.psi = numpy.zeros(shape=(self.ndets, system.nbasis, system.ne),
+                               dtype=self.coeffs.dtype)
+        orbitals = read_fortran_complex_numbers(self.orbital_file)
+        start = 0
+        skip = system.nbasis * system.ne
+        end = skip
+        for i in range(self.ndets):
+            self.psi[i] = orbitals[start:end].reshape((nbasis, system.ne),
+                                                      order='F')
+            start = end
+            end += skip
+
+    def energy(self, system):
+        if self.verbose:
+            print ("# Computing trial energy.")
+        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
+                                                         Ghalf=[self.gup_half,
+                                                         self.gdown_half],
+                                                         opt=True)
+        if self.verbose:
+            print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
+                   %(self.energy.real, self.e1b.real, self.e2b.real))
