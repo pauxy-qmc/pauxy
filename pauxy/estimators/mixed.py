@@ -11,8 +11,10 @@ from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 from pauxy.estimators.ueg import local_energy_ueg
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
+from pauxy.estimators.greens_function import gab_mod_ovlp
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
+    local_energy_generic,
     local_energy_generic_cholesky
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
@@ -296,27 +298,33 @@ def local_energy(system, G, Ghalf=None, opt=True):
         if opt:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic_cholesky(system, G)
+            return local_energy_generic(system, G)
 
 def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
     weight = 0
     energies = 0
+    denom = 0
+    nup = system.nup
     for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
         for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
             # construct "local" green's functions for each component of A
-            inv_O = scipy.linalg.inv((Aix.conj().T).dot(Biy))
-            GAB = (Biy.dot(inv_O)).dot(Aix.conj().T)
-            weight = cix*(ciy.conj()) / scipy.linalg.det(inv_O)
-            energies += weight * numpy.array(local_energy(system, GAB))
+            Gup, inv_O_up = gab_mod_ovlp(Biy[:,:nup], Aix[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Biy[:,nup:], Aix[:,nup:])
+            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
+            weight = cix*(ciy.conj()) * ovlp
+            G = numpy.array([Gup, Gdn])
+            e = numpy.array(local_energy(system, G, opt=False))
+            energies += weight * e
             denom += weight
     return tuple(energies/denom)
 
 def local_energy_multi_det(system, Gi, weights):
     weight = 0
     energies = 0
+    denom = 0
     for w, G in zip(weights, Gi):
         # construct "local" green's functions for each component of A
-        energies += w * numpy.array(local_energy(system, G))
+        energies += w * numpy.array(local_energy(system, G, opt=False))
         denom += w
     return tuple(energies/denom)
 

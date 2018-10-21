@@ -194,7 +194,10 @@ class Generic(object):
             self.ecore = fh5['enuc'][:][0]
             nelec = fh5['nelec'][:]
             self.orbs = fh5['orbs'][:]
-            self.coeffs = fh5['coeffs'][:]
+            try:
+                self.coeffs = fh5['coeffs'][:]
+            except KeyError:
+                self.coeffs = None
         fc = self.frozen_core
         if (nelec[0] != self.nup or nelec[1] != self.ndown) and not fc:
             print("Number of electrons is inconsistent")
@@ -257,7 +260,7 @@ class Generic(object):
         else:
             self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
         if trial.name == "multi_determinant":
-            self.eactive = local_energy_multi_det(self, trial.psi, trial.psi,
+            self.eactive = local_energy_multi_det_full(self, trial.psi, trial.psi,
                                                   trial.coeffs, trial.coeffs)[0] - self.ecore
         else:
             self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore

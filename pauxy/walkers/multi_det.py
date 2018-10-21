@@ -1,5 +1,6 @@
 import copy
 import numpy
+import scipy.linalg
 from pauxy.estimators.mixed import local_energy_multi_det
 
 class MultiDetWalker(object):
@@ -31,16 +32,18 @@ class MultiDetWalker(object):
         # when we may want to use the full expansion.
         self.nup = system.nup
         self.phi = copy.deepcopy(trial.psi[0])
+        self.ndets = trial.ndets
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        self.inv_ovlp = numpy.zeros(shape=(trial.ndets, system.ne, system.ne),
-                                    dtype=self.phi.dtype)
+        self.inv_ovlp = [numpy.zeros(shape=(trial.ndets, system.nup, system.nup),
+                                     dtype=self.phi.dtype),
+                         numpy.zeros(shape=(trial.ndets, system.nup, system.nup),
+                                    dtype=self.phi.dtype)]
         if weights == 'zeros':
             self.weights = numpy.zeros(trial.ndets, dtype=trial.psi.dtype)
         else:
             self.weights = numpy.ones(trial.ndets, dtype=trial.psi.dtype)
-        if wfn0 != 'GHF':
-            self.inverse_overlap(trial.psi)
+        self.inverse_overlap(trial)
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = numpy.zeros(shape=(trial.ndets, 2, system.nbasis,
                                      system.nbasis), dtype=self.phi.dtype)
@@ -53,9 +56,10 @@ class MultiDetWalker(object):
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)
             self.greens_function(trial)
-            self.E_L = pauxy.estimators.local_energy_multi_det(system, self.Gi,
-                                                               self.weights)
+            self.E_L = local_energy_multi_det(system, self.Gi, self.weights)
         self.nb = system.nbasis
+        self.nup = system.nup
+        self.ndown = system.ndown
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
@@ -72,12 +76,12 @@ class MultiDetWalker(object):
             Trial wavefunction.
         """
         nup = self.nup
-        for (indx, t) in enumerate(trial):
-            self.inv_ovlp[indx,0,:,:] = (
-                    scipy.linalg.inv((t.conj()).T.dot(self.phi[:,:nup]))
+        for (indx, t) in enumerate(trial.psi):
+            self.inv_ovlp[0][indx,:,:] = (
+                    scipy.linalg.inv((t[:,:nup].conj()).T.dot(self.phi[:,:nup]))
             )
-            self.inv_ovlp[indx,1,:,:] = (
-                    scipy.linalg.inv((t.conj()).T.dot(self.phi[:,nup:]))
+            self.inv_ovlp[1][indx,:,:] = (
+                    scipy.linalg.inv((t[:,nup:].conj()).T.dot(self.phi[:,nup:]))
             )
 
     def calc_otrial(self, trial):
@@ -95,8 +99,10 @@ class MultiDetWalker(object):
         """
         # The trial wavefunctions coefficients should be complex conjugated
         # on initialisation!
-        for (ix, inv) in enumerate(self.inv_ovlp):
-            self.ots[ix] = 1.0 / scipy.linalg.det(inv[0])*scipy.linalg.det(inv[1])
+        for ix in range(self.ndets):
+            det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
+            det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
+            self.ots[ix] = det_O_up * det_O_dn
             self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix]
         return sum(self.weights)
 
@@ -142,10 +148,10 @@ class MultiDetWalker(object):
         for (ix, t) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,0,:,:] = (
-                    (self.phi[:,:nup].dot(self.inv_ovlp[ix]).dot(t.conj().T)).T
+                    (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
             )
-            self.Gi[ix,0,:,:] = (
-                    (self.phi[:,nup:].dot(self.inv_ovlp[ix]).dot(t.conj().T)).T
+            self.Gi[ix,1,:,:] = (
+                    (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
 
     def local_energy(self, system):

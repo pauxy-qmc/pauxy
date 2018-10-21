@@ -50,7 +50,10 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         fock = fh5['/scf/fock'][:]
         orthoAO = fh5['/scf/orthoAORot'][:]
         orbs = fh5['/scf/orbs'][:]
-        coeffs = fh5['/scf/coeffs'][:]
+        try:
+            coeffs = fh5['/scf/coeffs'][:]
+        except KeyError:
+            coeffs = None
         try:
             enuc = fh5['/scf/enuc'][()]
         except KeyError:

@@ -1,5 +1,6 @@
 import numpy
 import time
+import scipy.linalg
 from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab, gab_multi_det_full, gab_mod
 from pauxy.utils.linalg import diagonalise_sorted
@@ -15,6 +16,7 @@ class MultiDeterminant(object):
         init_time = time.time()
         self.name = "multi_determinant"
         self.expansion = "multi_determinant"
+        self.type = "Not GHF"
         self.eigs = numpy.array([0.0])
         if cplx:
             self.trial_type = numpy.complex128
@@ -36,8 +38,8 @@ class MultiDeterminant(object):
                 nc = system.ncore
                 nfv = system.nfv
                 nb = system.nbasis
-                orbs = orbs[:,nc:nb-nfv,nc:nb-nfv]
                 orbs_core = orbs[0,:,:nc]
+                orbs = orbs[:,nc:nb-nfv,nc:nb-nfv]
                 Gcore, half = gab_mod(orbs_core, orbs_core)
                 self.Gcore = numpy.array([Gcore, Gcore])
             self.psi = numpy.zeros(shape=(self.ndets, system.nactive, system.ne),
@@ -49,7 +51,7 @@ class MultiDeterminant(object):
             print("Could not construct trial wavefunction.")
         self.error = True
         nbasis = system.nbasis
-        self.GAB = numpy.zeros(shape=(2, self.ndets, self.ndets, nactive, nactive),
+        self.GAB = numpy.zeros(shape=(2, self.ndets, self.ndets, system.nactive, system.nactive),
                                dtype=self.trial_type)
         self.weights = numpy.zeros(shape=(2, self.ndets, self.ndets),
                                    dtype=self.trial_type)
@@ -86,9 +88,7 @@ class MultiDeterminant(object):
         if self.verbose:
             print ("# Computing trial energy.")
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
-                                                         Ghalf=[self.gup_half,
-                                                         self.gdown_half],
-                                                         opt=True)
+                                                         opt=False)
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))
