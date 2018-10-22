@@ -22,9 +22,10 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
         assert(mp.frozen is 0 or mp.frozen is None)
 
     nocc = mp.nocc
-    nvir = mp.nmo - nocc - mp.nfv
+    nvir = mp.nmo - nocc - mp.nfzv
     eia = mo_energy[:nocc,None] - mo_energy[None,nocc:nocc+nvir]
-    t2 = []
+    t2ss = []
+    t2os = []
     emp2 = 0
     for istep, qov in enumerate(mp.loop_ao2mo(mo_coeff, nocc)):
         logger.debug(mp, 'Load cderi step %d', istep)
@@ -34,17 +35,21 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
             gi = numpy.array(buf, copy=False)
             gi = gi.reshape(nvir,nocc,nvir).transpose(1,0,2) # iab
             t2i = gi/lib.direct_sum('jb+a->jba', eia, eia[i])
+            t2os += [t2i] # opposite spin
             emp2 += numpy.einsum('jab,jab', t2i, gi) * 2
             emp2 -= numpy.einsum('jab,jba', t2i, gi)
             gi = gi - gi.transpose(0,2,1) # iab
-            t2 += [gi/lib.direct_sum('jb+a->jba', eia, eia[i])]
+            t2ss += [gi/lib.direct_sum('jb+a->jba', eia, eia[i])] # same spin
+
+
+    t2 = [t2ss, t2os]
 
     return emp2, t2
 
 
 class DFMP2(mp2.MP2):
-    def __init__(self, mf, frozen=0, nfv=0, mo_coeff=None, mo_occ=None):
-        self.nfv = nfv
+    def __init__(self, mf, frozen=0, nfzv=0, mo_coeff=None, mo_occ=None):
+        self.nfzv = nfzv
         mp2.MP2.__init__(self, mf, frozen, mo_coeff, mo_occ)
         if hasattr(mf, 'with_df') and mf.with_df:
             self.with_df = mf.with_df
@@ -59,7 +64,7 @@ class DFMP2(mp2.MP2):
 
     def loop_ao2mo(self, mo_coeff, nocc):
         mo = numpy.asarray(mo_coeff, order='F')
-        nvir = mo.shape[1] - nocc - self.nfv
+        nvir = mo.shape[1] - nocc - self.nfzv
         mo = mo[:,:nocc+nvir]
         nmo = mo.shape[1]
         ijslice = (0, nocc, nocc, nmo)
