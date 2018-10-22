@@ -39,13 +39,13 @@ class MultiDeterminant(object):
                 nfv = system.nfv
                 nb = system.nbasis
                 orbs_core = orbs[0,:,:nc]
-                orbs = orbs[:,nc:nb-nfv,nc:nb-nfv]
+                orbs = orbs[:,nc:nb-nfv,:]
                 Gcore, half = gab_mod(orbs_core, orbs_core)
                 self.Gcore = numpy.array([Gcore, Gcore])
             self.psi = numpy.zeros(shape=(self.ndets, system.nactive, system.ne),
                                    dtype=self.trial_type)
-            self.psi[:,:,:system.nup] = orbs[:,:,:system.nup].copy()
-            self.psi[:,:,system.nup:] = orbs[:,:,:system.nup].copy()
+            self.psi[:,:,:system.nup] = orbs[:,:,nc:nc+system.nup].copy()
+            self.psi[:,:,system.nup:] = orbs[:,:,2*nc+system.nup:2*nc+system.ne].copy()
             self.coeffs = system.coeffs
         else:
             print("Could not construct trial wavefunction.")
@@ -57,14 +57,8 @@ class MultiDeterminant(object):
                                    dtype=self.trial_type)
         # Store the complex conjugate of the multi-determinant trial
         # wavefunction expansion coefficients for ease later.
-        Gup = gab_multi_det_full(self.psi[:,:,:system.nup],
-                                 self.psi[:,:,:system.nup],
-                                 self.coeffs, self.coeffs,
-                                 self.GAB[0], self.weights[0])
-        Gdn = gab_multi_det_full(self.psi[:,:,system.nup:],
-                                 self.psi[:,:,system.nup:],
-                                 self.coeffs, self.coeffs,
-                                 self.GAB[1], self.weights[1])
+        Gup = gab(self.psi[0,:,:system.nup], self.psi[0,:,:system.nup])
+        Gdn = gab(self.psi[0,:,system.nup:], self.psi[0,:,system.nup:])
         self.G = numpy.array([Gup,Gdn])
         self.initialisation_time = time.time() - init_time
         if verbose:

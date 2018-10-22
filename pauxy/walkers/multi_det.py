@@ -26,12 +26,10 @@ class MultiDetWalker(object):
                  weights='zeros', wfn0='init'):
         self.weight = walker_opts.get('weight', 1)
         self.alive = 1
-        # Initialise to a particular free electron slater determinant rather
-        # than GHF. Can actually initialise to GHF by passing single GHF with
-        # initial_wavefunction. The distinction is really for back propagation
-        # when we may want to use the full expansion.
         self.nup = system.nup
         self.phi = copy.deepcopy(trial.psi[0])
+        self.phi[:,:system.nup] = numpy.dot(scipy.linalg.expm(-0.01*system.T[0]), self.phi[:,:system.nup])
+        self.phi[:,system.nup:] = numpy.dot(scipy.linalg.expm(-0.01*system.T[0]), self.phi[:,system.nup:])
         self.ndets = trial.ndets
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
@@ -77,12 +75,13 @@ class MultiDetWalker(object):
         """
         nup = self.nup
         for (indx, t) in enumerate(trial.psi):
-            self.inv_ovlp[0][indx,:,:] = (
-                    scipy.linalg.inv((t[:,:nup].conj()).T.dot(self.phi[:,:nup]))
-            )
-            self.inv_ovlp[1][indx,:,:] = (
-                    scipy.linalg.inv((t[:,nup:].conj()).T.dot(self.phi[:,nup:]))
-            )
+            print (t[:,:nup])
+        for (indx, t) in enumerate(trial.psi):
+            Oup = numpy.dot(t[:,:nup].conj().T, self.phi[:,:nup])
+            self.inv_ovlp[0][indx,:,:] = scipy.linalg.inv(Oup)
+            Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
+            print (t[:,nup:])
+            self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
 
     def calc_otrial(self, trial):
         """Caculate overlap with trial wavefunction.

@@ -259,11 +259,7 @@ class Generic(object):
             self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
         else:
             self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
-        if trial.name == "multi_determinant":
-            self.eactive = local_energy_multi_det_full(self, trial.psi, trial.psi,
-                                                  trial.coeffs, trial.coeffs)[0] - self.ecore
-        else:
-            self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
+        self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
         self.nbasis = self.nbasis - self.ncore - self.nfv
         self.chol_vecs = self.construct_decomposition()
         self.nchol_vec = self.chol_vecs.shape[0]
