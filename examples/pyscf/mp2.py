@@ -74,44 +74,48 @@ for p, imo in enumerate(mo_string):
     slater[imo,p+nfzc+nocc] = 1.0
 slaters += [slater]
 
-tthresh = 2.e-2
+tthresh = 1.e-2
 
 for i in range(nocc):
-    for j in range (i):
+    for j in range (nocc):
         for a in range (nvir):
-            for b in range (a):
-                if (abs(t2[0][i,j,a,b]) > tthresh):
-                    # The first nocc + nfzc is occupied
-                    # aaaa spin block
-                    mo_string = [p for p in range(nfzc+nocc)]
-                    mo_string[nfzc+i] = a
-                    mo_string[nfzc+j] = b
-                    # for both alpha and beta slater matrices
-                    slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
-                    for p, imo in enumerate(mo_string):
-                        slater[imo,p] = 1.0
-                    for p in range(nfzc+nocc):
-                        slater[p,p+nfzc+nocc] = 1.0
-                    slaters += [slater.copy()]
-                    coefs += [t2[0][i,j,a,b]]
-                    # bbbb spin block
-                    mo_string = [p for p in range(nfzc+nocc)]
-                    mo_string[nfzc+i] = a
-                    mo_string[nfzc+j] = b
-                    # for both alpha and beta slater matrices
-                    slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
-                    for p in range(nfzc+nocc):
-                        slater[p,p] = 1.0
-                    for p, imo in enumerate(mo_string):
-                        slater[imo,p+nfzc+nocc] = 1.0
-                    slaters += [slater.copy()]
-                    coefs += [t2[0][i,j,a,b]]
+            for b in range (nvir):
+                if (j>=i and b>=a):
+                    if (abs(t2[0][i,j,a,b]) > tthresh):
+                        # The first nocc + nfzc is occupied
+                        # aaaa spin block
+                        mo_string = [p for p in range(nfzc+nocc)]
+                        mo_string[nfzc+i] = a + nocc + nfzc
+                        mo_string[nfzc+j] = b + nocc + nfzc
+                        
+                        # for both alpha and beta slater matrices
+                        slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
+                        
+                        for p, imo in enumerate(mo_string):
+                            slater[imo,p] = 1.0
+                        for p in range(nfzc+nocc):
+                            slater[p,p+nfzc+nocc] = 1.0
+
+                        slaters += [slater.copy()]
+                        coefs += [t2[0][i,j,a,b]]
+                        # bbbb spin block
+                        mo_string = [p for p in range(nfzc+nocc)]
+                        mo_string[nfzc+i] = a + nocc + nfzc
+                        mo_string[nfzc+j] = b + nocc + nfzc
+                        # for both alpha and beta slater matrices
+                        slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
+                        for p in range(nfzc+nocc):
+                            slater[p,p] = 1.0
+                        for p, imo in enumerate(mo_string):
+                            slater[imo,p+nfzc+nocc] = 1.0
+                        slaters += [slater.copy()]
+                        coefs += [t2[0][i,j,a,b]]
+                        
                 if (abs(t2[1][i,j,a,b]) > tthresh):
                     # aabb spin block i = alpha, j = beta, a = alpha, b = beta
-
                     # alpha first
                     mo_string = [p for p in range(nfzc+nocc)]
-                    mo_string[nfzc+i] = a
+                    mo_string[nfzc+i] = a + nfzc + nocc
                     
                     # for both alpha and beta slater matrices
                     slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
@@ -120,12 +124,11 @@ for i in range(nocc):
                     
                     # beta next
                     mo_string = [p for p in range(nfzc+nocc)]
-                    mo_string[nfzc+j] = b
+                    mo_string[nfzc+j] = b + nfzc + nocc
                     for p, imo in enumerate(mo_string):
                         slater[imo,p+nfzc+nocc] = 1.0
                     slaters += [slater.copy()]
                     coefs += [t2[1][i,j,a,b]]
-
 coefs = np.array(coefs)
 sortidx = np.argsort(np.abs(coefs))
 
