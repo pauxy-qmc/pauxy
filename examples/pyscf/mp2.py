@@ -65,7 +65,14 @@ nmo = nocc + nvir + nfzc + nfzv
 slaters = []
 coefs = []
 
-mohf = mf.mo_coeff.copy()
+coefs += [1.0]
+
+slater = np.zeros((nmo, nfzc+nocc+nfzc+nocc))
+mo_string = [p for p in range(nfzc+nocc)]
+for p, imo in enumerate(mo_string):
+    slater[imo,p] = 1.0
+    slater[imo,p+nfzc+nocc] = 1.0
+slaters += [slater]
 
 tthresh = 2.e-2
 
@@ -131,6 +138,7 @@ for idx in reversed(sortidx):
     slaters_ordered += [slaters[idx]]
     coefs_ordered += [coefs[idx]]
 
+print(coefs_ordered)
 # hcore = mf.get_hcore()
 # fock = hcore + mf.get_veff()
 # with h5py.File(mf.chkfile) as fh5:
