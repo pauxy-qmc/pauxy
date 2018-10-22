@@ -70,9 +70,9 @@ mohf = mf.mo_coeff.copy()
 tthresh = 2.e-2
 
 for i in range(nocc):
-    for j in range (nocc):
+    for j in range (i):
         for a in range (nvir):
-            for b in range (nvir):
+            for b in range (a):
                 if (abs(t2[0][i,j,a,b]) > tthresh):
                     # The first nocc + nfzc is occupied
                     # aaaa spin block
