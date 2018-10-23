@@ -7,6 +7,7 @@ from pyscf import ao2mo, scf, fci, mcscf, hci
 from pyscf.pbc import scf as pbcscf
 from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
+from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
@@ -75,6 +76,10 @@ def from_pyscf_mol(mol, mf, verbose=True):
         print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
         print (" # nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc)
+
+def write_fcidump(system):
+    fcidump.from_integrals('fcidump.ascii', system.T[0], system.h2e,
+                           system.T[0].shape[0], system.ne, nuc=system.ecore)
 
 def sci_wavefunction(mf, nelecas, ncas, ncore, select_cutoff=1e-10,
                      ci_coeff_cutoff=1e-3, verbose=False):

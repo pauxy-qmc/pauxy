@@ -26,6 +26,7 @@ class MultiDetWalker(object):
                  weights='zeros', wfn0='init'):
         self.weight = walker_opts.get('weight', 1)
         self.alive = 1
+        self.phase = 1 + 0j
         self.nup = system.nup
         self.phi = copy.deepcopy(trial.psi[0])
         self.phi[:,:system.nup] = numpy.dot(scipy.linalg.expm(-0.01*system.T[0]), self.phi[:,:system.nup])
@@ -75,12 +76,9 @@ class MultiDetWalker(object):
         """
         nup = self.nup
         for (indx, t) in enumerate(trial.psi):
-            print (t[:,:nup])
-        for (indx, t) in enumerate(trial.psi):
             Oup = numpy.dot(t[:,:nup].conj().T, self.phi[:,:nup])
             self.inv_ovlp[0][indx,:,:] = scipy.linalg.inv(Oup)
             Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
-            print (t[:,nup:])
             self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
 
     def calc_otrial(self, trial):
@@ -167,3 +165,52 @@ class MultiDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         return local_energy_multi_det(system, self.Gi, self.weights)
+
+    def get_buffer(self):
+        """Get walker buffer for MPI communication
+
+        Returns
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
+        buff = {
+            'phi': self.phi,
+            'phi_old': self.phi_old,
+            'phi_init': self.phi_init,
+            'phi_bp': self.phi_bp,
+            'weight': self.weight,
+            'phase': self.phase,
+            'inv_ovlp': self.inv_ovlp,
+            'G': self.G,
+            'overlap': self.ot,
+            'overlaps': self.ots,
+            'fields': self.field_configs.configs,
+            'cfacs': self.field_configs.cos_fac,
+            'E_L': self.E_L,
+            'weight_fac': self.field_configs.weight_fac
+        }
+        return buff
+
+    def set_buffer(self, buff):
+        """Set walker buffer following MPI communication
+
+        Parameters
+        -------
+        buff : dict
+            Relevant walker information for population control.
+        """
+        self.phi = numpy.copy(buff['phi'])
+        self.phi_old = numpy.copy(buff['phi_old'])
+        self.phi_init = numpy.copy(buff['phi_init'])
+        self.phi_bp = numpy.copy(buff['phi_bp'])
+        self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
+        self.G = numpy.copy(buff['G'])
+        self.weight = buff['weight']
+        self.phase = buff['phase']
+        self.ot = buff['overlap']
+        self.E_L = buff['E_L']
+        self.ots = numpy.copy(buff['overlaps'])
+        self.field_configs.configs = numpy.copy(buff['fields'])
+        self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
+        self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])

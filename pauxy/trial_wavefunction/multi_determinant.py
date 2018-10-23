@@ -26,6 +26,7 @@ class MultiDeterminant(object):
         self.error = False
         self.orbital_file = trial.get('orbitals', None)
         self.coeffs_file = trial.get('coefficients', None)
+        self.write = trial.get('write', False)
         if self.orbital_file is not None:
             self.ndets = trial.get('ndets', None)
             self.psi = numpy.zeros((ndets, nbasis, system.ne),
@@ -47,9 +48,10 @@ class MultiDeterminant(object):
             self.psi[:,:,:system.nup] = orbs[:,:,nc:nc+system.nup].copy()
             self.psi[:,:,system.nup:] = orbs[:,:,2*nc+system.nup:2*nc+system.ne].copy()
             self.coeffs = system.coeffs
+            self.nup = system.nup
         else:
             print("Could not construct trial wavefunction.")
-        self.error = True
+            self.error = True
         nbasis = system.nbasis
         self.GAB = numpy.zeros(shape=(2, self.ndets, self.ndets, system.nactive, system.nactive),
                                dtype=self.trial_type)
@@ -61,6 +63,8 @@ class MultiDeterminant(object):
         Gdn = gab(self.psi[0,:,system.nup:], self.psi[0,:,system.nup:])
         self.G = numpy.array([Gup,Gdn])
         self.initialisation_time = time.time() - init_time
+        if self.write:
+            self.to_qmcpack_ascii()
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
@@ -86,3 +90,15 @@ class MultiDeterminant(object):
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))
+
+    def to_qmcpack_ascii(self):
+        output = open('wf.dat', 'w')
+        namelist = "&FCI\n UHF = 0\n NCI = %d\n TYPE = occ\n/"%self.psi.shape[0]
+        output.write(namelist+'\n')
+        norb = self.psi.shape[1]
+        for (ci, phi) in zip(self.coeffs, self.psi):
+            occup, cols = numpy.where(phi[:,:self.nup] == 1)
+            occdn, cols = numpy.where(phi[:,self.nup:] == 1)
+            dup  = ' '.join(str(i+1) for i in occup)
+            ddn = ' '.join(str(i+phi.shape[0]+1) for i in occdn)
+            output.write('%f '%ci.real + dup + ' ' + ddn + '\n')

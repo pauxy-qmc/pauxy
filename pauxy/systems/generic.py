@@ -7,6 +7,7 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.utils.from_pyscf import write_fcidump
 from pauxy.estimators.generic import local_energy_generic, core_contribution
 from pauxy.estimators.mixed import local_energy_multi_det_full
 
@@ -60,6 +61,7 @@ class Generic(object):
         self.ndown = inputs['ndown']
         self.ncore= inputs.get('nfrozen_core', 0)
         self.nfv = inputs.get('nfrozen_virt', 0)
+        self.write = inputs.get('write', False)
         self.frozen_core = self.ncore > 0
         if self.frozen_core:
             self.nup = self.nup - self.ncore
@@ -266,6 +268,8 @@ class Generic(object):
         # 4. Subtract one-body term from writing H2 as sum of squares.
         self.construct_h1e_mod()
         self.nfields = self.nchol_vec
+        if self.write:
+            write_fcidump(self)
         if self.verbose:
             print("# Freezing core.")
             print("# Freezing %d core states and %d virtuals :"
