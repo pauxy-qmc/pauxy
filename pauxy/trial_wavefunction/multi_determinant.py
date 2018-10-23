@@ -66,6 +66,7 @@ class MultiDeterminant(object):
         if self.write:
             self.to_qmcpack_ascii()
         if verbose:
+            print ("# Number of determinants in expansion: %d"%self.ndets)
             print ("# Finished setting up trial wavefunction.")
 
     def from_ascii(self, system):
