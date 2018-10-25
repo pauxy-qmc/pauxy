@@ -272,7 +272,7 @@ class Generic(object):
             write_fcidump(self)
         if self.verbose:
             print("# Freezing core.")
-            print("# Freezing %d core states and %d virtuals :"
+            print("# Freezing %d core states and %d virtuals."
                   %(self.ncore, self.nfv))
             print("# Number of active electrons : (%d, %d)."
                   %(self.nup, self.ndown))
