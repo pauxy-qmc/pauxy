@@ -145,8 +145,8 @@ class Continuous(object):
         (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial, False)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        walker.inverse_overlap(trial.psi)
-        walker.ot = walker.calc_otrial(trial.psi)
+        walker.inverse_overlap(trial)
+        walker.ot = walker.calc_otrial(trial)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cmath.exp(cmf))
