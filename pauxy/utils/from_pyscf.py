@@ -8,6 +8,7 @@ from pyscf.pbc import scf as pbcscf
 from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
+import numpy
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
@@ -54,7 +55,7 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         try:
             coeffs = fh5['/scf/coeffs'][:]
         except KeyError:
-            coeffs = None
+            coeffs = numpy.array([1])
         try:
             enuc = fh5['/scf/enuc'][()]
         except KeyError:
