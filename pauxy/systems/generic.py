@@ -56,6 +56,7 @@ class Generic(object):
         if verbose:
             print("# Parsing input options.")
         self.name = "Generic"
+        self.atom = inputs.get('atom', None)
         self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
