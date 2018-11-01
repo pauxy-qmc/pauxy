@@ -120,13 +120,11 @@ class AFQMC(object):
                                self.estimators.nprop_tot,
                                self.estimators.nbp, verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
-            json_string = json.dumps(serialise(self, verbose=1),
-                                     sort_keys=False, indent=4)
-            self.estimators.h5f.create_dataset('metadata',
-                                               data=numpy.array([json_string],
-                                                                dtype=object),
-                                               dtype=h5py.special_dtype(vlen=str))
+            json_string = to_json(self)
+            self.estimators.json_string = json_string
+            self.estimators.dump_metadata()
             if verbose:
+                print(json_string)
                 self.estimators.estimators['mixed'].print_key()
                 self.estimators.estimators['mixed'].print_header()
 
