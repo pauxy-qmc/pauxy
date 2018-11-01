@@ -137,32 +137,32 @@ def modified_cholesky(M, kappa, verbose=False, cmax=10):
     delta = numpy.copy(M.diagonal())
     nchol_max = int(cmax*M.shape[0]**0.5)
     # index of largest diagonal element of residual matrix.
-    nu = numpy.argmax(delta)
+    nu = numpy.argmax(numpy.abs(delta))
     delta_max = delta[nu]
     if verbose:
         print ("# max number of cholesky vectors = %d"%nchol_max)
         print ("# iteration %d: delta_max = %f"%(0, delta_max))
     # Store for current approximation to input matrix.
-    Mapprox = numpy.zeros(M.shape[0])
-    chol_vecs = numpy.zeros((nchol_max, M.shape[0]))
+    Mapprox = numpy.zeros(M.shape[0], dtype=M.dtype)
+    chol_vecs = numpy.zeros((nchol_max, M.shape[0]), dtype=M.dtype)
     nchol = 0
     chol_vecs[0] = numpy.copy(M[:,nu])/delta_max**0.5
     while abs(delta_max) > kappa:
         # Update cholesky vector
         start = time.time()
-        Mapprox += chol_vecs[nchol]*chol_vecs[nchol]
+        Mapprox += chol_vecs[nchol]*chol_vecs[nchol].conj()
         delta = M.diagonal() - Mapprox
-        nu = numpy.argmax(delta)
-        delta_max = delta[nu]
+        nu = numpy.argmax(numpy.abs(delta))
+        delta_max = numpy.abs(delta[nu])
         nchol += 1
-        Munu0 = numpy.dot(chol_vecs[:nchol,nu], chol_vecs[:nchol,:])
+        Munu0 = numpy.dot(chol_vecs[:nchol,nu].conj(), chol_vecs[:nchol,:])
         chol_vecs[nchol] = (M[:,nu] - Munu0) / (delta_max)**0.5
         if verbose:
             step_time = time.time() - start
             info = (nchol, delta_max, step_time)
             print ("# iteration %d: delta_max = %13.8e: time = %13.8e"%info)
 
-    return numpy.array(chol_vecs[:nchol+1])
+    return numpy.array(chol_vecs[:nchol])
 
 def exponentiate_matrix(M, order=6):
     """Taylor series approximation for matrix exponential"""
