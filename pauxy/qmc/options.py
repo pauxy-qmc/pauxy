@@ -65,7 +65,6 @@ class QMCOpts(object):
     """
 
     def __init__(self, inputs, system, verbose=False):
-        self.method = inputs.get('method', 'CPMC')
         self.nwalkers = inputs.get('nwalkers', None)
         self.dt = inputs.get('dt', None)
         self.nsteps = inputs.get('nsteps', None)
