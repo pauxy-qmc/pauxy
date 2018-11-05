@@ -63,18 +63,32 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     """
     # Element wise multiplication.
     e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
-    euu = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                            system.chol_vecs, G[0], G[0]) -
-               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
-                            system.chol_vecs, G[0], G[0]))
-    edd = 0.5*(numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                            system.chol_vecs, G[1], G[1]) -
-               numpy.einsum('lpr,lqs,ps,qr->', system.chol_vecs,
-                            system.chol_vecs, G[1], G[1]))
-    eud = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                           system.chol_vecs, G[0], G[1])
-    edu = 0.5*numpy.einsum('lpr,lqs,pr,qs->', system.chol_vecs,
-                           system.chol_vecs, G[1], G[0])
+    cv = system.chol_vecs
+    ecoul_uu = numpy.sum(cv*G[0]) * numpy.sum(cv*G[0])
+    ecoul_dd = numpy.sum(cv*G[1]) * numpy.sum(cv*G[1])
+    ecoul_ud = numpy.sum(cv*G[0]) * numpy.sum(cv*G[1])
+    ecoul_du = numpy.sum(cv*G[1]) * numpy.sum(cv*G[0])
+    print (ecoul_uu)
+    exx_uu = 0
+    for c in cv:
+        # t1 = numpy.einsum('lpr,ps->lrs',cv,G[0])
+        t1 = numpy.dot(c.T, G[0])
+        exx_uu += numpy.dot(t1,t1).trace()
+        # t2 = numpy.einsum('lqs,qr->lsr',cv,G[0])
+        # exx = numpy.einsum('lrs,lsr')
+    exx_dd = 0
+    for c in cv:
+        # t1 = numpy.einsum('lpr,ps->lrs',cv,G[0])
+        t1 = numpy.dot(c.T, G[1])
+        exx_dd += numpy.dot(t1,t1).trace()
+        # t2 = numpy.einsum('lqs,qr->lsr',cv,G[0])
+        # exx = numpy.einsum('lrs,lsr')
+    # t1 = numpy.einsum('lpr,ps->lrs', cv, G[1])
+    # exx_dd = numpy.einsum('lrs,lsr->', t1, t1)
+    euu = 0.5*(ecoul_uu-exx_uu)
+    edd = 0.5*(ecoul_dd-exx_dd)
+    eud = 0.5 * ecoul_ud
+    edu = 0.5 * ecoul_du
     e2b = euu + edd + eud + edu
     return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
 
@@ -84,3 +98,15 @@ def core_contribution(system, Gcore):
     hc_b = (numpy.einsum('pqrs,pq->rs', system.h2e, Gcore[1]) -
             0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[1]))
     return (hc_a, hc_b)
+
+def core_contribution_cholesky(system, G):
+    cv = system.chol_vecs
+    hca_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[0], axis=(1,2)), cv)
+    ta_k = numpy.einsum('lpr,pq->lrq', cv, G[0])
+    hca_k = 0.5*numpy.einsum('lrq,lsq->rs', ta_k, cv)
+    hca = hca_j + hca_k
+    hcb_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[1], axis=(1,2)), cv)
+    tb_k = numpy.einsum('lpr,pq->lrq', cv, G[1])
+    hcb_k = 0.5*numpy.einsum('lrq,lsq->rs', tb_k, cv)
+    hcb = hcb_j + hcb_k
+    return (hca, hcb)

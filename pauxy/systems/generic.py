@@ -8,7 +8,10 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
 from pauxy.utils.from_pyscf import write_fcidump
-from pauxy.estimators.generic import local_energy_generic, core_contribution
+from pauxy.estimators.generic import (
+        local_energy_generic, core_contribution,
+        local_energy_generic_cholesky, core_contribution_cholesky
+)
 from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
@@ -209,16 +212,17 @@ class Generic(object):
         self.T = numpy.array([h1e, h1e])
 
     def read_qmcpack_integrals(self):
-        (h1e, self.schol_vecs, self.ecore,
+        (h1e, schol_vecs, self.ecore,
         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
-        self.nchol_vec = self.schol_vecs.shape[-1]
-        self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
-                                                              self.nbasis))
+        self.nchol_vec = schol_vecs.shape[-1]
+        self.chol_vecs = schol_vecs.toarray().T.reshape((-1, self.nbasis,
+                                                         self.nbasis))
         self.T = numpy.array([h1e, h1e])
         self.orbs = None
+        self.h2e = None
 
     def construct_decomposition(self):
         """Decompose two-electron integrals.
@@ -248,23 +252,26 @@ class Generic(object):
 
     def frozen_core_hamiltonian(self, trial):
         # 1. Construct one-body hamiltonian
-        self.ecore = local_energy_generic(self, trial.Gcore)[0]
-        (hc_a, hc_b) = core_contribution(self, trial.Gcore)
+        self.ecore = local_energy_generic_cholesky(self, trial.Gcore)[0]
+        (hc_a, hc_b) = core_contribution_cholesky(self, trial.Gcore)
         self.T[0] = self.T[0] + 2*hc_a
         self.T[1] = self.T[1] + 2*hc_b
         # 3. Cholesky Decompose ERIs.
         nfv = self.nfv
         nc = self.ncore
         nb = self.nbasis
-        self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
+        # if len(self.orbs.shape) == 3:
+            # self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
+        # else:
+            # self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
         self.T = self.T[:,nc:nb-nfv,nc:nb-nfv]
-        if len(self.orbs.shape) == 3:
-            self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
-        else:
-            self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
-        self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
         self.nbasis = self.nbasis - self.ncore - self.nfv
-        self.chol_vecs = self.construct_decomposition()
+        if self.h2e is not None:
+            self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
+            self.chol_vecs = self.construct_decomposition()
+        else:
+            self.chol_vecs = self.chol_vecs[:,nc:nb-nfv,nc:nb-nfv]
+        self.eactive = local_energy_generic_cholesky(self, trial.G)[0] - self.ecore
         self.nchol_vec = self.chol_vecs.shape[0]
         # 4. Subtract one-body term from writing H2 as sum of squares.
         self.construct_h1e_mod()
