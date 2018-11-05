@@ -3,7 +3,7 @@ import h5py
 import numpy
 import time
 from pauxy.utils.io import dump_native, dump_qmcpack
-from pauxy.utils.linalg import unitary, get_orthoAO
+from pauxy.utils.linalg import get_orthoAO
 from pyscf.lib.chkfile import load_mol
 from pyscf import ao2mo, scf, fci, mcscf, hci
 from pyscf.pbc import scf as pbcscf
@@ -20,7 +20,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         (hcore, fock, orthoAO, enuc) = from_pyscf_mol(mol, mf)
     if verbose:
         print (" # Transforming hcore and eri to ortho AO basis.")
-    h1e = unitary(hcore, orthoAO)
+    h1e = numpy.dot(orthoAO.conj().T, numpy.dot(hcore, orthoAO))
     nbasis = h1e.shape[-1]
     if cholesky:
         eri = chunked_cholesky(mol, max_error=chol_cut, verbose=True)
