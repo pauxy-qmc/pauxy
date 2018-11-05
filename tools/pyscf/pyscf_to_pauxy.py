@@ -31,6 +31,8 @@ def parse_args(args):
                         default='wfn.dat', help='Output file name for qmcpack trial.')
     parser.add_argument('-c', '--cholesky', dest='cholesky', type=float,
                         default=1e-5, help='Cholesky convergence threshold.')
+    parser.add_argument('-d', '--direct-cholesky', action='store_true',
+                        help='Cholesky convergence threshold.')
     parser.add_argument('-s', '--sparse', dest='sparse', type=float,
                         default=1e-16, help='Sparse zero value.')
 
@@ -54,7 +56,8 @@ def main(args):
     options = parse_args(args)
     dump_pauxy(chkfile=options.input_scf, outfile=options.output,
                qmcpack=options.qmcpack, wfn_file=options.wfn,
-               chol_cut=options.cholesky, sparse_zero=options.sparse)
+               chol_cut=options.cholesky, sparse_zero=options.sparse,
+               cholesky=options.direct_cholesky)
 
 if __name__ == '__main__':
 

@@ -1,5 +1,7 @@
 """Generate AFQMC data from PYSCF (molecular) simulation."""
 import h5py
+import numpy
+import time
 from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import unitary, get_orthoAO
 from pyscf.lib.chkfile import load_mol
@@ -8,11 +10,10 @@ from pyscf.pbc import scf as pbcscf
 from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
-import numpy
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
-               chol_cut=1e-5, sparse_zero=1e-16, pbc=False):
+               chol_cut=1e-5, sparse_zero=1e-16, pbc=False, cholesky=False):
     if chkfile is not None:
         (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose, pbc)
     else:
@@ -21,7 +22,17 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         print (" # Transforming hcore and eri to ortho AO basis.")
     h1e = unitary(hcore, orthoAO)
     nbasis = h1e.shape[-1]
-    if pbc:
+    if cholesky:
+        eri = chunked_cholesky(mol, max_error=chol_cut, verbose=True)
+        if verbose:
+            print (" # Orthogonalising Cholesky vectors.")
+        start = time.time()
+        for i, c in enumerate(eri):
+            half = numpy.dot(c.reshape(nbasis,nbasis), orthoAO)
+            eri[i] = numpy.dot(orthoAO.T, half).ravel()
+        if verbose:
+            print (" # Time to orthogonalise: %f"%(time.time() - start))
+    elif pbc:
         eri = mf.with_df.ao2mo(orthoAO, compact=False).reshape(nbasis, nbasis,
                                                                nbasis, nbasis)
     else:
@@ -79,8 +90,118 @@ def from_pyscf_mol(mol, mf, verbose=True):
     return (hcore, fock, orthoAO, enuc)
 
 def write_fcidump(system):
-    fcidump.from_integrals('fcidump.ascii', system.T[0], system.h2e,
+    fcidump.from_integrals('FCIDUMP', system.T[0], system.h2e,
                            system.T[0].shape[0], system.ne, nuc=system.ecore)
+
+def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
+    """Modified cholesky decomposition from pyscf eris.
+
+    See, e.g. [Motta17]_
+
+    Only works for molecular systems.
+
+    Parameters
+    ----------
+    mol : :class:`pyscf.mol`
+        pyscf mol object.
+    orthoAO: :class:`numpy.ndarray`
+        Orthogonalising matrix for AOs. (e.g., mo_coeff).
+    delta : float
+        Accuracy desired.
+    verbose : bool
+        If true print out convergence progress.
+    cmax : int
+        nchol = cmax * M, where M is the number of basis functions.
+        Controls buffer size for cholesky vectors.
+
+    Returns
+    -------
+    chol_vecs : :class:`numpy.ndarray`
+        Matrix of cholesky vectors in AO basis.
+    """
+    nao = mol.nao_nr()
+    diag = numpy.zeros(nao*nao)
+    nchol_max = cmax * nao
+    # This shape is more convenient for pauxy.
+    chol_vecs = numpy.zeros((nchol_max, nao*nao))
+    eri = numpy.zeros((nao,nao,nao,nao))
+    ndiag = 0
+    dims = [0]
+    nao_per_i = 0
+    for i in range(0,mol.nbas):
+        l = mol.bas_angular(i)
+        nc = mol.bas_nctr(i)
+        nao_per_i += (2*l+1)*nc
+        dims.append(nao_per_i)
+    # print (dims)
+    for i in range(0,mol.nbas):
+        shls = (i,i+1,0,mol.nbas,i,i+1,0,mol.nbas)
+        buf = mol.intor('int2e_sph', shls_slice=shls)
+        di, dk, dj, dl = buf.shape
+        diag[ndiag:ndiag+di*nao] = buf.reshape(di*nao,di*nao).diagonal()
+        ndiag += di * nao
+    nu = numpy.argmax(diag)
+    delta_max = diag[nu]
+    if verbose:
+        print ("# Generating Cholesky decomposition of ERIs."%nchol_max)
+        print ("# max number of cholesky vectors = %d"%nchol_max)
+        print ("# iteration %5d: delta_max = %f"%(0, delta_max))
+    j = nu // nao
+    l = nu % nao
+    sj = numpy.searchsorted(dims, j)
+    sl = numpy.searchsorted(dims, l)
+    if dims[sj] != j and j != 0:
+        sj -= 1
+    if dims[sl] != l and l != 0:
+        sl -= 1
+    Mapprox = numpy.zeros(nao*nao)
+    # ERI[:,jl]
+    eri_col = mol.intor('int2e_sph',
+                         shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+    cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+    chol_vecs[0] = numpy.copy(eri_col[:,:,cj,cl].reshape(nao*nao)) / delta_max**0.5
+
+    nchol = 0
+    while abs(delta_max) > max_error:
+        # Update cholesky vector
+        start = time.time()
+        # M'_ii = \sum_x L_i^x L_i^x
+        Mapprox += chol_vecs[nchol] * chol_vecs[nchol]
+        # D_ii = M_ii - M'_ii
+        delta = diag - Mapprox
+        nu = numpy.argmax(numpy.abs(delta))
+        delta_max = numpy.abs(delta[nu])
+        # Compute ERI chunk.
+        # shls_slice computes shells of integrals as determined by the angular
+        # momentum of the basis function and the number of contraction
+        # coefficients. Need to search for AO index within this shell indexing
+        # scheme.
+        # AO index.
+        j = nu // nao
+        l = nu % nao
+        # Associated shell index.
+        sj = numpy.searchsorted(dims, j)
+        sl = numpy.searchsorted(dims, l)
+        if dims[sj] != j and j != 0:
+            sj -= 1
+        if dims[sl] != l and l != 0:
+            sl -= 1
+        # Compute ERI chunk.
+        eri_col = mol.intor('int2e_sph',
+                            shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+        # Select correct ERI chunk from shell.
+        cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+        Munu0 = eri_col[:,:,cj,cl].reshape(nao*nao)
+        # Updated residual = \sum_x L_i^x L_nu^x
+        R = numpy.dot(chol_vecs[:nchol+1,nu], chol_vecs[:nchol+1,:])
+        chol_vecs[nchol+1] = (Munu0 - R) / (delta_max)**0.5
+        nchol += 1
+        if verbose:
+            step_time = time.time() - start
+            info = (nchol, delta_max, step_time)
+            print ("# iteration %5d: delta_max = %13.8e: time = %13.8e"%info)
+
+    return chol_vecs[:nchol]
 
 def sci_wavefunction(mf, nelecas, ncas, ncore, select_cutoff=1e-10,
                      ci_coeff_cutoff=1e-3, verbose=False):
