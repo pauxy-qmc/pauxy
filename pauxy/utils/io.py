@@ -165,6 +165,9 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     if verbose:
         print (" # Performing modified Cholesky decomposition on ERI tensor.")
     msq = nbasis * nbasis
+    # Why did I transpose everything?
+    # QMCPACK expects [M^2, N_chol]
+    # Internally store [N_chol, M^2]
     if isinstance(eri, list):
         chol_vecsa = modified_cholesky(eri[0].reshape((msq, msq)), threshold,
                                        verbose=verbose).T
@@ -177,7 +180,7 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
         chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
         mem = 64*chol_vecs.nnz/(1024.0**3)
     else:
-        chol_vecs = eri
+        chol_vecs = eri.T
         chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
         chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
         mem = 64*chol_vecs.nnz/(1024.0**3)

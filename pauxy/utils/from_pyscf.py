@@ -27,9 +27,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         if verbose:
             print (" # Orthogonalising Cholesky vectors.")
         start = time.time()
-        for i, c in enumerate(eri):
-            half = numpy.dot(c.reshape(nbasis,nbasis), orthoAO)
-            eri[i] = numpy.dot(orthoAO.T, half).ravel()
+        ao2mo_chol(eri, orthoAO)
         if verbose:
             print (" # Time to orthogonalise: %f"%(time.time() - start))
     elif pbc:
@@ -50,6 +48,12 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc,
                     orbs=orbs, coeffs=coeffs)
     return eri
+
+def ao2mo_chol(eri, C):
+    nb = C.shape[-1]
+    for i, cv in enumerate(eri):
+        half = numpy.dot(cv.reshape(nb,nb), C)
+        eri[i] = numpy.dot(C.T, half).ravel()
 
 def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
     if pbc:
