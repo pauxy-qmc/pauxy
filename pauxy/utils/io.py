@@ -170,9 +170,14 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
                                        verbose=verbose).T
         chol_vecsa = modified_cholesky(eri[1].reshape((msq, msq)), threshold,
                                        verbose=verbose).T
-    else:
+    elif len(eri.shape) == 4:
         chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
                                        verbose=verbose).T
+        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
+        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
+        mem = 64*chol_vecs.nnz/(1024.0**3)
+    else:
+        chol_vecs = eri
         chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
         chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
         mem = 64*chol_vecs.nnz/(1024.0**3)
