@@ -25,7 +25,7 @@ class GenericContinuous(object):
     """
 
     def __init__(self, options, qmc, system, trial, verbose=False):
-        optimised = options.get('optimised', False)
+        optimised = options.get('optimised', True)
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
@@ -42,7 +42,7 @@ class GenericContinuous(object):
             self.construct_force_bias = self.construct_force_bias_incore
             self.construct_VHS = self.construct_VHS_incore
         else:
-            self.construct_force_bias = self.construct_force_bias_direct
+            self.construct_force_bias = self.construct_force_bias_full
             self.construct_VHS = self.construct_VHS_direct
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0

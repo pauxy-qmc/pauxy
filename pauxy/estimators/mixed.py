@@ -11,8 +11,10 @@ from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 from pauxy.estimators.ueg import local_energy_ueg
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
+from pauxy.estimators.greens_function import gab_mod_ovlp
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
+    local_energy_generic,
     local_energy_generic_cholesky
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
@@ -296,35 +298,35 @@ def local_energy(system, G, Ghalf=None, opt=True):
         if opt:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic_cholesky(system, G)
+            return local_energy_generic(system, G)
+
+def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
+    weight = 0
+    energies = 0
+    denom = 0
+    nup = system.nup
+    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
+        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
+            # construct "local" green's functions for each component of A
+            Gup, inv_O_up = gab_mod_ovlp(Biy[:,:nup], Aix[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Biy[:,nup:], Aix[:,nup:])
+            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
+            weight = cix*(ciy.conj()) * ovlp
+            G = numpy.array([Gup, Gdn])
+            e = numpy.array(local_energy(system, G, opt=False))
+            energies += weight * e
+            denom += weight
+    return tuple(energies/denom)
 
 def local_energy_multi_det(system, Gi, weights):
-    """Calculate local energy of GHF walker for the Hubbard model.
-
-    Parameters
-    ----------
-    system : :class:`Hubbard`
-        System information for the Hubbard model.
-    Gi : :class:`numpy.ndarray`
-        Array of Walker's "Green's function"
-    weights : :class:`numpy.ndarray`
-        Components of overlap of trial wavefunction with walker.
-
-    Returns
-    -------
-    (E_L(phi), T, V): tuple
-        Local, kinetic and potential energies of given walker phi.
-    """
-    denom = numpy.sum(weights)
-    ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
-    # numpy.diagonal returns a view so there should be no overhead in creating
-    # temporary arrays.
-    guu = numpy.diagonal(Gi[:,:,:system.nup], axis1=1,
-                         axis2=2)
-    gdd = numpy.diagonal(Gi[:,:,system.nup:], axis1=1,
-                         axis2=2)
-    pe = system.U * numpy.einsum('j,jk->', weights, guu*gdd) / denom
-    return (ke+pe, ke, pe)
+    weight = 0
+    energies = 0
+    denom = 0
+    for w, G in zip(weights, Gi):
+        # construct "local" green's functions for each component of A
+        energies += w * numpy.array(local_energy(system, G, opt=False))
+        denom += w
+    return tuple(energies/denom)
 
 class EstimatorEnum(object):
     """Enum structure for help with indexing Mixed estimators.

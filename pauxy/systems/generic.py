@@ -7,7 +7,9 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.utils.from_pyscf import write_fcidump
 from pauxy.estimators.generic import local_energy_generic, core_contribution
+from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
 class Generic(object):
@@ -54,11 +56,13 @@ class Generic(object):
         if verbose:
             print("# Parsing input options.")
         self.name = "Generic"
+        self.atom = inputs.get('atom', None)
         self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
         self.ncore= inputs.get('nfrozen_core', 0)
         self.nfv = inputs.get('nfrozen_virt', 0)
+        self.write = inputs.get('write', False)
         self.frozen_core = self.ncore > 0
         if self.frozen_core:
             self.nup = self.nup - self.ncore
@@ -79,7 +83,7 @@ class Generic(object):
                 if verbose:
                     print("# Decomposing two-body operator.")
                 init = time.time()
-                self.chol_vecs = self.construct_decomposition(verbose)
+                self.chol_vecs = self.construct_decomposition()
                 if verbose:
                     print("# Time to perform Cholesky decomposition: %f s"
                           %(time.time()-init))
@@ -193,6 +197,10 @@ class Generic(object):
             self.ecore = fh5['enuc'][:][0]
             nelec = fh5['nelec'][:]
             self.orbs = fh5['orbs'][:]
+            try:
+                self.coeffs = fh5['coeffs'][:]
+            except KeyError:
+                self.coeffs = None
         fc = self.frozen_core
         if (nelec[0] != self.nup or nelec[1] != self.ndown) and not fc:
             print("Number of electrons is inconsistent")
@@ -202,7 +210,7 @@ class Generic(object):
 
     def read_qmcpack_integrals(self):
         (h1e, self.schol_vecs, self.ecore,
-         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
+        self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
@@ -212,7 +220,7 @@ class Generic(object):
         self.T = numpy.array([h1e, h1e])
         self.orbs = None
 
-    def construct_decomposition(self, verbose=False):
+    def construct_decomposition(self):
         """Decompose two-electron integrals.
 
         Returns
@@ -226,7 +234,7 @@ class Generic(object):
         V = self.h2e.reshape((self.nbasis**2, self.nbasis**2))
         if (abs(numpy.sum(V - V.conj().T)) > 1e-12):
             print("Warning: Supermatrix is not Hermitian")
-        chol_vecs = modified_cholesky(V, self.threshold, verbose=verbose)
+        chol_vecs = modified_cholesky(V, self.threshold, verbose=self.verbose)
         chol_vecs = chol_vecs.reshape((chol_vecs.shape[0],
                                        self.nbasis,
                                        self.nbasis))
@@ -256,14 +264,16 @@ class Generic(object):
             self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
         self.eactive = local_energy_generic(self, trial.G)[0] - self.ecore
         self.nbasis = self.nbasis - self.ncore - self.nfv
-        self.chol_vecs = self.construct_decomposition(True)
+        self.chol_vecs = self.construct_decomposition()
         self.nchol_vec = self.chol_vecs.shape[0]
         # 4. Subtract one-body term from writing H2 as sum of squares.
         self.construct_h1e_mod()
         self.nfields = self.nchol_vec
+        if self.write:
+            write_fcidump(self)
         if self.verbose:
             print("# Freezing core.")
-            print("# Freezing %d core states and %d virtuals :"
+            print("# Freezing %d core states and %d virtuals."
                   %(self.ncore, self.nfv))
             print("# Number of active electrons : (%d, %d)."
                   %(self.nup, self.ndown))

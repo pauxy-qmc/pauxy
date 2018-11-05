@@ -152,7 +152,7 @@ def set_info(frame, md):
     trial = md.get('trial')
     ncols = len(frame.columns)
     frame['dt'] = qmc.get('dt')
-    frame['nwalkers'] = qmc.get('nwalkers')
+    frame['nwalkers'] = qmc.get('ntot_walkers')
     frame['free_projection'] = propg.get('free_projection')
     beta = qmc.get('beta')
     if beta is not None:
@@ -169,4 +169,12 @@ def set_info(frame, md):
         frame['U'] = system.get('U')
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
+    elif system['name'] == "Generic":
+        frame['name'] = system.get('integral_file').split('.')[2].split('/')[1]
+        frame['nfv'] = system.get('nfv')
+        frame['nup'] = system.get('nup')
+        frame['ndown'] = system.get('ndown')
+        frame['ncore'] = system.get('ncore')
+        frame['nbasis'] = system.get('nbasis')
+        frame['cholesky_treshold'] = system.get('threshold')
     return list(frame.columns[ncols:])

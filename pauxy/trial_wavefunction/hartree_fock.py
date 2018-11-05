@@ -104,7 +104,7 @@ class HartreeFock(object):
             print ("# Computing trial energy.")
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
                                                          Ghalf=[self.gup_half,
-                                                            self.gdown_half],
+                                                         self.gdown_half],
                                                          opt=True)
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"

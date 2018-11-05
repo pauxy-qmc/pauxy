@@ -145,8 +145,8 @@ class Continuous(object):
         (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial, False)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        walker.inverse_overlap(trial.psi)
-        walker.ot = walker.calc_otrial(trial.psi)
+        walker.inverse_overlap(trial)
+        walker.ot = walker.calc_otrial(trial)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cmath.exp(cmf))
@@ -174,9 +174,9 @@ class Continuous(object):
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
         # Now apply hybrid phaseless approximation
-        walker.inverse_overlap(trial.psi)
+        walker.inverse_overlap(trial)
         walker.greens_function(trial)
-        ot_new = walker.calc_otrial(trial.psi)
+        ot_new = walker.calc_otrial(trial)
         # Might want to cap this at some point
         hybrid_energy = cmath.log(ot_new) - cmath.log(walker.ot) + cfb + cmf
         importance_function = self.mf_const_fac * cmath.exp(hybrid_energy)

@@ -37,7 +37,7 @@ class SingleDetWalker(object):
         self.inv_ovlp = [0, 0]
         self.nup = system.nup
         self.ndown = system.ndown
-        self.inverse_overlap(trial.psi)
+        self.inverse_overlap(trial)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
@@ -78,13 +78,13 @@ class SingleDetWalker(object):
         ndown = self.ndown
 
         self.inv_ovlp[0] = (
-            scipy.linalg.inv((trial[:,:nup].conj()).T.dot(self.phi[:,:nup]))
+            scipy.linalg.inv((trial.psi[:,:nup].conj()).T.dot(self.phi[:,:nup]))
         )
 
         self.inv_ovlp[1] = numpy.zeros(self.inv_ovlp[0].shape)
         if (ndown>0):
             self.inv_ovlp[1] = (
-                scipy.linalg.inv((trial[:,nup:].conj()).T.dot(self.phi[:,nup:]))
+                scipy.linalg.inv((trial.psi[:,nup:].conj()).T.dot(self.phi[:,nup:]))
             )
 
     def update_inverse_overlap(self, trial, vtup, vtdown, i):

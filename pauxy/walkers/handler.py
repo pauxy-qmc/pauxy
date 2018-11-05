@@ -5,6 +5,7 @@ import cmath
 import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.qmc.comm import FakeComm
 
@@ -35,6 +36,9 @@ class Walkers(object):
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(walker_opts, system, trial)
+                                for w in range(qmc.nwalkers)]
+            else:
+                self.walkers = [MultiDetWalker(walker_opts, system, trial)
                                 for w in range(qmc.nwalkers)]
         elif trial.name == 'thermal':
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)

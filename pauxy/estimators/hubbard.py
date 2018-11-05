@@ -84,3 +84,31 @@ def local_energy_hubbard_ghf_full(system, GAB, weights):
     pe = system.U * numpy.einsum('ij,ijk->', weights, gdiag) / denom
     return (ke+pe, ke, pe)
 
+
+def local_energy_multi_det(system, Gi, weights):
+    """Calculate local energy of GHF walker for the Hubbard model.
+
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    Gi : :class:`numpy.ndarray`
+        Array of Walker's "Green's function"
+    weights : :class:`numpy.ndarray`
+        Components of overlap of trial wavefunction with walker.
+
+    Returns
+    -------
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
+    """
+    denom = numpy.sum(weights)
+    ke = numpy.einsum('i,ikl,kl->', weights, Gi, system.Text) / denom
+    # numpy.diagonal returns a view so there should be no overhead in creating
+    # temporary arrays.
+    guu = numpy.diagonal(Gi[:,:,:system.nup], axis1=1,
+                         axis2=2)
+    gdd = numpy.diagonal(Gi[:,:,system.nup:], axis1=1,
+                         axis2=2)
+    pe = system.U * numpy.einsum('j,jk->', weights, guu*gdd) / denom
+    return (ke+pe, ke, pe)
