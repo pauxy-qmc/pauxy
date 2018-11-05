@@ -64,11 +64,14 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     # Element wise multiplication.
     e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
     cv = system.chol_vecs
-    ecoul_uu = numpy.sum(cv*G[0]) * numpy.sum(cv*G[0])
-    ecoul_dd = numpy.sum(cv*G[1]) * numpy.sum(cv*G[1])
-    ecoul_ud = numpy.sum(cv*G[0]) * numpy.sum(cv*G[1])
-    ecoul_du = numpy.sum(cv*G[1]) * numpy.sum(cv*G[0])
-    print (ecoul_uu)
+    ecoul_uu = numpy.dot(numpy.sum(cv*G[0], axis=(1,2)),
+                         numpy.sum(cv*G[0], axis=(1,2)))
+    ecoul_dd = numpy.dot(numpy.sum(cv*G[1], axis=(1,2)),
+                         numpy.sum(cv*G[1], axis=(1,2)))
+    ecoul_ud = numpy.dot(numpy.sum(cv*G[0], axis=(1,2)),
+                         numpy.sum(cv*G[1], axis=(1,2)))
+    ecoul_du = numpy.dot(numpy.sum(cv*G[1], axis=(1,2)),
+                         numpy.sum(cv*G[0], axis=(1,2)))
     exx_uu = 0
     for c in cv:
         # t1 = numpy.einsum('lpr,ps->lrs',cv,G[0])
@@ -104,9 +107,9 @@ def core_contribution_cholesky(system, G):
     hca_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[0], axis=(1,2)), cv)
     ta_k = numpy.einsum('lpr,pq->lrq', cv, G[0])
     hca_k = 0.5*numpy.einsum('lrq,lsq->rs', ta_k, cv)
-    hca = hca_j + hca_k
+    hca = hca_j - hca_k
     hcb_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[1], axis=(1,2)), cv)
     tb_k = numpy.einsum('lpr,pq->lrq', cv, G[1])
     hcb_k = 0.5*numpy.einsum('lrq,lsq->rs', tb_k, cv)
-    hcb = hcb_j + hcb_k
+    hcb = hcb_j - hcb_k
     return (hca, hcb)

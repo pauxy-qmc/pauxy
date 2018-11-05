@@ -82,11 +82,12 @@ class Generic(object):
         self.read_integrals()
         self.nactive = self.nbasis - self.ncore - self.nfv
         if not self.frozen_core:
-            if self.schol_vecs is None:
+            if self.chol_vecs is None:
                 if verbose:
                     print("# Decomposing two-body operator.")
                 init = time.time()
                 self.chol_vecs = self.construct_decomposition()
+                self.h2e = None
                 if verbose:
                     print("# Time to perform Cholesky decomposition: %f s"
                           %(time.time()-init))
@@ -212,15 +213,17 @@ class Generic(object):
         self.T = numpy.array([h1e, h1e])
 
     def read_qmcpack_integrals(self):
-        (h1e, schol_vecs, self.ecore,
+        (h1e, self.schol_vecs, self.ecore,
         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
-        self.nchol_vec = schol_vecs.shape[-1]
-        self.chol_vecs = schol_vecs.toarray().T.reshape((-1, self.nbasis,
+        self.nchol_vec = self.schol_vecs.shape[-1]
+        self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
                                                          self.nbasis))
         self.T = numpy.array([h1e, h1e])
+        # These will be reconstructed later.
+        self.schol_vecs = None
         self.orbs = None
         self.h2e = None
 
@@ -269,6 +272,7 @@ class Generic(object):
         if self.h2e is not None:
             self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
             self.chol_vecs = self.construct_decomposition()
+            self.h2e = None
         else:
             self.chol_vecs = self.chol_vecs[:,nc:nb-nfv,nc:nb-nfv]
         self.eactive = local_energy_generic_cholesky(self, trial.G)[0] - self.ecore
