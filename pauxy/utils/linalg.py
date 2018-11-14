@@ -141,7 +141,7 @@ def modified_cholesky(M, kappa, verbose=False, cmax=10):
     delta_max = delta[nu]
     if verbose:
         print ("# max number of cholesky vectors = %d"%nchol_max)
-        print ("# iteration %d: delta_max = %f"%(0, delta_max))
+        print ("# iteration %d: delta_max = %f"%(0, delta_max.real))
     # Store for current approximation to input matrix.
     Mapprox = numpy.zeros(M.shape[0], dtype=M.dtype)
     chol_vecs = numpy.zeros((nchol_max, M.shape[0]), dtype=M.dtype)
