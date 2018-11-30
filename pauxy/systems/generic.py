@@ -179,6 +179,7 @@ class Generic(object):
                 self.h2e[j-1,l-1,k-1,i-1] = integral
         self.T = numpy.array([self.h1e, self.h1e])
         self.orbs = None
+        self.chol_vecs = None
 
     def read_hdf5_integrals(self):
         """Read in integrals from file.
