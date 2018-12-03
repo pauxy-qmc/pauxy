@@ -251,17 +251,17 @@ class ThermalWalker(object):
             
             (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting = True)
             # Form permutation matrix
-            P1mat = numpy.zeros(self.B.shape, self.B.dtype)
-            for i in range (self.B.shape[0]):
+            P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+            for i in range (B[spin].shape[0]):
                 P1mat[P1[i],i] = 1
             # Form D1's
-            D1inv = numpy.zeros(self.B.shape, self.B.dtype)
-            D1 = numpy.zeros(self.B.shape, self.B.dtype)
+            D1inv = numpy.zeros(B[spin].shape, B[spin].dtype)
+            D1 = numpy.zeros(B[spin].shape, B[spin].dtype)
             for i in range(D1inv.shape[0]):
                 D1inv[i,i] = 1.0/R1[i,i]
                 D1[i,i] = R1[i,i]
 
-            T1 = numpy.zeros(self.B.shape, self.B.dtype)
+            T1 = numpy.zeros(B[spin].shape, B[spin].dtype)
             T1 = numpy.dot(numpy.dot(D1inv, R1),P1mat.T)
 
             for i in range(2, self.stack.nbins+1):
@@ -270,8 +270,8 @@ class ThermalWalker(object):
                 C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
                 (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting = True)
                 # Form permutation matrix
-                P1mat = numpy.zeros(self.B.shape, self.B.dtype)
-                for i in range (self.B.shape[0]):
+                P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                for i in range (B[spin].shape[0]):
                     P1mat[P1[i],i] = 1
                 # Reset D1's
                 for i in range(D1inv.shape[0]):
@@ -279,8 +279,8 @@ class ThermalWalker(object):
                     D1[i,i] = R1[i,i]
                 T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat, T1))
 
-            Db = numpy.zeros(self.B.shape, self.B.dtype)
-            Ds = numpy.zeros(self.B.shape, self.B.dtype)
+            Db = numpy.zeros(B[spin].shape, B[spin].dtype)
+            Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
             
             for i in range(Db.shape[0]):
                 if (abs(D1[i,i])>1.0):
