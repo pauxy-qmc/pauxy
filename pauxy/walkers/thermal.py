@@ -2,6 +2,7 @@ import copy
 import cmath
 import numpy
 import scipy.linalg
+from pauxy.utils.linalg import regularise_matrix_inverse
 from pauxy.estimators.thermal import greens_function, one_rdm_from_G
 from pauxy.estimators.mixed import local_energy
 
@@ -225,6 +226,9 @@ class ThermalWalker(object):
             #      = V3^{\dagger} D3 U3^{\dagger}
             self.G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
 
+
+
+    # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
     def greens_function_qr(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -238,35 +242,62 @@ class ThermalWalker(object):
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
             G = None
+
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, V1) = numpy.linalg.qr(B[spin])
+            
+            (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting = True)
+            # Form permutation matrix
+            P1mat = numpy.zeros(self.B.shape, self.B.dtype)
+            for i in range (self.B.shape[0]):
+                P1mat[P1[i],i] = 1
+            # Form D1's
+            D1inv = numpy.zeros(self.B.shape, self.B.dtype)
+            D1 = numpy.zeros(self.B.shape, self.B.dtype)
+            for i in range(D1inv.shape[0]):
+                D1inv[i,i] = 1.0/R1[i,i]
+                D1[i,i] = R1[i,i]
+
+            T1 = numpy.zeros(self.B.shape, self.B.dtype)
+            T1 = numpy.dot(numpy.dot(D1inv, R1),P1mat.T)
+
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
-                T1 = numpy.dot(B[spin], U1)
-                (U1, V) = scipy.linalg.qr(T1, pivoting = False)
-                V1 = numpy.dot(V, V1)
+                C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
+                (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting = True)
+                # Form permutation matrix
+                P1mat = numpy.zeros(self.B.shape, self.B.dtype)
+                for i in range (self.B.shape[0]):
+                    P1mat[P1[i],i] = 1
+                # Reset D1's
+                for i in range(D1inv.shape[0]):
+                    D1inv[i,i] = 1.0/R1[i,i]
+                    D1[i,i] = R1[i,i]
+                T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat, T1))
 
-            # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
-            # Care needs to be taken when adding the identity matrix.
-            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
+            Db = numpy.zeros(self.B.shape, self.B.dtype)
+            Ds = numpy.zeros(self.B.shape, self.B.dtype)
+            
+            for i in range(Db.shape[0]):
+                if (abs(D1[i,i])>1.0):
+                    Db[i,i] = 1.0 / abs(D1[i,i])
+                    Ds[i,i] = D1[i,i] / abs(D1[i,i])
+                else:
+                    Db[i,i] = 1.0
+                    Ds[i,i] = D1[i,i]
+            
+            T1inv = regularise_matrix_inverse(T1)
+            TQD = numpy.dot(T1inv.T, numpy.dot(Q1.T, Db)) + Ds
+            TQDinv = regularise_matrix_inverse(TQD)
 
-            T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
-            (U2, V2) = scipy.linalg.qr(T3, pivoting = False)
-
-            U3 = numpy.dot(U1, U2)
-            V3 = numpy.dot(V2, V1)
-            V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]))
-            # G(l) = (U3 S2 V3)^{-1}
-            #      = V3^{\dagger} D3 U3^{\dagger}
             if inplace:
-                self.G[spin] = (V3inv).dot(U3.conj().T)
+                self.G[spin] = numpy.dot(TQDinv, numpy.dot(Db, Q1.T))
             else:
-                G[spin] = (V3inv).dot(U3.conj().T)
+                G[spin] = numpy.dot(TQDinv, numpy.dot(Db, Q1.T))
         return G
 
     def local_energy(self, system):
@@ -383,9 +414,9 @@ class PropagatorStack:
         self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
         self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
 
-        self.time_slice = self.time_slice + 1
-        self.block = self.time_slice // self.stack_size
-        self.counter = (self.counter + 1) % self.stack_size
+        self.time_slice = self.time_slice + 1 # Count the time slice 
+        self.block = self.time_slice // self.stack_size # move to the next block if necessary
+        self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
 
 def unit_test():
     from pauxy.systems.ueg import UEG
@@ -411,20 +442,23 @@ def unit_test():
     trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
 
     propagator = PlaneWave(inputs, qmc, system, trial, True)
-    walker = ThermalWalker(1.0, system, trial, stack_size=None)
+    # def __init__(self, walker_opts, system, trial, verbose=False):
+    walker = ThermalWalker(inputs, system, trial, True)
     walker.greens_function(trial)
     E, T, V = walker.local_energy(system)
     print(E,T,V)
-    # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
-    # N = 100
+    (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
+    N = 5
 
-    # A = numpy.random.rand(N,N)
-    # Q, R, P = scipy.linalg.qr(A, pivoting = True)
-    # Pmat = numpy.zeros((N,N))
-    # for i in range (N):
-    #     Pmat[P[i],i] = 1
-
+    A = numpy.random.rand(N,N)
+    Q, R, P = scipy.linalg.qr(A, pivoting = True)
+    Pmat = numpy.zeros((N,N))
+    for i in range (N):
+        Pmat[P[i],i] = 1
     # print(A - Q.dot(R).dot(Pmat.T))
+    print(Q * Q.T)
+    print(R)
+
     # print (P)
     # R = numpy.random.rand(system.nbasis, system.nbasis)
     # R = numpy.triu(R)
