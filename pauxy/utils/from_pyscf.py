@@ -93,8 +93,8 @@ def from_pyscf_mol(mol, mf, verbose=True):
         print (" # nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc)
 
-def write_fcidump(system):
-    fcidump.from_integrals('FCIDUMP', system.T[0], system.h2e,
+def write_fcidump(system, name='FCIDUMP'):
+    fcidump.from_integrals(name, system.T[0], system.h2e,
                            system.T[0].shape[0], system.ne, nuc=system.ecore)
 
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
