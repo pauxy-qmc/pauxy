@@ -277,7 +277,7 @@ class ThermalWalker(object):
                 for i in range(D1inv.shape[0]):
                     D1inv[i,i] = 1.0/R1[i,i]
                     D1[i,i] = R1[i,i]
-                T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, T1))
+                T1 = D1inv.dot(R1).dot(P1mat.T).dot(T1)
 
             Db = numpy.zeros(B[spin].shape, B[spin].dtype)
             Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
@@ -291,13 +291,13 @@ class ThermalWalker(object):
                     Ds[i,i] = D1[i,i]
             
             T1inv = numpy.linalg.pinv(T1)
-            TQD = numpy.dot(T1inv.T, numpy.dot(Q1.T, Db)) + Ds
+            TQD = T1inv.T.dot(Q1.T).dot(Db) + Ds
             TQDinv = numpy.linalg.pinv(TQD)
 
             if inplace:
-                self.G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
+                self.G[spin] = TQDinv.T.dot(Db).dot(Q1.T)
             else:
-                G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
+                G[spin] = TQDinv.T.dot(Db).dot(Q1.T)
         return G
 
     def local_energy(self, system):
@@ -455,7 +455,7 @@ def unit_test():
     Pmat = numpy.zeros((N,N))
     for i in range (N):
         Pmat[P[i],i] = 1
-    # print(A - Q.dot(R).dot(Pmat.T))
+    print(A - Q.dot(R).dot(Pmat.T))
     print(Q * Q.T)
     print(R)
 
