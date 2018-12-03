@@ -253,7 +253,7 @@ class ThermalWalker(object):
             # Form permutation matrix
             P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
             for i in range (B[spin].shape[0]):
-                P1mat[P1[i],i] = 1
+                P1mat[P1[i],i] = 1.0
             # Form D1's
             D1inv = numpy.zeros(B[spin].shape, B[spin].dtype)
             D1 = numpy.zeros(B[spin].shape, B[spin].dtype)
@@ -272,7 +272,7 @@ class ThermalWalker(object):
                 # Form permutation matrix
                 P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
                 for i in range (B[spin].shape[0]):
-                    P1mat[P1[i],i] = 1
+                    P1mat[P1[i],i] = 1.0
                 # Reset D1's
                 for i in range(D1inv.shape[0]):
                     D1inv[i,i] = 1.0/R1[i,i]
@@ -290,9 +290,9 @@ class ThermalWalker(object):
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
             
-            T1inv = regularise_matrix_inverse(T1)
+            T1inv = numpy.linalg.pinv(T1)
             TQD = numpy.dot(T1inv.T, numpy.dot(Q1.T, Db)) + Ds
-            TQDinv = regularise_matrix_inverse(TQD)
+            TQDinv = numpy.linalg.pinv(TQD)
 
             if inplace:
                 self.G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
