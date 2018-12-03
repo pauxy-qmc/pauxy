@@ -285,7 +285,7 @@ class ThermalWalker(object):
             for i in range(Db.shape[0]):
                 if (abs(D1[i,i])>1.0):
                     Db[i,i] = 1.0 / abs(D1[i,i])
-                    Ds[i,i] = D1[i,i] / abs(D1[i,i])
+                    Ds[i,i] = numpy.sign(D1[i,i])
                 else:
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
@@ -295,9 +295,9 @@ class ThermalWalker(object):
             TQDinv = regularise_matrix_inverse(TQD)
 
             if inplace:
-                self.G[spin] = numpy.dot(TQDinv, numpy.dot(Db, Q1.T))
+                self.G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
             else:
-                G[spin] = numpy.dot(TQDinv, numpy.dot(Db, Q1.T))
+                G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
         return G
 
     def local_energy(self, system):
