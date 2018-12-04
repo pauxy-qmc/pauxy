@@ -105,6 +105,9 @@ class UEG(object):
         # Number of momentum transfer vectors / auxiliary fields.
         # Can reduce by symmetry but be stupid for the moment.
         self.nfields = 2*len(self.qvecs)
+        # For consistency with frozen core molecular code.
+        self.orbs = None
+        self.frozen_core = False
         T = numpy.diag(self.sp_eigv)
         self.H1 = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
