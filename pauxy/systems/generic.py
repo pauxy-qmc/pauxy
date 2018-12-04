@@ -321,10 +321,6 @@ class Generic(object):
                        numpy.einsum('bkg,alg->akbl', rup, rup))
         vaklb_beta = (numpy.einsum('akg,blg->akbl', rdn, rdn) -
                       numpy.einsum('bkg,alg->akbl', rdn, rdn))
-        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rup, rup) -
-                       numpy.einsum('bkg,alg->akbl', rup, rup))
-        vaklb_beta = (numpy.einsum('akg,blg->akbl', rdn, rdn) -
-                      numpy.einsum('bkg,alg->akbl', rdn, rdn))
         self.rchol_vecs = [csr_matrix(rup.reshape((M*na, -1))),
                            csr_matrix(rdn.reshape((M*nb, -1)))]
         self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
