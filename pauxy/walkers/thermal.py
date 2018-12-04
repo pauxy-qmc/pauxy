@@ -277,7 +277,8 @@ class ThermalWalker(object):
                 for i in range(D1inv.shape[0]):
                     D1inv[i,i] = 1.0/R1[i,i]
                     D1[i,i] = R1[i,i]
-                T1 = D1inv.dot(R1).dot(P1mat.T).dot(T1)
+                # T1 = D1inv.dot(R1).dot(P1mat.T).dot(T1)
+                T1 = T1.dot(D1inv.dot(R1).dot(P1mat.T))
 
             Db = numpy.zeros(B[spin].shape, B[spin].dtype)
             Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
