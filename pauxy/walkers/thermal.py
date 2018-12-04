@@ -67,8 +67,8 @@ class ThermalWalker(object):
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
         # self.greens_function_svd(trial, slice_ix)
-        return self.greens_function_qr(trial, slice_ix=slice_ix,
-                                       inplace=inplace)
+        return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
+                                             inplace=inplace)
 
     def identity_plus_A(self, slice_ix = None):
         return self.identity_plus_A_svd(slice_ix)
