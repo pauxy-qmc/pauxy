@@ -280,8 +280,8 @@ class ThermalWalker(object):
                 G[spin] = (V3inv).dot(U3.conj().T)
         return G
 
-    # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
     def greens_function_qr_strat(self, trial, slice_ix=None, inplace=True):
+        # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
 
@@ -296,28 +296,18 @@ class ThermalWalker(object):
             G = None
 
         for spin in [0, 1]:
-            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
-            # in stable way. Iteratively construct SVD decompositions starting
-            # from the rightmost (product of) propagator(s).
+            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1} in
+            # stable way. Iteratively construct column pivoted QR decompositions
+            # (A = QDT) starting from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
 
             (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True)
             # Form permutation matrix
             P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-            # for i in range(B[spin].shape[0]):
-                # P1mat[P1[i],i] = 1.0
             P1mat[P1,range(len(P1))] = 1.0
-            # Form D1's
-            # D1inv = numpy.zeros(B[spin].shape, B[spin].dtype)
-            # D1 = numpy.zeros(B[spin].shape, B[spin].dtype)
-            # print(R1.diagonal())
+            # Form D matrices
             D1 = numpy.diag(R1.diagonal())
             D1inv = numpy.diag(1.0/R1.diagonal())
-            # for i in range(D1inv.shape[0]):
-                # D1inv[i,i] = 1.0 / R1[i,i]
-                # D1[i,i] = R1[i,i]
-
-            # T1 = numpy.zeros(B[spin].shape, B[spin].dtype)
             T1 = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
 
             for i in range(2, self.stack.nbins+1):
@@ -328,12 +318,14 @@ class ThermalWalker(object):
                 # Form permutation matrix
                 P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
                 P1mat[P1,range(len(P1))] = 1.0
-                # Reset D1's
+                # Compute D matrices
                 D1inv = numpy.diag(1.0/R1.diagonal())
                 D1 = numpy.diag(R1.diagonal())
                 T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, T1))
 
-            A = numpy.dot(Q1.dot(D1), T1)
+            # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
+            # Write D = Db^{-1} Ds
+            # Then G^{-1} = Q Db^{-1}(Db Q^{-1}T^{-1}+Ds) T
             Db = numpy.zeros(B[spin].shape, B[spin].dtype)
             Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
             for i in range(Db.shape[0]):
@@ -345,14 +337,19 @@ class ThermalWalker(object):
                     Ds[i,i] = D1[i,i]
 
             T1inv = numpy.linalg.pinv(T1)
-            TQD = numpy.dot(numpy.dot(T1inv.T, Q1.T), Db) + Ds
-            TQDinv = numpy.linalg.pinv(TQD)
+            # C = (Db Q^{-1}T^{-1}+Ds)
+            C = numpy.dot(numpy.dot(Db, Q1.conj().T), T1inv) + Ds
+            Cinv = numpy.linalg.pinv(C)
 
+            # Then G = T^{-1} C^{-1} Db Q^{-1}
+            # Q is unitary.
             if inplace:
-                self.G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
+                self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
+                                         numpy.dot(Db, Q1.conj().T))
             else:
-                G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
-        return (G,A)
+                G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
+                                    numpy.dot(Db, Q1.conj().T))
+        return G
 
     def local_energy(self, system):
         rdm = one_rdm_from_G(self.G)
