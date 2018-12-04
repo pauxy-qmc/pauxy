@@ -284,8 +284,8 @@ class ThermalWalker(object):
             
             for i in range(Db.shape[0]):
                 if (abs(D1[i,i])>1.0):
-                    Db[i,i] = 1.0 / abs(D1[i,i])
-                    Ds[i,i] = numpy.sign(D1[i,i])
+                    Db[i,i] = 1.0 / D1[i,i]
+                    Ds[i,i] = 1.0
                 else:
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
