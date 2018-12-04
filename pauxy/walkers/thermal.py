@@ -290,8 +290,9 @@ class ThermalWalker(object):
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
             
-            T1inv = numpy.linalg.pinv(T1)
-            TQD = T1inv.T.dot(Q1.T).dot(Db) + Ds
+            # T1inv = numpy.linalg.pinv(T1)
+            # TQD = T1inv.T.dot(Q1.T).dot(Db) + Ds
+            TQD = Db.dot(Q1.T) + Ds.dot(T1)
             TQDinv = numpy.linalg.pinv(TQD)
 
             if inplace:
