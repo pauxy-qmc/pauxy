@@ -193,7 +193,7 @@ class ThermalWalker(object):
 
         return IpA
 
-    def greens_function_svd(self, trial, slice_ix = None):
+    def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
         bin_ix = slice_ix // self.stack.stack_size
@@ -201,6 +201,8 @@ class ThermalWalker(object):
         # evaluation).
         if bin_ix == self.stack.nbins:
             bin_ix = -1
+        if not inplace:
+            G = numpy.zeros(self.G.shape, self.G.dtype)
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
             # in stable way. Iteratively construct SVD decompositions starting
@@ -215,6 +217,7 @@ class ThermalWalker(object):
                 T2 = numpy.dot(T1, numpy.diag(S1))
                 (U1, S1, V) = scipy.linalg.svd(T2)
                 V1 = numpy.dot(V, V1)
+            A = numpy.dot(U1.dot(numpy.diag(S1)), V1)
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
             # Care needs to be taken when adding the identity matrix.
             T3 = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
@@ -224,7 +227,13 @@ class ThermalWalker(object):
             V3 = numpy.dot(V2, V1)
             # G(l) = (U3 S2 V3)^{-1}
             #      = V3^{\dagger} D3 U3^{\dagger}
-            self.G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
+            if inplace:
+                # self.G[spin] = (V3inv).dot(U3.conj().T)
+                self.G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
+            else:
+                # G[spin] = (V3inv).dot(U3.conj().T)
+                G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
+        return (G, A)
 
 
     def greens_function_qr(self, trial, slice_ix=None, inplace=True):
@@ -291,57 +300,59 @@ class ThermalWalker(object):
             # in stable way. Iteratively construct SVD decompositions starting
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            
-            (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting = True)
+
+            (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True)
             # Form permutation matrix
             P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-            for i in range (B[spin].shape[0]):
-                P1mat[P1[i],i] = 1.0
+            # for i in range(B[spin].shape[0]):
+                # P1mat[P1[i],i] = 1.0
+            P1mat[P1,range(len(P1))] = 1.0
             # Form D1's
-            D1inv = numpy.zeros(B[spin].shape, B[spin].dtype)
-            D1 = numpy.zeros(B[spin].shape, B[spin].dtype)
-            for i in range(D1inv.shape[0]):
-                D1inv[i,i] = 1.0/R1[i,i]
-                D1[i,i] = R1[i,i]
+            # D1inv = numpy.zeros(B[spin].shape, B[spin].dtype)
+            # D1 = numpy.zeros(B[spin].shape, B[spin].dtype)
+            # print(R1.diagonal())
+            D1 = numpy.diag(R1.diagonal())
+            D1inv = numpy.diag(1.0/R1.diagonal())
+            # for i in range(D1inv.shape[0]):
+                # D1inv[i,i] = 1.0 / R1[i,i]
+                # D1[i,i] = R1[i,i]
 
-            T1 = numpy.zeros(B[spin].shape, B[spin].dtype)
-            T1 = numpy.dot(numpy.dot(D1inv, R1),P1mat.T)
+            # T1 = numpy.zeros(B[spin].shape, B[spin].dtype)
+            T1 = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
 
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
-                (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting = True)
+                (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting=True)
                 # Form permutation matrix
                 P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-                for i in range (B[spin].shape[0]):
-                    P1mat[P1[i],i] = 1.0
+                P1mat[P1,range(len(P1))] = 1.0
                 # Reset D1's
-                for i in range(D1inv.shape[0]):
-                    D1inv[i,i] = 1.0/R1[i,i]
-                    D1[i,i] = R1[i,i]
-                T1 = D1inv.dot(R1).dot(P1mat.T).dot(T1)
+                D1inv = numpy.diag(1.0/R1.diagonal())
+                D1 = numpy.diag(R1.diagonal())
+                T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, T1))
 
+            A = numpy.dot(Q1.dot(D1), T1)
             Db = numpy.zeros(B[spin].shape, B[spin].dtype)
             Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
-            
             for i in range(Db.shape[0]):
-                if (abs(D1[i,i])>1.0):
+                if abs(D1[i,i]) > 1.0:
                     Db[i,i] = 1.0 / abs(D1[i,i])
                     Ds[i,i] = numpy.sign(D1[i,i])
                 else:
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
-            
+
             T1inv = numpy.linalg.pinv(T1)
-            TQD = T1inv.T.dot(Q1.T).dot(Db) + Ds
+            TQD = numpy.dot(numpy.dot(T1inv.T, Q1.T), Db) + Ds
             TQDinv = numpy.linalg.pinv(TQD)
 
             if inplace:
-                self.G[spin] = TQDinv.T.dot(Db).dot(Q1.T)
+                self.G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
             else:
-                G[spin] = TQDinv.T.dot(Db).dot(Q1.T)
-        return G
+                G[spin] = numpy.dot(TQDinv.T, numpy.dot(Db, Q1.T))
+        return (G,A)
 
     def local_energy(self, system):
         rdm = one_rdm_from_G(self.G)
@@ -494,7 +505,7 @@ def unit_test():
     N = 5
 
     A = numpy.random.rand(N,N)
-    Q, R, P = scipy.linalg.qr(A, pivoting = True)
+    Q, R, P = scipy.linalg.qr(A, pivoting=True)
     Pmat = numpy.zeros((N,N))
     for i in range (N):
         Pmat[P[i],i] = 1
