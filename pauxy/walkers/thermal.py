@@ -227,9 +227,52 @@ class ThermalWalker(object):
             self.G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
 
 
+    def greens_function_qr(self, trial, slice_ix=None, inplace=True):
+        if (slice_ix == None):
+            slice_ix = self.stack.time_slice
+
+        bin_ix = slice_ix // self.stack.stack_size
+        # For final time slice want first block to be the rightmost (for energy
+        # evaluation).
+        if bin_ix == self.stack.nbins:
+            bin_ix = -1
+        if not inplace:
+            G = numpy.zeros(self.G.shape, self.G.dtype)
+        else:
+            G = None
+        for spin in [0, 1]:
+            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
+            # in stable way. Iteratively construct SVD decompositions starting
+            # from the rightmost (product of) propagator(s).
+            B = self.stack.get((bin_ix+1)%self.stack.nbins)
+            (U1, V1) = numpy.linalg.qr(B[spin])
+            for i in range(2, self.stack.nbins+1):
+                ix = (bin_ix + i) % self.stack.nbins
+                B = self.stack.get(ix)
+                T1 = numpy.dot(B[spin], U1)
+                (U1, V) = scipy.linalg.qr(T1, pivoting = False)
+                V1 = numpy.dot(V, V1)
+
+            # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
+            # Care needs to be taken when adding the identity matrix.
+            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
+
+            T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
+            (U2, V2) = scipy.linalg.qr(T3, pivoting = False)
+
+            U3 = numpy.dot(U1, U2)
+            V3 = numpy.dot(V2, V1)
+            V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]))
+            # G(l) = (U3 S2 V3)^{-1}
+            #      = V3^{\dagger} D3 U3^{\dagger}
+            if inplace:
+                self.G[spin] = (V3inv).dot(U3.conj().T)
+            else:
+                G[spin] = (V3inv).dot(U3.conj().T)
+        return G
 
     # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
-    def greens_function_qr(self, trial, slice_ix=None, inplace=True):
+    def greens_function_qr_strat(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
 
