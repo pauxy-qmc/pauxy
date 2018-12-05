@@ -130,7 +130,7 @@ def setup_parallel(options, comm=None, verbose=False):
     afqmc : :class:`pauxy.afqmc.CPMC`
         CPMC driver.
     """
-    if comm.Get_rank() == 0:
+    if comm.rank == 0:
         afqmc = get_driver(options, comm)
         print ("# Setup base driver.")
     else:
