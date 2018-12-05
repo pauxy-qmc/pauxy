@@ -96,6 +96,7 @@ class Generic(object):
             self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
+        self.total_mem = 0
         if verbose:
             print("# Finished setting up Generic system object.")
 
@@ -222,6 +223,9 @@ class Generic(object):
         self.nchol_vec = self.schol_vecs.shape[-1]
         self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
                                                          self.nbasis))
+        mem = self.chol_vecs.nbytes / (1024.0**3)
+        self.total_mem += mem
+        print("# Memory required by Cholesky vectors %f GB"%mem)
         self.T = numpy.array([h1e, h1e])
         # These will be reconstructed later.
         self.schol_vecs = None
@@ -345,7 +349,13 @@ class Generic(object):
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
+            mem = (2*nnz*16/(1024.0**3))
+            self.total_mem += mem
+            print("# Memory used %f" " GB"%mem)
             nnz = self.vaklb[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
+            mem = (2*nnz*16/(1024.0**3))
+            self.total_mem += mem
+            print("# Memory used %f GB"%mem)
             nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
