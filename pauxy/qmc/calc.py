@@ -3,7 +3,6 @@
 import time
 import numpy
 import json
-import warnings
 import h5py
 import sys
 try:
@@ -138,7 +137,7 @@ def setup_parallel(options, comm=None, verbose=False):
     afqmc = comm.bcast(afqmc, root=0)
     afqmc.init_time = time.time()
     if afqmc.trial.error:
-        warnings.warn('Error in constructing trial wavefunction. Exiting')
+        print("# Error in constructing trial wavefunction. Exiting")
         sys.exit()
     afqmc.rank = comm.Get_rank()
     afqmc.nprocs = comm.Get_size()
@@ -152,9 +151,9 @@ def setup_parallel(options, comm=None, verbose=False):
         # This should occur on all processors so we don't need to worry about
         # race conditions / mpi4py hanging.
         if afqmc.root:
-            warnings.warn('Not enough walkers for selected core count. There '
-                          'must be at least one walker per core set in the '
-                          'input file. Setting one walker per core.')
+            print("Not enough walkers for selected core count. There "
+                  "must be at least one walker per core set in the "
+                  "input file. Setting one walker per core.")
         afqmc.qmc.nwalkers = 1
 
     afqmc.estimators = (
