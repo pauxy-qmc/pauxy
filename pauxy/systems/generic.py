@@ -72,6 +72,7 @@ class Generic(object):
             self.ndown = self.ndown - self.ncore
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
+        self.total_mem = 0
         self.decomopsition = inputs.get('decomposition', 'cholesky')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
@@ -96,7 +97,6 @@ class Generic(object):
             self.nfields = self.nchol_vec
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = None
-        self.total_mem = 0
         if verbose:
             print("# Finished setting up Generic system object.")
 
