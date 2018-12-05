@@ -99,17 +99,30 @@ def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
         enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
         dims = fh5['Hamiltonian/dims'][:]
-        nbasis = dims[3]
-        hcore = fh5['Hamiltonian/hcore'][:]
-        hcore = hcore.view(numpy.complex128).reshape(nbasis,nbasis)
-        idx = fh5['Hamiltonian/Factorized/index_0'][:]
-        h2 = fh5['Hamiltonian/Factorized/vals_0'][:].view(numpy.complex128).ravel()
+        nmo = dims[3]
+        try:
+            hcore = fh5['Hamiltonian/hcore'][:]
+            hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
+        except KeyError:
+            hcore = fh5['Hamiltonian/H1'][:].view(numpy.complex128).ravel()
+            idx = fh5['Hamiltonian/H1_indx'][:]
+            row_ix = idx[::2]
+            col_ix = idx[1::2]
+            hcore = scipy.sparse.csr_matrix((hcore, (row_ix, col_ix))).toarray()
+        chunks = dims[2]
+        idx = []
+        h2 = []
+        for ic in range(chunks):
+            idx.append(fh5['Hamiltonian/Factorized/index_%i'%ic][:])
+            h2.append(fh5['Hamiltonian/Factorized/vals_%i'%ic][:].view(numpy.complex128).ravel())
+        idx = numpy.array([i for sub in idx for i in sub])
+        h2 = numpy.array([v for sub in h2 for v in sub])
         nalpha = dims[4]
         nbeta = dims[5]
         row_ix = idx[::2]
         col_ix = idx[1::2]
         chol_vecs = scipy.sparse.csr_matrix((h2, (row_ix, col_ix)))
-        return (hcore, chol_vecs, enuc, nbasis, nalpha, nbeta)
+        return (hcore, chol_vecs, enuc, nmo, nalpha, nbeta)
 
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
                 orbs=None, verbose=True, coeffs=None):
