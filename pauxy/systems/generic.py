@@ -308,23 +308,38 @@ class Generic(object):
         nb = self.ndown
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
-        rup = numpy.einsum('ia,lik->akl',
-                           trial.psi[:,:na].conj(),
-                           self.chol_vecs)
-        rdn = numpy.einsum('ia,lik->akl',
-                           trial.psi[:,na:].conj(),
-                           self.chol_vecs)
-        # Todo: Fix for complex Cholesky
+        rup = numpy.zeros(shape=(self.nchol_vec, na, M),
+                          dtype=numpy.complex128)
+        rdn = numpy.zeros(shape=(self.nchol_vec, nb, M),
+                          dtype=numpy.complex128)
+        # rup = numpy.einsum('ia,lik->lak',
+                           # trial.psi[:,:na].conj(),
+                           # self.chol_vecs)
+        # rdn = numpy.einsum('ia,lik->lak',
+                           # trial.psi[:,na:].conj(),
+                           # self.chol_vecs)
+        # This is much faster than einsum.
+        for l in range(self.nchol_vec):
+            rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
+            rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
         if self.verbose:
             print("# Constructing half rotated V_{(ab)(kl)}.")
-        vaklb_alpha = (numpy.einsum('akg,blg->akbl', rup, rup) -
-                       numpy.einsum('bkg,alg->akbl', rup, rup))
-        vaklb_beta = (numpy.einsum('akg,blg->akbl', rdn, rdn) -
-                      numpy.einsum('bkg,alg->akbl', rdn, rdn))
-        self.rchol_vecs = [csr_matrix(rup.reshape((M*na, -1))),
-                           csr_matrix(rdn.reshape((M*nb, -1)))]
-        self.vaklb = [csr_matrix(vaklb_alpha.reshape((M*na, M*na))),
-                      csr_matrix(vaklb_beta.reshape((M*nb, M*nb)))]
+        # vaklb_a = (numpy.einsum('gak,gbl->akbl', rup, rup) -
+                   # numpy.einsum('gbk,gal->akbl', rup, rup))
+        # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
+                   # numpy.einsum('gbk,gal->akbl', rdn, rdn))
+        # This is also much faster than einsum.
+        rup = rup.reshape((self.nchol_vec, -1))
+        rdn = rdn.reshape((self.nchol_vec, -1))
+        Ma = numpy.dot(rup.T, rup)
+        Mb = numpy.dot(rdn.T, rup)
+        tvaklb = time.time()
+        vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
+        vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
+        self.rchol_vecs = [csr_matrix(rup.T.reshape((M*na, -1))),
+                           csr_matrix(rdn.T.reshape((M*nb, -1)))]
+        self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
+                      csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
         if self.verbose:
             nnz = self.rchol_vecs[0].nnz
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
