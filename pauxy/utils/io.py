@@ -109,6 +109,7 @@ def from_qmcpack_cholesky(filename):
             row_ix = idx[::2]
             col_ix = idx[1::2]
             hcore = scipy.sparse.csr_matrix((hcore, (row_ix, col_ix))).toarray()
+            hcore = numpy.tril(hcore, -1) + numpy.tril(hcore, 0).conj().T
         chunks = dims[2]
         idx = []
         h2 = []
