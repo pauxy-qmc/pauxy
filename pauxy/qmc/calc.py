@@ -85,9 +85,9 @@ def read_input(input_file, comm, verbose=False):
         with open(input_file) as inp:
             options = json.load(inp)
         inp.close()
-        # sometimes python is beautiful
         if verbose:
-            print('# Running on %s core%s.'%(comm.size, 's' if comm.size > 1 else ''))
+            print('# Running on %s MPI rank%s.'%(comm.size,
+                                                 's' if comm.size > 1 else ''))
     else:
         options = None
     options = comm.bcast(options, root=0)
