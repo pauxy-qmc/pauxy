@@ -297,7 +297,7 @@ class PlaneWave(object):
         if (joonho):
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
-            if (walker.counter == 0):
+            if (walker.stack.counter == 0):
                 walker.compute_left_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
@@ -353,7 +353,7 @@ class PlaneWave(object):
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
 
-            if (walker.counter == 0):
+            if (walker.stack.counter == 0):
                 walker.compute_left_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
