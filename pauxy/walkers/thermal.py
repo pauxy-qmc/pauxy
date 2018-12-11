@@ -247,7 +247,7 @@ class ThermalWalker(object):
                 # Form D matrices
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                Tlcr = numpy.dot(numpy.dot(D1inv, Rlcr), P1mat.T)
+                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), P1mat.T)
 
             if (center_ix < self.stack.ntime_slices-1 ): # there exists left bit
                 Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), numpy.dot(Qlcr, Dlcr))
