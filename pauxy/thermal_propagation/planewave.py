@@ -80,36 +80,6 @@ class PlaneWave(object):
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
                                 scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
 
-
-    # def apply_exponential(self, phi, VHS, debug=False):
-    #     """Apply exponential propagator of the HS transformation
-    #     Parameters
-    #     ----------
-    #     system :
-    #         system class
-    #     phi : numpy array
-    #         a state
-    #     VHS : numpy array
-    #         HS transformation potential
-    #     Returns
-    #     -------
-    #     phi : numpy array
-    #         Exp(VHS) * phi
-    #     """
-    #     # JOONHO: exact exponential
-    #     # copy = numpy.copy(phi)
-    #     # phi = scipy.linalg.expm(VHS).dot(copy)
-    #     if debug:
-    #         copy = numpy.copy(phi)
-    #         c2 = scipy.linalg.expm(VHS).dot(copy)
-
-    #     numpy.copyto(self.Temp, phi)
-    #     for n in range(1, self.exp_nmax+1):
-    #         self.Temp = VHS.dot(self.Temp) / n
-    #         phi += self.Temp
-    #     if debug:
-    #         print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-    #     return phi
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
         Parameters
@@ -221,6 +191,36 @@ class PlaneWave(object):
             walker.G[0] = B[0].dot(walker.G[0]).dot(Binv[0])
             walker.G[1] = B[1].dot(walker.G[1]).dot(Binv[1])
 
+    def apply_exponential(self, phi, VHS, debug=False):
+        """Apply exponential propagator of the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        phi : numpy array
+            a state
+        VHS : numpy array
+            HS transformation potential
+        Returns
+        -------
+        phi : numpy array
+            Exp(VHS) * phi
+        """
+        # JOONHO: exact exponential
+        # copy = numpy.copy(phi)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
+        if debug:
+            copy = numpy.copy(phi)
+            c2 = scipy.linalg.expm(VHS).dot(copy)
+
+        numpy.copyto(self.Temp, phi)
+        for n in range(1, self.exp_nmax+1):
+            self.Temp = VHS.dot(self.Temp) / n
+            phi += self.Temp
+        if debug:
+            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+        return phi
+
     def two_body_propagator(self, walker, system, force_bias=True):
         """It appliese the two-body propagator
         Parameters
@@ -293,13 +293,28 @@ class PlaneWave(object):
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         # Compute determinant ratio det(1+A')/det(1+A).
+
+        icur = walker.stack.time_slice // walker.stack.stack_size
+        inext = (walker.stack.time_slice+1) // walker.stack.stack_size
+
+        # if (icur == inext): # left and right should be reused...
+        walker.compute_left_right(icur)
         # 1. Current walker's green's function.
-        G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                   inplace=False)
+        # Green's function that takes Left Right and Center
+        G = walker.greens_function_left_right(icur, inplace=False)
         # 2. Compute updated green's function.
         walker.stack.update_new(B)
-        walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                               inplace=True)
+        walker.greens_function_left_right(icur, inplace=True)
+        # else:
+        #     walker.compute_left_right(icur)
+        #     # 1. Current walker's green's function.
+        #     # Green's function that takes Left Right and Center
+        #     G = walker.greens_function_left_right(icur, inplace=False)
+        #     # 2. Compute updated green's function.
+        #     walker.stack.update_new(B)
+        #     walker.greens_function_left_right(icur, inplace=True)
+            
+
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
         Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
@@ -336,10 +351,13 @@ class PlaneWave(object):
 
         # Compute determinant ratio det(1+A')/det(1+A).
         # 1. Current walker's green's function.
-        G = walker.greens_function(None, inplace=False)
+        G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                    inplace=False)
         # 2. Compute updated green's function.
         walker.stack.update_new(B)
-        walker.greens_function(None, inplace=True)
+        walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                    inplace=True)
+
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
         Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]

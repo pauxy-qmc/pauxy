@@ -61,6 +61,14 @@ class ThermalWalker(object):
         self.greens_function(trial)
         self.ot = 1.0
 
+        # temporary storage for stacks...
+        self.Tl = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+        self.Ql = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+        self.Dl = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+        self.Tr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+        self.Qr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+        self.Dr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+
         cond = numpy.linalg.cond(trial.dmat[0])
         if verbose:
             print("# condition number of BT = {}".format(cond))
@@ -69,129 +77,6 @@ class ThermalWalker(object):
         # self.greens_function_svd(trial, slice_ix)
         return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
                                              inplace=inplace)
-
-    def identity_plus_A(self, slice_ix = None):
-        return self.identity_plus_A_svd(slice_ix)
-        # return self.identity_plus_A_qr(trial, slice_ix)
-
-    def compute_A(self, slice_ix = None):
-        return self.compute_A_qr(slice_ix)
-
-    def compute_A_qr(self, slice_ix = None):
-        if (slice_ix == None):
-            slice_ix = self.stack.time_slice
-
-        bin_ix = slice_ix // self.stack.stack_size
-        # For final time slice want first block to be the rightmost (for energy
-        # evaluation).
-        if bin_ix == self.stack.nbins:
-            bin_ix = -1
-
-        A = numpy.zeros(self.stack.stack.shape[1:], dtype=self.stack.stack.dtype)
-
-        for spin in [0, 1]:
-            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
-            # in stable way. Iteratively construct SVD decompositions starting
-            # from the rightmost (product of) propagator(s).
-            B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, V1) = numpy.linalg.qr(B[spin])
-            for i in range(2, self.stack.nbins+1):
-                ix = (bin_ix + i) % self.stack.nbins
-                B = self.stack.get(ix)
-                T1 = numpy.dot(B[spin], U1)
-                (U1, V) = scipy.linalg.qr(T1, pivoting = False)
-                V1 = numpy.dot(V, V1)
-
-            # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
-            # Care needs to be taken when adding the identity matrix.
-            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
-
-            T3 = numpy.identity(V1.shape[0])
-            (U2, V2) = scipy.linalg.qr(T3, pivoting = False)
-
-            U3 = numpy.dot(U1, U2)
-            V3 = numpy.dot(V2, V1)
-            # V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]))
-            # G(l) = (U3 S2 V3)^{-1}
-            #      = V3^{\dagger} D3 U3^{\dagger}
-            A[spin] = (U3).dot(V3)
-
-        return A
-
-    def compute_A_svd(self, slice_ix = None):
-        if (slice_ix == None):
-            slice_ix = self.stack.time_slice
-        bin_ix = slice_ix // self.stack.stack_size
-        # For final time slice want first block to be the rightmost (for energy
-        # evaluation).
-        if bin_ix == self.stack.nbins:
-            bin_ix = -1
-
-        A = []
-
-        for spin in [0, 1]:
-            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
-            # in stable way. Iteratively construct SVD decompositions starting
-            # from the rightmost (product of) propagator(s).
-
-            # This is l + 1
-            B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, S1, V1) = scipy.linalg.svd(B[spin])
-
-            # Computing A from the right most of B_l B_{l-1}..B_1*B_L..B_{l+2} * B_{l+1} (obtained above)
-            for i in range(2, self.stack.nbins+1):
-                ix = (bin_ix + i) % self.stack.nbins
-                B = self.stack.get(ix)
-                T1 = numpy.dot(B[spin], U1)
-                # todo optimise
-                T2 = numpy.dot(T1, numpy.diag(S1))
-                (U1, S1, V) = scipy.linalg.svd(T2)
-                V1 = numpy.dot(V, V1)
-
-            A += [ (U1.dot(numpy.diag(S1))).dot(V1)]
-
-        return A
-
-    def identity_plus_A_svd(self, slice_ix = None):
-        if (slice_ix == None):
-            slice_ix = self.stack.time_slice
-        bin_ix = slice_ix // self.stack.stack_size
-        # For final time slice want first block to be the rightmost (for energy
-        # evaluation).
-        if bin_ix == self.stack.nbins:
-            bin_ix = -1
-
-        IpA = []
-
-        for spin in [0, 1]:
-            # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
-            # in stable way. Iteratively construct SVD decompositions starting
-            # from the rightmost (product of) propagator(s).
-            B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, S1, V1) = scipy.linalg.svd(B[spin])
-
-            # Computing A
-            for i in range(2, self.stack.nbins+1):
-                ix = (bin_ix + i) % self.stack.nbins
-                B = self.stack.get(ix)
-                T1 = numpy.dot(B[spin], U1)
-                # todo optimise
-                T2 = numpy.dot(T1, numpy.diag(S1))
-                (U1, S1, V) = scipy.linalg.svd(T2)
-                V1 = numpy.dot(V, V1)
-
-            # Doing I + A
-            T3 = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
-
-            # \TODO remove this SVD. THis is not necessary for I + A
-            (U2, S2, V2) = scipy.linalg.svd(T3)
-            U3 = numpy.dot(U1, U2)
-            D3 = numpy.diag(S2)
-            V3 = numpy.dot(V2, V1)
-
-            IpA += [(V3.conj().T).dot(D3).dot(U3.conj().T)]
-
-        return IpA
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
@@ -255,6 +140,7 @@ class ThermalWalker(object):
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
             (U1, V1) = numpy.linalg.qr(B[spin])
+
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
@@ -280,6 +166,129 @@ class ThermalWalker(object):
                 G[spin] = (V3inv).dot(U3.conj().T)
         return G
 
+    def compute_left_right(self, center_ix):
+        # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
+        # B(L) .... B(1)
+        for spin in [0, 1]:
+            # right bit
+            # B(right) ... B(1)
+            if (center_ix > 0):
+                B = self.stack.get(0)
+                (self.Qr[spin], R1, P1) = scipy.linalg.qr(B[spin], pivoting=True)
+                # Form permutation matrix
+                P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                P1mat[P1,range(len(P1))] = 1.0
+                # Form D matrices
+                self.Dr[spin] = numpy.diag(R1.diagonal())
+                D1inv = numpy.diag(1.0/R1.diagonal())
+                self.Tr[spin] = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
+
+                for i in range(2, center_ix):
+                    ix = (i-1) % self.stack.nbins
+                    B = self.stack.get(ix)
+                    C2 = numpy.dot(numpy.dot(B[spin], self.Qr[spin]), self.Dr[spin])
+                    (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True)
+                    # Form permutation matrix
+                    P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                    P1mat[P1,range(len(P1))] = 1.0
+                    # Compute D matrices
+                    D1inv = numpy.diag(1.0/R1.diagonal())
+                    self.Dr[spin] = numpy.diag(R1.diagonal())
+                    self.Tr[spin] = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, self.Tr[spin]))
+
+            # left bit
+            # B(l) ... B(left)
+            if (center_ix < self.stack.ntime_slices-1 ):
+                B = self.stack.get(center_ix+1)
+                (self.Ql[spin], R1, P1) = scipy.linalg.qr(B[spin], pivoting=True)
+                # Form permutation matrix
+                P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                P1mat[P1,range(len(P1))] = 1.0
+                # Form D matrices
+                self.Dl[spin] = numpy.diag(R1.diagonal())
+                D1inv = numpy.diag(1.0/R1.diagonal())
+                self.Tl[spin] = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
+
+                for i in range(center_ix+1, self.stack.ntime_slices+1):
+                    ix = (i-1) % self.stack.nbins
+                    B = self.stack.get(ix)
+                    C2 = numpy.dot(numpy.dot(B[spin], self.Ql[spin]), self.Dl[spin])
+                    (self.Ql[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True)
+                    # Form permutation matrix
+                    P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                    P1mat[P1,range(len(P1))] = 1.0
+                    # Compute D matrices
+                    D1inv = numpy.diag(1.0/R1.diagonal())
+                    self.Dl[spin] = numpy.diag(R1.diagonal())
+                    self.Tl[spin] = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, self.Tl[spin]))
+    
+    def greens_function_left_right (self, center_ix, inplace = False):
+        if not inplace:
+            G = numpy.zeros(self.G.shape, self.G.dtype)
+        else:
+            G = None
+        
+        Bc = self.stack.get(center_ix+1)
+
+        for spin in [0,1]:
+            if (center_ix > 0): # there exists right bit
+                Ccr = numpy.dot(numpy.dot(Bc[spin],self.Qr[spin]),self.Dr[spin])
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True)
+                Dlcr = numpy.diag(Rlcr.diagonal())
+                Dinv = numpy.diag(1.0/Rlcr.diagonal())
+                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                P1mat[Plcr,range(len(Plcr))] = 1.0
+                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
+            else:
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True)
+                # Form permutation matrix
+                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                P1mat[Plcr,range(len(Plcr))] = 1.0
+                # Form D matrices
+                Dlcr = numpy.diag(Rlcr.diagonal())
+                Dinv = numpy.diag(1.0/Rlcr.diagonal())
+                Tlcr = numpy.dot(numpy.dot(D1inv, Rlcr), P1mat.T)
+
+            if (center_ix < self.stack.ntime_slices-1 ): # there exists left bit
+                Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), numpy.dot(Qlcr, Dlcr))
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True)
+                Dlcr = numpy.diag(Rlcr.diagonal())
+                Dinv = numpy.diag(1.0/Rlcr.diagonal())
+                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                P1mat[Plcr,range(len(Plcr))] = 1.0
+                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
+
+
+            # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
+            # Write D = Db^{-1} Ds
+            # Then G^{-1} = Q Db^{-1}(Db Q^{-1}T^{-1}+Ds) T
+            Db = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+            Ds = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+            for i in range(Db.shape[0]):
+                if abs(Dlcr[i,i]) > 1.0:
+                    Db[i,i] = 1.0 / abs(Dlcr[i,i])
+                    Ds[i,i] = numpy.sign(Dlcr[i,i])
+                else:
+                    Db[i,i] = 1.0
+                    Ds[i,i] = Dlcr[i,i]
+
+            T1inv = numpy.linalg.pinv(Tlcr)
+            # C = (Db Q^{-1}T^{-1}+Ds)
+            C = numpy.dot(numpy.dot(Db, Qlcr.conj().T), T1inv) + Ds
+            Cinv = numpy.linalg.pinv(C)
+
+            # Then G = T^{-1} C^{-1} Db Q^{-1}
+            # Q is unitary.
+            if inplace:
+                self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
+                                         numpy.dot(Db, Qlcr.conj().T))
+            else:
+                G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
+                                    numpy.dot(Db, Qlcr.conj().T))
+
+
+        return G
+
     def greens_function_qr_strat(self, trial, slice_ix=None, inplace=True):
         # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
         if (slice_ix == None):
@@ -290,6 +299,7 @@ class ThermalWalker(object):
         # evaluation).
         if bin_ix == self.stack.nbins:
             bin_ix = -1
+        
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
@@ -391,6 +401,11 @@ class PropagatorStack:
         self.stack_size = bin_size
         self.ntime_slices = ntime_slices
         self.nbins = ntime_slices // bin_size
+
+        if (self.nbins * self.stack_size < self.ntime_slices):
+            print("stack_size must divide the total path length")
+            assert(self.nbins * self.stack_size == self.ntime_slices)
+
         self.nbasis = nbasis
         self.dtype = dtype
         self.BT = BT
