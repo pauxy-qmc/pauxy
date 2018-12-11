@@ -198,7 +198,7 @@ class ThermalWalker(object):
 
             # left bit
             # B(l) ... B(left)
-            if (center_ix < self.stack.ntime_slices-1 ):
+            if (center_ix < self.stack.nbins-1 ):
                 B = self.stack.get(center_ix+1)
                 (self.Ql[spin], R1, P1) = scipy.linalg.qr(B[spin], pivoting=True)
                 # Form permutation matrix
@@ -209,7 +209,7 @@ class ThermalWalker(object):
                 D1inv = numpy.diag(1.0/R1.diagonal())
                 self.Tl[spin] = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
 
-                for i in range(center_ix+1, self.stack.ntime_slices+1):
+                for i in range(center_ix+1, self.stack.nbins+1):
                     ix = (i-1) % self.stack.nbins
                     B = self.stack.get(ix)
                     C2 = numpy.dot(numpy.dot(B[spin], self.Ql[spin]), self.Dl[spin])
