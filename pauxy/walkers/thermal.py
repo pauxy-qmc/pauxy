@@ -228,7 +228,7 @@ class ThermalWalker(object):
         else:
             G = None
         
-        Bc = self.stack.get(center_ix+1)
+        Bc = self.stack.get(center_ix)
 
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
