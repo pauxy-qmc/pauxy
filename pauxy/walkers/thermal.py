@@ -229,7 +229,6 @@ class ThermalWalker(object):
             G = None
         
         Bc = self.stack.get(center_ix)
-
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
                 Ccr = numpy.dot(numpy.dot(Bc[spin],self.Qr[spin]),self.Dr[spin])
@@ -249,7 +248,7 @@ class ThermalWalker(object):
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
                 Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), P1mat.T)
 
-            if (center_ix < self.stack.ntime_slices-1 ): # there exists left bit
+            if (center_ix < self.stack.nbins-1): # there exists left bit
                 Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), numpy.dot(Qlcr, Dlcr))
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True)
                 Dlcr = numpy.diag(Rlcr.diagonal())
@@ -257,7 +256,6 @@ class ThermalWalker(object):
                 P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
                 P1mat[Plcr,range(len(Plcr))] = 1.0
                 Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
-
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
             # Write D = Db^{-1} Ds
@@ -502,33 +500,59 @@ def unit_test():
     beta = inputs ['beta']
     dt = inputs['dt']
 
-    system = UEG(inputs, True)
+    system = UEG(inputs, verbose = False)
 
     qmc = QMCOpts(inputs, system, True)
-    trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
+    trial = OneBody(inputs, system, beta, dt, system.H1, verbose=False)
 
-    propagator = PlaneWave(inputs, qmc, system, trial, True)
+    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
     walker = ThermalWalker(inputs, system, trial, True)
-    walker.greens_function(trial)
+    # walker.greens_function(trial)
     E, T, V = walker.local_energy(system)
-    print(E,T,V)
     numpy.random.seed(0)
     joonho = False
-# [ 2.61525277+0.01143437j -0.24144509-0.19444636j  0.14671107-0.62490388j
-#  -0.30659011-0.11716204j  0.11788276-0.10395423j -0.29705511-0.57402077j
-#   0.22967943-0.28011555j]
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    print(walker.stack.get(0)[0][:,0])
 
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+
+
+    Gold = walker.G[0].copy()
+
+
+    system = UEG(inputs, verbose=False)
+
+    qmc = QMCOpts(inputs, system, verbose=False)
+    trial = OneBody(inputs, system, beta, dt, system.H1, verbose=False)
+
+    propagator = PlaneWave(inputs, qmc, system, trial, True)
+    walker = ThermalWalker(inputs, system, trial, verbose=False)
+    # walker.greens_function(trial)
+    E, T, V = walker.local_energy(system)
+    numpy.random.seed(0)
+    joonho = True
+
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+
+    Gnew = walker.G[0].copy()
+
+    print(Gold[:,0] - Gnew[:,0])
     # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
     # N = 5
 

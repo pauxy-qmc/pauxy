@@ -27,6 +27,7 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
+        # if(verbose):
         print("# Number of fields = %i"%system.nfields)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
@@ -296,7 +297,6 @@ class PlaneWave(object):
         if (joonho):
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
-
             walker.compute_left_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
@@ -347,15 +347,6 @@ class PlaneWave(object):
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-
-        # # Compute determinant ratio det(1+A')/det(1+A).
-        # # 1. Current walker's green's function.
-        # G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-        #                             inplace=False)
-        # # 2. Compute updated green's function.
-        # walker.stack.update_new(B)
-        # walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-        #                             inplace=True)
 
         if (joonho):
             icur = walker.stack.time_slice // walker.stack.stack_size
