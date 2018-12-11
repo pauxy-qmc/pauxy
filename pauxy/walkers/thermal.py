@@ -496,7 +496,7 @@ def unit_test():
     'ecut':0.5,
     "name": "one_body",
     "mu":1.94046021,
-    "beta":2.0,
+    "beta":0.5,
     "dt": 0.05
     }
     beta = inputs ['beta']
@@ -508,37 +508,38 @@ def unit_test():
     trial = OneBody(inputs, system, beta, dt, system.H1, verbose=True)
 
     propagator = PlaneWave(inputs, qmc, system, trial, True)
-    # def __init__(self, walker_opts, system, trial, verbose=False):
     walker = ThermalWalker(inputs, system, trial, True)
     walker.greens_function(trial)
     E, T, V = walker.local_energy(system)
     print(E,T,V)
-    (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
-    N = 5
+    numpy.random.seed(0)
+    joonho = False
+# [ 2.61525277+0.01143437j -0.24144509-0.19444636j  0.14671107-0.62490388j
+#  -0.30659011-0.11716204j  0.11788276-0.10395423j -0.29705511-0.57402077j
+#   0.22967943-0.28011555j]
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    print(walker.stack.get(0)[0][:,0])
 
-    A = numpy.random.rand(N,N)
-    Q, R, P = scipy.linalg.qr(A, pivoting=True)
-    Pmat = numpy.zeros((N,N))
-    for i in range (N):
-        Pmat[P[i],i] = 1
-    print(A - Q.dot(R).dot(Pmat.T))
-    print(Q * Q.T)
-    print(R)
+    # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
+    # N = 5
 
-    # print (P)
-    # R = numpy.random.rand(system.nbasis, system.nbasis)
-    # R = numpy.triu(R)
-    # R = scipy.sparse.csc_matrix(R)
-    # print(R*R)
-    # system.scaled_density_operator_incore(system.qvecs)
+    # A = numpy.random.rand(N,N)
+    # Q, R, P = scipy.linalg.qr(A, pivoting=True)
+    # Pmat = numpy.zeros((N,N))
+    # for i in range (N):
+    #     Pmat[P[i],i] = 1
+    # print(A - Q.dot(R).dot(Pmat.T))
+    # print(Q * Q.T)
+    # print(R)
 
-    # for (i, qi) in enumerate(system.qvecs):
-        # rho_q = system.density_operator(i)
-        # A = rho_q + scipy.sparse.csc_matrix.transpose(rho_q)
-        # print(A.dot(rho_q).diagonal().sum())
-        # exit()
-        # print(scipy.sparse.csc_matrix.transpose(rho_q).shape)
-        # rho_mq = system.density_operator(-i)
-        # print (numpy.linalg.norm(rho_q-rho_mq.T))
 if __name__=="__main__":
     unit_test()

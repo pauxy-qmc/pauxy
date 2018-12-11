@@ -271,7 +271,7 @@ class PlaneWave(object):
 
         return (cmf, cfb, xshifted, VHS)
 
-    def propagate_walker_free(self, system, walker, trial, force_bias=False):
+    def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
         """Free projection propagator
         Parameters
         ----------
@@ -293,27 +293,26 @@ class PlaneWave(object):
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         # Compute determinant ratio det(1+A')/det(1+A).
+        if (joonho):
+            icur = walker.stack.time_slice // walker.stack.stack_size
+            inext = (walker.stack.time_slice+1) // walker.stack.stack_size
 
-        icur = walker.stack.time_slice // walker.stack.stack_size
-        inext = (walker.stack.time_slice+1) // walker.stack.stack_size
-
-        # if (icur == inext): # left and right should be reused...
-        walker.compute_left_right(icur)
-        # 1. Current walker's green's function.
-        # Green's function that takes Left Right and Center
-        G = walker.greens_function_left_right(icur, inplace=False)
-        # 2. Compute updated green's function.
-        walker.stack.update_new(B)
-        walker.greens_function_left_right(icur, inplace=True)
-        # else:
-        #     walker.compute_left_right(icur)
-        #     # 1. Current walker's green's function.
-        #     # Green's function that takes Left Right and Center
-        #     G = walker.greens_function_left_right(icur, inplace=False)
-        #     # 2. Compute updated green's function.
-        #     walker.stack.update_new(B)
-        #     walker.greens_function_left_right(icur, inplace=True)
-            
+            walker.compute_left_right(icur)
+            # 1. Current walker's green's function.
+            # Green's function that takes Left Right and Center
+            G = walker.greens_function_left_right(icur, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function_left_right(icur, inplace=True)
+        else:
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+            G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=True)
 
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
@@ -328,7 +327,7 @@ class PlaneWave(object):
         walker.phase *= cmath.exp(1j*phase)
 
 
-    def propagate_walker_phaseless(self, system, walker, time_slice):
+    def propagate_walker_phaseless(self, system, walker, time_slice, joonho=True):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -349,14 +348,35 @@ class PlaneWave(object):
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
-        # Compute determinant ratio det(1+A')/det(1+A).
-        # 1. Current walker's green's function.
-        G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                    inplace=False)
-        # 2. Compute updated green's function.
-        walker.stack.update_new(B)
-        walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                    inplace=True)
+        # # Compute determinant ratio det(1+A')/det(1+A).
+        # # 1. Current walker's green's function.
+        # G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+        #                             inplace=False)
+        # # 2. Compute updated green's function.
+        # walker.stack.update_new(B)
+        # walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+        #                             inplace=True)
+
+        if (joonho):
+            icur = walker.stack.time_slice // walker.stack.stack_size
+            inext = (walker.stack.time_slice+1) // walker.stack.stack_size
+
+            walker.compute_left_right(icur)
+            # 1. Current walker's green's function.
+            # Green's function that takes Left Right and Center
+            G = walker.greens_function_left_right(icur, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function_left_right(icur, inplace=True)
+        else:
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+            G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=True)
 
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
