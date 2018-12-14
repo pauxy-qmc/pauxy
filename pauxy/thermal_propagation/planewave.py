@@ -46,9 +46,6 @@ class PlaneWave(object):
         self.BT_BP = self.BT
         self.nstblz = qmc.nstblz
 
-        # Temporary array for matrix exponentiation.
-        self.Temp = numpy.zeros(trial.dmat.shape,dtype=trial.dmat.dtype)
-
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
 
@@ -192,36 +189,6 @@ class PlaneWave(object):
             walker.G[0] = B[0].dot(walker.G[0]).dot(Binv[0])
             walker.G[1] = B[1].dot(walker.G[1]).dot(Binv[1])
 
-    def apply_exponential(self, phi, VHS, debug=False):
-        """Apply exponential propagator of the HS transformation
-        Parameters
-        ----------
-        system :
-            system class
-        phi : numpy array
-            a state
-        VHS : numpy array
-            HS transformation potential
-        Returns
-        -------
-        phi : numpy array
-            Exp(VHS) * phi
-        """
-        # JOONHO: exact exponential
-        # copy = numpy.copy(phi)
-        # phi = scipy.linalg.expm(VHS).dot(copy)
-        if debug:
-            copy = numpy.copy(phi)
-            c2 = scipy.linalg.expm(VHS).dot(copy)
-
-        numpy.copyto(self.Temp, phi)
-        for n in range(1, self.exp_nmax+1):
-            self.Temp = VHS.dot(self.Temp) / n
-            phi += self.Temp
-        if debug:
-            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-        return phi
-
     def two_body_propagator(self, walker, system, force_bias=True):
         """It appliese the two-body propagator
         Parameters
@@ -272,6 +239,38 @@ class PlaneWave(object):
 
         return (cmf, cfb, xshifted, VHS)
 
+    def exponentiate(self, VHS, debug=False):
+        """Apply exponential propagator of the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        phi : numpy array
+            a state
+        VHS : numpy array
+            HS transformation potential
+        Returns
+        -------
+        phi : numpy array
+            Exp(VHS) * phi
+        """
+        # JOONHO: exact exponential
+        # copy = numpy.copy(phi)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
+        phi = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
+        if debug:
+            copy = numpy.copy(phi)
+            c2 = scipy.linalg.expm(VHS).dot(copy)
+
+        Temp = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
+        
+        for n in range(1, self.exp_nmax+1):
+            Temp = VHS.dot(Temp) / n
+            phi += Temp
+        if debug:
+            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+        return phi
+
     def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
         """Free projection propagator
         Parameters
@@ -288,7 +287,7 @@ class PlaneWave(object):
 
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system,
                                                            force_bias=False)
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
@@ -343,8 +342,7 @@ class PlaneWave(object):
         # """
 
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # BV = 0.5*(BV.conj().T + BV)
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
