@@ -271,7 +271,7 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
+    def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=False):
         """Free projection propagator
         Parameters
         ----------
@@ -333,7 +333,7 @@ class PlaneWave(object):
         walker.phase *= cmath.exp(1j*phase)
 
 
-    def propagate_walker_phaseless(self, system, walker, time_slice, joonho=True):
+    def propagate_walker_phaseless(self, system, walker, time_slice, joonho=False):
         # """Phaseless propagator
         # Parameters
         # ----------
