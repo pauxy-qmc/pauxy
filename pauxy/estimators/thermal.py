@@ -20,7 +20,7 @@ def greens_function_unstable(A):
         Thermal Green's function.
     """
     I = numpy.identity(A.shape[-1])
-    return numpy.array([scipy.linalg.inv(I+A[0]), scipy.linalg.inv(I+A[1])])
+    return numpy.array([scipy.linalg.inv(I+A[0], check_finite=False), scipy.linalg.inv(I+A[1],check_finite=False)])
 
 def greens_function(A):
     """Construct Greens function from density matrix.
@@ -42,9 +42,9 @@ def greens_function(A):
         Thermal Green's function.
     """
     G = numpy.zeros(A.shape, dtype=A.dtype)
-    (U1,S1,V1) = scipy.linalg.svd(A)
+    (U1,S1,V1) = scipy.linalg.svd(A, check_finite=False)
     T = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
-    (U2,S2,V2) = scipy.linalg.svd(T)
+    (U2,S2,V2) = scipy.linalg.svd(T, check_finite = False)
     U3 = numpy.dot(U1, U2)
     D3 = numpy.diag(1.0/S2)
     V3 = numpy.dot(V2, V1)
@@ -55,7 +55,7 @@ def inverse_greens_function(A):
     """Inverse greens function from A"""
 
     Ginv = numpy.zeros(A.shape, dtype=A.dtype)
-    (U1,S1,V1) = scipy.linalg.svd(A)
+    (U1,S1,V1) = scipy.linalg.svd(A, check_finite=False)
     T = numpy.dot(U1.conj().T, V1.conj().T) + numpy.diag(S1)
     (U2,S2,V2) = scipy.linalg.svd(T)
     U3 = numpy.dot(U1, U2)
@@ -69,10 +69,10 @@ def inverse_greens_function_qr(A):
 
     Ginv = numpy.zeros(A.shape, dtype=A.dtype)
     
-    (U1, V1) = scipy.linalg.qr(A, pivoting = False)
+    (U1, V1) = scipy.linalg.qr(A, pivoting = False, check_finite=False)
     V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
     T = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
-    (U2, V2) = scipy.linalg.qr(T, pivoting = False)
+    (U2, V2) = scipy.linalg.qr(T, pivoting = False, check_finite=False)
     U3 = numpy.dot(U1, U2)
     V3 = numpy.dot(V2, V1)
     Ginv = U3.dot(V3)
@@ -84,7 +84,6 @@ def inverse_greens_function_qr(A):
     # V3 = numpy.dot(V2, V1)
     # Ginv = (V3.conj().T).dot(D3).dot(U3.conj().T)
     return Ginv
-
 
 def one_rdm(A):
     """Compute one-particle reduced density matrix

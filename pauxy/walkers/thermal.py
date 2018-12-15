@@ -150,14 +150,14 @@ class ThermalWalker(object):
 
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
             # Care needs to be taken when adding the identity matrix.
-            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
+            V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]), check_finite=False)
 
             T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
             (U2, V2) = scipy.linalg.qr(T3, pivoting = False, check_finite = False)
 
             U3 = numpy.dot(U1, U2)
             V3 = numpy.dot(V2, V1)
-            V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]))
+            V3inv = scipy.linalg.solve_triangular(V3, numpy.identity(V3.shape[0]), check_finite=False)
             # G(l) = (U3 S2 V3)^{-1}
             #      = V3^{\dagger} D3 U3^{\dagger}
             if inplace:
@@ -181,12 +181,12 @@ class ThermalWalker(object):
                 # Form D matrices
                 self.Dr[spin] = numpy.diag(R1.diagonal())
                 D1inv = numpy.diag(1.0/R1.diagonal())
-                self.Tr[spin] = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
+                self.Tr[spin] = numpy.dot(numpy.multiply(D1inv.diagonal(), R1), P1mat.T)
 
                 for i in range(2, center_ix):
                     ix = (i-1) % self.stack.nbins
                     B = self.stack.get(ix)
-                    C2 = numpy.dot(numpy.dot(B[spin], self.Qr[spin]), self.Dr[spin])
+                    C2 = numpy.multiply(numpy.dot(B[spin], self.Qr[spin]), self.Dr[spin].diagonal()[:,None])
                     (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
                     # Form permutation matrix
                     P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
@@ -207,7 +207,7 @@ class ThermalWalker(object):
                 # Form D matrices
                 self.Dl[spin] = numpy.diag(R1.diagonal())
                 D1inv = numpy.diag(1.0/R1.diagonal())
-                self.Tl[spin] = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
+                self.Tl[spin] = numpy.dot(numpy.multiply(D1inv.diagonal()[:,None], R1), P1mat.T)
 
                 for i in range(center_ix+1, self.stack.nbins+1):
                     ix = (i-1) % self.stack.nbins
@@ -231,13 +231,13 @@ class ThermalWalker(object):
         Bc = self.stack.get(center_ix)
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
-                Ccr = numpy.dot(numpy.dot(Bc[spin],self.Qr[spin]),self.Dr[spin])
+                Ccr = numpy.multiply(numpy.dot(Bc[spin],self.Qr[spin]),self.Dr[spin].diagonal()[:,None])
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
                 P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
                 P1mat[Plcr,range(len(Plcr))] = 1.0
-                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
+                Tlcr = numpy.dot(numpy.multiply(Dinv.diagonal()[:,None], Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
             else:
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True, check_finite=False)
                 # Form permutation matrix
@@ -246,16 +246,17 @@ class ThermalWalker(object):
                 # Form D matrices
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), P1mat.T)
+                Tlcr = numpy.dot(numpy.multiply(Dinv.diagonal()[:,None], Rlcr), P1mat.T)
 
             if (center_ix < self.stack.nbins-1): # there exists left bit
-                Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), numpy.dot(Qlcr, Dlcr))
+                Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.multiply(self.Dl[spin].diagonal()[:,None], self.Tl[spin])), 
+                    numpy.multiply(Qlcr, Dlcr.diagonal()[:,None]))
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
                 P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
                 P1mat[Plcr,range(len(Plcr))] = 1.0
-                Tlcr = numpy.dot(numpy.dot(Dinv, Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
+                Tlcr = numpy.dot(numpy.multiply(Dinv.diagonal()[:,None], Rlcr), numpy.dot(P1mat.T, self.Tr[spin]))
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
             # Write D = Db^{-1} Ds
@@ -271,19 +272,19 @@ class ThermalWalker(object):
                     Db[i,i] = 1.0
                     Ds[i,i] = Dlcr[i,i]
 
-            T1inv = numpy.linalg.inv(Tlcr)
+            T1inv = scipy.linalg.inv(Tlcr, check_finite = False)
             # C = (Db Q^{-1}T^{-1}+Ds)
-            C = numpy.dot(numpy.dot(Db, Qlcr.conj().T), T1inv) + Ds
-            Cinv = numpy.linalg.inv(C)
+            C = numpy.dot(numpy.multiply(Db.diagonal()[:,None], Qlcr.conj().T), T1inv) + Ds
+            Cinv = scipy.linalg.inv(C, check_finite = False)
 
             # Then G = T^{-1} C^{-1} Db Q^{-1}
             # Q is unitary.
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                         numpy.dot(Db, Qlcr.conj().T))
+                                         numpy.multiply(Db.diagonal()[:,None], Qlcr.conj().T))
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                    numpy.dot(Db, Qlcr.conj().T))
+                                    numpy.multiply(Db.diagonal()[:,None], Qlcr.conj().T))
 
 
         return G
@@ -317,7 +318,7 @@ class ThermalWalker(object):
             # Form D matrices
             D1 = numpy.diag(R1.diagonal())
             D1inv = numpy.diag(1.0/R1.diagonal())
-            T1 = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
+            T1 = numpy.dot(numpy.multiply(D1inv.diagonal()[:,None], R1), P1mat.T)
 
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
@@ -330,7 +331,7 @@ class ThermalWalker(object):
                 # Compute D matrices
                 D1inv = numpy.diag(1.0/R1.diagonal())
                 D1 = numpy.diag(R1.diagonal())
-                T1 = numpy.dot(numpy.dot(D1inv, R1), numpy.dot(P1mat.T, T1))
+                T1 = numpy.dot(numpy.multiply(D1inv.diagonal()[:,None], R1), numpy.dot(P1mat.T, T1))
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
             # Write D = Db^{-1} Ds
@@ -346,19 +347,19 @@ class ThermalWalker(object):
                     Db[i,i] = 1.0
                     Ds[i,i] = D1[i,i]
 
-            T1inv = numpy.linalg.pinv(T1)
+            T1inv = scipy.linalg.inv(T1, check_finite = False)
             # C = (Db Q^{-1}T^{-1}+Ds)
-            C = numpy.dot(numpy.dot(Db, Q1.conj().T), T1inv) + Ds
-            Cinv = numpy.linalg.pinv(C)
+            C = numpy.dot(numpy.multiply(Db.diagonal()[:,None], Q1.conj().T), T1inv) + Ds
+            Cinv = scipy.linalg.inv(C, check_finite = False)
 
             # Then G = T^{-1} C^{-1} Db Q^{-1}
             # Q is unitary.
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                         numpy.dot(Db, Q1.conj().T))
+                                         numpy.multiply(Db.diagonal()[:,None], Q1.conj().T))
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                    numpy.dot(Db, Q1.conj().T))
+                                    numpy.multiply(Db.diagonal()[:,None], Q1.conj().T))
         return G
 
     def local_energy(self, system):
@@ -408,8 +409,8 @@ class PropagatorStack:
 
         self.nbasis = nbasis
         self.dtype = dtype
-        self.BT = BT
-        self.BTinv = BTinv
+        self.BT = [BT[0].diagonal(), BT[1].diagonal()]
+        self.BTinv = [BTinv[0].diagonal(), BTinv[1].diagonal()]
         self.counter = 0
         self.block = 0
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
@@ -440,10 +441,10 @@ class PropagatorStack:
     def set_all(self, BT):
         for i in range(0, self.ntime_slices):
             ix = i // self.stack_size # bin index
-            self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
-            self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
-            self.left[ix,0] = BT[0].dot(self.left[ix,0])
-            self.left[ix,1] = BT[1].dot(self.left[ix,1])
+            self.stack[ix,0] = numpy.multiply(numpy.diag(BT[0])[:,None],self.stack[ix,0])
+            self.stack[ix,1] = numpy.multiply(numpy.diag(BT[1])[:,None],self.stack[ix,1])
+            self.left[ix,0]  = numpy.multiply(numpy.diag(BT[0])[:,None],self.left[ix,0])
+            self.left[ix,1]  = numpy.multiply(numpy.diag(BT[1])[:,None],self.left[ix,1])
 
     def reset(self):
         self.time_slice = 0
@@ -471,8 +472,8 @@ class PropagatorStack:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
-        self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
-        self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
+        self.left[self.block,0] = numpy.multiply(self.left[self.block,0],self.BTinv[0][:,None])
+        self.left[self.block,1] = numpy.multiply(self.left[self.block,1],self.BTinv[1][:,None])
 
         self.right[self.block,0] = B[0].dot(self.right[self.block,0])
         self.right[self.block,1] = B[1].dot(self.right[self.block,1])
@@ -554,15 +555,16 @@ def unit_test():
 
     Gnew = walker.G[0].copy()
 
-    print(Gold[:,0] - Gnew[:,0])
-    # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
-    # N = 5
+    # print(Gold[:,0] - Gnew[:,0])
 
-    # A = numpy.random.rand(N,N)
-    # Q, R, P = scipy.linalg.qr(A, pivoting=True)
-    # Pmat = numpy.zeros((N,N))
-    # for i in range (N):
-    #     Pmat[P[i],i] = 1
+    # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
+    N = 5
+
+    A = numpy.random.rand(N,N)
+    Q, R, P = scipy.linalg.qr(A, pivoting=True)
+    Pmat = numpy.zeros((N,N))
+    for i in range (N):
+        Pmat[P[i],i] = 1
     # print(A - Q.dot(R).dot(Pmat.T))
     # print(Q * Q.T)
     # print(R)

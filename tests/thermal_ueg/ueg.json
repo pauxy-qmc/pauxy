@@ -1,20 +1,20 @@
 {
     "model": {
         "name": "UEG",
-        "nup": 1,
-        "ndown": 1,
+        "nup": 33,
+        "ndown": 33,
         "rs": 1.0,
-        "ecut": 0.5
+        "ecut": 6
     },
     "qmc_options": {
         "method": "ThermalAFQMC",
         "dt": 0.01,
-        "nsteps": 2,
+        "nsteps": 1,
         "nmeasure": 1,
         "nwalkers": 1,
         "npop_control": 1,
         "nstabilise": 1,
-	   "beta":1.0,
+	   "beta": 0.125,
         "rng_seed": 7
     },
     "walkers":{
