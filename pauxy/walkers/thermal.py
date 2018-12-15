@@ -20,7 +20,7 @@ class ThermalWalker(object):
         else:
             dtype = numpy.complex64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
-        self.nbasis = trial.dmat.shape[0]
+        self.nbasis = trial.dmat[0].shape[0]
         self.stack_size = walker_opts.get('stack_size', None)
 
         if (self.stack_size == None):
