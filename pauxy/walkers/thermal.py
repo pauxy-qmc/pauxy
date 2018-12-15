@@ -563,9 +563,23 @@ def unit_test():
     A = numpy.random.rand(N,N)
     Q, R, P = scipy.linalg.qr(A, pivoting=True)
     Pmat = numpy.zeros((N,N))
+    Po = numpy.zeros((N))
     for i in range (N):
         Pmat[P[i],i] = 1
+        Po[i] = i
     # print(A - Q.dot(R).dot(Pmat.T))
+    print(P)
+    tmp = Q.dot(R)#.dot(Pmat.T)
+    print(tmp)
+    # print(tmp[:,P])
+    print("==================")
+    tmp2 = tmp.dot(Pmat.T)
+    print(tmp2)
+    print("==================")
+    tmp[:,P] = tmp [:,[i for i in range(N)]]
+    print(tmp)
+    # tmp[:,:] = tmp[:,P]
+    # print(A - tmp)
     # print(Q * Q.T)
     # print(R)
 
