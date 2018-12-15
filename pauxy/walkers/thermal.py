@@ -192,22 +192,22 @@ class ThermalWalker(object):
                         self.Dr[spin])
                     (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
                     # Form permutation matrix
-                    P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-                    P1mat[P1,range(len(P1))] = 1.0
+                    # P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                    # P1mat[P1,range(len(P1))] = 1.0
                     # Compute D matrices
                     D1inv = numpy.diag(1.0/R1.diagonal())
                     self.Dr[spin] = numpy.diag(R1.diagonal())
-                    self.Tr[spin] = numpy.dot(
-                        numpy.einsum('ii,ij->ij',D1inv, R1), 
-                        numpy.dot(P1mat.T, self.Tr[spin]))
+                    # self.Tr[spin] = numpy.dot(
+                    #     numpy.einsum('ii,ij->ij',D1inv, R1), 
+                    #     numpy.dot(P1mat.T, self.Tr[spin]))
 
                     # smarter permutation
-                    # # D^{-1} * R
-                    # tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
-                    # # D^{-1} * R * P^T
-                    # tmp[:,P1] = tmp[:,range(self.nbasis)]
-                    # #
-                    # self.Tr[spin] = numpy.dot(tmp, self.Tr[spin])
+                    # D^{-1} * R
+                    tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
+                    # D^{-1} * R * P^T
+                    tmp[:,P1] = tmp[:,range(self.nbasis)]
+                    #
+                    self.Tr[spin] = numpy.dot(tmp, self.Tr[spin])
 
             # left bit
             # B(l) ... B(left)
@@ -216,14 +216,16 @@ class ThermalWalker(object):
                 B = self.stack.get(center_ix+1)
                 (self.Ql[spin], R1, P1) = scipy.linalg.qr(B[spin], pivoting=True, check_finite=False)
                 # Form permutation matrix
-                P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-                P1mat[P1,range(len(P1))] = 1.0
+                # P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                # P1mat[P1,range(len(P1))] = 1.0
                 # Form D matrices
                 self.Dl[spin] = numpy.diag(R1.diagonal())
                 D1inv = numpy.diag(1.0/R1.diagonal())
-                self.Tl[spin] = numpy.dot(
-                    numpy.einsum('ii,ij->ij',D1inv, R1), 
-                    P1mat.T)
+                # self.Tl[spin] = numpy.dot(
+                    # numpy.einsum('ii,ij->ij',D1inv, R1), 
+                    # P1mat.T)
+                self.Tl[spin] = numpy.einsum('ii,ij->ij',D1inv, R1)
+                self.Tl[spin][:,P1] = self.Tl[spin] [:,range(self.nbasis)]
 
                 for ix in range(center_ix+2, self.stack.nbins):
                     B = self.stack.get(ix)
@@ -232,14 +234,17 @@ class ThermalWalker(object):
                         self.Dl[spin])
                     (self.Ql[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
                     # Form permutation matrix
-                    P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-                    P1mat[P1,range(len(P1))] = 1.0
+                    # P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
+                    # P1mat[P1,range(len(P1))] = 1.0
                     # Compute D matrices
                     D1inv = numpy.diag(1.0/R1.diagonal())
                     self.Dl[spin] = numpy.diag(R1.diagonal())
-                    self.Tl[spin] = numpy.dot(
-                        numpy.einsum('ii,ij->ij',D1inv, R1), 
-                        numpy.dot(P1mat.T, self.Tl[spin]))
+                    tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
+                    tmp[:,P1] = tmp[:,range(self.nbasis)]
+                    self.Tl[spin] = numpy.dot(tmp, self.Tl[spin])
+                    # self.Tl[spin] = numpy.dot(
+                    #     numpy.einsum('ii,ij->ij',D1inv, R1), 
+                    #     numpy.dot(P1mat.T, self.Tl[spin]))
     
     def greens_function_left_right (self, center_ix, inplace = False):
         if not inplace:
@@ -257,24 +262,28 @@ class ThermalWalker(object):
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
-                P1mat[Plcr,range(len(Plcr))] = 1.0
-                Tlcr = numpy.dot(
-                    numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
-                    numpy.dot(P1mat.T, self.Tr[spin]))
+                # P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                # P1mat[Plcr,range(len(Plcr))] = 1.0
+                # Tlcr = numpy.dot(
+                #     numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
+                #     numpy.dot(P1mat.T, self.Tr[spin]))
+                tmp = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                tmp[:,Plcr] = tmp[:,range(self.nbasis)]
+                Tlcr = numpy.dot(tmp, self.Tr[spin])
             else:
                 # print("center_ix > 0 else second")
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True, check_finite=False)
                 # Form permutation matrix
-                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
-                P1mat[Plcr,range(len(Plcr))] = 1.0
+                # P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                # P1mat[Plcr,range(len(Plcr))] = 1.0
                 # Form D matrices
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                Tlcr = numpy.dot(
-                    # numpy.dot(Dinv, Rlcr), 
-                    numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
-                    P1mat.T)
+                # Tlcr = numpy.dot(
+                    # numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
+                    # P1mat.T)
+                Tlcr = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                Tlcr[:,Plcr] = Tlcr[:,range(self.nbasis)]
 
             if (center_ix < self.stack.nbins-1): # there exists left bit
                 # print("center_ix < self.stack.nbins-1 second")
@@ -284,11 +293,17 @@ class ThermalWalker(object):
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
-                P1mat[Plcr,range(len(Plcr))] = 1.0
-                Tlcr = numpy.dot(
-                    numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
-                    numpy.dot(P1mat.T, Tlcr))
+                
+                # P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+                # P1mat[Plcr,range(len(Plcr))] = 1.0
+
+                # Tlcr = numpy.dot(
+                #     numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
+                #     numpy.dot(P1mat.T, Tlcr))
+                
+                tmp = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                tmp[:,Plcr] = tmp[:,range(self.nbasis)]
+                Tlcr = numpy.dot(tmp, Tlcr)
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
             # Write D = Db^{-1} Ds
