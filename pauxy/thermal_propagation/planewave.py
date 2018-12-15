@@ -73,7 +73,6 @@ class PlaneWave(object):
             Exp(-dt/2 H0)
         """
         H1 = system.h1e_mod
-        # print(H1[0])
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
@@ -185,10 +184,10 @@ class PlaneWave(object):
         self.vbias[self.num_vplus:] = Gvec[0].T*system.iB + Gvec[1].T*system.iB
         return - self.sqrt_dt * self.vbias
 
-    # def propagate_greens_function(self, walker, B, Binv):
-    #     if walker.stack.time_slice < walker.stack.ntime_slices:
-    #         walker.G[0] = B[0].dot(walker.G[0]).dot(Binv[0])
-    #         walker.G[1] = B[1].dot(walker.G[1]).dot(Binv[1])
+    def propagate_greens_function(self, walker, B, Binv):
+        if walker.stack.time_slice < walker.stack.ntime_slices:
+            walker.G[0] = B[0].dot(walker.G[0]).dot(Binv[0])
+            walker.G[1] = B[1].dot(walker.G[1]).dot(Binv[1])
 
     def two_body_propagator(self, walker, system, force_bias=True):
         """It appliese the two-body propagator
@@ -272,17 +271,6 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def propagate_walker_free_hack(self, system, walker, trial, force_bias=False, joonho=True):
-        icur = walker.stack.time_slice // walker.stack.stack_size
-        inext = (walker.stack.time_slice+1) // walker.stack.stack_size
-        if (walker.stack.counter == 0):
-            walker.compute_left_right(icur)
-        # 1. Current walker's green's function.
-        # Green's function that takes Left Right and Center
-        G = walker.greens_function_left_right(icur, inplace=False)
-        # # 2. Compute updated green's function.
-        # walker.stack.update_new(B)
-        # walker.greens_function_left_right(icur, inplace=True)
     def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
         """Free projection propagator
         Parameters
@@ -301,10 +289,8 @@ class PlaneWave(object):
                                                            force_bias=False)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        B = numpy.array([numpy.multiply(BV,self.BH1[0].diagonal()[:,None]),
-                        numpy.multiply(BV,self.BH1[1].diagonal()[:,None])])
-        B = numpy.array([numpy.multiply(self.BH1[0].diagonal()[:,None],B[0]),
-                        numpy.multiply(self.BH1[1].diagonal()[:,None],B[1])])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         # Compute determinant ratio det(1+A')/det(1+A).
         if (joonho):
@@ -329,8 +315,8 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=True), scipy.linalg.det(G[1], check_finite=True)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=True), scipy.linalg.det(walker.G[1], check_finite=True)]
+        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
+        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
@@ -358,12 +344,8 @@ class PlaneWave(object):
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        # B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        # B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
-        B = numpy.array([numpy.multiply(BV,self.BH1[0].diagonal()[:,None]),
-                        numpy.multiply(BV,self.BH1[1].diagonal()[:,None])])
-        B = numpy.array([numpy.multiply(self.BH1[0].diagonal()[:,None],B[0]),
-                        numpy.multiply(self.BH1[1].diagonal()[:,None],B[1])])
+        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
+        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
 
         if (joonho):
             icur = walker.stack.time_slice // walker.stack.stack_size
@@ -388,8 +370,8 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=True), scipy.linalg.det(G[1], check_finite=True)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=True), scipy.linalg.det(walker.G[1], check_finite=True)]
+        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
+        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
@@ -409,10 +391,11 @@ class PlaneWave(object):
         else:
             walker.weight = 0.0
 
-    # def propagate_greens_function(self, walker):
-    #     if walker.stack.time_slice < walker.stack.ntime_slices:
-    #         walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
-    #         walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BTinv[1])
+    def propagate_greens_function(self, walker):
+        if walker.stack.time_slice < walker.stack.ntime_slices:
+            walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
+            walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BTinv[1])
+
 
 def unit_test():
     from pauxy.systems.ueg import UEG

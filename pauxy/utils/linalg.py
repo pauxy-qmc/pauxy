@@ -81,7 +81,7 @@ def regularise_matrix_inverse(A, cutoff=1e-10):
 
 
 def reortho(A):
-    (A, R) = scipy.linalg.qr(A, mode='economic', check_finite=False)
+    (A, R) = scipy.linalg.qr(A, mode='economic')
     signs = numpy.diag(numpy.sign(numpy.diag(R)))
     A = A.dot(signs)
     detR = scipy.linalg.det(signs.dot(R))
@@ -107,7 +107,7 @@ def reortho(A):
     detR : float
         Determinant of upper triangular matrix (R) from QR decomposition.
     """
-    (Q, R) = scipy.linalg.qr(A, mode='economic', check_finite=False)
+    (Q, R) = scipy.linalg.qr(A, mode='economic')
     signs = numpy.diag(numpy.sign(numpy.diag(R)))
     Q = Q.dot(signs)
     detR = scipy.linalg.det(signs.dot(R))

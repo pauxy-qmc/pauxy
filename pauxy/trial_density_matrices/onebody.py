@@ -1,6 +1,5 @@
 import numpy
 import scipy.linalg
-import scipy.sparse
 from pauxy.estimators.thermal import greens_function, particle_number, one_rdm
 
 class OneBody(object):
