@@ -347,8 +347,6 @@ class ThermalWalker(object):
             T1 = numpy.einsum('ii,ij->ij',D1inv, R1)
             # permute them
             T1[:,P1] = T1 [:, range(self.nbasis)]
-    # tmp[:,P] = tmp [:,range(N)]
-
 
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
@@ -471,13 +469,15 @@ class PropagatorStack:
         self.left = numpy.copy(buff['left'])
         self.right = numpy.copy(buff['right'])
 
-    def set_all(self, BT):
+    def set_all(self, BT, diagonal = True):
+        # Diagonal = True assumes BT is diagonal and left is also diagonal
         for i in range(0, self.ntime_slices):
             ix = i // self.stack_size # bin index
-            self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
-            self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
-            self.left[ix,0] = BT[0].dot(self.left[ix,0])
-            self.left[ix,1] = BT[1].dot(self.left[ix,1])
+            # Commenting out these two. It is only useful for Hubbard
+            # self.stack[ix,0] = BT[0].dot(self.stack[ix,0])
+            # self.stack[ix,1] = BT[1].dot(self.stack[ix,1])
+            self.left[ix,0] = numpy.einsum("ii,ij->ij",BT[0],self.left[ix,0])
+            self.left[ix,1] = numpy.einsum("ii,ij->ij",BT[1],self.left[ix,1])
 
     def reset(self):
         self.time_slice = 0
@@ -500,19 +500,29 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
 
-    def update_new(self, B):
+    def update_new(self, B, diagonal = True):
+        # Diagonal = True assumes BT is diagonal and left is also diagonal
         if self.counter == 0:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
-        self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
-        self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
+        if (diagonal):
+            self.left[self.block,0] = numpy.einsum('ij,jj->ij',self.left[self.block,0],self.BTinv[0])
+            self.left[self.block,1] = numpy.einsum('ij,jj->ij',self.left[self.block,1],self.BTinv[1])
+        else:
+            self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
+            self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
 
         self.right[self.block,0] = B[0].dot(self.right[self.block,0])
         self.right[self.block,1] = B[1].dot(self.right[self.block,1])
 
-        self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
-        self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
+
+        if (diagonal):
+            self.stack[self.block,0] = numpy.einsum('ii,ij->ij',self.left[self.block,0],self.right[self.block,0])
+            self.stack[self.block,1] = numpy.einsum('ii,ij->ij',self.left[self.block,1],self.right[self.block,1])
+        else:
+            self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
+            self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
 
         self.time_slice = self.time_slice + 1 # Count the time slice 
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
