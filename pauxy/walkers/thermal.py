@@ -552,9 +552,7 @@ def unit_test():
     # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
     # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
 
-
     Gold = walker.G[0].copy()
-
 
     system = UEG(inputs, verbose=False)
 
