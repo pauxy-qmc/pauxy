@@ -289,8 +289,14 @@ class PlaneWave(object):
                                                            force_bias=False)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
 
         # Compute determinant ratio det(1+A')/det(1+A).
         if (joonho):
@@ -315,8 +321,8 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
-        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        M0 = [scipy.linalg.det(G[0], check_finite=False), scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False), scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
@@ -344,8 +350,14 @@ class PlaneWave(object):
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
 
         if (joonho):
             icur = walker.stack.time_slice // walker.stack.stack_size
@@ -370,8 +382,8 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
-        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        M0 = [scipy.linalg.det(G[0], check_finite = False), scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite = False), scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
