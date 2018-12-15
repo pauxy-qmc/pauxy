@@ -121,7 +121,6 @@ class ThermalWalker(object):
                 G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
         return (G, A)
 
-
     def greens_function_qr(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
             slice_ix = self.stack.time_slice
@@ -224,7 +223,7 @@ class ThermalWalker(object):
                 for i in range(center_ix+1, self.stack.nbins+1):
                     ix = (i-1) % self.stack.nbins
                     B = self.stack.get(ix)
-                    C2 = numpy.einsum( 'ij,jj->ij',
+                    C2 = numpy.einsum('ij,jj->ij',
                         numpy.dot(B[spin], self.Ql[spin]), 
                         self.Dl[spin])
                     (self.Ql[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
@@ -247,7 +246,9 @@ class ThermalWalker(object):
         Bc = self.stack.get(center_ix)
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
-                Ccr = numpy.dot(numpy.dot(Bc[spin],self.Qr[spin]),self.Dr[spin])
+                Ccr = numpy.einsum('ij,jj->ij',
+                    numpy.dot(Bc[spin],self.Qr[spin]),
+                    self.Dr[spin])
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
@@ -271,7 +272,8 @@ class ThermalWalker(object):
 
             if (center_ix < self.stack.nbins-1): # there exists left bit
                 # Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), numpy.dot(Qlcr, Dlcr))
-                Clcr = numpy.dot(numpy.dot(self.Ql[spin], numpy.dot(self.Dl[spin], self.Tl[spin])), 
+                Clcr = numpy.dot(numpy.dot(self.Ql[spin], 
+                        numpy.einsum('ii,ij->ij',self.Dl[spin], self.Tl[spin])), 
                         numpy.einsum('ij,jj->ij',Qlcr, Dlcr))
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
@@ -279,7 +281,6 @@ class ThermalWalker(object):
                 P1mat = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
                 P1mat[Plcr,range(len(Plcr))] = 1.0
                 Tlcr = numpy.dot(
-                    # numpy.dot(Dinv, Rlcr), 
                     numpy.einsum('ii,ij->ij',Dinv, Rlcr), 
                     numpy.dot(P1mat.T, self.Tr[spin]))
 
@@ -308,10 +309,10 @@ class ThermalWalker(object):
             # Q is unitary.
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                         numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
+                             numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                    numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
+                            numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
         return G
 
     def greens_function_qr_strat(self, trial, slice_ix=None, inplace=True):
