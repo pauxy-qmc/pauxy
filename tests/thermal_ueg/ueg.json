@@ -8,7 +8,7 @@
     },
     "qmc_options": {
         "method": "ThermalAFQMC",
-        "nsteps": 1,
+        "nsteps": 2,
         "nmeasure": 1,
         "nwalkers": 1,
         "npop_control": 1,
@@ -18,7 +18,7 @@
         "rng_seed": 7
     },
     "walkers":{
-	   "stack_size": 1
+	   "stack_size": 3
 	},
     "trial": {
         "name": "one_body",

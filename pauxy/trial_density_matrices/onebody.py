@@ -34,8 +34,9 @@ class OneBody(object):
         system.mu = self.mu
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
-        self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0]),
-                                     scipy.linalg.inv(self.dmat[1])])
+        self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),
+                                     scipy.linalg.inv(self.dmat[1], check_finite=False)])
+
         self.G = numpy.array([greens_function(self.dmat[0]), greens_function(self.dmat[1])])
         self.error = False
 
