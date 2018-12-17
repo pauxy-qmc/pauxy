@@ -286,7 +286,7 @@ class PlaneWave(object):
         """
 
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system,
-                                                           force_bias=False)
+                                                           force_bias=force_bias)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
         B = numpy.array([

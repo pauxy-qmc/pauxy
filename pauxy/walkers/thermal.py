@@ -52,7 +52,7 @@ class ThermalWalker(object):
             print ("# upper_bound is {}".format(upper_bound))
             print ("# lower_bound is {}".format(lower_bound))
             print ("# Adjusted stack size is {}".format(self.stack_size))
-            print ("# Stack length is {}".format(self.stack_length))
+            print ("# Number of stacks is {}".format(self.stack_length))
             # print("# Trial dmat = {}".format(trial.dmat[0]))
 
 
@@ -318,9 +318,6 @@ class ThermalWalker(object):
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
 
             (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True, check_finite = False)
-            # Form permutation matrix
-            # P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-            # P1mat[P1,range(len(P1))] = 1.0
             # Form D matrices
             D1 = numpy.diag(R1.diagonal())
             D1inv = numpy.diag(1.0/R1.diagonal())
@@ -333,13 +330,9 @@ class ThermalWalker(object):
                 B = self.stack.get(ix)
                 C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
                 (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite = False)
-                # Form permutation matrix
-                # P1mat = numpy.zeros(B[spin].shape, B[spin].dtype)
-                # P1mat[P1,range(len(P1))] = 1.0
                 # Compute D matrices
                 D1inv = numpy.diag(1.0/R1.diagonal())
                 D1 = numpy.diag(R1.diagonal())
-                # T1 = numpy.dot(numpy.einsum('ii,ij->ij',D1inv, R1), numpy.dot(P1mat.T, T1))
                 tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
                 tmp[:,P1] = tmp[:,range(self.nbasis)]
                 T1 = numpy.dot(tmp, T1)
@@ -359,7 +352,6 @@ class ThermalWalker(object):
                     Ds[i,i] = D1[i,i]
 
             T1inv = scipy.linalg.inv(T1, check_finite = False)
-            # print("T1inv = ", T1inv)
             # C = (Db Q^{-1}T^{-1}+Ds)
             C = numpy.dot(numpy.einsum('ii,ij->ij',Db, Q1.conj().T), T1inv) + Ds
             Cinv = scipy.linalg.inv(C, check_finite = False)
@@ -369,11 +361,9 @@ class ThermalWalker(object):
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
                                          numpy.einsum('ii,ij->ij',Db, Q1.conj().T))
-                # print("self.G[spin][:,0] = ", self.G[spin][:,0])
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
                                     numpy.einsum('ii,ij->ij',Db, Q1.conj().T))
-                # print("G[spin][:,0] = ", G[spin][:,0])
         return G
 
     def local_energy(self, system):
@@ -490,8 +480,6 @@ class PropagatorStack:
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
         if (diagonal):
-            # self.left[self.block,0] = numpy.diag(numpy.einsum('ii,ii->i',self.left[self.block,0],self.BTinv[0]))
-            # self.left[self.block,1] = numpy.diag(numpy.einsum('ii,ii->i',self.left[self.block,1],self.BTinv[1]))
             self.left[self.block,0] = numpy.einsum('ij,ii->ij',self.left[self.block,0],self.BTinv[0])
             self.left[self.block,1] = numpy.einsum('ij,ii->ij',self.left[self.block,1],self.BTinv[1])
         else:
