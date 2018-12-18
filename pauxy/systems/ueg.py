@@ -48,6 +48,12 @@ class UEG(object):
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.ncore= inputs.get('nfrozen_core', 0)
+        self.nfv = inputs.get('nfrozen_virt', 0)
+        self.frozen_core = self.ncore > 0
+        if self.frozen_core:
+            self.nup = self.nup - self.ncore
+            self.ndown = self.ndown - self.ncore
         # if(verbose):
         print("# Number of spin-up electrons = %i"%self.nup)
         print("# Number of spin-down electrons = %i"%self.ndown)
@@ -112,6 +118,7 @@ class UEG(object):
         self.H1 = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
+        self.orbs = None
         if verbose:
             print ("# Finished setting up Generic system object.")
 
