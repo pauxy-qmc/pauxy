@@ -48,6 +48,13 @@ class UEG(object):
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.ncore= inputs.get('nfrozen_core', 0)
+        self.nfv = inputs.get('nfrozen_virt', 0)
+        self.frozen_core = self.ncore > 0
+        if self.frozen_core:
+            self.nup = self.nup - self.ncore
+            self.ndown = self.ndown - self.ncore
+        # if(verbose):
         print("# Number of spin-up electrons = %i"%self.nup)
         print("# Number of spin-down electrons = %i"%self.ndown)
         print("# rs = %10.5f"%self.rs)
@@ -74,6 +81,7 @@ class UEG(object):
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
 
+        # if(verbose):
         print("# zeta = %10.5f"%self.zeta)
         print("# rho = %10.5f"%self.rho)
         print("# L = %10.5f"%self.L)
@@ -96,6 +104,7 @@ class UEG(object):
         self.ncore = 0
         self.nfv = 0
         self.mo_coeff = None
+        # if(verbose):
         print("# Number of plane waves = %i"%self.nbasis)
         # Allowed momentum transfers (4*ecut)
         (eigs, qvecs, self.qnmax) = self.sp_energies(self.kfac, 4*self.ecut)
@@ -112,6 +121,7 @@ class UEG(object):
         self.H1 = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
+        self.orbs = None
         if verbose:
             print ("# Finished setting up Generic system object.")
 
@@ -162,8 +172,10 @@ class UEG(object):
             self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
 
 
+        # if(verbose):
         print("# Constructing two_body_potentials_incore")
         (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
+        # if(verbose):
         print("# Constructing two_body_potentials_incore finished")
 
 

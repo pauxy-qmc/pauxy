@@ -27,6 +27,7 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
+        # if(verbose):
         print("# Number of fields = %i"%system.nfields)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
@@ -44,9 +45,6 @@ class PlaneWave(object):
         # todo : ?
         self.BT_BP = self.BT
         self.nstblz = qmc.nstblz
-
-        # Temporary array for matrix exponentiation.
-        self.Temp = numpy.zeros(trial.dmat.shape,dtype=trial.dmat.dtype)
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
@@ -80,36 +78,6 @@ class PlaneWave(object):
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
                                 scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
 
-
-    # def apply_exponential(self, phi, VHS, debug=False):
-    #     """Apply exponential propagator of the HS transformation
-    #     Parameters
-    #     ----------
-    #     system :
-    #         system class
-    #     phi : numpy array
-    #         a state
-    #     VHS : numpy array
-    #         HS transformation potential
-    #     Returns
-    #     -------
-    #     phi : numpy array
-    #         Exp(VHS) * phi
-    #     """
-    #     # JOONHO: exact exponential
-    #     # copy = numpy.copy(phi)
-    #     # phi = scipy.linalg.expm(VHS).dot(copy)
-    #     if debug:
-    #         copy = numpy.copy(phi)
-    #         c2 = scipy.linalg.expm(VHS).dot(copy)
-
-    #     numpy.copyto(self.Temp, phi)
-    #     for n in range(1, self.exp_nmax+1):
-    #         self.Temp = VHS.dot(self.Temp) / n
-    #         phi += self.Temp
-    #     if debug:
-    #         print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-    #     return phi
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
         Parameters
@@ -271,7 +239,39 @@ class PlaneWave(object):
 
         return (cmf, cfb, xshifted, VHS)
 
-    def propagate_walker_free(self, system, walker, trial, force_bias=False):
+    def exponentiate(self, VHS, debug=False):
+        """Apply exponential propagator of the HS transformation
+        Parameters
+        ----------
+        system :
+            system class
+        phi : numpy array
+            a state
+        VHS : numpy array
+            HS transformation potential
+        Returns
+        -------
+        phi : numpy array
+            Exp(VHS) * phi
+        """
+        # JOONHO: exact exponential
+        # copy = numpy.copy(phi)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
+        phi = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
+        if debug:
+            copy = numpy.copy(phi)
+            c2 = scipy.linalg.expm(VHS).dot(copy)
+
+        Temp = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
+        
+        for n in range(1, self.exp_nmax+1):
+            Temp = VHS.dot(Temp) / n
+            phi += Temp
+        if debug:
+            print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
+        return phi
+
+    def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
         """Free projection propagator
         Parameters
         ----------
@@ -286,23 +286,43 @@ class PlaneWave(object):
         """
 
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system,
-                                                           force_bias=False)
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+                                                           force_bias=force_bias)
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
 
         # Compute determinant ratio det(1+A')/det(1+A).
-        # 1. Current walker's green's function.
-        G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                   inplace=False)
-        # 2. Compute updated green's function.
-        walker.stack.update_new(B)
-        walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                               inplace=True)
+        if (joonho):
+            icur = walker.stack.time_slice // walker.stack.stack_size
+            inext = (walker.stack.time_slice+1) // walker.stack.stack_size
+            if (walker.stack.counter == 0):
+                walker.compute_left_right(icur)
+            # 1. Current walker's green's function.
+            # Green's function that takes Left Right and Center
+            G = walker.greens_function_left_right(icur, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function_left_right(icur, inplace=True)
+        else:
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+            G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=True)
+
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
-        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        M0 = [scipy.linalg.det(G[0], check_finite=False), scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False), scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
@@ -313,7 +333,7 @@ class PlaneWave(object):
         walker.phase *= cmath.exp(1j*phase)
 
 
-    def propagate_walker_phaseless(self, system, walker, time_slice):
+    def propagate_walker_phaseless(self, system, walker, time_slice, joonho=True):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -328,21 +348,42 @@ class PlaneWave(object):
         # """
 
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
-        # BV = 0.5*(BV.conj().T + BV)
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
 
-        B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
-        B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
 
-        # Compute determinant ratio det(1+A')/det(1+A).
-        # 1. Current walker's green's function.
-        G = walker.greens_function(None, inplace=False)
-        # 2. Compute updated green's function.
-        walker.stack.update_new(B)
-        walker.greens_function(None, inplace=True)
+        if (joonho):
+            icur = walker.stack.time_slice // walker.stack.stack_size
+            inext = (walker.stack.time_slice+1) // walker.stack.stack_size
+
+            if (walker.stack.counter == 0):
+                walker.compute_left_right(icur)
+            # 1. Current walker's green's function.
+            # Green's function that takes Left Right and Center
+            G = walker.greens_function_left_right(icur, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function_left_right(icur, inplace=True)
+        else:
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+            G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                        inplace=True)
+
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
-        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        M0 = [scipy.linalg.det(G[0], check_finite = False), scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite = False), scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
