@@ -514,7 +514,8 @@ def unit_test():
     "name": "one_body",
     "mu":1.94046021,
     "beta":0.5,
-    "dt": 0.05
+    "dt": 0.05,
+    "optimised": True
     }
     beta = inputs ['beta']
     dt = inputs['dt']
@@ -524,23 +525,14 @@ def unit_test():
     qmc = QMCOpts(inputs, system, True)
     trial = OneBody(inputs, system, beta, dt, system.H1, verbose=False)
 
-    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
     walker = ThermalWalker(inputs, system, trial, True)
     # walker.greens_function(trial)
     E, T, V = walker.local_energy(system)
     numpy.random.seed(0)
-    joonho = False
+    inputs['optimised'] = False
+    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
 
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False)
 
     Gold = walker.G[0].copy()
 
@@ -555,18 +547,10 @@ def unit_test():
     # walker.greens_function(trial)
     E, T, V = walker.local_energy(system)
     numpy.random.seed(0)
-    joonho = True
+    inputs['optimised'] = True
+    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
 
-    propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
-    # propagator.propagate_walker_free(system, walker, trial, False, joonho=joonho)
+    propagator.propagate_walker_free(system, walker, trial, False)
 
     Gnew = walker.G[0].copy()
 

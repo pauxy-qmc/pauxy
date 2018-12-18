@@ -20,6 +20,7 @@ class PlaneWave(object):
         # Input options
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
+        self.optimised = options.get('optimised', True)
         self.exp_nmax = options.get('expansion_order', 4)
         self.nstblz = qmc.nstblz
         # Derived Attributes
@@ -271,7 +272,7 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def propagate_walker_free(self, system, walker, trial, force_bias=False, joonho=True):
+    def propagate_walker_free(self, system, walker, trial, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -299,7 +300,7 @@ class PlaneWave(object):
             ])
 
         # Compute determinant ratio det(1+A')/det(1+A).
-        if (joonho):
+        if self.optimised:
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
             if (walker.stack.counter == 0):
@@ -333,7 +334,7 @@ class PlaneWave(object):
         walker.phase *= cmath.exp(1j*phase)
 
 
-    def propagate_walker_phaseless(self, system, walker, time_slice, joonho=True):
+    def propagate_walker_phaseless(self, system, walker, time_slice):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -359,7 +360,7 @@ class PlaneWave(object):
             numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
             ])
 
-        if (joonho):
+        if self.optimised:
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
 
