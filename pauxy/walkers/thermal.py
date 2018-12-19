@@ -220,6 +220,63 @@ class ThermalWalker(object):
                     R1 = numpy.diag(C2.diagonal())
                     D1inv = numpy.diag(1.0/R1.diagonal())
                     self.Dl[spin] = numpy.diag(R1.diagonal())
+    
+    def compute_right(self, center_ix):
+        # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
+        # B(L) .... B(1)
+        for spin in [0, 1]:
+            # right bit
+            # B(right) ... B(1)
+            if (center_ix > 0):
+                # print ("center_ix > 0")
+                B = self.stack.get(0)
+                (self.Qr[spin], R1, P1) = scipy.linalg.qr(B[spin], pivoting=True, check_finite=False)
+                # Form D matrices
+                self.Dr[spin] = numpy.diag(R1.diagonal())
+                D1inv = numpy.diag(1.0/R1.diagonal())
+                self.Tr[spin] = numpy.einsum('ii,ij->ij',D1inv, R1)
+                # now permute them
+                self.Tr[spin][:,P1] = self.Tr[spin] [:,range(self.nbasis)]
+
+                for ix in range(1, center_ix):
+                    B = self.stack.get(ix)
+                    C2 = numpy.einsum('ij,jj->ij',
+                        numpy.dot(B[spin], self.Qr[spin]), 
+                        self.Dr[spin])
+                    (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
+                    # Compute D matrices
+                    D1inv = numpy.diag(1.0/R1.diagonal())
+                    self.Dr[spin] = numpy.diag(R1.diagonal())
+                    # smarter permutation
+                    # D^{-1} * R
+                    tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
+                    # D^{-1} * R * P^T
+                    tmp[:,P1] = tmp[:,range(self.nbasis)]
+                    # D^{-1} * R * P^T * T
+                    self.Tr[spin] = numpy.dot(tmp, self.Tr[spin])
+
+    def compute_left(self, center_ix):
+        # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
+        # B(L) .... B(1)
+        for spin in [0, 1]:
+            # left bit
+            # B(l) ... B(left)
+            if (center_ix < self.stack.nbins-1):
+                # print("center_ix < self.stack.nbins-1 first")
+                # We will assume that B matrices are all diagonal for left....
+                B = self.stack.get(center_ix+1)
+                self.Dl[spin] = numpy.diag(B[spin].diagonal())
+                D1inv = numpy.diag(1.0/B[spin].diagonal())
+                self.Ql[spin] = numpy.identity(B[spin].shape[0])
+                self.Tl[spin] = numpy.identity(B[spin].shape[0])
+
+                for ix in range(center_ix+2, self.stack.nbins):
+                    # print("center_ix < self.stack.nbins-1 first inner loop")
+                    B = self.stack.get(ix)
+                    C2 = numpy.diag(numpy.einsum('ii,ii->i',B[spin],self.Dl[spin]))
+                    R1 = numpy.diag(C2.diagonal())
+                    D1inv = numpy.diag(1.0/R1.diagonal())
+                    self.Dl[spin] = numpy.diag(R1.diagonal())
 
     def greens_function_left_right (self, center_ix, inplace = False):
         if not inplace:
@@ -383,6 +440,12 @@ class ThermalWalker(object):
             'G': self.G,
             'weight': self.weight,
             'phase': self.phase,
+            'Tl': self.Tl,
+            'Ql': self.Ql,
+            'Dl': self.Dl,
+            'Tr': self.Tr,
+            'Qr': self.Qr,
+            'Dr': self.Dr
         }
         return buff
 
@@ -398,6 +461,12 @@ class ThermalWalker(object):
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
         self.phase = buff['phase']
+        self.Tl = [numpy.copy(buff['Tl'][0]), numpy.copy(buff['Tl'][1])]
+        self.Ql = [numpy.copy(buff['Ql'][0]), numpy.copy(buff['Ql'][1])]
+        self.Dl = [numpy.copy(buff['Dl'][0]), numpy.copy(buff['Dl'][1])]
+        self.Tr = [numpy.copy(buff['Tr'][0]), numpy.copy(buff['Tr'][1])]
+        self.Qr = [numpy.copy(buff['Qr'][0]), numpy.copy(buff['Qr'][1])]
+        self.Dr = [numpy.copy(buff['Dr'][0]), numpy.copy(buff['Dr'][1])]
 
 
 class PropagatorStack:
@@ -444,13 +513,25 @@ class PropagatorStack:
 
     def set_all(self, BT, diagonal = True):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
-        for i in range(0, self.ntime_slices):
-            ix = i // self.stack_size # bin index
-            # Commenting out these two. It is only useful for Hubbard
-            self.left[ix,0] = numpy.einsum("ii,ij->ij",BT[0],self.left[ix,0])
-            self.left[ix,1] = numpy.einsum("ii,ij->ij",BT[1],self.left[ix,1])
-            self.stack[ix,0] = self.left[ix,0].copy()
-            self.stack[ix,1] = self.left[ix,1].copy()
+        if (diagonal):
+            for i in range(0, self.ntime_slices):
+                ix = i // self.stack_size # bin index
+                # Commenting out these two. It is only useful for Hubbard
+                # self.left[ix,0] = numpy.diag(numpy.einsum("ii,ii->i",BT[0],self.left[ix,0]))
+                # self.left[ix,1] = numpy.diag(numpy.einsum("ii,ii->i",BT[1],self.left[ix,1]))
+                self.left[ix,0] = numpy.diag(numpy.multiply(BT[0].diagonal(),self.left[ix,0].diagonal()))
+                self.left[ix,1] = numpy.diag(numpy.multiply(BT[1].diagonal(),self.left[ix,1].diagonal()))
+                self.stack[ix,0] = self.left[ix,0].copy()
+                self.stack[ix,1] = self.left[ix,1].copy()
+        else:
+            for i in range(0, self.ntime_slices):
+                ix = i // self.stack_size # bin index
+                # Commenting out these two. It is only useful for Hubbard
+                self.left[ix,0] = numpy.dot(BT[0],self.left[ix,0])
+                self.left[ix,1] = numpy.dot(BT[1],self.left[ix,1])
+                self.stack[ix,0] = self.left[ix,0].copy()
+                self.stack[ix,1] = self.left[ix,1].copy()
+
 
     def reset(self):
         self.time_slice = 0
@@ -480,8 +561,8 @@ class PropagatorStack:
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
         if (diagonal):
-            self.left[self.block,0] = numpy.einsum('ij,ii->ij',self.left[self.block,0],self.BTinv[0])
-            self.left[self.block,1] = numpy.einsum('ij,ii->ij',self.left[self.block,1],self.BTinv[1])
+            self.left[self.block,0] = numpy.diag(numpy.multiply(self.left[self.block,0].diagonal(),self.BTinv[0].diagonal()))
+            self.left[self.block,1] = numpy.diag(numpy.multiply(self.left[self.block,1].diagonal(),self.BTinv[1].diagonal()))
         else:
             self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
             self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
