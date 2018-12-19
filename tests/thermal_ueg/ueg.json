@@ -28,6 +28,7 @@
         "hubbard_stratonovich": "plane_wave",
         "expansion_order": 6,
         "free_projection": true
+	   "optimised": false
     },
     "estimates": { 
         "mixed": {
