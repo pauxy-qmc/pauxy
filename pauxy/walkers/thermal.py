@@ -440,6 +440,12 @@ class ThermalWalker(object):
             'G': self.G,
             'weight': self.weight,
             'phase': self.phase,
+            'Tl': self.Tl,
+            'Ql': self.Ql,
+            'Dl': self.Dl,
+            'Tr': self.Tr,
+            'Qr': self.Qr,
+            'Dr': self.Dr
         }
         return buff
 
@@ -455,6 +461,12 @@ class ThermalWalker(object):
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
         self.phase = buff['phase']
+        self.Tl = [numpy.copy(buff['Tl'][0]), numpy.copy(buff['Tl'][1])]
+        self.Ql = [numpy.copy(buff['Ql'][0]), numpy.copy(buff['Ql'][1])]
+        self.Dl = [numpy.copy(buff['Dl'][0]), numpy.copy(buff['Dl'][1])]
+        self.Tr = [numpy.copy(buff['Tr'][0]), numpy.copy(buff['Tr'][1])]
+        self.Qr = [numpy.copy(buff['Qr'][0]), numpy.copy(buff['Qr'][1])]
+        self.Dr = [numpy.copy(buff['Dr'][0]), numpy.copy(buff['Dr'][1])]
 
 
 class PropagatorStack:
