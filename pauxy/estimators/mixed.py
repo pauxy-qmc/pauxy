@@ -152,7 +152,6 @@ class Mixed(object):
                         T_sum = 0
                         V_sum = 0
                         nav = 0
-                        print(w.stack_length)
                         for ts in range(w.stack_length):
                             w.greens_function(trial, slice_ix=ts*w.stack_size)
                             E, T, V = w.local_energy(system)
