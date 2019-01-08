@@ -64,6 +64,7 @@ class Mixed(object):
 
     def __init__(self, mixed, root, h5f, qmc, trial, dtype):
         self.thermal = mixed.get('thermal', False)
+        self.average_gf = mixed.get('average_gf', False)
         self.rdm = mixed.get('rdm', False)
         self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
@@ -145,15 +146,41 @@ class Mixed(object):
             # walkers weight as well as the local energy, the walker's overlap
             # with the trial wavefunction is not needed.
             for i, w in enumerate(psi.walkers):
-                w.greens_function(trial)
-                E, T, V = w.local_energy(system)
-                self.estimates[self.names.enumer] += w.weight*E.real
-                self.estimates[self.names.ekin:self.names.epot+1] += (
-                        w.weight*numpy.array([T,V]).real
-                )
                 if self.thermal:
-                    nav = particle_number(one_rdm_from_G(w.G))
-                    self.estimates[self.names.nav] += w.weight * nav
+                    if self.average_gf:
+                        E_sum = 0
+                        T_sum = 0
+                        V_sum = 0
+                        nav = 0
+                        print(w.stack_length)
+                        for ts in range(w.stack_length):
+                            w.greens_function(trial, slice_ix=ts*w.stack_size)
+                            E, T, V = w.local_energy(system)
+                            E_sum += E
+                            T_sum += T
+                            V_sum += V
+                            nav += particle_number(one_rdm_from_G(w.G))
+                        self.estimates[self.names.nav] += w.weight * nav / w.stack_length
+                        self.estimates[self.names.enumer] += w.weight*E_sum.real/w.stack_length
+                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                                w.weight*numpy.array([T_sum,V_sum]).real/w.stack_length
+                        )
+                    else:
+                        w.greens_function(trial)
+                        E, T, V = w.local_energy(system)
+                        nav = particle_number(one_rdm_from_G(w.G))
+                        self.estimates[self.names.nav] += w.weight * nav
+                        self.estimates[self.names.enumer] += w.weight*E.real
+                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                                w.weight*numpy.array([T,V]).real
+                        )
+                else:
+                    w.greens_function(trial)
+                    E, T, V = w.local_energy(system)
+                    self.estimates[self.names.enumer] += w.weight*E.real
+                    self.estimates[self.names.ekin:self.names.epot+1] += (
+                            w.weight*numpy.array([T,V]).real
+                    )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
                 if self.rdm:
