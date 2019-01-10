@@ -48,7 +48,7 @@ class Hubbard(object):
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
         self.ne = self.nup + self.ndown
-        self.t = inputs['t']
+        self.t = inputs.get('t', 1.0)
         self.U = inputs['U']
         self.nx = inputs['nx']
         self.ny = inputs['ny']
@@ -62,7 +62,7 @@ class Hubbard(object):
         if verbose:
             print ("# Setting up one-body operator.")
         if self.pinning:
-            self.T = kinetic_pinning(self.t, self.nbasis, self.nx, self.ny)
+            self.T = kinetic_pinning_alt(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
                              self.ny, self.ktwist)
@@ -236,6 +236,57 @@ def kinetic_pinning(t, nbasis, nx, ny):
             if (dij==[nx-1, 0]).all():
                 Tup[i, j] += -t
                 Tdown[i, j] += -t
+
+    return numpy.array([Tup+numpy.triu(Tup,1).T, Tdown+numpy.triu(Tdown,1).T])
+
+def kinetic_pinning_alt(t, nbasis, nx, ny):
+    r"""Kinetic part of the Hamiltonian in our one-electron basis.
+
+    Adds pinning fields as outlined in [Qin16]_. This forces periodic boundary
+    conditions along x and open boundary conditions along y. Pinning fields are
+    applied in the y direction as:
+
+        .. math::
+            \nu_{i\uparrow} = -\nu_{i\downarrow} = (-1)^{i_x+i_y}\nu_0,
+
+    for :math:`i_y=1,L_y` and :math:`\nu_0=t/4`.
+
+    Parameters
+    ----------
+    t : float
+        Hopping parameter
+    nbasis : int
+        Number of one-electron basis functions.
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+
+    Returns
+    -------
+    T : numpy.array
+        Hopping Hamiltonian matrix.
+    """
+
+    Tup = numpy.zeros((nbasis, nbasis))
+    Tdown = numpy.zeros((nbasis, nbasis))
+    h = 0.1*t
+
+    for i in range(0, nbasis):
+        # pinning field along y direction when i_x = 0.
+        xy1 = decode_basis(nx, ny, i)
+        if xy1[0] == 0:
+            Tup[i,i] += (-1.0)**(xy1[1]) * h
+            Tdown[i,i] += (-1.0)**(xy1[1]+1) * h
+        for j in range(i+1, nbasis):
+            xy2 = decode_basis(nx, ny, j)
+            dij = abs(xy1-xy2)
+            if sum(dij) == 1:
+                Tup[i,j] = Tdown[i,j] = -t
+            # periodic bcs in y.
+            if (dij==[0, ny-1]).all():
+                Tup[i,j] += -t
+                Tdown[i,j] += -t
 
     return numpy.array([Tup+numpy.triu(Tup,1).T, Tdown+numpy.triu(Tdown,1).T])
 
