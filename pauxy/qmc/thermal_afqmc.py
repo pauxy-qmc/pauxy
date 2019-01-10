@@ -135,6 +135,8 @@ class ThermalAFQMC(object):
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
             print(json_string)
+            self.estimators.estimators['mixed'].print_key()
+            self.estimators.estimators['mixed'].print_header()
 
     def run(self, psi=None, comm=None, verbose=None):
         """Perform AFQMC simulation on state object using open-ended random walk.
