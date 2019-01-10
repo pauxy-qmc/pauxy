@@ -22,6 +22,15 @@ class ThermalWalker(object):
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
         self.stack_size = walker_opts.get('stack_size', None)
+        max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
+        if max_diff_diag < 1e-10:
+            diagonal_trial = True
+        else:
+            diagonal_trial = False
+        if diagonal_trial:
+            self.greens_function = self.greens_function_opt
+        else:
+            self.greens_function = self.greens_function_gen
 
         if (self.stack_size == None):
             if verbose:
@@ -56,8 +65,12 @@ class ThermalWalker(object):
             # print("# Trial dmat = {}".format(trial.dmat[0]))
 
 
+        if verbose and diagonal_trial:
+            print("# Trial density matrix is diagonal.")
         self.stack = PropagatorStack(self.stack_size, trial.ntime_slices,
-                                     trial.dmat.shape[-1], dtype, BT=trial.dmat,BTinv=trial.dmat_inv)
+                                     trial.dmat.shape[-1], dtype,
+                                     trial.dmat, trial.dmat_inv,
+                                     diagonal=diagonal_trial)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
@@ -76,8 +89,10 @@ class ThermalWalker(object):
         if verbose:
             print("# condition number of BT = {}".format(cond))
 
-    def greens_function(self, trial, slice_ix=None, inplace=True):
-        # self.greens_function_svd(trial, slice_ix)
+    def greens_function_gen(self, trial, slice_ix=None, inplace=True):
+        return self.greens_function_svd(trial, slice_ix=slice_ix,
+                                        inplace=inplace)
+    def greens_function_opt(self, trial, slice_ix=None, inplace=True):
         return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
                                              inplace=inplace)
 
@@ -89,7 +104,9 @@ class ThermalWalker(object):
         # evaluation).
         if bin_ix == self.stack.nbins:
             bin_ix = -1
-        if not inplace:
+        if inplace:
+            G = None
+        else:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         for spin in [0, 1]:
             # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1}
@@ -121,7 +138,7 @@ class ThermalWalker(object):
             else:
                 # G[spin] = (V3inv).dot(U3.conj().T)
                 G[spin] = (V3.conj().T).dot(D3).dot(U3.conj().T)
-        return (G, A)
+        return G
 
     def greens_function_qr(self, trial, slice_ix=None, inplace=True):
         if (slice_ix == None):
@@ -470,11 +487,13 @@ class ThermalWalker(object):
 
 
 class PropagatorStack:
-    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT, BTinv, sparse=True):
+    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT, BTinv,
+                 diagonal=False):
         self.time_slice = 0
         self.stack_size = bin_size
         self.ntime_slices = ntime_slices
         self.nbins = ntime_slices // bin_size
+        self.diagonal_trial = diagonal
 
         if (self.nbins * self.stack_size < self.ntime_slices):
             print("stack_size must divide the total path length")
@@ -511,9 +530,9 @@ class PropagatorStack:
         self.left = numpy.copy(buff['left'])
         self.right = numpy.copy(buff['right'])
 
-    def set_all(self, BT, diagonal = True):
+    def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
-        if (diagonal):
+        if self.diagonal_trial:
             for i in range(0, self.ntime_slices):
                 ix = i // self.stack_size # bin index
                 # Commenting out these two. It is only useful for Hubbard
@@ -554,13 +573,13 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
 
-    def update_new(self, B, diagonal = True):
+    def update_new(self, B):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
         if self.counter == 0:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
 
-        if (diagonal):
+        if self.diagonal_trial:
             self.left[self.block,0] = numpy.diag(numpy.multiply(self.left[self.block,0].diagonal(),self.BTinv[0].diagonal()))
             self.left[self.block,1] = numpy.diag(numpy.multiply(self.left[self.block,1].diagonal(),self.BTinv[1].diagonal()))
         else:
@@ -571,7 +590,7 @@ class PropagatorStack:
         self.right[self.block,1] = B[1].dot(self.right[self.block,1])
 
 
-        if (diagonal):
+        if self.diagonal_trial:
             self.stack[self.block,0] = numpy.einsum('ii,ij->ij',self.left[self.block,0],self.right[self.block,0])
             self.stack[self.block,1] = numpy.einsum('ii,ij->ij',self.left[self.block,1],self.right[self.block,1])
         else:
