@@ -32,25 +32,25 @@ class ThermalWalker(object):
         else:
             self.greens_function = self.greens_function_gen
 
-        if (self.stack_size == None):
+        if self.stack_size == None:
             if verbose:
-                print ("# Stack size is determined by BT")
+                print("# Stack size is determined by BT")
             emax = numpy.max(numpy.diag(trial.dmat[0]))
             emin = numpy.min(numpy.diag(trial.dmat[0]))
             self.stack_size = min(self.num_slices,
-                int (1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
+                int(1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
             if verbose:
-                print ("# Initial stack size is {}".format(self.stack_size))
+                print("# Initial stack size is {}".format(self.stack_size))
         # adjust stack size
         lower_bound = min(self.stack_size, self.num_slices)
         upper_bound = min(self.stack_size, self.num_slices)
 
-        while ((self.num_slices//lower_bound) * lower_bound < self.num_slices):
+        while (self.num_slices//lower_bound) * lower_bound < self.num_slices:
             lower_bound -= 1
-        while ((self.num_slices//upper_bound) * upper_bound < self.num_slices):
+        while (self.num_slices//upper_bound) * upper_bound < self.num_slices:
             upper_bound += 1
 
-        if ((self.stack_size-lower_bound) <= (upper_bound - self.stack_size)):
+        if (self.stack_size-lower_bound) <= (upper_bound - self.stack_size):
             self.stack_size = lower_bound
         else:
             self.stack_size = upper_bound
@@ -58,10 +58,10 @@ class ThermalWalker(object):
         self.stack_length = self.num_slices // self.stack_size
 
         if verbose:
-            print ("# upper_bound is {}".format(upper_bound))
-            print ("# lower_bound is {}".format(lower_bound))
-            print ("# Adjusted stack size is {}".format(self.stack_size))
-            print ("# Number of stacks is {}".format(self.stack_length))
+            print("# upper_bound is {}".format(upper_bound))
+            print("# lower_bound is {}".format(lower_bound))
+            print("# Adjusted stack size is {}".format(self.stack_size))
+            print("# Number of stacks is {}".format(self.stack_length))
             # print("# Trial dmat = {}".format(trial.dmat[0]))
 
 
@@ -97,7 +97,7 @@ class ThermalWalker(object):
                                              inplace=inplace)
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
-        if (slice_ix == None):
+        if slice_ix == None:
             slice_ix = self.stack.time_slice
         bin_ix = slice_ix // self.stack.stack_size
         # For final time slice want first block to be the rightmost (for energy
@@ -205,7 +205,7 @@ class ThermalWalker(object):
                 for ix in range(1, center_ix):
                     B = self.stack.get(ix)
                     C2 = numpy.einsum('ij,jj->ij',
-                        numpy.dot(B[spin], self.Qr[spin]), 
+                        numpy.dot(B[spin], self.Qr[spin]),
                         self.Dr[spin])
                     (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
                     # Compute D matrices
@@ -237,7 +237,7 @@ class ThermalWalker(object):
                     R1 = numpy.diag(C2.diagonal())
                     D1inv = numpy.diag(1.0/R1.diagonal())
                     self.Dl[spin] = numpy.diag(R1.diagonal())
-    
+
     def compute_right(self, center_ix):
         # Use Stratification method (DOI 10.1109/IPDPS.2012.37)
         # B(L) .... B(1)
@@ -258,7 +258,7 @@ class ThermalWalker(object):
                 for ix in range(1, center_ix):
                     B = self.stack.get(ix)
                     C2 = numpy.einsum('ij,jj->ij',
-                        numpy.dot(B[spin], self.Qr[spin]), 
+                        numpy.dot(B[spin], self.Qr[spin]),
                         self.Dr[spin])
                     (self.Qr[spin], R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite=False)
                     # Compute D matrices
@@ -295,12 +295,12 @@ class ThermalWalker(object):
                     D1inv = numpy.diag(1.0/R1.diagonal())
                     self.Dl[spin] = numpy.diag(R1.diagonal())
 
-    def greens_function_left_right (self, center_ix, inplace = False):
+    def greens_function_left_right(self, center_ix, inplace=False):
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
             G = None
-        
+
         Bc = self.stack.get(center_ix)
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
@@ -324,7 +324,7 @@ class ThermalWalker(object):
                 Tlcr[:,Plcr] = Tlcr[:,range(self.nbasis)]
 
             if (center_ix < self.stack.nbins-1): # there exists left bit
-                # print("center_ix < self.stack.nbins-1 second")                
+                # print("center_ix < self.stack.nbins-1 second")
                 # assume left stack is all diagonal
                 Clcr = numpy.einsum('ii,ij->ij',
                         self.Dl[spin],
@@ -333,7 +333,7 @@ class ThermalWalker(object):
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
                 Dlcr = numpy.diag(Rlcr.diagonal())
                 Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                
+
                 tmp = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
                 tmp[:,Plcr] = tmp[:,range(self.nbasis)]
                 Tlcr = numpy.dot(tmp, Tlcr)
@@ -355,7 +355,7 @@ class ThermalWalker(object):
             T1inv = scipy.linalg.inv(Tlcr, check_finite=False)
             # C = (Db Q^{-1}T^{-1}+Ds)
             C = numpy.dot(
-                numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T), 
+                numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T),
                 T1inv) + Ds
             Cinv = scipy.linalg.inv(C, check_finite = False)
 
@@ -379,7 +379,7 @@ class ThermalWalker(object):
         # evaluation).
         if bin_ix == self.stack.nbins:
             bin_ix = -1
-        
+
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
@@ -495,7 +495,7 @@ class PropagatorStack:
         self.nbins = ntime_slices // bin_size
         self.diagonal_trial = diagonal
 
-        if (self.nbins * self.stack_size < self.ntime_slices):
+        if self.nbins * self.stack_size < self.ntime_slices:
             print("stack_size must divide the total path length")
             assert(self.nbins * self.stack_size == self.ntime_slices)
 
@@ -508,7 +508,7 @@ class PropagatorStack:
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
-                                 dtype=dtype)
+                                dtype=dtype)
         self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         # set all entries to be the identity matrix
@@ -545,7 +545,6 @@ class PropagatorStack:
         else:
             for i in range(0, self.ntime_slices):
                 ix = i // self.stack_size # bin index
-                # Commenting out these two. It is only useful for Hubbard
                 self.left[ix,0] = numpy.dot(BT[0],self.left[ix,0])
                 self.left[ix,1] = numpy.dot(BT[1],self.left[ix,1])
                 self.stack[ix,0] = self.left[ix,0].copy()
@@ -597,7 +596,7 @@ class PropagatorStack:
             self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
             self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
 
-        self.time_slice = self.time_slice + 1 # Count the time slice 
+        self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
 
