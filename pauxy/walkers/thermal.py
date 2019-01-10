@@ -18,7 +18,7 @@ class ThermalWalker(object):
         if system.name == "UEG" or system.name == "Generic":
             dtype = numpy.complex128
         else:
-            dtype = numpy.complex64
+            dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
         self.stack_size = walker_opts.get('stack_size', None)
