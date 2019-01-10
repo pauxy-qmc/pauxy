@@ -692,5 +692,38 @@ def unit_test():
     # print(Q * Q.T)
     # print(R)
 
+    # Test walker green's function.
+    from pauxy.systems.hubbard import Hubbard
+    from pauxy.estimators.thermal import greens_function, one_rdm_from_G
+    from pauxy.estimators.hubbard import local_energy_hubbard
+
+    sys_dict = {'name': 'Hubbard', 'nx': 4, 'ny': 4,
+                'nup': 7, 'ndown': 7, 'U': 4, 't': 1}
+    system = Hubbard(sys_dict)
+    beta = 4
+    mu = 1
+    trial = OneBody({"mu": mu}, system, beta, dt, verbose=True)
+
+    dt = 0.05
+    num_slices = int(beta/dt)
+
+    eref = 0
+    for ek in system.eks:
+        eref += 2 * ek * 1.0 / (numpy.exp(beta*(ek-mu))+1)
+    walker = ThermalWalker({"stack_size": 1}, system, trial)
+    rdm = one_rdm_from_G(walker.G)
+    ekin = local_energy_hubbard(system, rdm)[1]
+    try:
+        assert(abs(eref-ekin) < 1e-10)
+    except AssertionError:
+        print("Error in kinetic energy check. Ref: %f Calc:%f"%(eref, ekin))
+    walker = ThermalWalker({"stack_size": 10}, system, trial)
+    rdm = one_rdm_from_G(walker.G)
+    ekin = local_energy_hubbard(system, rdm)[1]
+    try:
+        assert(abs(eref-ekin) < 1e-10)
+    except AssertionError:
+        print("Error in kinetic energy check. Ref: %f Calc:%f"%(eref, ekin))
+
 if __name__=="__main__":
     unit_test()
