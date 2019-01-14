@@ -60,7 +60,10 @@ class SingleDetWalker(object):
         # Historic wavefunction for ITCF.
         self.phi_bp = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
-        excite = trial.excite_ia
+        try:
+            excite = trial.excite_ia
+        except AttributeError:
+            excite = None
         if excite is not None:
             self.ia = trial.excite_ia
             self.reortho = self.reortho_excite
