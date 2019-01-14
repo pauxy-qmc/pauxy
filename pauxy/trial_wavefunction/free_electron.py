@@ -8,6 +8,7 @@ from pauxy.estimators.greens_function import gab
 class FreeElectron(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        self.verbose = verbose
         if verbose:
             print ("# Parsing free electron input options.")
         init_time = time.time()
@@ -64,7 +65,6 @@ class FreeElectron(object):
         gdown = gab(self.psi[:, system.nup:],
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
-        self.etrial = local_energy(system, self.G)[0].real
         # For interface compatability
         self.coeffs = 1.0
         self.ndets = 1
@@ -75,3 +75,11 @@ class FreeElectron(object):
         self.initialisation_time = time.time() - init_time
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
+
+    def calculate_energy(self, system):
+        if self.verbose:
+            print ("# Computing trial energy.")
+        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
+        if self.verbose:
+            print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
+                   %(self.energy.real, self.e1b.real, self.e2b.real))

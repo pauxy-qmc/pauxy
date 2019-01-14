@@ -47,6 +47,7 @@ class UHF(object):
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
         if verbose:
             print("# Constructing UHF trial wavefunction")
+        self.verbose = verbose
         init_time = time.time()
         self.name = "UHF"
         self.type = "UHF"
@@ -192,3 +193,11 @@ class UHF(object):
         niup = self.density(self.trial[:,:system.nup])
         nidown = self.density(self.trial[:,system.nup:])
         return (niup, nidown, e_up, e_down)
+
+    def calculate_energy(self, system):
+        if self.verbose:
+            print ("# Computing trial energy.")
+        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
+        if self.verbose:
+            print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
+                   %(self.energy.real, self.e1b.real, self.e2b.real))

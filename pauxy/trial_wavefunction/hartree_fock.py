@@ -99,7 +99,7 @@ class HartreeFock(object):
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
-    def energy(self, system):
+    def calculate_energy(self, system):
         if self.verbose:
             print ("# Computing trial energy.")
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
