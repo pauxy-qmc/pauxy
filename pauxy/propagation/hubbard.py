@@ -126,7 +126,7 @@ class HirschSpin(object):
         """
         self.kinetic(walker.phi, system, self.bt2)
         # Update inverse overlap
-        walker.inverse_overlap(trial.psi)
+        walker.inverse_overlap(trial)
         # Update walker weight
         ot_new = walker.calc_otrial(trial)
         ratio = (ot_new/walker.ot)
@@ -236,7 +236,7 @@ class HirschSpin(object):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
         kinetic_real(walker.phi, system, self.bt2)
-        walker.inverse_overlap(trial.psi)
+        walker.inverse_overlap(trial)
         # Update walker weight
         walker.ot = walker.calc_otrial(trial.psi)
 
