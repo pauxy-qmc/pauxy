@@ -24,19 +24,19 @@ def extract_rdm(filename, skip, est_type='back_propagated'):
     metadata = json.loads(data['metadata'][:][0])
     bpe = data[est_type+'_estimates/energies'][:]
     headers = data[est_type+'_estimates/headers'][:]
-    bp_data = pd.DataFrame(bpe)
-    bp_data.columns = headers
-    nzero = numpy.nonzero(bp_data['E'].values)[0][-1]
+    est_data = pd.DataFrame(bpe)
+    est_data.columns = headers
+    nzero = numpy.nonzero(est_data['E'].values)[0][-1]
     try:
         rdm = data[est_type+'_estimates/single_particle_greens_function'][:]
-        weights = bp_data['weight'].values.real
-        if len(rdm.shape) == 3:
-            # GHF format
-            w = weights[skip:nzero,None,None]
-        else:
-            # UHF format
-            w = weights[skip:nzero,None,None,None]
-        return rdm[skip:nzero] / w
+        weights = est_data['Weight'].values.real
+        # if len(rdm.shape) == 3:
+            # # GHF format
+            # w = weights[skip:nzero,None,None]
+        # else:
+            # # UHF format
+            # w = weights[skip:nzero,None,None,None]
+        return rdm[skip:nzero]
     except KeyError:
         return None
 
@@ -178,3 +178,8 @@ def set_info(frame, md):
         frame['nbasis'] = system.get('nbasis')
         frame['cholesky_treshold'] = system.get('threshold')
     return list(frame.columns[ncols:])
+
+def get_metadata(filename):
+    with h5py.File(filename, 'r') as fh5:
+        metadata = json.loads(fh5['metadata'][:][0])
+    return metadata
