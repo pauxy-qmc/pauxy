@@ -233,5 +233,5 @@ class AFQMC(object):
             Standard error in the RDM.
         """
         filename = self.estimators.h5f_name
-        bp_rdm, bp_rdm_err = blocking.reblock_bp_rdm(filename)
+        bp_rdm, bp_rdm_err = blocking.reblock_rdm(filename)
         return (bp_rdm, bp_rdm_err)

@@ -136,9 +136,9 @@ def reblock_local_energy(filename, skip=0):
             return None
 
 
-def reblock_bp_rdm(filename, skip=1):
-    bp_rdm = pauxy.analysis.extraction.extract_bp_rdm(filename, skip)
-    rdm, rdm_err = average_rdm(bp_rdm)
+def reblock_rdm(filename, skip=1, est_type='back_propagated'):
+    rdm_series = pauxy.analysis.extraction.extract_rdm(filename, skip, est_type)
+    rdm, rdm_err = average_rdm(rdm_series)
     return rdm, rdm_err
 
 

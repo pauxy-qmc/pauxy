@@ -19,24 +19,24 @@ def extract_mixed_estimates(filename, skip=0):
     nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
-def extract_bp_rdm(filename, skip):
+def extract_rdm(filename, skip, est_type='back_propagated'):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
-    bpe = data['back_propagated_estimates/energies'][:]
-    headers = data['back_propagated_estimates/headers'][:]
+    bpe = data[est_type+'_estimates/energies'][:]
+    headers = data[est_type+'_estimates/headers'][:]
     bp_data = pd.DataFrame(bpe)
     bp_data.columns = headers
     nzero = numpy.nonzero(bp_data['E'].values)[0][-1]
     try:
-        bp_rdm = data['back_propagated_estimates/single_particle_greens_function'][:]
+        rdm = data[est_type+'_estimates/single_particle_greens_function'][:]
         weights = bp_data['weight'].values.real
-        if len(bp_rdm.shape) == 3:
+        if len(rdm.shape) == 3:
             # GHF format
             w = weights[skip:nzero,None,None]
         else:
             # UHF format
             w = weights[skip:nzero,None,None,None]
-        return (bp_rdm[skip:nzero]/w)
+        return rdm[skip:nzero] / w
     except KeyError:
         return None
 
