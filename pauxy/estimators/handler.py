@@ -73,7 +73,7 @@ class Estimators(object):
         mixed = estimates.get('mixed', {})
         self.estimators = {}
         dtype = complex
-        self.estimators['mixed'] = Mixed(mixed, root, self.h5f,
+        self.estimators['mixed'] = Mixed(mixed, system, root, self.h5f,
                                          qmc, trial, dtype)
         bp = estimates.get('back_propagated', None)
         self.back_propagation = bp is not None

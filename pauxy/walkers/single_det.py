@@ -253,7 +253,7 @@ class SingleDetWalker(object):
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-    def local_energy(self, system):
+    def local_energy(self, system, two_rdm=None):
         """Compute walkers local energy
 
         Parameters
@@ -266,7 +266,7 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G, Ghalf=self.Gmod)
+        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

@@ -440,9 +440,9 @@ class ThermalWalker(object):
                                     numpy.einsum('ii,ij->ij',Db, Q1.conj().T))
         return G
 
-    def local_energy(self, system):
+    def local_energy(self, system, two_rdm=None):
         rdm = one_rdm_from_G(self.G)
-        return local_energy(system, rdm)
+        return local_energy(system, rdm, two_rdm=two_rdm)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

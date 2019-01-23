@@ -62,10 +62,11 @@ class Mixed(object):
         Class for outputting rdm data to HDF5 group.
     """
 
-    def __init__(self, mixed, root, h5f, qmc, trial, dtype):
+    def __init__(self, mixed, system, root, h5f, qmc, trial, dtype):
         self.thermal = mixed.get('thermal', False)
         self.average_gf = mixed.get('average_gf', False)
-        self.rdm = mixed.get('rdm', False)
+        self.calc_one_rdm = mixed.get('one_rdm', False)
+        self.calc_two_rdm = mixed.get('two_rdm', None)
         self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
         if self.thermal:
@@ -77,10 +78,21 @@ class Mixed(object):
         self.nreg = len(self.header[1:])
         self.dtype = dtype
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
-        self.estimates = numpy.zeros(self.nreg + self.G.size, dtype=dtype)
+        dms_size = self.G.size
+        # Abuse of language for the moment. Only accumulates S(k) for UEG.
+        # TODO: Add functionality to accumulate 2RDM?
+        if self.calc_two_rdm is not None:
+            if self.calc_two_rdm == "structure_factor":
+                two_rdm_shape = (2,2,len(system.qvecs),)
+            self.two_rdm = numpy.zeros(two_rdm_shape,
+                                       dtype=numpy.complex128)
+            dms_size += self.two_rdm.size
+        else:
+            self.two_rdm = None
+        self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
         self.names = EstimatorEnum(self.thermal)
         self.estimates[self.names.time] = time.time()
-        self.global_estimates = numpy.zeros(self.nreg+self.G.size,
+        self.global_estimates = numpy.zeros(self.nreg+dms_size,
                                             dtype=dtype)
         self.key = {
             'iteration': "Simulation iteration. iteration*dt = tau.",
@@ -101,12 +113,18 @@ class Mixed(object):
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (self.nmeasure + 1, self.nreg),
                                             dtype)
-            if self.rdm:
-                name = 'single_particle_greens_function'
-                self.dm_output = H5EstimatorHelper(energies, name,
-                                                   (self.nmeasure + 1,) +
-                                                   self.G.shape,
-                                                   dtype)
+            if self.calc_one_rdm:
+                name = 'one_rdm'
+                self.one_rdm_output = H5EstimatorHelper(energies, name,
+                                                        (self.nmeasure + 1,) +
+                                                        self.G.shape,
+                                                        dtype)
+            if self.calc_two_rdm is not None:
+                name = 'two_rdm'
+                two_rdm_shape = (self.nmeasure + 1,) + two_rdm_shape
+                self.two_rdm_output = H5EstimatorHelper(energies, name,
+                                                        two_rdm_shape, dtype)
+        # print(self.two_rdm)
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update mixed estimates for walkers.
@@ -129,7 +147,7 @@ class Mixed(object):
         if free_projection:
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                E, T, V = w.local_energy(system)
+                E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
                 # For T > 0 w.ot = 1 always.
                 wfac = w.weight * w.ot * w.phase
                 self.estimates[self.names.enumer] += wfac * E
@@ -154,7 +172,8 @@ class Mixed(object):
                         nav = 0
                         for ts in range(w.stack_length):
                             w.greens_function(trial, slice_ix=ts*w.stack_size)
-                            E, T, V = w.local_energy(system)
+                            E, T, V = w.local_energy(system,
+                                                     two_rdm=self.two_rdm)
                             E_sum += E
                             T_sum += T
                             V_sum += V
@@ -166,7 +185,7 @@ class Mixed(object):
                         )
                     else:
                         w.greens_function(trial)
-                        E, T, V = w.local_energy(system)
+                        E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
                         nav = particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav
                         self.estimates[self.names.enumer] += w.weight*E.real
@@ -175,15 +194,21 @@ class Mixed(object):
                         )
                 else:
                     w.greens_function(trial)
-                    E, T, V = w.local_energy(system)
+                    E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
                     self.estimates[self.names.enumer] += w.weight*E.real
                     self.estimates[self.names.ekin:self.names.epot+1] += (
                             w.weight*numpy.array([T,V]).real
                     )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
-                if self.rdm:
-                    self.estimates[self.names.time+1:] += w.weight*w.G.flatten().real
+                if self.calc_one_rdm:
+                    start = self.names.time+1
+                    end = self.names.time+1+w.G.size
+                    self.estimates[start:end] += w.weight*w.G.flatten().real
+                if self.calc_two_rdm is not None:
+                    start = end
+                    end = end + self.two_rdm.size
+                    self.estimates[start:end] += w.weight*self.two_rdm.flatten().real
 
     def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
         """Print mixed estimates to file.
@@ -215,14 +240,20 @@ class Mixed(object):
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
-        if comm.Get_rank() == 0:
+        if comm.rank == 0:
             if self.verbose:
                 print (format_fixed_width_floats([step]+
                    list(self.global_estimates[:ns.time+1].real/nmeasure)))
             self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
-            if self.rdm:
-                rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
-                self.dm_output.push(rdm/denom/nmeasure)
+            if self.calc_one_rdm:
+                start = self.nreg
+                end = self.nreg+self.G.size
+                rdm = self.global_estimates[start:end].reshape(self.G.shape)
+                self.one_rdm_output.push(rdm/denom/nmeasure)
+            if self.calc_two_rdm:
+                start = self.nreg + self.G.size
+                rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
+                self.two_rdm_output.push(rdm/denom/nmeasure)
         self.zero()
 
     def print_key(self, eol='', encode=False):
@@ -297,7 +328,7 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy(system, G, Ghalf=None, opt=True):
+def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -319,7 +350,7 @@ def local_energy(system, G, Ghalf=None, opt=True):
         else:
             return local_energy_hubbard(system, G)
     elif system.name == "UEG":
-        return local_energy_ueg(system, G)
+        return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
         if opt:
             return local_energy_generic_opt(system, G, Ghalf)
