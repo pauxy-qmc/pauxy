@@ -328,14 +328,17 @@ class PlaneWave(object):
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0], check_finite=False), scipy.linalg.det(G[1], check_finite=False)]
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False), scipy.linalg.det(walker.G[1], check_finite=False)]
-        # Could save M0 rather than recompute.
-        oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+        try:
+            # Could save M0 rather than recompute.
+            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
-        walker.ot = 1.0
-        # Constant terms are included in the walker's weight.
-        (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
-        walker.weight *= magn
-        walker.phase *= cmath.exp(1j*phase)
+            walker.ot = 1.0
+            # Constant terms are included in the walker's weight.
+            (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
+            walker.weight *= magn
+            walker.phase *= cmath.exp(1j*phase)
+        except ZeroDivisionError:
+            walker.weight = 0.0
 
 
     def propagate_walker_phaseless(self, system, walker, time_slice):
@@ -392,22 +395,25 @@ class PlaneWave(object):
         M0 = [scipy.linalg.det(G[0], check_finite = False), scipy.linalg.det(G[1], check_finite=False)]
         Mnew = [scipy.linalg.det(walker.G[0], check_finite = False), scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
-        oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+        try:
+            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
-        # Might want to cap this at some point
-        hybrid_energy = cmath.log(oratio) + cfb + cmf
-        Q = cmath.exp(hybrid_energy)
-        expQ = self.mf_const_fac * Q
-        (magn, phase) = cmath.polar(expQ)
+            # Might want to cap this at some point
+            hybrid_energy = cmath.log(oratio) + cfb + cmf
+            Q = cmath.exp(hybrid_energy)
+            expQ = self.mf_const_fac * Q
+            (magn, phase) = cmath.polar(expQ)
 
-        if not math.isinf(magn):
-            # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
-            # Note this doesn't include exponential factor from shifting
-            # propability distribution.
-            dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
-            cosine_fac = max(0, math.cos(dtheta))
-            walker.weight *= magn * cosine_fac
-        else:
+            if not math.isinf(magn):
+                # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
+                # Note this doesn't include exponential factor from shifting
+                # propability distribution.
+                dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+                cosine_fac = max(0, math.cos(dtheta))
+                walker.weight *= magn * cosine_fac
+            else:
+                walker.weight = 0.0
+        except ZeroDivisionError:
             walker.weight = 0.0
 
     def propagate_greens_function(self, walker):
