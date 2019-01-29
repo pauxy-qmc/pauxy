@@ -151,7 +151,7 @@ class MultiDetWalker(object):
                     (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
 
-    def local_energy(self, system):
+    def local_energy(self, system, two_rdm=None):
         """Compute walkers local energy
 
         Parameters
@@ -164,7 +164,7 @@ class MultiDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy_multi_det(system, self.Gi, self.weights)
+        return local_energy_multi_det(system, self.Gi, self.weights, two_rdm)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

@@ -85,7 +85,7 @@ class BackPropagation(object):
                                             (qmc.nsteps//self.nmax, self.nreg),
                                             trial.G.dtype)
             if self.rdm:
-                self.dm_output = H5EstimatorHelper(energies, 'single_particle_greens_function',
+                self.dm_output = H5EstimatorHelper(energies, 'one_rdm',
                                                   (qmc.nsteps//self.nmax,)+self.G.shape,
                                                   trial.G.dtype)
         if trial.type == 'GHF':

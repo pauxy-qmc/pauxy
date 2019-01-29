@@ -22,13 +22,13 @@ def coulomb_greens_function(nq, kpq_i, kpq, pmq_i, pmq, Gkpq, Gpmq, G):
         for (idxpmq,i) in zip(pmq[iq],pmq_i[iq]):
             Gpmq[iq] += G[i,idxpmq]
 
-def local_energy_ueg(system, G, Ghalf=None):
+def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
     """Local energy computation for uniform electron gas
     Parameters
     ----------
     system :
         system class
-    G : 
+    G :
         Green's function
     Returns
     -------
@@ -52,18 +52,26 @@ def local_energy_ueg(system, G, Ghalf=None):
         # exchange_greens_function(nq, system.ikpq_i, system.ikpq_kpq, system.ipmq_i,system.ipmq_pmq, Gprod[s],G[s])
         coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,  system.ipmq_i,system.ipmq_pmq, Gkpq[s],Gpmq[s],G[s])
         for iq in range(nq):
-            Gprod[s,iq] = exchange_greens_function_per_qvec(system.ikpq_i[iq], system.ikpq_kpq[iq],
-                                                            system.ipmq_i[iq],system.ipmq_pmq[iq],
+            Gprod[s,iq] = exchange_greens_function_per_qvec(system.ikpq_i[iq],
+                                                            system.ikpq_kpq[iq],
+                                                            system.ipmq_i[iq],
+                                                            system.ipmq_pmq[iq],
                                                             G[s])
 
-    tmp = numpy.multiply(Gkpq[0],Gpmq[0]) - Gprod[0]
-    essa = (1.0/(2.0*system.vol))*system.vqvec.dot(tmp)
-    
-    tmp = numpy.multiply(Gkpq[1],Gpmq[1]) - Gprod[1]
-    essb = (1.0/(2.0*system.vol))*system.vqvec.dot(tmp)
+    if two_rdm is None:
+        two_rdm = numpy.zeros((2,2,len(system.qvecs)), dtype=numpy.complex128)
+    two_rdm[0,0] = numpy.multiply(Gkpq[0],Gpmq[0]) - Gprod[0]
+    essa = (1.0/(2.0*system.vol))*system.vqvec.dot(two_rdm[0,0])
 
-    eos = (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[0],Gpmq[1])) \
-        + (1.0/(2.0*system.vol))*system.vqvec.dot(numpy.multiply(Gkpq[1],Gpmq[0]))
+    two_rdm[1,1] = numpy.multiply(Gkpq[1],Gpmq[1]) - Gprod[1]
+    essb = (1.0/(2.0*system.vol))*system.vqvec.dot(two_rdm[1,1])
+
+    two_rdm[0,1] = numpy.multiply(Gkpq[0],Gpmq[1])
+    two_rdm[1,0] = numpy.multiply(Gkpq[1],Gpmq[0])
+    eos = (
+        (1.0/(2.0*system.vol))*system.vqvec.dot(two_rdm[0,1])
+        + (1.0/(2.0*system.vol))*system.vqvec.dot(two_rdm[1,0])
+    )
 
     pe = essa + essb + eos
 
@@ -72,7 +80,7 @@ def local_energy_ueg(system, G, Ghalf=None):
 def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
-    inputs = {'nup':2, 
+    inputs = {'nup':2,
     'ndown':2,
     'rs':1.0,
     'ecut':0.5}

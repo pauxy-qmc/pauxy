@@ -36,11 +36,13 @@ class Continuous(object):
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
 
-        if self.free_projection and verbose:
-            print("# Using free projection")
+        if self.free_projection:
+            if verbose:
+                print("# Using free projection.")
             self.propagate_walker = self.propagate_walker_free
-        elif verbose:
-            print("# Using phaseless approximation")
+        else:
+            if verbose:
+                print("# Using phaseless approximation.")
             self.propagate_walker = self.propagate_walker_phaseless
 
     def apply_exponential(self, phi, VHS, debug=False):

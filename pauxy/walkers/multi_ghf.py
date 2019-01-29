@@ -202,7 +202,7 @@ class MultiGHFWalker(object):
                 scipy.linalg.inv((t.conj()).T.dot(self.phi))
             )
 
-    def local_energy(self, system):
+    def local_energy(self, system, two_rdm=None):
         """Compute walkers local energy
 
         Parameters
