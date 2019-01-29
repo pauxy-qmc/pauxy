@@ -15,6 +15,7 @@ class PlaneWave(object):
     """PlaneWave class
     """
     def __init__(self, options, qmc, system, trial, verbose=False):
+        self.verbose = verbose
         if verbose:
             print ("# Parsing plane wave propagator input options.")
         # Input options
@@ -59,6 +60,7 @@ class PlaneWave(object):
 
         if verbose:
             print ("# Finished setting up propagator.")
+        self.nfb_trig = 0
 
     def construct_one_body_propagator(self, system, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
@@ -221,7 +223,10 @@ class PlaneWave(object):
 
         for i in range(system.nfields):
             if (numpy.absolute(xbar[i]) > 1.0):
-                print ("# Rescaling force bias is triggered")
+                if self.nfb_trig < 10 and self.verbose:
+                    print("# Rescaling force bias is triggered.")
+                    print("# Warning will only be printed 10 times.")
+                self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
 
         xshifted = xi - xbar

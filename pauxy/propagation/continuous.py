@@ -108,7 +108,8 @@ class Continuous(object):
             if numpy.absolute(xbar[i]) > 1.0:
                 if self.nfb_trig < 10:
                     print ("# Rescaling force bias is triggered")
-                    self.nfb_trig += 1
+                    print("# Warning will only be printed 10 times on root.")
+                self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
 
         xshifted = xi - xbar
