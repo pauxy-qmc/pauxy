@@ -61,6 +61,8 @@ class HartreeFock(object):
                 # Only deal with alpha spin excitation for the moment.
                 i = self.excite_ia[0]
                 a = self.excite_ia[1]
+                if verbose:
+                    print("# Exciting orbital %i to orbital %i in trial."%(i,a))
                 self.psi[:,i] = orbs_matrix[:,a]
         else:
             # UHF

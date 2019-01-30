@@ -67,7 +67,7 @@ class SingleDetWalker(object):
         if excite is not None:
             self.ia = trial.excite_ia
             self.reortho = self.reortho_excite
-            self.trial_buff =  numpy.copy(trial.full_mo[:,:self.ia[1]+1])
+            self.trial_buff =  numpy.copy(trial.full_orbs[:,:self.ia[1]+1])
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
