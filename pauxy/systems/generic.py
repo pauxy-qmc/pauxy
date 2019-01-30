@@ -336,7 +336,7 @@ class Generic(object):
         rup = rup.reshape((self.nchol_vec, -1))
         rdn = rdn.reshape((self.nchol_vec, -1))
         Ma = numpy.dot(rup.T, rup)
-        Mb = numpy.dot(rdn.T, rup)
+        Mb = numpy.dot(rdn.T, rdn)
         tvaklb = time.time()
         vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
         vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
