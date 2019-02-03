@@ -11,7 +11,7 @@ def analyse_energy(files):
         (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
         keys = set_info(norm, m)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
-        sims.append(norm[1:nzero])
+        sims.append(norm[1:nzero+1])
     full = pd.concat(sims).groupby(keys)
     analysed = []
     for (i, g) in full:
