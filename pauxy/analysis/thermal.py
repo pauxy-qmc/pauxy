@@ -1,8 +1,8 @@
-from pauxy.analysis.extraction import extract_hdf5_data_sets, set_info
-from pauxy.analysis.blocking import average_ratio
+import numpy
 import pandas as pd
 import scipy.stats
-import numpy
+from pauxy.analysis.extraction import extract_hdf5_data_sets, set_info
+from pauxy.analysis.blocking import average_ratio
 
 def analyse_energy(files):
     data = extract_hdf5_data_sets(files)
