@@ -45,41 +45,41 @@ def extract_rdm(filename, skip, est_type='back_propagated'):
         return None
 
 def extract_hdf5(filename):
-    data = h5py.File(filename, 'r')
-    metadata = json.loads(data['metadata'][:][0])
-    estimates = metadata.get('estimators').get('estimators')
-    basic = data['mixed_estimates/energies'][:]
-    headers = data['mixed_estimates/headers'][:]
-    basic = pd.DataFrame(basic)
-    basic.columns = headers
-    if estimates is not None:
-        if estimates.get('mixed').get('rdm'):
-            mixed_rdm = data['mixed_estimates/single_particle_greens_function'][:]
-        else:
-            mixed_rdm = None
-        bp = estimates.get('back_prop')
-        if bp is not None:
-            bpe = data['back_propagated_estimates/energies'][:]
-            headers = data['back_propagated_estimates/headers'][:]
-            bp_data = pd.DataFrame(bpe)
-            bp_data.columns = headers
-            if bp['rdm']:
-                bp_rdm = data['back_propagated_estimates/single_particle_greens_function'][:]
+    with h5py.File(filename, 'r') as fh5:
+        metadata = json.loads(fh5['metadata'][:][0])
+        estimates = metadata.get('estimators').get('estimators')
+        basic = fh5['mixed_estimates/energies'][:]
+        headers = fh5['mixed_estimates/headers'][:]
+        basic = pd.DataFrame(basic)
+        basic.columns = headers
+        if estimates is not None:
+            if estimates.get('mixed').get('rdm'):
+                mixed_rdm = fh5['mixed_estimates/single_particle_greens_function'][:]
             else:
+                mixed_rdm = None
+            bp = estimates.get('back_prop')
+            if bp is not None:
+                bpe = fh5['back_propagated_estimates/energies'][:]
+                headers = fh5['back_propagated_estimates/headers'][:]
+                bp_data = pd.dataframe(bpe)
+                bp_data.columns = headers
+                if bp['rdm']:
+                    bp_rdm = fh5['back_propagated_estimates/single_particle_greens_function'][:]
+                else:
+                    bp_rdm = None
+            else:
+                bp_data = None
                 bp_rdm = None
-        else:
-            bp_data = None
-            bp_rdm = None
-        itcf_info = estimates.get('itcf')
-        if itcf_info is not None:
-            itcf = data['single_particle_greens_function/real_space'][:]
-            if itcf_info['kspace']:
-                kspace_itcf = data['single_particle_greens_function/k_space'][:]
+            itcf_info = estimates.get('itcf')
+            if itcf_info is not None:
+                itcf = fh5['single_particle_greens_function/real_space'][:]
+                if itcf_info['kspace']:
+                    kspace_itcf = fh5['single_particle_greens_function/k_space'][:]
+                else:
+                    kspace_itcf = None
             else:
+                itcf = None
                 kspace_itcf = None
-        else:
-            itcf = None
-            kspace_itcf = None
 
     return (metadata, basic, bp_data, itcf, kspace_itcf, mixed_rdm, bp_rdm)
 
