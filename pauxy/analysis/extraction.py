@@ -4,8 +4,12 @@ import json
 import h5py
 
 def extract_hdf5_data_sets(files):
-
-    data =  [extract_hdf5(f) for f in files]
+    data = []
+    for f in files:
+        try:
+            data.append(extract_hdf5(f))
+        except OSError:
+            print("Error reading %f."%f)
 
     return data
 
