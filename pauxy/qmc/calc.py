@@ -41,6 +41,7 @@ def setup_calculation(input_options):
 
 def get_driver(options, comm):
     beta = options.get('qmc_options').get('beta', None)
+    verbosity = options.get('verbosity', 1)
     if beta is not None:
         afqmc = ThermalAFQMC(options.get('model'),
                              options.get('qmc_options'),
@@ -49,7 +50,7 @@ def get_driver(options, comm):
                              options.get('propagator', {}),
                              options.get('walkers', {}),
                              parallel=comm.size>1,
-                             verbose=True)
+                             verbose=verbosity>0)
     else:
         afqmc = AFQMC(options.get('model'),
                       options.get('qmc_options'),
@@ -58,7 +59,8 @@ def get_driver(options, comm):
                       options.get('propagator', {}),
                       options.get('walkers', {}),
                       parallel=comm.size>1,
-                      verbose=True)
+                      verbose=verbosity>0)
+    afqmc.verbosity = verbosity
     return afqmc
 
 def read_input(input_file, comm, verbose=False):
