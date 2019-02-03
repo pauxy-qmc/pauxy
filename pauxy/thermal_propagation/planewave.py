@@ -29,8 +29,8 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
-        # if(verbose):
-        print("# Number of fields = %i"%system.nfields)
+        if verbose:
+            print("# Number of fields = %i"%system.nfields)
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
 
@@ -60,7 +60,7 @@ class PlaneWave(object):
 
         if verbose:
             print ("# Finished setting up propagator.")
-        self.nfb_trig = 0
+        self.nfb_trig = False
 
     def construct_one_body_propagator(self, system, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
@@ -222,11 +222,17 @@ class PlaneWave(object):
             xbar = self.construct_force_bias_incore(system, rdm)
 
         for i in range(system.nfields):
-            if (numpy.absolute(xbar[i]) > 1.0):
-                if self.nfb_trig < 10 and self.verbose:
+            if numpy.absolute(xbar[i]) > 1.0:
+                if not self.nfb_trig and self.verbose:
                     print("# Rescaling force bias is triggered.")
-                    print("# Warning will only be printed 10 times.")
-                self.nfb_trig += 1
+                    print("# Warning will only be printed once per thread.")
+                    xb = (xbar[i].real, xbar[i].imag)
+                    vb = abs(xbar[i]) / self.sqrt_dt
+                    vb = (vb.real, vb.imag)
+                    print("XBAR: (%f,%f)"%xb)
+                    print("<v>: (%f,%f)"%vb)
+                    self.nfb_trig = True
+                walker.rescaled_fb = True
                 xbar[i] /= numpy.absolute(xbar[i])
 
         xshifted = xi - xbar
@@ -269,7 +275,7 @@ class PlaneWave(object):
             c2 = scipy.linalg.expm(VHS).dot(copy)
 
         Temp = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
-        
+
         for n in range(1, self.exp_nmax+1):
             Temp = VHS.dot(Temp) / n
             phi += Temp
