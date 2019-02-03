@@ -5,7 +5,7 @@ import time
 from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import get_orthoAO
 from pyscf.lib.chkfile import load_mol
-from pyscf import ao2mo, scf, fci, mcscf, hci
+from pyscf import ao2mo, scf, fci
 from pyscf.pbc import scf as pbcscf
 from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
@@ -207,38 +207,58 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
 
     return chol_vecs[:nchol]
 
-def sci_wavefunction(mf, nelecas, ncas, ncore, select_cutoff=1e-10,
-                     ci_coeff_cutoff=1e-3, verbose=False):
-    """Generate SCI trial wavefunction.
+def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
+                           max_ndets=1e5, norb=None,
+                           filename="multi_det.dat"):
+    """Generate multi determinant particle-hole trial wavefunction.
+
+    Format adopted to be compatable with QMCPACK PHMSD type wavefunction.
 
     Parameters
     ----------
-    nelecas : int
-        Number of active orbitals.
-    ncas : int or tuple of ints.
-        Total number of active electrons, or number of active alpha and beta
-        electrons.
-    ncore : int
-        Total number of core electrons.
-    select_cutoff : float
-        Selection criteria.
-    ci_coeff_cutoff : float
-        CI coefficient cutoff.
+    mc : pyscf CI solver type object
+        Input object containing multi determinant coefficients.
+    weight_cutoff : float, optional
+        Print determinants until accumulated weight equals weight_cutoff.
+        Default 0.95.
+    verbose : bool
+        Print information about process. Default False.
+    max_ndets : int
+        Max number of determinants to print out. Default 1e5.
+    norb : int or None, optional
+        Total number of orbitals in simulation. Used if we want to run CI within
+        active space but QMC in full space. Deault None.
+    filename : string
+        Output filename. Default "multi_det.dat"
     """
-    mc = mcscf.CASCI(mf, ncas, nelecas, ncore=ncore)
-    mc.fcisolver = hci.SCI(mol)
-    mc.fcisolver.select_cutoff = select_cutoff
-    mc.fcisolver.ci_coeff_cutoff = ci_coeff_cutoff
-    mc.kernel()
-    occlists = fci.cistring._gen_occslst(range(cas), nelec//2)
+    occlists = fci.cistring._gen_occslst(range(mc.ncas), mc.nelecas[0])
 
+    ci_coeffs = mc.ci.ravel()
+    # Sort coefficients in terms of increasing absolute weight.
+    ix_sort = numpy.argsort(numpy.abs(ci_coeffs))[::-1]
+    cweight = numpy.cumsum(ci_coeffs[ix_sort]**2)
+    max_det = numpy.searchsorted(cweight, weight_cutoff)
+    ci_coeffs = ci_coeffs[ix_sort]
     if verbose:
-        print ("Max number of dets : %d"%len(occlists)**2)
-        print ("Non-zero : %d"%non_zero)
+        print ("Number of dets in CAS space: %d"%len(occlists)**2)
+        print ("Number of dets in CI expansion: %d"%max_det)
 
-    coeffs = []
-    # for i, ia in enumerate(occlists):
-        # for j, ib in enumerate(occlists):
-            # coeffs.append(%mc.ci[i,j])
-            # oup =
-            # odown = ' '.join('{:d}'.format(x+norb+1) for x in ib)
+    output = open(filename, 'w')
+    namelist = "&FCI\n UHF = 0\n NCI = %d\n TYPE = occ\n&END" % max_det
+    output.write(namelist+'\n')
+    output.write("Configurations:"+'\n')
+    if norb is None:
+        norb = mc.ncas
+
+    for idet in range(max_det):
+        if mc.ncore > 0:
+            ocore_up = ' '.join('{:d}'.format(x+1) for x in range(mc.ncore))
+            ocore_dn = ' '.join('{:d}'.format(x+1+norb) for x in range(mc.ncore))
+        coeff = '%.13f'%ci_coeffs[idet]
+        ix_alpha = ix_sort[idet] // len(occlists)
+        ix_beta = ix_sort[idet] % len(occlists)
+        ia = occlists[ix_alpha]
+        ib = occlists[ix_beta]
+        oup = ' '.join('{:d}'.format(x+1+mc.ncore) for x in ia)
+        odown = ' '.join('{:d}'.format(x+norb+1+mc.ncore) for x in ib)
+        output.write(coeff+' '+ocore_up+' '+oup+' '+ocore_dn+' '+odown+'\n')
