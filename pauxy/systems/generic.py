@@ -198,7 +198,7 @@ class Generic(object):
             print ("# Reading integrals in PAUXY HDF5 format.")
         with h5py.File(self.integral_file, 'r') as fh5:
             h1e = fh5['hcore'][:]
-            self.nbasis = h1e.shape[-1]
+            self.nbasis = int(h1e.shape[-1])
             self.h2e = fh5['eri'][:]
             self.ecore = fh5['enuc'][:][0]
             nelec = fh5['nelec'][:]
