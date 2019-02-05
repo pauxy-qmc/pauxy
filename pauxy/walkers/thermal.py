@@ -24,13 +24,9 @@ class ThermalWalker(object):
         self.stack_size = walker_opts.get('stack_size', None)
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:
-            diagonal_trial = True
+            self.diagonal_trial = True
         else:
-            diagonal_trial = False
-        if diagonal_trial:
-            self.greens_function = self.greens_function_opt
-        else:
-            self.greens_function = self.greens_function_gen
+            self.diagonal_trial = False
 
         if self.stack_size == None:
             if verbose:
@@ -65,12 +61,12 @@ class ThermalWalker(object):
             # print("# Trial dmat = {}".format(trial.dmat[0]))
 
 
-        if verbose and diagonal_trial:
+        if verbose and self.diagonal_trial:
             print("# Trial density matrix is diagonal.")
         self.stack = PropagatorStack(self.stack_size, trial.ntime_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
-                                     diagonal=diagonal_trial)
+                                     diagonal=self.diagonal_trial)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
@@ -89,12 +85,13 @@ class ThermalWalker(object):
         if verbose:
             print("# condition number of BT = {}".format(cond))
 
-    def greens_function_gen(self, trial, slice_ix=None, inplace=True):
-        return self.greens_function_svd(trial, slice_ix=slice_ix,
-                                        inplace=inplace)
-    def greens_function_opt(self, trial, slice_ix=None, inplace=True):
-        return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
-                                             inplace=inplace)
+    def greens_function(self, trial, slice_ix=None, inplace=True):
+        if self.diagonal_trial:
+            return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
+                                                 inplace=inplace)
+        else:
+            return self.greens_function_svd(trial, slice_ix=slice_ix,
+                                            inplace=inplace)
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if slice_ix == None:
