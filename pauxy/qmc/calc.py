@@ -50,7 +50,7 @@ def get_driver(options, comm):
                              options.get('propagator', {}),
                              options.get('walkers', {}),
                              parallel=comm.size>1,
-                             verbose=verbosity>0)
+                             verbose=verbosity)
     else:
         afqmc = AFQMC(options.get('model'),
                       options.get('qmc_options'),
@@ -59,8 +59,7 @@ def get_driver(options, comm):
                       options.get('propagator', {}),
                       options.get('walkers', {}),
                       parallel=comm.size>1,
-                      verbose=verbosity>0)
-    afqmc.verbosity = verbosity
+                      verbose=verbosity)
     return afqmc
 
 def read_input(input_file, comm, verbose=False):

@@ -122,8 +122,6 @@ class UEG(object):
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         self.orbs = None
-        if verbose:
-            print ("# Finished setting up Generic system object.")
 
 
         nlimit = self.nup
@@ -173,10 +171,13 @@ class UEG(object):
 
 
         # if(verbose):
-        print("# Constructing two_body_potentials_incore")
+        print("# Constructing two-body potentials incore.")
         (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
-        # if(verbose):
+        print("# Approximate memory required for"
+              "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
         print("# Constructing two_body_potentials_incore finished")
+        if verbose:
+            print ("# Finished setting up Generic system object.")
 
 
     def sp_energies(self, kfac, ecut):

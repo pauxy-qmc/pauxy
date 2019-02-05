@@ -82,6 +82,9 @@ class AFQMC(object):
     def __init__(self, model, qmc_opts, estimates,
                  trial, propagator, walker_opts={'weight': 1}, parallel=False,
                  verbose=False):
+        if verbose is not None:
+            self.verbosity = verbose
+            verbose = verbose > 0 
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()

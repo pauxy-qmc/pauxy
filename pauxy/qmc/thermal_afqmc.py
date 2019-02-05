@@ -88,11 +88,14 @@ class ThermalAFQMC(object):
 
     def __init__(self, model, qmc_opts, estimates={},
                  trial={}, propagator={}, walker_opts={}, parallel=False,
-                 verbose=False):
+                 verbose=None):
         if (qmc_opts['beta'] == None):
             print ("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
+        if verbose is not None:
+            self.verbosity = verbose
+            verbose = verbose > 0 
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
