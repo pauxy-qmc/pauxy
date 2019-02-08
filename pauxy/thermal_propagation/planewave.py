@@ -24,6 +24,7 @@ class PlaneWave(object):
         self.optimised = options.get('optimised', True)
         self.exp_nmax = options.get('expansion_order', 4)
         self.nstblz = qmc.nstblz
+        self.fb_bound = options.get('fb_bound', 1.0)
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
@@ -222,7 +223,7 @@ class PlaneWave(object):
             xbar = self.construct_force_bias_incore(system, rdm)
 
         for i in range(system.nfields):
-            if numpy.absolute(xbar[i]) > 1.0:
+            if numpy.absolute(xbar[i]) > self.fb_bound:
                 if not self.nfb_trig and self.verbose:
                     print("# Rescaling force bias is triggered.")
                     print("# Warning will only be printed once per thread.")
