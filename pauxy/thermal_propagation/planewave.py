@@ -227,6 +227,7 @@ class PlaneWave(object):
                 if not self.nfb_trig and self.verbose:
                     print("# Rescaling force bias is triggered.")
                     print("# Warning will only be printed once per thread.")
+                    print("# Bound = {}".format(self.fb_bound))
                     xb = (xbar[i].real, xbar[i].imag)
                     vb = abs(xbar[i]) / self.sqrt_dt
                     vb = (vb.real, vb.imag)
