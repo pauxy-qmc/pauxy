@@ -254,6 +254,9 @@ def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
         if mc.ncore > 0:
             ocore_up = ' '.join('{:d}'.format(x+1) for x in range(mc.ncore))
             ocore_dn = ' '.join('{:d}'.format(x+1+norb) for x in range(mc.ncore))
+        else:
+            ocore_up = ' '
+            ocore_dn = ' '
         coeff = '%.13f'%ci_coeffs[idet]
         ix_alpha = ix_sort[idet] // len(occlists)
         ix_beta = ix_sort[idet] % len(occlists)
