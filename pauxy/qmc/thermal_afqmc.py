@@ -95,7 +95,7 @@ class ThermalAFQMC(object):
         # 1. Environment attributes
         if verbose is not None:
             self.verbosity = verbose
-            verbose = verbose > 0 
+            verbose = verbose > 0
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()
         self.seed = qmc_opts['rng_seed']
@@ -164,6 +164,8 @@ class ThermalAFQMC(object):
 
         for step in range(1, self.qmc.nsteps + 1):
             for ts in range(0, self.qmc.ntime_slices):
+                if self.verbosity >= 2 and comm.rank == 0:
+                    print(" # Timeslice %d of %d"%(ts, self.qmc.ntime_slices))
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
                         self.propagators.propagate_walker(self.system, w, ts)
