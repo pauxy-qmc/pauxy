@@ -10,5 +10,5 @@ from pauxy.utils.io import to_json
 
 files = glob.glob(sys.argv[1])
 data = analyse_energy(files)
-print (data.to_string(index=None))
+print (data.to_string(index=True))
 # data.to_csv('data', header=True, index=True, sep='\t', mode='w')
