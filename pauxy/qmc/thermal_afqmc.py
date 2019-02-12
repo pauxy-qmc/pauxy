@@ -25,6 +25,7 @@ def convert_from_reduced_unit(system, qmc_opts, verbose=False):
         print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
         dt = qmc_opts['dt'] # original dt
         beta = qmc_opts['beta'] # original dt
+        qmc_opts['beta_reduced'] = beta
         qmc_opts['dt'] = dt / TF # converting to Hartree ^ -1
         qmc_opts['beta'] = beta / TF # converting to Hartree ^ -1
         print("# beta in Hartree^-1 = %10.5f"%qmc_opts['beta'])
