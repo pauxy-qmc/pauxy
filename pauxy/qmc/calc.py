@@ -152,8 +152,8 @@ def setup_parallel(options, comm=None, verbose=False):
         # This should occur on all processors so we don't need to worry about
         # race conditions / mpi4py hanging.
         if afqmc.root:
-            print("Not enough walkers for selected core count. There "
-                  "must be at least one walker per core set in the "
+            print("# WARNING: Not enough walkers for selected core count."
+                  "There must be at least one walker per core set in the "
                   "input file. Setting one walker per core.")
         afqmc.qmc.nwalkers = 1
 
