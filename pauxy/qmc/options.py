@@ -76,3 +76,4 @@ class QMCOpts(object):
         self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
         self.ffts = inputs.get('kinetic_kspace', False)
         self.beta = inputs.get('beta', None)
+        self.beta_reduced = inputs.get('beta_reduced', None)
