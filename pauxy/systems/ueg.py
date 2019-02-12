@@ -173,7 +173,7 @@ class UEG(object):
         # if(verbose):
         print("# Constructing two-body potentials incore.")
         (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
-        print("# Approximate memory required for"
+        print("# Approximate memory required for "
               "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
         print("# Constructing two_body_potentials_incore finished")
         if verbose:
