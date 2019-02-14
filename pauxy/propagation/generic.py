@@ -30,8 +30,9 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
-        # Mean field shifts (2,nchol_vec).
-        self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
         # Mean field shifted one-body propagator
         self.construct_one_body_propagator(system, qmc.dt)
         # Constant core contribution modified by mean field shift.
@@ -49,6 +50,14 @@ class GenericContinuous(object):
         if verbose:
             print ("# Finished setting up Generic propagator.")
 
+    def construct_mean_field_shift(self,system)
+        # Mean field shifts (2,nchol_vec).
+        if system.complex_integrals:
+            mfa = numpy.sum(trial.gup_half.ravel()*system.rchol_vecs[0], axis=0)
+            mfb = numpy.sum(trial.gup_half.ravel()*system.rchol_vecs[1], axis=0)
+            self.mf_shift = 1j*(mfa+mfb)
+        else:
+            self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
 
     def construct_one_body_propagator(self, system, dt):
         """Construct mean-field shifted one-body propagator.
@@ -63,7 +72,14 @@ class GenericContinuous(object):
             One-body operator including factor from factorising two-body
             Hamiltonian.
         """
-        shift = 1j*numpy.einsum('l,lpq->pq', self.mf_shift, system.chol_vecs)
+        if system.complex_integrals:
+            shift = 1j*numpy.einsum('l,lpq->pq',
+                                    self.mf_shift,
+                                    system.sym_chol_vecs)
+        else:
+            shift = 1j*numpy.einsum('l,lpq->pq',
+                                    self.mf_shift,
+                                    system.chol_vecs)
         H1 = system.h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
@@ -105,8 +121,12 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
-        vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
+        if system.complex_integrals:
+            vbias = numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[0])
+            vbias += numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[1])
+        else:
+            vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
+            vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_force_bias_incore(self, system, walker, trial):
@@ -130,8 +150,12 @@ class GenericContinuous(object):
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_VHS_direct(self, system, shifted):
-        return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
-                                            system.chol_vecs)
+        if system.complex_integrals:
+            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
+                                                system.sym_chol_vecs)
+        else:
+            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
+                                                system.chol_vecs)
 
     def construct_VHS_incore(self, system, xshifted):
         """Construct the one body potential from the HS transformation

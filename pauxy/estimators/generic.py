@@ -64,30 +64,27 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     cv = system.chol_vecs
-    ecoul_uu = numpy.dot(numpy.sum(cv*G[0], axis=(1,2)),
-                         numpy.sum(cv*G[0], axis=(1,2)))
-    ecoul_dd = numpy.dot(numpy.sum(cv*G[1], axis=(1,2)),
-                         numpy.sum(cv*G[1], axis=(1,2)))
-    ecoul_ud = numpy.dot(numpy.sum(cv*G[0], axis=(1,2)),
-                         numpy.sum(cv*G[1], axis=(1,2)))
-    ecoul_du = numpy.dot(numpy.sum(cv*G[1], axis=(1,2)),
-                         numpy.sum(cv*G[0], axis=(1,2)))
+    ecoul_uu = 0
+    ecoul_dd = 0
+    ecoul_ud = 0
+    ecoul_du = 0
     exx_uu = 0
-    for c in cv:
-        # t1 = numpy.einsum('lpr,ps->lrs',cv,G[0])
-        t1 = numpy.dot(c.T, G[0])
-        exx_uu += numpy.dot(t1,t1).trace()
-        # t2 = numpy.einsum('lqs,qr->lsr',cv,G[0])
-        # exx = numpy.einsum('lrs,lsr')
     exx_dd = 0
+    # Below to compute exx_uu/dd we do
+    # t1 = numpy.einsum('nik,il->nkl', cv, G[s])
+    # t2 = numpy.einsum('nlj,jk->nlk', cv.conj(), G[s])
+    # exx_ss = numpy.einsum('nkl,nlk->', t1, t2)
     for c in cv:
-        # t1 = numpy.einsum('lpr,ps->lrs',cv,G[0])
+        ecoul_uu += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[0])
+        ecoul_dd += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[1])
+        ecoul_ud += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
+        ecoul_du += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
+        t1 = numpy.dot(c.T, G[0])
+        t2 = numpy.dot(c.conj().T, G[0])
+        exx_uu += numpy.einsum('ij,ji->',t1,t2) 
         t1 = numpy.dot(c.T, G[1])
-        exx_dd += numpy.dot(t1,t1).trace()
-        # t2 = numpy.einsum('lqs,qr->lsr',cv,G[0])
-        # exx = numpy.einsum('lrs,lsr')
-    # t1 = numpy.einsum('lpr,ps->lrs', cv, G[1])
-    # exx_dd = numpy.einsum('lrs,lsr->', t1, t1)
+        t2 = numpy.dot(c.conj().T, G[1])
+        exx_dd += numpy.einsum('ij,ji->',t1,t2) 
     euu = 0.5*(ecoul_uu-exx_uu)
     edd = 0.5*(ecoul_dd-exx_dd)
     eud = 0.5 * ecoul_ud
