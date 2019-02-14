@@ -12,6 +12,15 @@ class Continuous(object):
             print ("# Parsing propagator input options.")
         # Input options
         self.free_projection = options.get('free_projection', False)
+        if verbose:
+            print("# Using phaseless approximation: %r"%(not self.free_projection))
+        self.force_bias = options.get('force_bias', True)
+        if self.free_projection:
+            if verbose:
+                print("# Setting force_bias to False with free projection.")
+            self.force_bias = False
+        else:
+            print("# Setting force bias to %r."%self.force_bias)
         self.exp_nmax = options.get('expansion_order', 4)
         # Derived Attributes
         self.dt = qmc.dt
@@ -77,7 +86,7 @@ class Continuous(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def two_body_propagator(self, walker, system, trial, force_bias=True):
+    def two_body_propagator(self, walker, system, trial):
         """It appliese the two-body propagator
         Parameters
         ----------
@@ -101,7 +110,7 @@ class Continuous(object):
 
         # Optimal force bias.
         xbar = numpy.zeros(system.nfields)
-        if force_bias:
+        if self.force_bias:
             xbar = self.propagator.construct_force_bias(system, walker, trial)
 
         for i in range(system.nfields):
@@ -145,7 +154,7 @@ class Continuous(object):
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply 2-body projector
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial, False)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         walker.inverse_overlap(trial)
