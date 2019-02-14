@@ -35,7 +35,16 @@ class GenericContinuous(object):
         # Input options
         self.hs_type = 'continuous'
         self.free_projection = options.get('free_projection', False)
+        if verbose:
+            print("# Using phaseless approximation: %r"%(not self.free_projection))
         self.exp_nmax = options.get('expansion_order', 6)
+        self.force_bias = options.get('force_bias', True)
+        if self.free_projection:
+            if verbose:
+                print("# Setting force_bias to False with free projection.")
+            self.force_bias = False
+        else:
+            print("# Setting force bias to %r."%self.force_bias)
 
         # Derived Attributes
         self.dt = qmc.dt
@@ -129,7 +138,7 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', self.chol_vecs, G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def two_body(self, walker, system, trial, force_bias=True):
+    def two_body(self, walker, system, trial):
         r"""Continuous Hubbard-Statonovich transformation.
 
         Parameters
@@ -143,7 +152,7 @@ class GenericContinuous(object):
         """
         # Normally distrubted auxiliary fields.
         xi = numpy.random.normal(0.0, 1.0, system.nchol_vec)
-        if force_bias:
+        if self.force_bias:
             rdm = one_rdm_from_G(walker.G)
             xbar = self.construct_force_bias_full(rdm)
         else:
@@ -208,8 +217,7 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial,
-                                                force_bias=False)
+        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial)
         BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
@@ -251,7 +259,7 @@ class GenericContinuous(object):
             Trial wavefunction object.
         """
 
-        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
+        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial)
         BV = self.exponentiate(VHS)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
