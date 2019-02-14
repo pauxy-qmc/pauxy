@@ -123,7 +123,7 @@ def from_qmcpack_cholesky(filename):
         row_ix = idx[::2]
         col_ix = idx[1::2]
         chol_vecs = scipy.sparse.csr_matrix((h2, (row_ix, col_ix)))
-        return (hcore, chol_vecs, enuc, nmo, nalpha, nbeta)
+        return (hcore, chol_vecs, enuc, int(nmo), int(nalpha), int(nbeta))
 
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
                 orbs=None, verbose=True, coeffs=None):
