@@ -174,12 +174,12 @@ def set_info(frame, md):
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
     elif system['name'] == "Generic":
-        frame['name'] = system.get('integral_file').split('.')[2].split('/')[1]
+        frame['integrals'] = system.get('integral_file')
         frame['nfv'] = system.get('nfv')
         frame['nup'] = system.get('nup')
         frame['ndown'] = system.get('ndown')
         frame['ncore'] = system.get('ncore')
-        frame['nbasis'] = system.get('nbasis')
+        frame['nbasis'] = system.get('nbasis', 0)
         frame['cholesky_treshold'] = system.get('threshold')
     return list(frame.columns[ncols:])
 
