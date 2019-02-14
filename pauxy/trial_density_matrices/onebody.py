@@ -8,7 +8,10 @@ class OneBody(object):
         self.name = 'thermal'
         self.ntime_slices = int(beta/dt)
         if H1 is None:
-            self.H1 = system.H1
+            try:
+                self.H1 = system.H1
+            except AttributeError:
+                self.H1 = system.h1e
         else:
             self.H1 = H1
 

@@ -160,33 +160,37 @@ class GenericContinuous(object):
 
         return (cmf, cfb, shifted, VHS)
 
-    def apply_exponential(self, phi, VHS, debug=False):
-        """Apply matrix expoential to wavefunction approximately.
-
+    def exponentiate(self, VHS, debug=False):
+        """Apply exponential propagator of the HS transformation
         Parameters
         ----------
-        phi : :class:`numpy.ndarray`
-            Walker's wavefunction. On output phi = exp(VHS)*phi.
-        VHS : :class:`numpy.ndarray`
-            Hubbard Stratonovich matrix (~1j*sqrt_dt*\sum_\gamma x_\gamma v_\gamma)
-        debug : bool
-            If true check accuracy of matrix exponential through direct
-            exponentiation.
+        system :
+            system class
+        phi : numpy array
+            a state
+        VHS : numpy array
+            HS transformation potential
+        Returns
+        -------
+        phi : numpy array
+            Exp(VHS) * phi
         """
+        # JOONHO: exact exponential
+        # copy = numpy.copy(phi)
+        # phi = scipy.linalg.expm(VHS).dot(copy)
+        phi = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
-        numpy.copyto(self.Temp, phi)
+
+        Temp = numpy.identity(VHS.shape[0], dtype = numpy.complex128)
+
         for n in range(1, self.exp_nmax+1):
-            self.Temp = VHS.dot(self.Temp) / n
-            phi += self.Temp
+            Temp = VHS.dot(Temp) / n
+            phi += Temp
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
-
-    def propagate_greens_function(self, walker):
-        if walker.stack.time_slice < walker.stack.ntime_slices:
-            walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
-            walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BTinv[1])
+        return phi
 
     def propagate_walker_free(self, system, walker, trial):
         r"""Free projection for continuous HS transformation.
@@ -223,19 +227,12 @@ class GenericContinuous(object):
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
-        walker.stack.update_new(B)
-
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
         # TODO: Think about mean field subtraction.
         (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*phase)
-
-        if walker.stack.time_slice % self.nstblz == 0:
-            walker.greens_function(None, walker.stack.time_slice-1)
-
-        self.propagate_greens_function(walker)
 
     def propagate_walker_phaseless(self, system, walker, trial):
         r"""Propagate walker using phaseless approximation.
@@ -255,7 +252,7 @@ class GenericContinuous(object):
         """
 
         (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial, True)
-        BV = scipy.linalg.expm(VHS) # could use a power-series method to build this
+        BV = self.exponentiate(VHS)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
         B = numpy.array([self.BH1[0].dot(B[0]),self.BH1[1].dot(B[1])])
@@ -264,11 +261,13 @@ class GenericContinuous(object):
         # 1. Current walker's green's function.
         G = walker.greens_function(trial, inplace=False)
         # 2. Compute updated green's function.
-        walker.stack.update_new(B)
+        walker.stack.update(B)
         walker.greens_function(trial, inplace=True)
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0]), scipy.linalg.det(G[1])]
-        Mnew = [scipy.linalg.det(walker.G[0]), scipy.linalg.det(walker.G[1])]
+        M0 = [scipy.linalg.det(G[0], check_finite=False),
+              scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
+                scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
@@ -288,12 +287,3 @@ class GenericContinuous(object):
             walker.weight *= magn * cosine_fac
         else:
             walker.weight = 0.0
-
-        walker.stack.update_new(B)
-
-        # Need to recompute Green's function from scratch before we propagate it
-        # to the next time slice due to stack structure.
-        if walker.stack.time_slice % self.nstblz == 0:
-            walker.greens_function(None, walker.stack.time_slice-1)
-
-        self.propagate_greens_function(walker)

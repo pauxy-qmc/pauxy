@@ -439,7 +439,7 @@ class ThermalWalker(object):
 
     def local_energy(self, system, two_rdm=None):
         rdm = one_rdm_from_G(self.G)
-        return local_energy(system, rdm, two_rdm=two_rdm)
+        return local_energy(system, rdm, two_rdm=two_rdm, opt=False)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication
