@@ -19,8 +19,8 @@ def local_energy_generic(system, G, Ghalf=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    e1 = (numpy.einsum('ij,ij->', system.T[0], G[0]) +
-          numpy.einsum('ij,ij->', system.T[1], G[1]))
+    e1 = (numpy.einsum('ij,ij->', system.H1[0], G[0]) +
+          numpy.einsum('ij,ij->', system.H1[1], G[1]))
     euu = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[0]) -
                numpy.einsum('prqs,ps,qr->', system.h2e, G[0], G[0]))
     edd = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[1]) -
@@ -32,7 +32,7 @@ def local_energy_generic(system, G, Ghalf=None):
 
 def local_energy_generic_opt(system, G, Ghalf=None):
     # Element wise multiplication.
-    e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
+    e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     Gup = Ghalf[0].ravel()
     Gdn = Ghalf[1].ravel()
     euu = 0.5 * Gup.dot(system.vaklb[0].dot(Gup))
@@ -62,7 +62,7 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
         Local, kinetic and potential energies.
     """
     # Element wise multiplication.
-    e1b = numpy.sum(system.T[0]*G[0]) + numpy.sum(system.T[1]*G[1])
+    e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     cv = system.chol_vecs
     ecoul_uu = numpy.dot(numpy.sum(cv*G[0], axis=(1,2)),
                          numpy.sum(cv*G[0], axis=(1,2)))

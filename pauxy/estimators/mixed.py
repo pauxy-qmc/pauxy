@@ -355,7 +355,7 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         if opt:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic(system, G)
+            return local_energy_generic_cholesky(system, G)
 
 def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
     weight = 0

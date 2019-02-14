@@ -178,7 +178,7 @@ class Generic(object):
                 self.h2e[i-1,k-1,l-1,j-1] = integral
                 # (jl|ki)
                 self.h2e[j-1,l-1,k-1,i-1] = integral
-        self.T = numpy.array([self.h1e, self.h1e])
+        self.H1 = numpy.array([self.h1e, self.h1e])
         self.orbs = None
         self.chol_vecs = None
 
@@ -212,7 +212,7 @@ class Generic(object):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
             # sys.exit()
-        self.T = numpy.array([h1e, h1e])
+        self.H1 = numpy.array([h1e, h1e])
 
     def read_qmcpack_integrals(self):
         (h1e, self.schol_vecs, self.ecore,
@@ -226,7 +226,7 @@ class Generic(object):
         mem = self.chol_vecs.nbytes / (1024.0**3)
         self.total_mem += mem
         print("# Memory required by Cholesky vectors %f GB"%mem)
-        self.T = numpy.array([h1e, h1e])
+        self.H1 = numpy.array([h1e, h1e])
         # These will be reconstructed later.
         self.schol_vecs = None
         self.orbs = None
@@ -256,7 +256,7 @@ class Generic(object):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
         v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs, self.chol_vecs)
-        self.h1e_mod = numpy.array([self.T[0]-v0, self.T[1]-v0])
+        self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
 
     def frozen_core_hamiltonian(self, trial):
         # 1. Construct one-body hamiltonian
