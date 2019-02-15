@@ -1,0 +1,25 @@
+{
+    "model": {
+        "name": "Generic",
+        "atom": "Neon",
+        "nup": 5,
+        "ndown": 5,
+        "integrals": "ham.h5"
+    },
+    "qmc_options": {
+        "dt": 0.01,
+        "nsteps": 1000,
+        "nmeasure": 10,
+        "nwalkers": 100,
+        "npop_control": 1,
+        "nstabilise": 1
+    },
+    "trial_wavefunction": {
+        "name": "hartree_fock"
+    },
+    "propagator": {
+        "hubbard_stratonovich": "continuous",
+        "expansion_order": 6,
+        "free_projection": false
+    }
+}
