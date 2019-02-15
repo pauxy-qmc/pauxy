@@ -63,6 +63,9 @@ class GenericContinuous(object):
         # Mean field shifts (2,nchol_vec).
         P = one_rdm_from_G(trial.G)
         self.mf_shift = self.construct_mf_shift(system, trial)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
 
         # Mean field shifted one-body propagator
         self.mu = system.mu

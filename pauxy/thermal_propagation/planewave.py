@@ -31,6 +31,10 @@ class PlaneWave(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.num_vplus = system.nfields // 2
+        self.mf_shift = self.construct_mf_shift(system, trial)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
         if verbose:
             print("# Number of fields = %i"%system.nfields)
 
@@ -64,6 +68,14 @@ class PlaneWave(object):
             print ("# Finished setting up propagator.")
         self.nfb_trig = False
 
+    def construct_mf_shift(self, system, trial):
+        P = one_rdm_from_G(trial.G)
+        P = P.reshape(2, system.nbasis*system.nbasis)
+        mf_shift = numpy.zeros(system.nfields, numpy.complex128)
+        mf_shift[:self.num_vplus] = P[0].T*system.iA + P[1].T*system.iA
+        mf_shift[self.num_vplus:] = P[0].T*system.iB + P[1].T*system.iB
+        return mf_shift
+
     def construct_one_body_propagator(self, system, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
         Parameters
@@ -82,7 +94,6 @@ class PlaneWave(object):
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
                                 scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
-        print("EXPM: ", self.BH1[0])
 
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
