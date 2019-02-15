@@ -252,8 +252,7 @@ class PlaneWave(object):
 
         # Constant factors: Note they are not exponentiated.
         # Constant factor arising from force bias and mean field shift
-        # Mean field shift is zero for UEG in HF basis
-        cmf = 0.0
+        cmf = -self.sqrt_dt * xshifted.dot(self.mf_shift)
         # Constant factor arising from shifting the propability distribution.
         cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
 
