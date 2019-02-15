@@ -244,7 +244,7 @@ class GenericContinuous(object):
         state : :class:`state.State`
             Simulation state.
         """
-        (cmf, cfb, xmxbar, VHS) = self.two_body(walker, system, trial)
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, trial)
         BV = self.exponentiate(VHS)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
