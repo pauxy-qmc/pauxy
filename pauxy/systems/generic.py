@@ -228,7 +228,10 @@ class Generic(object):
             print("# Found complex integrals.")
             self.cplx_chol = True
         else:
-            if not self.cplx_chol:
+            if self.cplx_chol:
+                print("# Using Hermitian Cholesky decomposition.")
+            else:
+                print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol= False
         mem = self.chol_vecs.nbytes / (1024.0**3)
         self.total_mem += mem
@@ -400,12 +403,12 @@ class Generic(object):
             vminus = 0.5j*(cn-cn.conj().T)
             self.sym_chol_vecs[n] = vplus
             self.sym_chol_vecs[self.nchol_vec+n] = vminus
-            rup[n] = numpy.dot(trial.psi[:,:na].conj().T, vplus)
-            rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T, vminus)
-            rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, vplus)
-            rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T, vminus)
-        if self.verbose:
-            print("# Constructing half rotated V_{(ab)(kl)}.")
+            # rup[n] = numpy.dot(trial.psi[:,:na].conj().T, vplus)
+            # rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T, vminus)
+            # rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, vplus)
+            # rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T, vminus)
+        # if self.verbose:
+            # print("# Constructing half rotated V_{(ab)(kl)}.")
         # vaklb_a = (numpy.einsum('gak,gbl->akbl', rup, rup) -
                    # numpy.einsum('gbk,gal->akbl', rup, rup))
         # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -

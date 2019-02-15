@@ -3,6 +3,7 @@ import math
 import numpy
 import scipy.sparse.linalg
 from scipy.linalg import sqrtm
+import sys
 import time
 from pauxy.estimators.thermal import (
         one_rdm_from_G, inverse_greens_function_qr,
@@ -81,6 +82,7 @@ class PlaneWave(object):
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
                                 scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
+        print("EXPM: ", self.BH1[0])
 
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
@@ -130,7 +132,6 @@ class PlaneWave(object):
         return - self.sqrt_dt * self.vbias
 
     def construct_VHS_outofcore(self, system, xshifted):
-        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -152,7 +153,6 @@ class PlaneWave(object):
         return  VHS * self.sqrt_dt
 
     def construct_VHS_incore(self, system, xshifted):
-        import numpy.matlib
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -339,8 +339,10 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=False), scipy.linalg.det(G[1], check_finite=False)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False), scipy.linalg.det(walker.G[1], check_finite=False)]
+        M0 = [scipy.linalg.det(G[0], check_finite=False),
+              scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
+                scipy.linalg.det(walker.G[1], check_finite=False)]
         try:
             # Could save M0 rather than recompute.
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
@@ -405,8 +407,10 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite = False), scipy.linalg.det(G[1], check_finite=False)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite = False), scipy.linalg.det(walker.G[1], check_finite=False)]
+        M0 = [scipy.linalg.det(G[0], check_finite=False),
+              scipy.linalg.det(G[1], check_finite=False)]
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
+                scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
         try:
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])

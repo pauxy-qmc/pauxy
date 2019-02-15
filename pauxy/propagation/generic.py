@@ -130,8 +130,6 @@ class GenericContinuous(object):
         else:
             vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
             vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
-        # print(- self.sqrt_dt * (vbias-self.mf_shift))
-        # sys.exit()
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_force_bias_incore(self, system, walker, trial):

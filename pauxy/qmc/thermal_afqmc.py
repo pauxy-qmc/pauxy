@@ -18,18 +18,20 @@ from pauxy.utils.io import to_json
 from pauxy.walkers.handler import Walkers
 
 def convert_from_reduced_unit(system, qmc_opts, verbose=False):
-    if (system.name == 'UEG' and verbose):
+    if system.name == 'UEG':
         TF = system.ef# Fermi temeprature
-        print("# Fermi Temperature = %10.5f"%TF)
-        print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
-        print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
+        if verbose:
+            print("# Fermi Temperature = %10.5f"%TF)
+            print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
+            print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
         dt = qmc_opts['dt'] # original dt
         beta = qmc_opts['beta'] # original dt
         qmc_opts['beta_reduced'] = beta
         qmc_opts['dt'] = dt / TF # converting to Hartree ^ -1
         qmc_opts['beta'] = beta / TF # converting to Hartree ^ -1
-        print("# beta in Hartree^-1 = %10.5f"%qmc_opts['beta'])
-        print("# dt in Hartree^-1 = %10.5f"%qmc_opts['dt'])
+        if verbose:
+            print("# beta in Hartree^-1 = %10.5f"%qmc_opts['beta'])
+            print("# dt in Hartree^-1 = %10.5f"%qmc_opts['dt'])
 
 class ThermalAFQMC(object):
     """AFQMC driver.
@@ -110,7 +112,9 @@ class ThermalAFQMC(object):
         # 2. Calculation objects.
         model['thermal'] = True # Add thermal keyword to model
         self.system = get_system(model, verbose)
-        convert_from_reduced_unit(self.system, qmc_opts, verbose)
+        scale_t = qmc_opts.get('scaled_temperature', True)
+        if scale_t:
+            convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
         # Overide whatever's in the input file due to structure of FT algorithm.
@@ -121,6 +125,11 @@ class ThermalAFQMC(object):
         self.trial = (
             get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
         )
+        if self.system.name == "Generic":
+            if self.system.cplx_chol:
+                self.system.construct_integral_tensors_cplx(self.trial)
+            else:
+                self.system.construct_integral_tensors_real(self.trial)
 
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
