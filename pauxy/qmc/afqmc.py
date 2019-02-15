@@ -108,7 +108,10 @@ class AFQMC(object):
             if self.system.frozen_core:
                 self.system.frozen_core_hamiltonian(self.trial)
             if self.trial.name != "multi_determinant":
-                self.system.construct_integral_tensors(self.trial)
+                if self.system.cplx_chol:
+                    self.system.construct_integral_tensors_cplx(self.trial)
+                else:
+                    self.system.construct_integral_tensors_real(self.trial)
         self.trial.calculate_energy(self.system)
         self.propagators = get_propagator_driver(propagator, self.qmc,
                                                  self.system, self.trial,

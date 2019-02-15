@@ -2,6 +2,7 @@ import cmath
 import math
 import numpy
 import scipy.linalg
+import sys
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
 
@@ -30,6 +31,7 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
+        self.mf_shift = self.construct_mean_field_shift(system, trial)
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
@@ -50,14 +52,15 @@ class GenericContinuous(object):
         if verbose:
             print ("# Finished setting up Generic propagator.")
 
-    def construct_mean_field_shift(self,system)
+    def construct_mean_field_shift(self, system, trial):
         # Mean field shifts (2,nchol_vec).
-        if system.complex_integrals:
-            mfa = numpy.sum(trial.gup_half.ravel()*system.rchol_vecs[0], axis=0)
-            mfb = numpy.sum(trial.gup_half.ravel()*system.rchol_vecs[1], axis=0)
-            self.mf_shift = 1j*(mfa+mfb)
+        if system.cplx_chol:
+            mf_shift = 1j*numpy.einsum('lpq,spq->l',
+                                       system.sym_chol_vecs,
+                                       trial.G)
         else:
-            self.mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
+            mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
+        return mf_shift
 
     def construct_one_body_propagator(self, system, dt):
         """Construct mean-field shifted one-body propagator.
@@ -72,7 +75,7 @@ class GenericContinuous(object):
             One-body operator including factor from factorising two-body
             Hamiltonian.
         """
-        if system.complex_integrals:
+        if system.cplx_chol:
             shift = 1j*numpy.einsum('l,lpq->pq',
                                     self.mf_shift,
                                     system.sym_chol_vecs)
@@ -121,12 +124,14 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        if system.complex_integrals:
+        if system.cplx_chol:
             vbias = numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[0])
             vbias += numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[1])
         else:
             vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
             vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
+        # print(- self.sqrt_dt * (vbias-self.mf_shift))
+        # sys.exit()
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_force_bias_incore(self, system, walker, trial):
@@ -150,7 +155,7 @@ class GenericContinuous(object):
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_VHS_direct(self, system, shifted):
-        if system.complex_integrals:
+        if system.cplx_chol:
             return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
                                                 system.sym_chol_vecs)
         else:

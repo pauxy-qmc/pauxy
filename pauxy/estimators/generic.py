@@ -1,4 +1,5 @@
 import numpy
+import sys
 
 def local_energy_generic(system, G, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
@@ -71,20 +72,24 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     exx_uu = 0
     exx_dd = 0
     # Below to compute exx_uu/dd we do
-    # t1 = numpy.einsum('nik,il->nkl', cv, G[s])
-    # t2 = numpy.einsum('nlj,jk->nlk', cv.conj(), G[s])
-    # exx_ss = numpy.einsum('nkl,nlk->', t1, t2)
+    # t1 = numpy.einsum('nik,il->nkl', cv, G[0])
+    # t2 = numpy.einsum('nlj,jk->nlk', cv.conj(), G[0])
+    # exx_uu = numpy.einsum('nkl,nlk->', t1, t2)
+    exx_uu = 0
     for c in cv:
         ecoul_uu += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[0])
         ecoul_dd += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[1])
         ecoul_ud += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
         ecoul_du += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
         t1 = numpy.dot(c.T, G[0])
-        t2 = numpy.dot(c.conj().T, G[0])
-        exx_uu += numpy.einsum('ij,ji->',t1,t2) 
+        # print(t1.sum())
+        t2 = numpy.dot(c.conj(), G[0])
+        # print(t2.sum())
+        exx_uu += numpy.einsum('ij,ji->',t1,t2)
+        # print("sum:", exx_uu)
         t1 = numpy.dot(c.T, G[1])
-        t2 = numpy.dot(c.conj().T, G[1])
-        exx_dd += numpy.einsum('ij,ji->',t1,t2) 
+        t2 = numpy.dot(c.conj(), G[1])
+        exx_dd += numpy.einsum('ij,ji->',t1,t2)
     euu = 0.5*(ecoul_uu-exx_uu)
     edd = 0.5*(ecoul_dd-exx_dd)
     eud = 0.5 * ecoul_ud

@@ -3,6 +3,7 @@ import math
 import numpy
 import scipy.sparse.linalg
 import time
+import sys
 from pauxy.propagation.operations import local_energy_bound
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
@@ -111,6 +112,8 @@ class PlaneWave(object):
         Gvec = G.reshape(2, system.nbasis*system.nbasis)
         self.vbias[:self.num_vplus] = Gvec[0].T*system.iA + Gvec[1].T*system.iA
         self.vbias[self.num_vplus:] = Gvec[0].T*system.iB + Gvec[1].T*system.iB
+        # print(-self.sqrt_dt*self.vbias)
+        # sys.exit()
         return - self.sqrt_dt * self.vbias
 
     def construct_VHS(self, system, xshifted):

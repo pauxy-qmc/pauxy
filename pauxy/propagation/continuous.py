@@ -1,6 +1,7 @@
 import cmath
 import math
 import numpy
+import sys
 from pauxy.propagation.utils import get_continuous_propagator
 from pauxy.propagation.operations import kinetic_real
 

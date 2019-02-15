@@ -77,6 +77,7 @@ class Generic(object):
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
+        self.cplx_chol = inputs.get('complex_cholesky', False)
         if verbose:
             print("# Reading integrals from %s." % self.integral_file)
         self.schol_vecs = None
@@ -224,11 +225,11 @@ class Generic(object):
         self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
                                                          self.nbasis))
         if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
-            print("# Found Complex integrals.") 
-            self.complex_integrals = True
-            self.nchol_vec = self.nchol_vec
+            print("# Found complex integrals.")
+            self.cplx_chol = True
         else:
-            self.complex_integrals = False
+            if not self.cplx_chol:
+                self.cplx_chol= False
         mem = self.chol_vecs.nbytes / (1024.0**3)
         self.total_mem += mem
         print("# Memory required by Cholesky vectors %f GB"%mem)
@@ -304,7 +305,7 @@ class Generic(object):
             print("# Active space energy : %13.8e"%self.eactive.real)
             print("# Total HF energy : %13.8e"%(self.eactive+self.ecore).real)
 
-    def construct_integral_tensors(self, trial):
+    def construct_integral_tensors_real(self, trial):
         if self.schol_vecs is None:
             if self.cutoff is not None:
                 self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
@@ -374,6 +375,15 @@ class Generic(object):
         nb = self.ndown
         if self.verbose:
             print("# Constructing complex half rotated Cholesky vectors.")
+        self.nfields = 2 * self.nfields
+        self.sym_chol_vecs = numpy.zeros(shape=(2*self.nchol_vec, M, M),
+                                         dtype=numpy.complex128)
+        if self.schol_vecs is None:
+            if self.cutoff is not None:
+                self.sym_chol_vecs[numpy.abs(self.sym_chol_vecs) < self.cutoff] = 0
+            tmp = numpy.transpose(self.sym_chol_vecs, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, 2*self.nchol_vec)
+            self.schol_vecs = csr_matrix(tmp)
         rup = numpy.zeros(shape=(2*self.nchol_vec, na, M),
                           dtype=numpy.complex128)
         rdn = numpy.zeros(shape=(2*self.nchol_vec, nb, M),
@@ -384,14 +394,6 @@ class Generic(object):
         # rdn = numpy.einsum('ia,lik->lak',
                            # trial.psi[:,na:].conj(),
                            # self.chol_vecs)
-        self.sym_chol_vecs = numpy.zeros(shape=(2*self.nchol_vec, M, M),
-                                         dtype=numpy.complex128)
-        if self.schol_vecs is None:
-            if self.cutoff is not None:
-                self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
-            tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, 2*self.nchol_vec)
-            self.schol_vecs = csr_matrix(tmp)
         # This is much faster than einsum.
         for (n,cn) in enumerate(self.chol_vecs):
             vplus = 0.5*(cn+cn.conj().T)
@@ -399,7 +401,7 @@ class Generic(object):
             self.sym_chol_vecs[n] = vplus
             self.sym_chol_vecs[self.nchol_vec+n] = vminus
             rup[n] = numpy.dot(trial.psi[:,:na].conj().T, vplus)
-            rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T, vminus) 
+            rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T, vminus)
             rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, vplus)
             rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T, vminus)
         if self.verbose:
@@ -409,8 +411,8 @@ class Generic(object):
         # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
                    # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
-        self.rchol_vecs = [csr_matrix(rup.reshape((-1,M*na).T)),
-                           csr_matrix(rdn.reshape((-1,M*nb).T))]
+        self.rchol_vecs = [csr_matrix(rup.reshape((-1,M*na)).T),
+                           csr_matrix(rdn.reshape((-1,M*nb)).T)]
         # vaklb_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
         # vaklb_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
         # tmp_1 = numpy.zeros((self.nchol_vecs, M*na, M*na),
@@ -420,7 +422,6 @@ class Generic(object):
         # for (n,cn) in enumerate(self.chol_vecs):
             # tmp_1[n] = numpy.dot(trial.psi[:,:na].conj().T, cn)
             # tmp_2[n] = numpy.dot(cn.conj().T, trial.psi[:,:na].conj().T)
-            
         # self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       # csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
         # if self.verbose:
