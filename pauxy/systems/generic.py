@@ -7,7 +7,6 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import from_qmcpack_cholesky
-from pauxy.utils.from_pyscf import write_fcidump
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
         local_energy_generic_cholesky, core_contribution_cholesky
@@ -63,46 +62,44 @@ class Generic(object):
         self.verbose = verbose
         self.nup = inputs['nup']
         self.ndown = inputs['ndown']
-        self.ncore= inputs.get('nfrozen_core', 0)
-        self.nfv = inputs.get('nfrozen_virt', 0)
-        self.write = inputs.get('write', False)
-        self.frozen_core = self.ncore > 0
-        if self.frozen_core:
-            self.nup = self.nup - self.ncore
-            self.ndown = self.ndown - self.ncore
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
-        self.total_mem = 0
-        self.decomopsition = inputs.get('decomposition', 'cholesky')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
         self.cplx_chol = inputs.get('complex_cholesky', False)
         if verbose:
             print("# Reading integrals from %s." % self.integral_file)
-        self.schol_vecs = None
-        self.read_integrals()
-        self.nactive = self.nbasis - self.ncore - self.nfv
+        self.chol_vecs = self.read_integrals()
         self.construct_h1e_mod()
-        if self.schol_vecs is None:
+        if self.cplx_chol:
+            for (n,cn) in enumerate(self.chol_vecs):
+                vplus = 0.5*(cn+cn.conj().T)
+                vminus = 0.5j*(cn-cn.conj().T)
+                self.hs_pot[n] = vplus
+                self.hs_pot[self.nchol_vec+n] = vminus
+            self.nfields = 2 * self.nchol_vec
+        else:
+            self.hs_pot = self.chol_vecs
+            self.nfields = self.nchol_vec
+        if self.sparse:
             if self.cutoff is not None:
-                self.chol_vecs[numpy.abs(self.chol_vecs) < self.cutoff] = 0
-            tmp = numpy.transpose(self.chol_vecs, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nchol_vec)
-            self.schol_vecs = csr_matrix(tmp)
+                self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
+            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
+            self.hs_pot = csr_matrix(tmp)
         self.mu = None
         if verbose:
             print("# Finished setting up Generic system object.")
 
     def read_integrals(self):
-        (h1e, self.schol_vecs, self.ecore,
+        (h1e, schol_vecs, self.ecore,
         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
         self.nchol_vec = int(self.schol_vecs.shape[-1])
-        self.chol_vecs = self.schol_vecs.toarray().T.reshape((-1, self.nbasis,
-                                                         self.nbasis))
+        chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
         if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
             print("# Found complex integrals.")
             self.cplx_chol = True
@@ -112,14 +109,14 @@ class Generic(object):
             else:
                 print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol= False
-        mem = self.chol_vecs.nbytes / (1024.0**3)
-        self.total_mem += mem
+        mem = chol_vecs.nbytes / (1024.0**3)
+        total_mem += mem
         print("# Memory required by Cholesky vectors %f GB"%mem)
         self.H1 = numpy.array([h1e, h1e])
         # These will be reconstructed later.
-        self.schol_vecs = None
         self.orbs = None
         self.h2e = None
+        return chol_vecs
 
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
@@ -214,12 +211,12 @@ class Generic(object):
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
             mem = (2*nnz*16/(1024.0**3))
-            self.total_mem += mem
+            total_mem += mem
             print("# Memory used %f" " GB"%mem)
             nnz = self.vaklb[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             mem = (2*nnz*16/(1024.0**3))
-            self.total_mem += mem
+            total_mem += mem
             print("# Memory used %f GB"%mem)
             nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
@@ -231,68 +228,61 @@ class Generic(object):
         na = self.nup
         nb = self.ndown
         if self.verbose:
-            print("# Constructing complex half rotated Cholesky vectors.")
-        self.nfields = 2 * self.nfields
-        self.sym_chol_vecs = numpy.zeros(shape=(2*self.nchol_vec, M, M),
-                                         dtype=numpy.complex128)
-        if self.schol_vecs is None:
-            if self.cutoff is not None:
-                self.sym_chol_vecs[numpy.abs(self.sym_chol_vecs) < self.cutoff] = 0
-            tmp = numpy.transpose(self.sym_chol_vecs, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, 2*self.nchol_vec)
-            self.schol_vecs = csr_matrix(tmp)
-        rup = numpy.zeros(shape=(2*self.nchol_vec, na, M),
+            print("# Constructing complex half rotated HS Potentials.")
+        rup = numpy.zeros(shape=(self.nfields, na, M),
                           dtype=numpy.complex128)
-        rdn = numpy.zeros(shape=(2*self.nchol_vec, nb, M),
+        rdn = numpy.zeros(shape=(self.nfields, nb, M),
                           dtype=numpy.complex128)
         # rup = numpy.einsum('ia,lik->lak',
                            # trial.psi[:,:na].conj(),
-                           # self.chol_vecs)
+                           # self.hs_pot)
         # rdn = numpy.einsum('ia,lik->lak',
                            # trial.psi[:,na:].conj(),
-                           # self.chol_vecs)
+                           # self.hs_pot)
         # This is much faster than einsum.
-        for (n,cn) in enumerate(self.chol_vecs):
-            vplus = 0.5*(cn+cn.conj().T)
-            vminus = 0.5j*(cn-cn.conj().T)
-            self.sym_chol_vecs[n] = vplus
-            self.sym_chol_vecs[self.nchol_vec+n] = vminus
-            # rup[n] = numpy.dot(trial.psi[:,:na].conj().T, vplus)
-            # rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T, vminus)
-            # rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, vplus)
-            # rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T, vminus)
-        # if self.verbose:
-            # print("# Constructing half rotated V_{(ab)(kl)}.")
+        for (n,cn) in enumerate(self.hs_pot):
+            rup[n] = numpy.dot(trial.psi[:,:na].conj().T, hs_pot[n])
+            rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T,
+                                              hs_pot[self.nchol_vec+n])
+            rdn[n] = numpy.dot(trial.psi[:,na:].conj().T,
+                               hs_pot[n])
+            rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T,
+                                              hs_pot[self.nchol_vec+n])
+        self.rot_hs_pot = [csr_matrix(rup.reshape((-1,M*na)).T),
+                           csr_matrix(rdn.reshape((-1,M*nb)).T)]
+        if self.verbose:
+            print("# Constructing half rotated V_{(ab)(kl)}.")
         # vaklb_a = (numpy.einsum('gak,gbl->akbl', rup, rup) -
                    # numpy.einsum('gbk,gal->akbl', rup, rup))
         # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
                    # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
-        self.rchol_vecs = [csr_matrix(rup.reshape((-1,M*na)).T),
-                           csr_matrix(rdn.reshape((-1,M*nb)).T)]
-        # vaklb_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
-        # vaklb_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
-        # tmp_1 = numpy.zeros((self.nchol_vecs, M*na, M*na),
-                            # dtype=numpy.complex128)
-        # tmp_2 = numpy.zeros((self.nchol_vecs, M*na, M*na),
-                            # dtype=numpy.complex128)
-        # for (n,cn) in enumerate(self.chol_vecs):
-            # tmp_1[n] = numpy.dot(trial.psi[:,:na].conj().T, cn)
-            # tmp_2[n] = numpy.dot(cn.conj().T, trial.psi[:,:na].conj().T)
-        # self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
-                      # csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
-        # if self.verbose:
-            # nnz = self.rchol_vecs[0].nnz
-            # print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
-            # nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
-            # print("# Sparsity: %f"%(nnz/nelem))
-            # mem = (2*nnz*16/(1024.0**3))
-            # self.total_mem += mem
-            # print("# Memory used %f" " GB"%mem)
-            # nnz = self.vaklb[0].nnz
-            # print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-            # mem = (2*nnz*16/(1024.0**3))
-            # self.total_mem += mem
-            # print("# Memory used %f GB"%mem)
-            # nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
-            # print("# Sparsity: %f"%(nnz/nelem))
+        vaklb_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
+        vaklb_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
+        for (n,cn) in enumerate(self.chol_vecs):
+            Tak = numpy.dot(trial.psi[:,:na].conj().T, cn)
+            Rlb = numpy.dot(trial.psi[:,:na].conj().T, cn.conj())
+            Maklb = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(na,M,na,M)
+            vaklb_a += (Maklb-Maklb.transpose((2,1,0,3))).reshape(na*M,na*M)
+            Tak = numpy.dot(trial.psi[:,na:].conj().T, cn)
+            Rlb = numpy.dot(trial.psi[:,na:].conj().T, cn.conj())
+            Maklb = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(nb,M,nb,M)
+            vaklb_b += (Maklb-Maklb.transpose((2,1,0,3))).reshape(nb*M,nb*M)
+
+        self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
+                      csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
+        if self.verbose:
+            nnz = self.rchol_vecs[0].nnz
+            print("# Number of non-zero elements in rotated potentials: %d"%nnz)
+            nelem = self.rot_hs_pot[0].shape[0] * self.rot_hs_pot[0].shape[1]
+            print("# Sparsity: %f"%(nnz/nelem))
+            mem = (2*nnz*16/(1024.0**3))
+            self.total_mem += mem
+            print("# Memory used %f" " GB"%mem)
+            nnz = self.vaklb[0].nnz
+            print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
+            mem = (2*nnz*16/(1024.0**3))
+            self.total_mem += mem
+            print("# Memory used %f GB"%mem)
+            nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
+            print("# Sparsity: %f"%(nnz/nelem))
