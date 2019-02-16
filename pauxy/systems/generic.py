@@ -72,22 +72,19 @@ class Generic(object):
             print("# Reading integrals from %s." % self.integral_file)
         self.chol_vecs = self.read_integrals()
         self.construct_h1e_mod()
+        self.ktwist = numpy.array([None])
         if self.cplx_chol:
+            self.nfields = 2 * self.nchol_vec
+            self.hs_pot = numpy.zeros(shape=(self.nfields,self.nbasis,self.nbasis),
+                                      dtype=numpy.complex128)
             for (n,cn) in enumerate(self.chol_vecs):
                 vplus = 0.5*(cn+cn.conj().T)
                 vminus = 0.5j*(cn-cn.conj().T)
                 self.hs_pot[n] = vplus
                 self.hs_pot[self.nchol_vec+n] = vminus
-            self.nfields = 2 * self.nchol_vec
         else:
             self.hs_pot = self.chol_vecs
             self.nfields = self.nchol_vec
-        if self.sparse:
-            if self.cutoff is not None:
-                self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
-            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
-            self.hs_pot = csr_matrix(tmp)
         self.mu = None
         if verbose:
             print("# Finished setting up Generic system object.")
@@ -98,9 +95,9 @@ class Generic(object):
         if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
-        self.nchol_vec = int(self.schol_vecs.shape[-1])
+        self.nchol_vec = int(schol_vecs.shape[-1])
         chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
-        if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
+        if numpy.max(numpy.abs(chol_vecs.imag)) > 1e-6:
             print("# Found complex integrals.")
             self.cplx_chol = True
         else:
@@ -110,7 +107,6 @@ class Generic(object):
                 print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol= False
         mem = chol_vecs.nbytes / (1024.0**3)
-        total_mem += mem
         print("# Memory required by Cholesky vectors %f GB"%mem)
         self.H1 = numpy.array([h1e, h1e])
         # These will be reconstructed later.
@@ -121,7 +117,7 @@ class Generic(object):
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
-        v0 = 0.5 * numpy.einsum('lik,lkj->ij', self.chol_vecs,
+        v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs,
                                 self.chol_vecs.conj())
         self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
 
@@ -201,22 +197,26 @@ class Generic(object):
         tvaklb = time.time()
         vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
         vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
-        self.rchol_vecs = [csr_matrix(rup.T.reshape((M*na, -1))),
+        self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
                            csr_matrix(rdn.T.reshape((M*nb, -1)))]
         self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
+        if self.sparse:
+            if self.cutoff is not None:
+                self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
+            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
+            self.hs_pot = csr_matrix(tmp)
         if self.verbose:
             nnz = self.rchol_vecs[0].nnz
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
             mem = (2*nnz*16/(1024.0**3))
-            total_mem += mem
             print("# Memory used %f" " GB"%mem)
             nnz = self.vaklb[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             mem = (2*nnz*16/(1024.0**3))
-            total_mem += mem
             print("# Memory used %f GB"%mem)
             nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
@@ -241,13 +241,8 @@ class Generic(object):
                            # self.hs_pot)
         # This is much faster than einsum.
         for (n,cn) in enumerate(self.hs_pot):
-            rup[n] = numpy.dot(trial.psi[:,:na].conj().T, hs_pot[n])
-            rup[self.nchol_vec+n] = numpy.dot(trial.psi[:,:na].conj().T,
-                                              hs_pot[self.nchol_vec+n])
-            rdn[n] = numpy.dot(trial.psi[:,na:].conj().T,
-                               hs_pot[n])
-            rdn[self.nchol_vec+n] = numpy.dot(trial.psi[:,na:].conj().T,
-                                              hs_pot[self.nchol_vec+n])
+            rup[n] = numpy.dot(trial.psi[:,:na].conj().T, self.hs_pot[n])
+            rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, self.hs_pot[n])
         self.rot_hs_pot = [csr_matrix(rup.reshape((-1,M*na)).T),
                            csr_matrix(rdn.reshape((-1,M*nb)).T)]
         if self.verbose:
@@ -257,32 +252,36 @@ class Generic(object):
         # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
                    # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
-        vaklb_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
-        vaklb_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
+        vakbl_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
+        vakbl_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
         for (n,cn) in enumerate(self.chol_vecs):
             Tak = numpy.dot(trial.psi[:,:na].conj().T, cn)
             Rlb = numpy.dot(trial.psi[:,:na].conj().T, cn.conj())
-            Maklb = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(na,M,na,M)
-            vaklb_a += (Maklb-Maklb.transpose((2,1,0,3))).reshape(na*M,na*M)
+            Makbl = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(na,M,na,M)
+            vakbl_a += (Makbl-Makbl.transpose((2,1,0,3))).reshape(na*M,na*M)
             Tak = numpy.dot(trial.psi[:,na:].conj().T, cn)
             Rlb = numpy.dot(trial.psi[:,na:].conj().T, cn.conj())
-            Maklb = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(nb,M,nb,M)
-            vaklb_b += (Maklb-Maklb.transpose((2,1,0,3))).reshape(nb*M,nb*M)
+            Makbl = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(nb,M,nb,M)
+            vakbl_b += (Makbl-Makbl.transpose((2,1,0,3))).reshape(nb*M,nb*M)
 
-        self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
+        self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
+        if self.sparse:
+            if self.cutoff is not None:
+                self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
+            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
+            self.hs_pot = csr_matrix(tmp)
         if self.verbose:
-            nnz = self.rchol_vecs[0].nnz
+            nnz = self.rot_hs_pot[0].nnz
             print("# Number of non-zero elements in rotated potentials: %d"%nnz)
             nelem = self.rot_hs_pot[0].shape[0] * self.rot_hs_pot[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
             mem = (2*nnz*16/(1024.0**3))
-            self.total_mem += mem
             print("# Memory used %f" " GB"%mem)
-            nnz = self.vaklb[0].nnz
+            nnz = self.vakbl[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             mem = (2*nnz*16/(1024.0**3))
-            self.total_mem += mem
             print("# Memory used %f GB"%mem)
-            nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
+            nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))

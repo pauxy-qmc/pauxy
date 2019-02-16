@@ -42,24 +42,24 @@ class GenericContinuous(object):
         self.nstblz = qmc.nstblz
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
         if optimised:
-            self.construct_force_bias = self.construct_force_bias_incore
-            self.construct_VHS = self.construct_VHS_incore
+            self.construct_force_bias = self.construct_force_bias_fast
+            self.construct_VHS = self.construct_VHS_fast
         else:
-            self.construct_force_bias = self.construct_force_bias_full
-            self.construct_VHS = self.construct_VHS_direct
+            self.construct_force_bias = self.construct_force_bias_slow
+            self.construct_VHS = self.construct_VHS_slow
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         if verbose:
             print ("# Finished setting up Generic propagator.")
 
     def construct_mean_field_shift(self, system, trial):
-        # Mean field shifts (2,nchol_vec).
-        if system.cplx_chol:
-            mf_shift = 1j*numpy.einsum('lpq,spq->l',
-                                       system.sym_chol_vecs,
-                                       trial.G)
+        if system.sparse:
+            mf_shift = 1j*trial.G[0].ravel()*system.hs_pot
+            mf_shift += 1j*trial.G[1].ravel()*system.hs_pot
         else:
-            mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, trial.G)
+            mf_shift = 1j*numpy.einsum('lpq,spq->l',
+                                       system.hs_pot,
+                                       trial.G)
         return mf_shift
 
     def construct_one_body_propagator(self, system, dt):
@@ -75,41 +75,19 @@ class GenericContinuous(object):
             One-body operator including factor from factorising two-body
             Hamiltonian.
         """
-        if system.cplx_chol:
-            shift = 1j*numpy.einsum('l,lpq->pq',
-                                    self.mf_shift,
-                                    system.sym_chol_vecs)
+        if system.sparse:
+            nb = system.nbasis
+            shift = 1j*system.hs_pot.dot(self.mf_shift).reshape(nb,nb)
         else:
             shift = 1j*numpy.einsum('l,lpq->pq',
                                     self.mf_shift,
-                                    system.chol_vecs)
+                                    system.hs_pot)
         H1 = system.h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
+        print(self.BH1[0])
 
-    def construct_force_bias_direct(self, system, walker, trial):
-        """Compute optimal force bias.
-
-        Uses rotated Green's function.
-
-        Parameters
-        ----------
-        Gmod : :class:`numpy.ndarray`
-            Half-rotated walker's Green's function.
-
-        Returns
-        -------
-        xbar : :class:`numpy.ndarray`
-            Force bias.
-        """
-        # Construct walker modified Green's function.
-        rchol = system.rchol_vecs[0].todense()
-        vbias = 1j*numpy.einsum('a,al->l', walker.Gmod[0].ravel(), rchol)
-        rchol = system.rchol_vecs[1].todense()
-        vbias += 1j*numpy.einsum('a,al->l', walker.Gmod[1].ravel(), rchol)
-        return - self.sqrt_dt * (vbias-self.mf_shift)
-
-    def construct_force_bias_full(self, system, walker, trial):
+    def construct_force_bias_slow(self, system, walker, trial):
         """Compute optimal force bias.
 
         Uses explicit expression.
@@ -124,15 +102,11 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        if system.cplx_chol:
-            vbias = numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[0])
-            vbias += numpy.einsum('lpq,pq->l', system.sym_chol_vecs, walker.G[1])
-        else:
-            vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[0])
-            vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, walker.G[1])
+        vbias = numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[0])
+        vbias += numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def construct_force_bias_incore(self, system, walker, trial):
+    def construct_force_bias_fast(self, system, walker, trial):
         """Compute optimal force bias.
 
         Uses rotated Green's function.
@@ -148,19 +122,16 @@ class GenericContinuous(object):
             Force bias.
         """
         G = walker.Gmod
-        self.vbias = G[0].ravel() * system.rchol_vecs[0]
-        self.vbias += G[1].ravel() * system.rchol_vecs[1]
+        self.vbias = G[0].ravel() * system.rot_hs_pot[0]
+        self.vbias += G[1].ravel() * system.rot_hs_pot[1]
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
-    def construct_VHS_direct(self, system, shifted):
-        if system.cplx_chol:
-            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
-                                                system.sym_chol_vecs)
-        else:
-            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
-                                                system.chol_vecs)
+    def construct_VHS_slow(self, system, shifted):
+        return self.isqrt_dt * numpy.einsum('l,lpq->pq',
+                                            shifted,
+                                            system.hs_pot)
 
-    def construct_VHS_incore(self, system, xshifted):
+    def construct_VHS_fast(self, system, xshifted):
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -173,7 +144,9 @@ class GenericContinuous(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = system.schol_vecs.dot(xshifted)
+        # print(xshifted)
+        # print("HERE")
+        VHS = system.hs_pot.dot(xshifted)
         VHS = VHS.reshape(system.nbasis, system.nbasis)
         return  self.isqrt_dt * VHS
 

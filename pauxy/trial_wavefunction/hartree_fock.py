@@ -16,7 +16,7 @@ class HartreeFock(object):
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
         self.trial_type = numpy.complex128
-        self.psi = numpy.zeros(shape=(system.nactive, system.nup+system.ndown),
+        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
         self.excite_ia = trial.get('excitation', None)
         self.wfn_file = trial.get('filename', None)
@@ -44,17 +44,10 @@ class HartreeFock(object):
         self.full_orbs = orbs_matrix
         occ_a = numpy.arange(system.nup)
         occ_b = numpy.arange(system.ndown)
-        nc = system.ncore
-        nfv = system.nfv
         nb = system.nbasis
         orbs_full = numpy.copy(orbs_matrix)
         if len(orbs_matrix.shape) == 2:
             # RHF
-            if system.frozen_core:
-                orbs_core = numpy.copy(orbs_matrix[:,:nc])
-                orbs_matrix = numpy.copy(orbs_matrix[nc:nb-nfv,nc:nb-nfv])
-                Gcore, half = gab_mod(orbs_core, orbs_core)
-                self.Gcore = numpy.array([Gcore, Gcore])
             self.psi[:,:system.nup] = orbs_matrix[:,occ_a]
             self.psi[:,system.nup:] = orbs_matrix[:,occ_b]
             if self.excite_ia is not None:
@@ -68,13 +61,6 @@ class HartreeFock(object):
                 self.psi[:,i] = orbs_matrix[:,a]
         else:
             # UHF
-            if system.frozen_core:
-                # Assuming core is doubly occupied
-                orbs_core = numpy.copy(orbs_matrix[:,:,:nc])
-                orbs_matrix = numpy.copy(orbs_matrix[:,nc:nb-nfv,nc:nb-nfv])
-                Gcore_a, half = gab_orbsd(orbs_core[0], orbs_core[0])
-                Gcore_b, half = gab_mod(orbs_core[1], orbs_core[1])
-                self.Gcore = numpy.array([Gcore_a, Gcore_b])
             self.psi[:,:system.nup] = orbs_matrix[0][:,occ_a]
             self.psi[:,system.nup:] = orbs_matrix[1][:,occ_b]
             if self.excite_ia is not None:
@@ -89,8 +75,8 @@ class HartreeFock(object):
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
-        self.Gfull, g = gab_mod(orbs_full[:,:nc+system.nup],
-                                orbs_full[:,:nc+system.nup])
+        self.Gfull, g = gab_mod(orbs_full[:,:system.nup],
+                                orbs_full[:,:system.nup])
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])

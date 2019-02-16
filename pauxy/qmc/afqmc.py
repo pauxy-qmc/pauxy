@@ -105,8 +105,6 @@ class AFQMC(object):
                                    parallel, verbose)
         )
         if self.system.name == "Generic":
-            if self.system.frozen_core:
-                self.system.frozen_core_hamiltonian(self.trial)
             if self.trial.name != "multi_determinant":
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)

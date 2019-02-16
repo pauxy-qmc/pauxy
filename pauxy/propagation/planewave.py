@@ -46,6 +46,7 @@ class PlaneWave(object):
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
+        print(self.BH1[0])
 
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
