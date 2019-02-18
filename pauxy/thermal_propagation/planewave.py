@@ -23,7 +23,7 @@ class PlaneWave(object):
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
         self.optimised = options.get('optimised', True)
-        self.exp_nmax = options.get('expansion_order', 4)
+        self.exp_nmax = options.get('expansion_order', 6)
         self.nstblz = qmc.nstblz
         self.fb_bound = options.get('fb_bound', 1.0)
         # Derived Attributes
@@ -396,7 +396,7 @@ class PlaneWave(object):
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
 
-            if (walker.stack.counter == 0):
+            if walker.stack.counter == 0:
                 walker.compute_left_right(icur)
             # else:
             #     walker.compute_right(icur)
@@ -409,12 +409,11 @@ class PlaneWave(object):
         else:
             # Compute determinant ratio det(1+A')/det(1+A).
             # 1. Current walker's green's function.
-            G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                        inplace=False)
+            tix = walker.stack.ntime_slices
+            G = walker.greens_function(None, slice_ix=tix, inplace=False)
             # 2. Compute updated green's function.
             walker.stack.update_new(B)
-            walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                        inplace=True)
+            walker.greens_function(None, slice_ix=tix, inplace=True)
 
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0], check_finite=False),
@@ -424,13 +423,11 @@ class PlaneWave(object):
         # Could save M0 rather than recompute.
         try:
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
-
             # Might want to cap this at some point
             hybrid_energy = cmath.log(oratio) + cfb + cmf
             Q = cmath.exp(hybrid_energy)
             expQ = self.mf_const_fac * Q
             (magn, phase) = cmath.polar(expQ)
-
             if not math.isinf(magn):
                 # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
                 # Note this doesn't include exponential factor from shifting
