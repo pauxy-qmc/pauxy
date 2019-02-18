@@ -85,7 +85,6 @@ class GenericContinuous(object):
         H1 = system.h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
-        print(self.BH1[0])
 
     def construct_force_bias_slow(self, system, walker, trial):
         """Compute optimal force bias.

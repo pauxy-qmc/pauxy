@@ -125,11 +125,6 @@ class ThermalAFQMC(object):
         self.trial = (
             get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
         )
-        if self.system.name == "Generic":
-            if self.system.cplx_chol:
-                self.system.construct_integral_tensors_cplx(self.trial)
-            else:
-                self.system.construct_integral_tensors_real(self.trial)
 
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)

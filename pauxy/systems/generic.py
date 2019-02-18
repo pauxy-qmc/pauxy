@@ -86,6 +86,12 @@ class Generic(object):
             self.hs_pot = self.chol_vecs
             self.nfields = self.nchol_vec
         self.mu = None
+        if self.sparse:
+            if self.cutoff is not None:
+                self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
+            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
+            self.hs_pot = csr_matrix(tmp)
         if verbose:
             print("# Finished setting up Generic system object.")
 
@@ -240,6 +246,9 @@ class Generic(object):
                            # trial.psi[:,na:].conj(),
                            # self.hs_pot)
         # This is much faster than einsum.
+        if sparse:
+            self.hs_pot = self.hs_pot.to_dense().reshape(nb,nb,self.nfields)
+            self.hs_pot = self.hs_pot.transpose(2,0,1)
         for (n,cn) in enumerate(self.hs_pot):
             rup[n] = numpy.dot(trial.psi[:,:na].conj().T, self.hs_pot[n])
             rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, self.hs_pot[n])
