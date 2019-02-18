@@ -45,9 +45,8 @@ class GenericContinuous(object):
         else:
             print("# Setting force bias to %r."%self.force_bias)
 
-        optimised = options.get('optimised', False)
+        optimised = options.get('optimised', True)
         if optimised:
-            sys.exit("Optimised propagation not implemented yet.")
             self.construct_force_bias = self.construct_force_bias_fast
             self.construct_VHS = self.construct_VHS_fast
         else:
@@ -145,10 +144,34 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', system.hs_pot, P[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
+    def construct_force_bias_fast(self, system, P):
+        """Compute optimal force bias.
+
+        Uses explicit expression.
+
+        Parameters
+        ----------
+        G: :class:`numpy.ndarray`
+            Walker's 1RDM: <c_i^{\dagger}c_j>.
+
+        Returns
+        -------
+        xbar : :class:`numpy.ndarray`
+            Force bias.
+        """
+        vbias = P[0].ravel() * system.hs_pot
+        vbias += P[1].ravel() * system.hs_pot
+        return - self.sqrt_dt * (1j*vbias-self.mf_shift)
+
     def construct_VHS_slow(self, system, shifted):
         return self.isqrt_dt * numpy.einsum('l,lpq->pq',
                                             shifted,
                                             system.hs_pot)
+
+    def construct_VHS_fast(self, system, xshifted):
+        VHS = system.hs_pot.dot(xshifted)
+        VHS = VHS.reshape(system.nbasis, system.nbasis)
+        return  self.isqrt_dt * VHS
 
     def two_body_propagator(self, walker, system, trial):
         r"""Continuous Hubbard-Statonovich transformation.
