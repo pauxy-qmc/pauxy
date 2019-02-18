@@ -186,6 +186,9 @@ class Generic(object):
                            # trial.psi[:,na:].conj(),
                            # self.chol_vecs)
         # This is much faster than einsum.
+        if self.sparse:
+            self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
+            self.hs_pot = self.hs_pot.transpose(2,0,1)
         for l in range(self.nchol_vec):
             rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
             rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
@@ -205,13 +208,14 @@ class Generic(object):
         vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
         self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
                            csr_matrix(rdn.T.reshape((M*nb, -1)))]
-        self.vaklb = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
+        self.rchol_vecs = self.rot_hs_pot
+        self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
+            tmp = tmp.reshape(M*M, self.nfields)
             self.hs_pot = csr_matrix(tmp)
         if self.verbose:
             nnz = self.rchol_vecs[0].nnz
@@ -220,11 +224,11 @@ class Generic(object):
             print("# Sparsity: %f"%(nnz/nelem))
             mem = (2*nnz*16/(1024.0**3))
             print("# Memory used %f" " GB"%mem)
-            nnz = self.vaklb[0].nnz
+            nnz = self.vakbl[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             mem = (2*nnz*16/(1024.0**3))
             print("# Memory used %f GB"%mem)
-            nelem = self.vaklb[0].shape[0] * self.vaklb[0].shape[1]
+            nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
             print("# Sparsity: %f"%(nnz/nelem))
 
     def construct_integral_tensors_cplx(self, trial):
@@ -246,8 +250,8 @@ class Generic(object):
                            # trial.psi[:,na:].conj(),
                            # self.hs_pot)
         # This is much faster than einsum.
-        if sparse:
-            self.hs_pot = self.hs_pot.to_dense().reshape(nb,nb,self.nfields)
+        if self.sparse:
+            self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
             self.hs_pot = self.hs_pot.transpose(2,0,1)
         for (n,cn) in enumerate(self.hs_pot):
             rup[n] = numpy.dot(trial.psi[:,:na].conj().T, self.hs_pot[n])
