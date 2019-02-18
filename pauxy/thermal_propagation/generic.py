@@ -2,13 +2,11 @@ import cmath
 import math
 import numpy
 import scipy.sparse.linalg
-from scipy.linalg import sqrtm
 import sys
 import time
 from pauxy.estimators.thermal import one_rdm_from_G, inverse_greens_function_qr
 from pauxy.propagation.operations import kinetic_real
 from pauxy.utils.linalg import exponentiate_matrix
-from pauxy.walkers.single_det import SingleDetWalker
 
 class GenericContinuous(object):
     """Propagator for generic many-electron Hamiltonian.
@@ -62,7 +60,7 @@ class GenericContinuous(object):
 
         # Mean field shifts (2,nchol_vec).
         P = one_rdm_from_G(trial.G)
-        self.mf_shift = self.construct_mf_shift(system, trial)
+        self.mf_shift = self.construct_mean_field_shift(system, trial)
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
@@ -91,12 +89,13 @@ class GenericContinuous(object):
             print ("# Finished setting up propagator.")
 
 
-    def construct_mf_shift(self, system, trial):
+    def construct_mean_field_shift(self, system, trial):
         P = one_rdm_from_G(trial.G)
-        if system.cplx_chol:
-            mf_shift = 1j*numpy.einsum('lpq,spq->l', system.sym_chol_vecs, P)
+        if system.sparse:
+            mf_shift = 1j*P[0].ravel()*system.hs_pot
+            mf_shift += 1j*P[1].ravel()*system.hs_pot
         else:
-            mf_shift = 1j*numpy.einsum('lpq,spq->l', system.chol_vecs, P)
+            mf_shift = 1j*numpy.einsum('lpq,spq->l', system.hs_pot, P)
         return mf_shift
 
     def construct_one_body_propagator(self, system, dt):
@@ -112,14 +111,14 @@ class GenericContinuous(object):
             One-body operator including factor from factorising two-body
             Hamiltonian.
         """
-        if system.cplx_chol:
-            shift = 1j*numpy.einsum('l,lpq->pq',
-                                    self.mf_shift,
-                                    system.sym_chol_vecs)
+        if system.sparse:
+            nb = system.nbasis
+            shift = 1j*system.hs_pot.dot(self.mf_shift).reshape(nb,nb)
         else:
             shift = 1j*numpy.einsum('l,lpq->pq',
                                     self.mf_shift,
-                                    system.chol_vecs)
+                                    system.hs_pot)
+        H1 = system.h1e_mod - numpy.array([shift,shift])
         H1 = system.h1e_mod - numpy.array([shift,shift])
 
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
@@ -142,21 +141,14 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        if system.cplx_chol:
-            vbias = numpy.einsum('lpq,pq->l', system.sym_chol_vecs, P[0])
-            vbias += numpy.einsum('lpq,pq->l', system.sym_chol_vecs, P[1])
-        else:
-            vbias = numpy.einsum('lpq,pq->l', system.chol_vecs, P[0])
-            vbias += numpy.einsum('lpq,pq->l', system.chol_vecs, P[1])
+        vbias = numpy.einsum('lpq,pq->l', system.hs_pot, P[0])
+        vbias += numpy.einsum('lpq,pq->l', system.hs_pot, P[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_VHS_slow(self, system, shifted):
-        if system.cplx_chol:
-            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
-                                                system.sym_chol_vecs)
-        else:
-            return self.isqrt_dt * numpy.einsum('l,lpq->pq', shifted,
-                                                system.chol_vecs)
+        return self.isqrt_dt * numpy.einsum('l,lpq->pq',
+                                            shifted,
+                                            system.hs_pot)
 
     def two_body_propagator(self, walker, system, trial):
         r"""Continuous Hubbard-Statonovich transformation.
@@ -254,7 +246,7 @@ class GenericContinuous(object):
         # 1. Current walker's green's function.
         G = walker.greens_function(trial, inplace=False)
         # 2. Compute updated green's function.
-        walker.stack.update(B)
+        walker.stack.update_new(B)
         walker.greens_function(trial, inplace=True)
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0], check_finite=False),
@@ -288,7 +280,9 @@ class GenericContinuous(object):
             Trial wavefunction object.
         """
 
-        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker,
+                                                           system,
+                                                           trial)
         BV = self.exponentiate(VHS)
 
         B = numpy.array([BV.dot(self.BH1[0]),BV.dot(self.BH1[1])])
@@ -296,10 +290,11 @@ class GenericContinuous(object):
 
         # Compute determinant ratio det(1+A')/det(1+A).
         # 1. Current walker's green's function.
-        G = walker.greens_function(trial, inplace=False)
+        tix = walker.stack.ntime_slices
+        G = walker.greens_function(trial, slice_ix=tix, inplace=False)
         # 2. Compute updated green's function.
-        walker.stack.update(B)
-        walker.greens_function(trial, inplace=True)
+        walker.stack.update_new(B)
+        walker.greens_function(None, slice_ix=tix, inplace=True)
         # 3. Compute det(G/G')
         M0 = [scipy.linalg.det(G[0], check_finite=False),
               scipy.linalg.det(G[1], check_finite=False)]
