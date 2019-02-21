@@ -56,9 +56,7 @@ class SingleDetWalker(object):
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
-        self.phi_init = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        self.phi_bp = copy.deepcopy(self.phi)
+        self.phi_right = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
         try:
             excite = trial.excite_ia
@@ -282,8 +280,7 @@ class SingleDetWalker(object):
         buff = {
             'phi': self.phi,
             'phi_old': self.phi_old,
-            'phi_init': self.phi_init,
-            'phi_bp': self.phi_bp,
+            'phi_right': self.phi_right,
             'weight': self.weight,
             'phase': self.phase,
             'inv_ovlp': self.inv_ovlp,
@@ -293,7 +290,8 @@ class SingleDetWalker(object):
             'fields': self.field_configs.configs,
             'cfacs': self.field_configs.cos_fac,
             'E_L': self.E_L,
-            'weight_fac': self.field_configs.weight_fac
+            'weight_fac': self.field_configs.weight_fac,
+            'stack': self.stack.get_buffer()
         }
         return buff
 
@@ -307,8 +305,7 @@ class SingleDetWalker(object):
         """
         self.phi = numpy.copy(buff['phi'])
         self.phi_old = numpy.copy(buff['phi_old'])
-        self.phi_init = numpy.copy(buff['phi_init'])
-        self.phi_bp = numpy.copy(buff['phi_bp'])
+        self.phi_right = numpy.copy(buff['phi_right'])
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
@@ -319,3 +316,4 @@ class SingleDetWalker(object):
         self.field_configs.configs = numpy.copy(buff['fields'])
         self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
+        self.stack.set_buffer(buff['stack'])

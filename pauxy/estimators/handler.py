@@ -91,8 +91,7 @@ class Estimators(object):
         self.calc_itcf = itcf is not None
         if self.calc_itcf:
             self.estimators['itcf'] = ITCF(itcf, qmc, trial, root, self.h5f,
-                                           system.nbasis, dtype,
-                                           self.nprop_tot, BT2)
+                                           system, dtype, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
         if verbose:
             print ("# Finished settting up estimator object.")

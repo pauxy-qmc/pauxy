@@ -6,7 +6,7 @@ import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
-from pauxy.walkers.thermal import ThermalWalker
+from pauxy.walkers.thermal import ThermalWalker, PropagatorStack
 from pauxy.qmc.comm import FakeComm
 
 
@@ -51,11 +51,10 @@ class Walkers(object):
         else:
             dtype = int
         self.pop_control = self.comb
-        self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
+        self.stack_size = walker_opts.get('stack_size', 1)
+        self.add_field_config(nprop_tot, nbp, system, dtype)
         self.calculate_total_weight()
         self.calculate_nwalkers()
-        if verbose:
-            print ("# Finished setting up wavefunction object.")
 
     def calculate_total_weight(self):
         self.total_weight = sum(w.weight for w in self.walkers if w.alive)
@@ -80,7 +79,7 @@ class Walkers(object):
                 w.weight *= magn
                 w.phase *= cmath.exp(1j*dtheta)
 
-    def add_field_config(self, nprop_tot, nbp, nfields, dtype):
+    def add_field_config(self, nprop_tot, nbp, system, dtype):
         """Add FieldConfig object to walker object.
 
         Parameters
@@ -95,7 +94,9 @@ class Walkers(object):
             Field configuration type.
         """
         for w in self.walkers:
-            w.field_configs = FieldConfig(nfields, nprop_tot, nbp, dtype)
+            w.field_configs = FieldConfig(system.nfields, nprop_tot, nbp, dtype)
+            w.stack = PropagatorStack(self.stack_size, nprop_tot, system.nbasis,
+                                      dtype, None, None, False)
 
     def copy_historic_wfn(self):
         """Copy current wavefunction to psi_n for next back propagation step."""
@@ -120,7 +121,7 @@ class Walkers(object):
         calculating an ITCF or not.
         """
         for (i,w) in enumerate(self.walkers):
-            numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
+            numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
     def comb(self, comm):
         """Apply the comb method of population control / branching.
@@ -237,6 +238,7 @@ class FieldConfig(object):
         self.configs = numpy.zeros(shape=(nprop_tot, nfields), dtype=dtype)
         self.cos_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=float)
         self.weight_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=complex)
+        self.tot_wfac = 1.0 + 0j
         self.step = 0
         # need to account for first iteration and how we iterate
         self.block = -1
@@ -279,6 +281,10 @@ class FieldConfig(object):
         self.configs[self.step] = config
         self.cos_fac[self.step] = cfac
         self.weight_fac[self.step] = wfac
+        try:
+            self.tot_wfac *= wfac/cfac
+        except ZeroDivisionError:
+            self.tot_wfac = 0.0
         # Completed field configuration for this walker?
         self.step = (self.step + 1) % self.nprop_tot
         # Completed this block of back propagation steps?

@@ -5,6 +5,7 @@ import scipy.linalg
 import sys
 from pauxy.utils.linalg import exponentiate_matrix
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.utils.linalg import reortho
 
 class GenericContinuous(object):
     """Propagator for generic many-electron Hamiltonian.
@@ -213,10 +214,46 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
         for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
             # could make this system specific to reduce need for multiple
             # routines.
-            B = construct_propagator_matrix_generic(system, BT2,
-                                                    c, dt, conjt=True)
             psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
             if i != 0 and i % nstblz == 0:
                 psi_bp[iw].reortho(trial)
     return psi_bp
+
+def back_propagate_single_generic(phi_in, stack, system, nstblz, store=False):
+    r"""Perform back propagation for RHF/UHF style wavefunction.
+
+    For use with generic system hamiltonian.
+
+    Parameters
+    ---------
+    system : system object in general.
+        Container for model input options.
+    psi : :class:`pauxy.walkers.Walkers` object
+        CPMC wavefunction.
+    trial : :class:`pauxy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    dt : float
+        Timestep.
+
+    Returns
+    -------
+    psi_bp : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
+    """
+    nup = system.nup
+    psi_store = []
+    for (i, B) in enumerate(stack.stack[::-1]):
+        phi_in[:,:nup] = numpy.dot(B[0].conj().T, phi_in[:,:nup])
+        phi_in[:,nup:] = numpy.dot(B[1].conj().T, phi_in[:,nup:])
+        if i != 0 and i % nstblz == 0:
+            (phi_in[:,:nup], R) = reortho(phi_in[:,:nup])
+            (phi_in[:,nup:], R) = reortho(phi_in[:,nup:])
+        if store:
+            psi_store.append(phi_in.copy())
+
+    return psi_store

@@ -482,7 +482,6 @@ class ThermalWalker(object):
         self.Qr = [numpy.copy(buff['Qr'][0]), numpy.copy(buff['Qr'][1])]
         self.Dr = [numpy.copy(buff['Dr'][0]), numpy.copy(buff['Dr'][1])]
 
-
 class PropagatorStack:
     def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT, BTinv,
                  diagonal=False):
@@ -502,6 +501,7 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
+        self.wfac = 1.0 + 0j
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
@@ -519,6 +519,7 @@ class PropagatorStack:
             'left': self.left,
             'right': self.right,
             'stack': self.stack,
+            'wfac': self.wfac,
         }
         return buff
 
@@ -526,6 +527,7 @@ class PropagatorStack:
         self.stack = numpy.copy(buff['stack'])
         self.left = numpy.copy(buff['left'])
         self.right = numpy.copy(buff['right'])
+        self.wfac = buff['wfac']
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
@@ -559,12 +561,14 @@ class PropagatorStack:
             self.left[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.left[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
 
-    def update(self, B):
+    def update(self, B, wfac=1.0):
         if self.counter == 0:
             self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.wfac = 1.0 + 0j
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
+        self.wfac *= wfac
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
@@ -596,6 +600,7 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
+
 
 def unit_test():
     from pauxy.systems.ueg import UEG
