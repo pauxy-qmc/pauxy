@@ -98,7 +98,7 @@ class Generic(object):
     def read_integrals(self):
         (h1e, schol_vecs, self.ecore,
         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
-        if ((nup != self.nup) or ndown != self.ndown) and not self.frozen_core:
+        if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
         self.nchol_vec = int(schol_vecs.shape[-1])
