@@ -100,7 +100,7 @@ class Generic(object):
         self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
-            print("%d %d vs. %d %d"%(nelec[0], nelec[1], self.nup, self.ndown))
+            print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
         self.nchol_vec = int(schol_vecs.shape[-1])
         chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
         if numpy.max(numpy.abs(chol_vecs.imag)) > 1e-6:
