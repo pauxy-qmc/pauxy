@@ -236,7 +236,7 @@ def write_qmcpack_wfn(out, mos, nao):
 
 def read_qmcpack_wfn(filename):
     with open(filename) as f:
-        content = f.readlines()[8:]
+        content = f.readlines()[9:]
     useable = numpy.array([c.split() for c in content]).flatten()
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
