@@ -22,7 +22,7 @@ class Continuous(object):
             self.force_bias = False
         else:
             print("# Setting force bias to %r."%self.force_bias)
-        self.exp_nmax = options.get('expansion_order', 4)
+        self.exp_nmax = options.get('expansion_order', 6)
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
