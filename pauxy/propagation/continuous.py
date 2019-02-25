@@ -38,7 +38,6 @@ class Continuous(object):
         self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz
         self.nfb_trig = 0
-        self.construct_bmatrix = options.get('construct_bmatrix', False)
 
 
         self.ebound = (2.0/self.dt)**0.5
@@ -209,17 +208,15 @@ class Continuous(object):
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
             walker.ot = ot_new
-            walker.field_configs.push_full(xmxbar, cosine_fac,
-                                           importance_function/magn)
             if self.construct_bmatrix:
                 B = [numpy.dot(EXPV, self.propagator.BH1[0]),
                      numpy.dot(EXPV, self.propagator.BH1[1])]
                 B = [numpy.dot(self.propagator.BH1[0], B[0]),
                      numpy.dot(self.propagator.BH1[1], B[1])]
                 try:
-                    wfac = importance_function / (magn*cosine_fac)
+                    wfac = numpy.array([importance_function/magn, cosine_fac])
                 except ZeroDivisionError:
-                    wfac = 0.0
+                    wfac = numpy.array([0,0])
                 walker.stack.update(numpy.array(B),wfac)
         else:
             walker.ot = ot_new
