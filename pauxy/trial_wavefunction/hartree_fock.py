@@ -91,7 +91,8 @@ class HartreeFock(object):
 
     def calculate_energy(self, system):
         if self.verbose:
-            print ("# Computing trial energy.")
+            print ("# Computing trial wavefunction energy.")
+        start = time.time()
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
                                                          Ghalf=[self.gup_half,
                                                          self.gdown_half],
@@ -99,3 +100,4 @@ class HartreeFock(object):
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))
+            print ("# Time to evaluate local energy: %f"%(time.time()-start))
