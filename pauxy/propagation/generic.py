@@ -182,46 +182,46 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
         return [Bup, Bdown]
 
 
-def back_propagate(system, psi, trial, nstblz, BT2, dt):
-    r"""Perform back propagation for RHF/UHF style wavefunction.
+# def back_propagate(system, psi, trial, nstblz, BT2, dt):
+    # r"""Perform back propagation for RHF/UHF style wavefunction.
 
-    For use with generic system hamiltonian.
+    # For use with generic system hamiltonian.
 
-    Parameters
-    ---------
-    system : system object in general.
-        Container for model input options.
-    psi : :class:`pauxy.walkers.Walkers` object
-        CPMC wavefunction.
-    trial : :class:`pauxy.trial_wavefunction.X' object
-        Trial wavefunction class.
-    nstblz : int
-        Number of steps between GS orthogonalisation.
-    BT2 : :class:`numpy.ndarray`
-        One body propagator.
-    dt : float
-        Timestep.
+    # Parameters
+    # ---------
+    # system : system object in general.
+        # Container for model input options.
+    # psi : :class:`pauxy.walkers.Walkers` object
+        # CPMC wavefunction.
+    # trial : :class:`pauxy.trial_wavefunction.X' object
+        # Trial wavefunction class.
+    # nstblz : int
+        # Number of steps between GS orthogonalisation.
+    # BT2 : :class:`numpy.ndarray`
+        # One body propagator.
+    # dt : float
+        # Timestep.
 
-    Returns
-    -------
-    psi_bp : list of :class:`pauxy.walker.Walker` objects
-        Back propagated list of walkers.
-    """
-    psi_bp = [SingleDetWalker({}, system, trial, index=w) for w in range(len(psi))]
-    nup = system.nup
-    for (iw, w) in enumerate(psi):
-        # propagators should be applied in reverse order
-        for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
-            # could make this system specific to reduce need for multiple
-            # routines.
-            B = construct_propagator_matrix_generic(system, BT2, c, dt, True)
-            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
-            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
-            if i != 0 and i % nstblz == 0:
-                psi_bp[iw].reortho(trial)
-    return psi_bp
+    # Returns
+    # -------
+    # psi_bp : list of :class:`pauxy.walker.Walker` objects
+        # Back propagated list of walkers.
+    # """
+    # psi_bp = [SingleDetWalker({}, system, trial, index=w) for w in range(len(psi))]
+    # nup = system.nup
+    # for (iw, w) in enumerate(psi):
+        # # propagators should be applied in reverse order
+        # for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
+            # # could make this system specific to reduce need for multiple
+            # # routines.
+            # B = construct_propagator_matrix_generic(system, BT2, c, dt, True)
+            # psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
+            # psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
+            # if i != 0 and i % nstblz == 0:
+                # psi_bp[iw].reortho(trial)
+    # return psi_bp
 
-def back_propagate_single_generic(phi_in, stack, system, nstblz, store=False):
+def back_propagate_generic(phi, stack, system, nstblz, store=False):
     r"""Perform back propagation for RHF/UHF style wavefunction.
 
     For use with generic system hamiltonian.
@@ -249,13 +249,13 @@ def back_propagate_single_generic(phi_in, stack, system, nstblz, store=False):
     nup = system.nup
     psi_store = []
     for (i, B) in enumerate(stack.stack[::-1]):
-        phi_in[:,:nup] = numpy.dot(B[0].conj().T, phi_in[:,:nup])
-        phi_in[:,nup:] = numpy.dot(B[1].conj().T, phi_in[:,nup:])
+        phi[:,:nup] = numpy.dot(B[0].conj().T, phi[:,:nup])
+        phi[:,nup:] = numpy.dot(B[1].conj().T, phi[:,nup:])
         if i != 0 and i % nstblz == 0:
-            (phi_in[:,:nup], R) = reortho(phi_in[:,:nup])
-            (phi_in[:,nup:], R) = reortho(phi_in[:,nup:])
+            (phi[:,:nup], R) = reortho(phi[:,:nup])
+            (phi[:,nup:], R) = reortho(phi[:,nup:])
         if store:
-            psi_store.append(phi_in.copy())
+            psi_store.append(phi.copy())
 
     return psi_store
 
@@ -269,8 +269,6 @@ def back_propagate_generic_bmat(system, psi, trial, nstblz):
         for (i, B) in enumerate(w.stack.stack[::-1]):
             # could make this system specific to reduce need for multiple
             # routines.
-            if i == 0:
-                print(i, B[0,0,0])
             psi_bp[iw].phi[:,:nup] = numpy.dot(B[0].conj().T,
                                                psi_bp[iw].phi[:,:nup])
             psi_bp[iw].phi[:,nup:] = numpy.dot(B[1].conj().T,

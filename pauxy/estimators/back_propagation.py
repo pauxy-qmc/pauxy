@@ -5,10 +5,11 @@ try:
     mpi_sum = MPI.SUM
 except ImportError:
     mpi_sum = None
+import sys
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.greens_function import gab, gab_mod
 from pauxy.estimators.mixed import local_energy
-import pauxy.propagation.generic
+from pauxy.propagation.generic import back_propagate_generic
 import pauxy.propagation.hubbard
 
 class BackPropagation(object):
@@ -94,7 +95,7 @@ class BackPropagation(object):
         else:
             self.update = self.update_uhf
             if system.name == "Generic":
-                self.back_propagate = pauxy.propagation.generic.back_propagate
+                self.back_propagate = back_propagate_generic
             else:
                 self.back_propagate = pauxy.propagation.hubbard.back_propagate
 
@@ -118,14 +119,16 @@ class BackPropagation(object):
         """
         if step % self.nmax != 0:
             return
-        psi_bp = self.back_propagate(system, psi.walkers, trial,
-                                     self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
         denominator = 0
-        for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
-            (self.G[0], Gmod_a) = gab_mod(wb.phi[:,:nup], wnm.phi_old[:,:nup])
-            (self.G[1], Gmod_b) = gab_mod(wb.phi[:,nup:], wnm.phi_old[:,nup:])
-            energies = numpy.array(list(local_energy(system, self.G, [Gmod_a, Gmod_b])))
+        for i, wnm in enumerate(zip(psi.walkers)):
+            phi_bp = trial.psi.copy()
+            # TODO: Fix for ITCF.
+            self.back_propagate(psi_bp, wnm.stack, system, self.nstblz)
+            (self.G[0], Gmod_a) = gab_mod(phi_bp[:,:nup], wnm.phi_old[:,:nup])
+            (self.G[1], Gmod_b) = gab_mod(phi_bp[:,nup:], wnm.phi_old[:,nup:])
+            # TODO Remove this / conditional.
+            energies = numpy.array(list(local_energy(system, self.G, opt=False)))
             if self.restore_weights is not None:
                 weight = wnm.weight * self.calculate_weight_factor(wnm)
             else:
@@ -158,6 +161,8 @@ class BackPropagation(object):
         """
         if step % self.nmax != 0:
             return
+        print(" ***** Back Propagation with GHF is broken.")
+        sys.exit()
         psi_bp = self.back_propagate(system, psi.walkers, trial,
                                      self.nstblz, self.BT2,
                                      self.dt)
@@ -228,5 +233,3 @@ class BackPropagation(object):
         """Zero (in the appropriate sense) various estimator arrays."""
         self.estimates[:] = 0
         self.global_estimates[:] = 0
-
-
