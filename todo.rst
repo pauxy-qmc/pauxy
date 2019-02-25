@@ -13,6 +13,7 @@ Code
 - complex cholesky decomposition
 - walker buffer using __dict__ attribute.
 - Energy / FB bounds
+- json error handling
 
 Imaginary time green's functions
 ----------------------------------
