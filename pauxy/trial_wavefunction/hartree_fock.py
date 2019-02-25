@@ -23,18 +23,21 @@ class HartreeFock(object):
         if self.wfn_file is not None:
             if verbose:
                 print ("# Reading trial wavefunction from %s."%self.wfn_file)
-            orbs_matrix = read_qmcpack_wfn(self.wfn_file)
-            if verbose:
-                print ("# Finished reading wavefunction.")
-            msq = system.nbasis**2
-            if len(orbs_matrix) == msq:
-                orbs_matrix = orbs_matrix.reshape((system.nbasis, system.nbasis))
-            else:
-                orbs_alpha = orbs_matrix[:msq].reshape((system.nbasis,
-                                                    system.nbasis))
-                orbs_beta = orbs_matrix[msq:].reshape((system.nbasis,
-                                                   system.nbasis))
-                orbs_matrix = numpy.array([orbs_alpha, orbs_beta])
+            try:
+                orbs_matrix = read_qmcpack_wfn(self.wfn_file)
+                if verbose:
+                    print ("# Finished reading wavefunction.")
+                msq = system.nbasis**2
+                if len(orbs_matrix) == msq:
+                    orbs_matrix = orbs_matrix.reshape((system.nbasis, system.nbasis))
+                else:
+                    orbs_alpha = orbs_matrix[:msq].reshape((system.nbasis,
+                                                        system.nbasis))
+                    orbs_beta = orbs_matrix[msq:].reshape((system.nbasis,
+                                                       system.nbasis))
+                    orbs_matrix = numpy.array([orbs_alpha, orbs_beta])
+            except UnicodeDecodeError:
+                orbs_matrix = numpy.load(self.wfn_file)
         elif system.orbs is not None:
             orbs_matrix = system.orbs
         else:
@@ -75,8 +78,8 @@ class HartreeFock(object):
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
-        self.Gfull, g = gab_mod(orbs_full[:,:system.nup],
-                                orbs_full[:,:system.nup])
+        # self.Gfull, g = gab_mod(orbs_full[:,:system.nup],
+                                # orbs_full[:,:system.nup])
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])
