@@ -4,6 +4,7 @@ import scipy.linalg
 from pauxy.estimators.mixed import local_energy
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
+from pauxy.walkers.stack import PropagatorStack
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -58,6 +59,13 @@ class SingleDetWalker(object):
         # Historic wavefunction for ITCF.
         self.phi_right = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
+        # Number of propagators to store for back propagation / ITCF.
+        num_propg = walker_opts.get('num_propg', 1)
+        self.stack_size = walker_opts.get('stack_size', 1)
+        self.stack = PropagatorStack(self.stack_size, num_propg,
+                                     system.nbasis, trial.psi.dtype,
+                                     BT=None, BTinv=None,
+                                     diagonal=False)
         try:
             excite = trial.excite_ia
         except AttributeError:
