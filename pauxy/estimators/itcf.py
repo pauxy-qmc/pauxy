@@ -14,7 +14,7 @@ from pauxy.propagation.hubbard import (
     back_propagate_single
 )
 from pauxy.propagation.generic import (
-        back_propagate_single_generic,
+        back_propagate_generic,
         construct_propagator_matrix_generic
 )
 from pauxy.propagation.operations import propagate_single
@@ -110,7 +110,7 @@ class ITCF(object):
             self.initial_greens_function = self.initial_greens_function_uhf
             self.accumulate = self.accumulate_uhf
             if system.name == "Generic":
-                self.back_propagate_single = back_propagate_single_generic
+                self.back_propagate_single = back_propagate_generic
                 self.construct_propagator_matrix = construct_propagator_matrix_generic
             if system.name == "Hubbard":
                 self.back_propagate_single = back_propagate_single
