@@ -32,7 +32,7 @@ def extract_rdm(filename, skip, est_type='back_propagated'):
     est_data.columns = headers
     nzero = numpy.nonzero(est_data['E'].values)[0][-1]
     try:
-        rdm = data[est_type+'_estimates/single_particle_greens_function'][:]
+        rdm = data[est_type+'_estimates/one_rdm'][:]
         weights = est_data['Weight'].values.real
         # if len(rdm.shape) == 3:
             # # GHF format
@@ -54,17 +54,21 @@ def extract_hdf5(filename):
         basic.columns = headers
         if estimates is not None:
             if estimates.get('mixed').get('rdm'):
-                mixed_rdm = fh5['mixed_estimates/single_particle_greens_function'][:]
+                mixed_rdm = fh5['mixed_estimates/one_rdm'][:]
             else:
                 mixed_rdm = None
             bp = estimates.get('back_prop')
             if bp is not None:
                 bpe = fh5['back_propagated_estimates/energies'][:]
                 headers = fh5['back_propagated_estimates/headers'][:]
-                bp_data = pd.dataframe(bpe)
+                bp_data = pd.DataFrame(bpe)
                 bp_data.columns = headers
                 if bp['rdm']:
-                    bp_rdm = fh5['back_propagated_estimates/single_particle_greens_function'][:]
+                    try:
+                        bp_rdm = fh5['back_propagated_estimates/one_rdm'][:]
+                    except KeyError:
+                        # Backwards compatability
+                        bp_rdm = fh5['back_propagated_estimates/single_particle_greens_function'][:]
                 else:
                     bp_rdm = None
             else:
