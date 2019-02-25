@@ -56,6 +56,7 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
+        self.nfb_trig = 0
 
         # Mean field shifts (2,nchol_vec).
         P = one_rdm_from_G(trial.G)
