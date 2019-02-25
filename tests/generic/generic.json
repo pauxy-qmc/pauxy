@@ -4,7 +4,7 @@
         "atom": "Neon",
         "nup": 5,
         "ndown": 5,
-        "integrals": "fcidump.ascii"
+        "integrals": "ham.h5"
     },
     "qmc_options": {
         "dt": 0.05,
