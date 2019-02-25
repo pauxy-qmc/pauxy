@@ -71,8 +71,10 @@ class Generic(object):
         if verbose:
             print("# Reading integrals from %s." % self.integral_file)
         self.chol_vecs = self.read_integrals()
+        self.nchol = self.chol_vecs.shape[0]
         self.construct_h1e_mod()
         self.ktwist = numpy.array([None])
+        start = time.time()
         if self.cplx_chol:
             self.nfields = 2 * self.nchol_vec
             self.hs_pot = numpy.zeros(shape=(self.nfields,self.nbasis,self.nbasis),
@@ -85,6 +87,11 @@ class Generic(object):
         else:
             self.hs_pot = self.chol_vecs
             self.nfields = self.nchol_vec
+        if verbose:
+            print("# Number of Cholesky vectors: %d"%(self.nchol))
+            print("# Number of fields: %d"%(self.nfields))
+            print("# Time to construct Hubbard--Stratonovich potentials: "
+                  "%f s"%(time.time()-start))
         self.mu = None
         if self.sparse:
             if self.cutoff is not None:
@@ -113,7 +120,7 @@ class Generic(object):
                 print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol= False
         mem = chol_vecs.nbytes / (1024.0**3)
-        print("# Memory required by Cholesky vectors %f GB"%mem)
+        print("# Approximate memory required by Cholesky vectors %f GB"%mem)
         self.H1 = numpy.array([h1e, h1e])
         # These will be reconstructed later.
         self.orbs = None
@@ -199,13 +206,14 @@ class Generic(object):
         # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
                    # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
+        start = time.time()
         rup = rup.reshape((self.nchol_vec, -1))
         rdn = rdn.reshape((self.nchol_vec, -1))
         Ma = numpy.dot(rup.T, rup)
         Mb = numpy.dot(rdn.T, rdn)
-        tvaklb = time.time()
         vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
         vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
+        tvakbl = time.time() - start
         self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
                            csr_matrix(rdn.T.reshape((M*nb, -1)))]
         self.rchol_vecs = self.rot_hs_pot
@@ -218,18 +226,19 @@ class Generic(object):
             tmp = tmp.reshape(M*M, self.nfields)
             self.hs_pot = csr_matrix(tmp)
         if self.verbose:
+            print("# Time to construct V_{(ak)(bl)}: %f"%tvakbl)
             nnz = self.rchol_vecs[0].nnz
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
-            print("# Sparsity: %f"%(nnz/nelem))
+            print("# Sparsity: %f"%(1-float(nnz)/nelem))
             mem = (2*nnz*16/(1024.0**3))
-            print("# Memory used %f" " GB"%mem)
+            print("# Approximate memory used %f" " GB"%mem)
             nnz = self.vakbl[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             mem = (2*nnz*16/(1024.0**3))
-            print("# Memory used %f GB"%mem)
+            print("# Approximate memory used %f GB"%mem)
             nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
-            print("# Sparsity: %f"%(nnz/nelem))
+            print("# Sparsity: %f"%(1-float(nnz)/nelem))
 
     def construct_integral_tensors_cplx(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).
@@ -250,6 +259,7 @@ class Generic(object):
                            # trial.psi[:,na:].conj(),
                            # self.hs_pot)
         # This is much faster than einsum.
+        start = time.time()
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
             self.hs_pot = self.hs_pot.transpose(2,0,1)
@@ -259,26 +269,43 @@ class Generic(object):
         self.rot_hs_pot = [csr_matrix(rup.reshape((-1,M*na)).T),
                            csr_matrix(rdn.reshape((-1,M*nb)).T)]
         if self.verbose:
+            print("# Time to construct half-rotated HS potentials: "
+                  "%f s"%(time.time()-start))
+            nnz = self.rot_hs_pot[0].nnz
+            print("# Number of non-zero elements in rotated potentials: %d"%nnz)
+            nelem = self.rot_hs_pot[0].shape[0] * self.rot_hs_pot[0].shape[1]
+            print("# Sparsity: %f"%(1-float(nnz)/nelem))
+            mem = (2*nnz*16/(1024.0**3))
+            print("# Approximate memory required %f" " GB"%mem)
             print("# Constructing half rotated V_{(ab)(kl)}.")
-        # vaklb_a = (numpy.einsum('gak,gbl->akbl', rup, rup) -
-                   # numpy.einsum('gbk,gal->akbl', rup, rup))
-        # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
-                   # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
-        vakbl_a = numpy.zeros((M*na,M*na), dtype=numpy.complex128)
-        vakbl_b = numpy.zeros((M*nb,M*nb), dtype=numpy.complex128)
+        Qak = numpy.zeros((self.nchol, M*na), dtype=numpy.complex128)
+        Rbl = numpy.zeros((self.nchol, M*na), dtype=numpy.complex128)
+        start = time.time()
         for (n,cn) in enumerate(self.chol_vecs):
-            Tak = numpy.dot(trial.psi[:,:na].conj().T, cn)
-            Rlb = numpy.dot(trial.psi[:,:na].conj().T, cn.conj())
-            Makbl = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(na,M,na,M)
-            vakbl_a += (Makbl-Makbl.transpose((2,1,0,3))).reshape(na*M,na*M)
-            Tak = numpy.dot(trial.psi[:,na:].conj().T, cn)
-            Rlb = numpy.dot(trial.psi[:,na:].conj().T, cn.conj())
-            Makbl = numpy.outer(Tak.ravel(), Rlb.ravel()).reshape(nb,M,nb,M)
-            vakbl_b += (Makbl-Makbl.transpose((2,1,0,3))).reshape(nb*M,nb*M)
-
+            Qak[n] = numpy.dot(trial.psi[:,:na].conj().T, cn).ravel()
+            Rbl[n] = numpy.dot(trial.psi[:,:na].conj().T, cn.conj()).ravel()
+        if self.verbose:
+            print("# Time to construct Tak, Rbl: %f s"%(time.time()-start))
+        Makbl = numpy.dot(Qak.T,Rbl)
+        vakbl_a = (
+            Makbl -
+            Makbl.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
+        )
+        Qak = numpy.zeros((self.nchol, M*nb), dtype=numpy.complex128)
+        Rbl = numpy.zeros((self.nchol, M*nb), dtype=numpy.complex128)
+        for (n,cn) in enumerate(self.chol_vecs):
+            Qak[n] = numpy.dot(trial.psi[:,na:].conj().T, cn).ravel()
+            Rbl[n] = numpy.dot(trial.psi[:,na:].conj().T, cn.conj()).ravel()
+        Makbl = numpy.dot(Qak.T,Rbl)
+        vakbl_b = (
+            Makbl -
+            Makbl.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
+        )
         self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
+        tvakbl = time.time() - start
+        # TODO: Stop converting hs pot to dense
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
@@ -286,15 +313,9 @@ class Generic(object):
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
         if self.verbose:
-            nnz = self.rot_hs_pot[0].nnz
-            print("# Number of non-zero elements in rotated potentials: %d"%nnz)
-            nelem = self.rot_hs_pot[0].shape[0] * self.rot_hs_pot[0].shape[1]
-            print("# Sparsity: %f"%(nnz/nelem))
-            mem = (2*nnz*16/(1024.0**3))
-            print("# Memory used %f" " GB"%mem)
+            print("# Time to construct V_{(ak)(bl)}: %f s"%(tvakbl))
             nnz = self.vakbl[0].nnz
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-            mem = (2*nnz*16/(1024.0**3))
-            print("# Memory used %f GB"%mem)
+            print("# Approximate memory used %f GB"%mem)
             nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
-            print("# Sparsity: %f"%(nnz/nelem))
+            print("# Sparsity: %f"%(1-float(nnz)/nelem))
