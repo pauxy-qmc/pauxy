@@ -137,7 +137,6 @@ class BackPropagation(object):
             )
         self.estimates[0] += denominator
         psi.copy_historic_wfn()
-        psi.copy_bp_wfn(psi_bp)
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         """Calculate back-propagated estimates for GHF walkers.
