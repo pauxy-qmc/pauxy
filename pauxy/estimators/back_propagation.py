@@ -131,7 +131,7 @@ class BackPropagation(object):
             # TODO Remove this / conditional.
             energies = numpy.array(list(local_energy(system, self.G, opt=False)))
             if self.restore_weights is not None:
-                if self.restore_weights == "Full":
+                if self.restore_weights == "full":
                     wfac = wnm.stack.wfac[0]/wnm.stack.wfac[1]
                 else:
                     wfac = wnm.stack.wfac[0]
