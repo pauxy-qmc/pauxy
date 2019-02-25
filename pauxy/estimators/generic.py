@@ -38,10 +38,11 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     Gdn = Ghalf[1].ravel()
     euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
     edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
-    eud = 0.5 * numpy.dot(Gup.T*system.rchol_vecs[0],
-                          Gdn.T*system.rchol_vecs[1])
-    edu = 0.5 * numpy.dot(Gdn.T*system.rchol_vecs[1],
-                          Gup.T*system.rchol_vecs[0])
+    eud = 0
+    edu = 0
+    for c in system.chol_vecs:
+        eud += 0.5*numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
+        edu += 0.5*numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
     e2b = euu + edd + eud + edu
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
