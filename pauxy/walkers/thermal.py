@@ -650,8 +650,32 @@ def unit_test():
 
     Gnew = walker.G[0].copy()
 
-    print(Gold[:,0] - Gnew[:,0])
-    # (Q, R, P) = scipy.linalg.qr(walker.stack.get(0)[0], pivoting = True)
+    assert(scipy.linalg.norm(Gold[:,0] - Gnew[:,0]) < 1e-10)
+
+    inputs['stack_size'] = 1
+    walker = ThermalWalker(inputs, system, trial, verbose=False)
+    numpy.random.seed(0)
+    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
+    for i in range(0,5):
+        propagator.propagate_walker(system, walker, trial)
+    Gs1 = walker.G[0].copy()
+    for ts in range(walker.stack_length):
+        walker.greens_function(trial, slice_ix=ts*walker.stack_size)
+        E, T, V = walker.local_energy(system)
+        # print(E)
+
+    inputs['stack_size'] = 5
+    walker = ThermalWalker(inputs, system, trial, verbose=False)
+    numpy.random.seed(0)
+    propagator = PlaneWave(inputs, qmc, system, trial, verbose=False)
+    for i in range(0,5):
+        propagator.propagate_walker(system, walker, trial)
+    Gs5 = walker.G[0].copy()
+    for ts in range(walker.stack_length):
+        walker.greens_function(trial, slice_ix=ts*walker.stack_size)
+        E, T, V = walker.local_energy(system)
+        # print(E)
+    assert(numpy.linalg.norm(Gs1-Gs5) < 1e-10)
 
     N = 5
     A = numpy.random.rand(N,N)
@@ -682,7 +706,7 @@ def unit_test():
     D1inv = numpy.diag(1.0/R1.diagonal())
     T1 = numpy.dot(numpy.dot(D1inv, R1), P1mat.T)
 
-    print(B - numpy.einsum('ij,jj->ij',Q1,D1).dot(T1))
+    assert(numpy.linalg.norm(B - numpy.einsum('ij,jj->ij',Q1,D1).dot(T1)) < 1e-10)
 
     # tmp[:,:] = tmp[:,P]
     # print(A - tmp)
@@ -708,19 +732,24 @@ def unit_test():
     for ek in system.eks:
         eref += 2 * ek * 1.0 / (numpy.exp(beta*(ek-mu))+1)
     walker = ThermalWalker({"stack_size": 1}, system, trial)
+    Gs1 = walker.G[0].copy()
     rdm = one_rdm_from_G(walker.G)
     ekin = local_energy_hubbard(system, rdm)[1]
     try:
-        assert(abs(eref-ekin) < 1e-10)
+        assert(abs(eref-ekin) < 1e-8)
     except AssertionError:
-        print("Error in kinetic energy check. Ref: %f Calc:%f"%(eref, ekin))
+        print("Error in kinetic energy check. Ref: %13.8e Calc:%13.8e"%(eref, ekin))
     walker = ThermalWalker({"stack_size": 10}, system, trial)
     rdm = one_rdm_from_G(walker.G)
     ekin = local_energy_hubbard(system, rdm)[1]
     try:
-        assert(abs(eref-ekin) < 1e-10)
+        assert(abs(eref-ekin) < 1e-8)
     except AssertionError:
-        print("Error in kinetic energy check. Ref: %f Calc:%f"%(eref, ekin))
+        print("Error in kinetic energy check. Ref: %13.10e Calc: %13.10e"
+              " Error: %13.8e"%(eref.real, ekin.real, abs(eref-ekin)))
+    for ts in range(walker.stack_length):
+        walker.greens_function(trial, slice_ix=ts*walker.stack_size)
+        assert(numpy.linalg.norm(Gs1-walker.G[0]) < 1e-10)
 
 if __name__=="__main__":
     unit_test()

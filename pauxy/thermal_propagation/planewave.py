@@ -366,7 +366,7 @@ class PlaneWave(object):
             walker.weight = 0.0
 
 
-    def propagate_walker_phaseless(self, system, walker, time_slice):
+    def propagate_walker_phaseless(self, system, walker, trial):
         # """Phaseless propagator
         # Parameters
         # ----------
