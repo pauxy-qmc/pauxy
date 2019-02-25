@@ -1,4 +1,5 @@
 import numpy
+import scipy.linalg
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
@@ -89,7 +90,7 @@ class PropagatorStack:
         self.time_slice = 0
         self.stack_size = stack_size
         self.ntime_slices = ntime_slices
-        self.nbins = ntime_slices // bin_size
+        self.nbins = ntime_slices // self.stack_size
         self.diagonal_trial = diagonal
         self.reortho = 1
 
@@ -105,9 +106,6 @@ class PropagatorStack:
         self.block = 0
         self.wfac = 1.0 + 0j
         I = numpy.identity(nbasis, dtype=dtype)
-        self.usv = numpy.array([[I.copy(),I.copy(), I.copy()],
-                                [I.copy(), I.copy(),I.copy()]])
-        self.left_bp = numpy.array([I.copy(),I.copy()])
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
@@ -125,8 +123,6 @@ class PropagatorStack:
             'left': self.left,
             'right': self.right,
             'stack': self.stack,
-            'left_bp': self.left_bp,
-            'usv': self.usv,
             'wfac': self.wfac,
         }
         return buff
@@ -135,8 +131,6 @@ class PropagatorStack:
         self.stack = numpy.copy(buff['stack'])
         self.left = numpy.copy(buff['left'])
         self.right = numpy.copy(buff['right'])
-        self.usv = numpy.copy(buff['usv'])
-        self.left_bp = numpy.copy(buff['left_bp'])
         self.wfac = buff['wfac']
 
     def set_all(self, BT):
@@ -173,28 +167,15 @@ class PropagatorStack:
         if self.counter == 0:
             self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
-            self.wfac = 1.0 + 0j
+            self.wfac = numpy.array([1.0+0j, 1.0+0j])
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        self.left_bp[0] = numpy.dot(B[0], self.left_bp[0])
-        self.left_bp[1] = numpy.dot(B[1], self.left_bp[1])
         # print(self.counter, self.block, self.stack[self.block,0,0,0],
               # self.stack_size, self.time_slice)
         self.wfac *= wfac
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
-        if self.time_slice % self.reortho == 0 and self.time_slice > 0:
-            for s in [0,1]:
-                T1 = numpy.dot(self.left_bp[s], self.usv[s][0])
-                T2 = numpy.dot(T1, self.usv[s][1])
-                (U, S, VT) = scipy.linalg.svd(T2)
-                VT = numpy.dot(VT, self.usv[s][2])
-                self.usv[s,0] = U.copy()
-                self.usv[s,1] = numpy.diag(S).copy()
-                self.usv[s,2] = VT.copy()
-                self.left_bp[s] = numpy.identity(self.nbasis,
-                                                 dtype=self.dtype)
 
     def update_new(self, B):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
