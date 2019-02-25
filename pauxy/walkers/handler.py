@@ -6,7 +6,7 @@ import scipy.linalg
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
-from pauxy.walkers.thermal import ThermalWalker, PropagatorStack
+from pauxy.walkers.thermal import ThermalWalker
 from pauxy.qmc.comm import FakeComm
 
 
@@ -27,8 +27,7 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc,
-                 nprop_tot, nbp, verbose=False):
+    def __init__(self, walker_opts, system, trial, qmc, verbose=False):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
         if verbose:
@@ -55,7 +54,6 @@ class Walkers(object):
             dtype = int
         self.pop_control = self.comb
         self.stack_size = walker_opts.get('stack_size', 1)
-        self.add_field_config(nprop_tot, nbp, system, dtype)
         self.calculate_total_weight()
         self.calculate_nwalkers()
 
@@ -222,86 +220,3 @@ class Walkers(object):
             w.greens_function(trial)
             w.weight = 1.0
             w.phase = 1.0 + 0.0j
-
-class FieldConfig(object):
-    """Object for managing stored auxilliary field.
-
-    Parameters
-    ----------
-    nfields : int
-        Number of fields to store for each back propagation step.
-    nprop_tot : int
-        Total number of propagators to store for back propagation + itcf.
-    nbp : int
-        Number of back propagation steps.
-    dtype : type
-        Field configuration type.
-    """
-    def __init__(self, nfields, nprop_tot, nbp, dtype):
-        self.configs = numpy.zeros(shape=(nprop_tot, nfields), dtype=dtype)
-        self.cos_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=float)
-        self.weight_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=complex)
-        self.tot_wfac = 1.0 + 0j
-        self.step = 0
-        # need to account for first iteration and how we iterate
-        self.block = -1
-        self.ib = 0
-        self.nfields = nfields
-        self.nbp = nbp
-        self.nprop_tot = nprop_tot
-        self.nblock = nprop_tot // nbp
-
-    def push(self, config):
-        """Add field configuration to buffer.
-
-        Parameters
-        ----------
-        config : int
-            Auxilliary field configuration.
-        """
-        self.configs[self.step, self.ib] = config
-        self.ib = (self.ib + 1) % self.nfields
-        # Completed field configuration for this walker?
-        if self.ib == 0:
-            self.step = (self.step + 1) % self.nprop_tot
-            # Completed this block of back propagation steps?
-            if self.step % self.nbp == 0:
-                self.block = (self.block + 1) % self.nblock
-
-    def push_full(self, config, cfac, wfac):
-        """Add full field configuration for walker to buffer.
-
-        Parameters
-        ----------
-        config : :class:`numpy.ndarray`
-            Auxilliary field configuration.
-        cfac : float
-            Cosine factor if using phaseless approximation.
-        wfac : complex
-            Weight factor to restore full walker weight following phaseless
-            approximation.
-        """
-        self.configs[self.step] = config
-        self.cos_fac[self.step] = cfac
-        self.weight_fac[self.step] = wfac
-        try:
-            self.tot_wfac *= wfac/cfac
-        except ZeroDivisionError:
-            self.tot_wfac = 0.0
-        # Completed field configuration for this walker?
-        self.step = (self.step + 1) % self.nprop_tot
-        # Completed this block of back propagation steps?
-        if self.step % self.nbp == 0:
-            self.block = (self.block + 1) % self.nblock
-
-    def get_block(self):
-        """Return a view to current block for back propagation."""
-        start = self.block * self.nbp
-        end = (self.block + 1) * self.nbp
-        return (self.configs[start:end], self.cos_fac[start:end],
-                self.weight_fac[start:end])
-
-    def get_superblock(self):
-        """Return a view to current super block for ITCF."""
-        end = self.nprop_tot - self.nbp
-        return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
