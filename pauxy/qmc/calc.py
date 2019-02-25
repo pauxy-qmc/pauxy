@@ -167,7 +167,8 @@ def setup_parallel(options, comm=None, verbose=False):
                    verbose=(comm.rank==0 and verbose))
     )
     walker_opts = options.get('walkers', {'weight': 1})
-    walker_opts["stack_size"] = afqmc.estimators.nprop_tot
+    walker_opts["num_propg"] = afqmc.estimators.nprop_tot
+    afqmc.propagators.construct_bmatrix = afqmc.estimators.back_propagation
     afqmc.psi = Walkers(walker_opts, afqmc.system,
                         afqmc.trial,
                         afqmc.qmc,
