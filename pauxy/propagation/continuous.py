@@ -31,9 +31,6 @@ class Continuous(object):
         self.propagator = get_continuous_propagator(options, qmc, system,
                                                     trial, verbose)
 
-        if verbose:
-            print("# Number of fields = %i"%system.nfields)
-
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
         self.mf_const_fac = cmath.exp(-self.dt*mf_core)
