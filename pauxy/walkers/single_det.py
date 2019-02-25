@@ -295,10 +295,7 @@ class SingleDetWalker(object):
             'G': self.G,
             'overlap': self.ot,
             'overlaps': self.ots,
-            'fields': self.field_configs.configs,
-            'cfacs': self.field_configs.cos_fac,
             'E_L': self.E_L,
-            'weight_fac': self.field_configs.weight_fac,
             'stack': self.stack.get_buffer()
         }
         return buff
@@ -321,7 +318,4 @@ class SingleDetWalker(object):
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
         self.ots = numpy.copy(buff['overlaps'])
-        self.field_configs.configs = numpy.copy(buff['fields'])
-        self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
-        self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
         self.stack.set_buffer(buff['stack'])
