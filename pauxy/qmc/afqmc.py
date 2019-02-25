@@ -120,10 +120,9 @@ class AFQMC(object):
                            self.trial, self.propagators.BT_BP, verbose)
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
+            walker_opts["num_propg"] = self.estimators.nprop_tot
             self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc,
-                               self.estimators.nprop_tot,
-                               self.estimators.nbp, verbose)
+                               self.qmc, verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string
