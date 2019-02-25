@@ -286,7 +286,7 @@ class Generic(object):
             Qak[n] = numpy.dot(trial.psi[:,:na].conj().T, cn).ravel()
             Rbl[n] = numpy.dot(trial.psi[:,:na].conj().T, cn.conj()).ravel()
         if self.verbose:
-            print("# Time to construct Tak, Rbl: %f s"%(time.time()-start))
+            print("# Time to construct Qak, Rbl: %f s"%(time.time()-start))
         Makbl = numpy.dot(Qak.T,Rbl)
         vakbl_a = (
             Makbl -
