@@ -57,7 +57,8 @@ class BackPropagation(object):
     """
 
     def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
-        self.nmax = bp.get('nback_prop', 0)
+        self.tau_bp = bp.get('tau_bp', 0)
+        self.nmax = int(self.tau_bp/qmc.dt)
         self.header = ['iteration', 'weight', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
@@ -121,16 +122,20 @@ class BackPropagation(object):
             return
         nup = system.nup
         denominator = 0
-        for i, wnm in enumerate(zip(psi.walkers)):
+        for i, wnm in enumerate(psi.walkers):
             phi_bp = trial.psi.copy()
             # TODO: Fix for ITCF.
-            self.back_propagate(psi_bp, wnm.stack, system, self.nstblz)
+            self.back_propagate(phi_bp, wnm.stack, system, self.nstblz)
             (self.G[0], Gmod_a) = gab_mod(phi_bp[:,:nup], wnm.phi_old[:,:nup])
             (self.G[1], Gmod_b) = gab_mod(phi_bp[:,nup:], wnm.phi_old[:,nup:])
             # TODO Remove this / conditional.
             energies = numpy.array(list(local_energy(system, self.G, opt=False)))
             if self.restore_weights is not None:
-                weight = wnm.weight * self.calculate_weight_factor(wnm)
+                if self.restore_weights == "Full":
+                    wfac = wnm.stack.wfac[0]/wnm.stack.wfac[1]
+                else:
+                    wfac = wnm.stack.wfac[0]
+                weight = wnm.weight * wfac
             else:
                 weight = wnm.weight
             denominator += weight
@@ -138,6 +143,7 @@ class BackPropagation(object):
                 self.estimates[1:] +
                 weight*numpy.append(energies,self.G.flatten())
             )
+            wnm.stack.reset()
         self.estimates[0] += denominator
         psi.copy_historic_wfn()
 
@@ -182,29 +188,6 @@ class BackPropagation(object):
         self.estimates[0] += denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
-
-    def calculate_weight_factor(self, walker):
-        """Compute reweighting factors for back propagation.
-
-        Used with phaseless aproximation.
-
-        Parameters
-        ----------
-        walker : walker object
-            Current walker.
-
-        Returns
-        -------
-        factor : complex
-            Reweighting factor.
-        """
-        configs, cos_fac, weight_fac = walker.field_configs.get_block()
-        factor = 1.0 + 0j
-        for (w, c) in zip(weight_fac, cos_fac):
-            factor *= w[0]
-            if (self.restore_weights == "full"):
-                factor /= c[0]
-        return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1, free_projection=False):
         """Print back-propagated estimates to file.
