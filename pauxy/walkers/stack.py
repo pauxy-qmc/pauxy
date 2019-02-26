@@ -104,7 +104,7 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
-        self.wfac = 1.0 + 0j
+        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
         I = numpy.identity(nbasis, dtype=dtype)
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
@@ -155,6 +155,7 @@ class PropagatorStack:
     def reset(self):
         self.time_slice = 0
         self.block = 0
+        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
@@ -167,11 +168,8 @@ class PropagatorStack:
         if self.counter == 0:
             self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
             self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
-            self.wfac = numpy.array([1.0+0j, 1.0+0j])
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        # print(self.counter, self.block, self.stack[self.block,0,0,0],
-              # self.stack_size, self.time_slice)
         self.wfac *= wfac
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
