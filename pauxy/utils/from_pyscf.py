@@ -52,7 +52,10 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         h1e = h1e[0]
         nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
         mol.nelec = nelec
-        orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
+        if len(orbs.shape) == 3:
+            orbs = orbs[:,nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
+        else:
+            orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
     if qmcpack:
         dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
                      mol.nelec, enuc, threshold=chol_cut,
