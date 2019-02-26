@@ -162,7 +162,7 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
                  verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
     if verbose:
         print (" # Constructing trial wavefunctiom in ortho AO basis.")
-    if len(fock.shape) == 3:
+    if len(hcore.shape) == 3:
         if verbose:
             print (" # Writing UHF trial wavefunction.")
         if orbs is None:

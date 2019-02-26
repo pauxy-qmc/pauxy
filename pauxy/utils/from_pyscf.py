@@ -102,7 +102,10 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         mf = scf.RHF(mol)
     with h5py.File(scfdump, 'r') as fh5:
         hcore = fh5['/scf/hcore'][:]
-        fock = fh5['/scf/fock'][:]
+        try:
+            fock = fh5['/scf/fock'][:]
+        except KeyError:
+            fock = None
         orthoAO = fh5['/scf/orthoAORot'][:]
         orbs = fh5['/scf/orbs'][:]
         try:
