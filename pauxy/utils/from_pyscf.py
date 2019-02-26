@@ -4,6 +4,11 @@ import numpy
 import time
 from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import get_orthoAO
+from pauxy.utils.misc import dotdict
+from pauxy.estimators.greens_function import gab
+from pauxy.estimators.generic import (
+        local_energy_generic_cholesky, core_contribution_cholesky
+    )
 from pyscf.lib.chkfile import load_mol
 from pyscf import ao2mo, scf, fci
 from pyscf.pbc import scf as pbcscf
@@ -13,9 +18,12 @@ from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                verbose=True, qmcpack=False, wfn_file='wfn.dat',
-               chol_cut=1e-5, sparse_zero=1e-16, pbc=False, cholesky=False):
+               chol_cut=1e-5, sparse_zero=1e-16, pbc=False, cholesky=False,
+               cas=None):
     if chkfile is not None:
-        (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose, pbc)
+        (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs) = (
+                                      from_pyscf_chkfile(chkfile, verbose, pbc)
+                                      )
     else:
         (hcore, fock, orthoAO, enuc) = from_pyscf_mol(mol, mf)
     if verbose:
@@ -34,12 +42,16 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         eri = mf.with_df.ao2mo(orthoAO, compact=False).reshape(nbasis, nbasis,
                                                                nbasis, nbasis)
     else:
-        if len(orthoAO.shape) == 3:
-            eria = ao2mo.kernel(mol, orthoAO[0], compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
-            erib = ao2mo.kernel(mol, orthoAO[1], compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
-            eri = [eria, erib]
-        else:
-            eri = ao2mo.kernel(mol, orthoAO, compact=False).reshape(nbasis,nbasis,nbasis,nbasis)
+        eri = ao2mo.kernel(mol, orthoAO, compact=False)
+        eri = eri.reshape(nbasis,nbasis,nbasis,nbasis)
+    if cas is not None:
+        nfzc = (sum(mol.nelec)-cas[0])//2
+        nfzv = nbasis-cas[1]
+        h1e, eri, enuc = freeze_core(h1e, eri, enuc, nfzc, nfzv, verbose)
+        h1e = h1e[0]
+        nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
+        mol.nelec = nelec
+        orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
     if qmcpack:
         dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
                      mol.nelec, enuc, threshold=chol_cut,
@@ -48,6 +60,30 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc,
                     orbs=orbs, coeffs=coeffs)
     return eri
+
+def freeze_core(h1e, chol, ecore, nc, nfv, verbose=True):
+    # 1. Construct one-body hamiltonian
+    nbasis = h1e.shape[-1]
+    chol = chol.reshape((-1,nbasis,nbasis))
+    system = dotdict({'H1': numpy.array([h1e,h1e]),
+                      'chol_vecs': chol,
+                      'ecore': ecore})
+    psi = numpy.identity(nbasis)[:,:nc]
+    Gcore = gab(psi,psi)
+    ecore = local_energy_generic_cholesky(system, [Gcore,Gcore])[0]
+    (hc_a, hc_b) = core_contribution_cholesky(system, [Gcore,Gcore])
+    h1e = numpy.array([h1e,h1e])
+    h1e[0] = h1e[0] + 2*hc_a
+    h1e[1] = h1e[1] + 2*hc_b
+    h1e = h1e[:,nc:nbasis-nfv,nc:nbasis-nfv]
+    nchol = chol.shape[0]
+    chol = chol[:,nc:nbasis-nfv,nc:nbasis-nfv].reshape((nchol,-1))
+    # 4. Subtract one-body term from writing H2 as sum of squares.
+    if verbose:
+        print(" # Freezing %d core electrons and %d virtuals."
+              %(2*nc, nfv))
+        print(" # Frozen core energy : %13.8e"%ecore.real)
+    return h1e, chol, ecore
 
 def ao2mo_chol(eri, C):
     nb = C.shape[-1]

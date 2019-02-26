@@ -134,45 +134,6 @@ class Generic(object):
                                 self.chol_vecs.conj())
         self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
 
-    # def frozen_core_hamiltonian(self, trial):
-        # # 1. Construct one-body hamiltonian
-        # self.ecore = local_energy_generic_cholesky(self, trial.Gcore)[0]
-        # (hc_a, hc_b) = core_contribution_cholesky(self, trial.Gcore)
-        # self.T[0] = self.T[0] + 2*hc_a
-        # self.T[1] = self.T[1] + 2*hc_b
-        # # 3. Cholesky Decompose ERIs.
-        # nfv = self.nfv
-        # nc = self.ncore
-        # nb = self.nbasis
-        # # if len(self.orbs.shape) == 3:
-            # # self.orbs = self.orbs[:,nc:nb-nfv,nc:nb-nfv]
-        # # else:
-            # # self.orbs = self.orbs[nc:nb-nfv,nc:nb-nfv]
-        # self.T = self.T[:,nc:nb-nfv,nc:nb-nfv]
-        # self.nbasis = self.nbasis - self.ncore - self.nfv
-        # if self.h2e is not None:
-            # self.h2e = self.h2e[nc:nb-nfv,nc:nb-nfv,nc:nb-nfv,nc:nb-nfv]
-            # self.chol_vecs = self.construct_decomposition()
-            # self.h2e = None
-        # else:
-            # self.chol_vecs = self.chol_vecs[:,nc:nb-nfv,nc:nb-nfv]
-        # self.eactive = local_energy_generic_cholesky(self, trial.G)[0] - self.ecore
-        # self.nchol_vec = self.chol_vecs.shape[0]
-        # # 4. Subtract one-body term from writing H2 as sum of squares.
-        # self.construct_h1e_mod()
-        # self.nfields = self.nchol_vec
-        # if self.write:
-            # write_fcidump(self)
-        # if self.verbose:
-            # print("# Freezing core.")
-            # print("# Freezing %d core states and %d virtuals."
-                  # %(self.ncore, self.nfv))
-            # print("# Number of active electrons : (%d, %d)."
-                  # %(self.nup, self.ndown))
-            # print("# Number of active virtuals : %d"%self.nbasis)
-            # print("# Frozen core energy : %13.8e"%self.ecore.real)
-            # print("# Active space energy : %13.8e"%self.eactive.real)
-            # print("# Total HF energy : %13.8e"%(self.eactive+self.ecore).real)
 
     def construct_integral_tensors_real(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).
