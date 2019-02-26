@@ -46,8 +46,9 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         eri = eri.reshape(nbasis,nbasis,nbasis,nbasis)
     if cas is not None:
         nfzc = (sum(mol.nelec)-cas[0])//2
-        nfzv = nbasis-cas[1]
-        h1e, eri, enuc = freeze_core(h1e, eri, enuc, nfzc, nfzv, verbose)
+        ncas = cas[1]
+        nfzv = nbasis - ncas - nfzc
+        h1e, eri, enuc = freeze_core(h1e, eri, enuc, nfzc, ncas, verbose)
         h1e = h1e[0]
         nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
         mol.nelec = nelec
@@ -61,7 +62,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                     orbs=orbs, coeffs=coeffs)
     return eri
 
-def freeze_core(h1e, chol, ecore, nc, nfv, verbose=True):
+def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
     # 1. Construct one-body hamiltonian
     nbasis = h1e.shape[-1]
     chol = chol.reshape((-1,nbasis,nbasis))
@@ -75,13 +76,14 @@ def freeze_core(h1e, chol, ecore, nc, nfv, verbose=True):
     h1e = numpy.array([h1e,h1e])
     h1e[0] = h1e[0] + 2*hc_a
     h1e[1] = h1e[1] + 2*hc_b
-    h1e = h1e[:,nc:nbasis-nfv,nc:nbasis-nfv]
+    h1e = h1e[:,nc:nc+ncas,nc:nc+ncas]
     nchol = chol.shape[0]
-    chol = chol[:,nc:nbasis-nfv,nc:nbasis-nfv].reshape((nchol,-1))
+    chol = chol[:,nc:nc+ncas,nc:nc+ncas].reshape((nchol,-1))
     # 4. Subtract one-body term from writing H2 as sum of squares.
     if verbose:
+        print(" # Number of active orbitals: %d"%ncas)
         print(" # Freezing %d core electrons and %d virtuals."
-              %(2*nc, nfv))
+              %(2*nc, nbasis-nc-ncas))
         print(" # Frozen core energy : %13.8e"%ecore.real)
     return h1e, chol, ecore
 
