@@ -199,7 +199,6 @@ class ITCF(object):
             # psi_left back propagated along this path.)
             if self.restore_weights:
                 wfac = w.weight*w.stack.wfac[0]/w.stack.wfac[1]
-                w.stack.wfac = 1.0 + 0j
             else:
                 wfac = w.weight
             self.accumulate(0, wfac, Ggr, Gls, M)
@@ -238,7 +237,7 @@ class ITCF(object):
         denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
         if self.restore_weights:
-            denom = sum(w.weight*w.stack.wfac[0]*w.stack.wfac[1] for w in psi.walkers)
+            denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
         else:
             denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
@@ -264,7 +263,7 @@ class ITCF(object):
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             if self.restore_weights:
-                wfac = w.weight*w.stack.wfac[0]*w.stack.wfac[1]
+                wfac = w.weight*w.stack.wfac[0]/w.stack.wfac[1]
             else:
                 wfac = w.weight
             for ic in range(self.nmax):
