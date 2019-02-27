@@ -117,9 +117,9 @@ class AFQMC(object):
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
             walker_opts["num_propg"] = self.estimators.nprop_tot
-            afqmc.propagators.construct_bmatrix = (
-                    afqmc.estimators.back_propagation or
-                    afqmc.estimators.calc_itcf
+            self.propagators.construct_bmatrix = (
+                    self.estimators.back_propagation or
+                    self.estimators.calc_itcf
                     )
             self.psi = Walkers(walker_opts, self.system, self.trial,
                                self.qmc, verbose)
