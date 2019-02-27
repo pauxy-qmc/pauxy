@@ -180,7 +180,7 @@ class ITCF(object):
         nup = system.nup
         M = system.nbasis
         if self.restore_weights:
-            denom = sum(w.weight*w.stack.wfac for w in psi.walkers)
+            denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
         else:
             denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
@@ -198,7 +198,7 @@ class ITCF(object):
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
             if self.restore_weights:
-                wfac = w.weight*w.stack.wfac
+                wfac = w.weight*w.stack.wfac[0]/w.stack.wfac[1]
                 w.stack.wfac = 1.0 + 0j
             else:
                 wfac = w.weight
@@ -238,7 +238,7 @@ class ITCF(object):
         denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
         if self.restore_weights:
-            denom = sum(w.weight*w.stack.wfac for w in psi.walkers)
+            denom = sum(w.weight*w.stack.wfac[0]*w.stack.wfac[1] for w in psi.walkers)
         else:
             denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
@@ -264,8 +264,7 @@ class ITCF(object):
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             if self.restore_weights:
-                wfac = w.weight*w.stack.wfac
-                w.stack.wfac = 1.0 + 0j
+                wfac = w.weight*w.stack.wfac[0]*w.stack.wfac[1]
             else:
                 wfac = w.weight
             for ic in range(self.nmax):
