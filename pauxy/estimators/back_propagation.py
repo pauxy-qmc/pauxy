@@ -5,10 +5,11 @@ try:
     mpi_sum = MPI.SUM
 except ImportError:
     mpi_sum = None
+import sys
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.greens_function import gab, gab_mod
 from pauxy.estimators.mixed import local_energy
-import pauxy.propagation.generic
+from pauxy.propagation.generic import back_propagate_generic
 import pauxy.propagation.hubbard
 
 class BackPropagation(object):
@@ -56,7 +57,8 @@ class BackPropagation(object):
     """
 
     def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
-        self.nmax = bp.get('nback_prop', 0)
+        self.tau_bp = bp.get('tau_bp', 0)
+        self.nmax = int(self.tau_bp/qmc.dt)
         self.header = ['iteration', 'weight', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
@@ -94,7 +96,7 @@ class BackPropagation(object):
         else:
             self.update = self.update_uhf
             if system.name == "Generic":
-                self.back_propagate = pauxy.propagation.generic.back_propagate
+                self.back_propagate = back_propagate_generic
             else:
                 self.back_propagate = pauxy.propagation.hubbard.back_propagate
 
@@ -118,16 +120,22 @@ class BackPropagation(object):
         """
         if step % self.nmax != 0:
             return
-        psi_bp = self.back_propagate(system, psi.walkers, trial,
-                                     self.nstblz, self.BT2, qmc.dt)
         nup = system.nup
         denominator = 0
-        for i, (wnm, wb) in enumerate(zip(psi.walkers, psi_bp)):
-            (self.G[0], Gmod_a) = gab_mod(wb.phi[:,:nup], wnm.phi_old[:,:nup])
-            (self.G[1], Gmod_b) = gab_mod(wb.phi[:,nup:], wnm.phi_old[:,nup:])
-            energies = numpy.array(list(local_energy(system, self.G, [Gmod_a, Gmod_b])))
+        for i, wnm in enumerate(psi.walkers):
+            phi_bp = trial.psi.copy()
+            # TODO: Fix for ITCF.
+            self.back_propagate(phi_bp, wnm.stack, system, self.nstblz)
+            (self.G[0], Gmod_a) = gab_mod(phi_bp[:,:nup], wnm.phi_old[:,:nup])
+            (self.G[1], Gmod_b) = gab_mod(phi_bp[:,nup:], wnm.phi_old[:,nup:])
+            # TODO Remove this / conditional.
+            energies = numpy.array(list(local_energy(system, self.G, opt=False)))
             if self.restore_weights is not None:
-                weight = wnm.weight * self.calculate_weight_factor(wnm)
+                if self.restore_weights == "full":
+                    wfac = wnm.stack.wfac[0]/wnm.stack.wfac[1]
+                else:
+                    wfac = wnm.stack.wfac[0]
+                weight = wnm.weight * wfac
             else:
                 weight = wnm.weight
             denominator += weight
@@ -135,9 +143,9 @@ class BackPropagation(object):
                 self.estimates[1:] +
                 weight*numpy.append(energies,self.G.flatten())
             )
+            wnm.stack.reset()
         self.estimates[0] += denominator
         psi.copy_historic_wfn()
-        psi.copy_bp_wfn(psi_bp)
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         """Calculate back-propagated estimates for GHF walkers.
@@ -159,6 +167,8 @@ class BackPropagation(object):
         """
         if step % self.nmax != 0:
             return
+        print(" ***** Back Propagation with GHF is broken.")
+        sys.exit()
         psi_bp = self.back_propagate(system, psi.walkers, trial,
                                      self.nstblz, self.BT2,
                                      self.dt)
@@ -178,29 +188,6 @@ class BackPropagation(object):
         self.estimates[0] += denominator
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
-
-    def calculate_weight_factor(self, walker):
-        """Compute reweighting factors for back propagation.
-
-        Used with phaseless aproximation.
-
-        Parameters
-        ----------
-        walker : walker object
-            Current walker.
-
-        Returns
-        -------
-        factor : complex
-            Reweighting factor.
-        """
-        configs, cos_fac, weight_fac = walker.field_configs.get_block()
-        factor = 1.0 + 0j
-        for (w, c) in zip(weight_fac, cos_fac):
-            factor *= w[0]
-            if (self.restore_weights == "full"):
-                factor /= c[0]
-        return factor
 
     def print_step(self, comm, nprocs, step, nmeasure=1, free_projection=False):
         """Print back-propagated estimates to file.
@@ -229,5 +216,3 @@ class BackPropagation(object):
         """Zero (in the appropriate sense) various estimator arrays."""
         self.estimates[:] = 0
         self.global_estimates[:] = 0
-
-

@@ -4,6 +4,7 @@ import scipy.linalg
 from pauxy.estimators.mixed import local_energy
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
+from pauxy.walkers.stack import PropagatorStack
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -56,10 +57,15 @@ class SingleDetWalker(object):
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
-        self.phi_init = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        self.phi_bp = copy.deepcopy(self.phi)
+        self.phi_right = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
+        # Number of propagators to store for back propagation / ITCF.
+        num_propg = walker_opts.get('num_propg', 1)
+        self.stack_size = walker_opts.get('stack_size', 1)
+        self.stack = PropagatorStack(self.stack_size, num_propg,
+                                     system.nbasis, trial.psi.dtype,
+                                     BT=None, BTinv=None,
+                                     diagonal=False)
         try:
             excite = trial.excite_ia
         except AttributeError:
@@ -282,18 +288,15 @@ class SingleDetWalker(object):
         buff = {
             'phi': self.phi,
             'phi_old': self.phi_old,
-            'phi_init': self.phi_init,
-            'phi_bp': self.phi_bp,
+            'phi_right': self.phi_right,
             'weight': self.weight,
             'phase': self.phase,
             'inv_ovlp': self.inv_ovlp,
             'G': self.G,
             'overlap': self.ot,
             'overlaps': self.ots,
-            'fields': self.field_configs.configs,
-            'cfacs': self.field_configs.cos_fac,
             'E_L': self.E_L,
-            'weight_fac': self.field_configs.weight_fac
+            'stack': self.stack.get_buffer()
         }
         return buff
 
@@ -307,8 +310,7 @@ class SingleDetWalker(object):
         """
         self.phi = numpy.copy(buff['phi'])
         self.phi_old = numpy.copy(buff['phi_old'])
-        self.phi_init = numpy.copy(buff['phi_init'])
-        self.phi_bp = numpy.copy(buff['phi_bp'])
+        self.phi_right = numpy.copy(buff['phi_right'])
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
         self.G = numpy.copy(buff['G'])
         self.weight = buff['weight']
@@ -316,6 +318,4 @@ class SingleDetWalker(object):
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
         self.ots = numpy.copy(buff['overlaps'])
-        self.field_configs.configs = numpy.copy(buff['fields'])
-        self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
-        self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
+        self.stack.set_buffer(buff['stack'])

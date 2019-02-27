@@ -61,10 +61,6 @@ class AFQMC(object):
         Processor id.
     cplx : bool
         If true then most numpy arrays are complex valued.
-    init_time : float
-        Calculation initialisation (cpu) time.
-    init_time : float
-        Human readable initialisation time.
     system : system object.
         Container for model input options.
     qmc : :class:`pauxy.state.QMCOpts` object.
@@ -94,7 +90,7 @@ class AFQMC(object):
         self.root = True
         self.nprocs = 1
         self.rank = 1
-        self.init_time = time.time()
+        self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         self.system = get_system(model, verbose)
@@ -120,10 +116,12 @@ class AFQMC(object):
                            self.trial, self.propagators.BT_BP, verbose)
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
+            walker_opts["num_propg"] = self.estimators.nprop_tot
+            self.propagators.construct_bmatrix = (
+                    self.estimators.back_propagation
+                    )
             self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc,
-                               self.estimators.nprop_tot,
-                               self.estimators.nbp, verbose)
+                               self.qmc, verbose)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string
@@ -196,7 +194,7 @@ class AFQMC(object):
                     print("# Mixed estimate for total energy: %f +/- %f"%energy)
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
-                      (time.time() - self.init_time))
+                      (time.time() - self._init_time))
 
 
     def determine_dtype(self, propagator, system):

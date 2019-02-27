@@ -27,13 +27,13 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc,
-                 nprop_tot, nbp, verbose=False):
+    def __init__(self, walker_opts, system, trial, qmc, verbose=False):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
         if verbose:
             print ("# Setting up wavefunction object.")
         if trial.name == 'multi_determinant':
+            self.walker_type = 'MSD'
             if trial.type == 'GHF':
                 self.walkers = [MultiGHFWalker(walker_opts, system, trial)
                                 for w in range(qmc.nwalkers)]
@@ -41,9 +41,11 @@ class Walkers(object):
                 self.walkers = [MultiDetWalker(walker_opts, system, trial)
                                 for w in range(qmc.nwalkers)]
         elif trial.name == 'thermal':
+            self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
                             for w in range(qmc.nwalkers)]
         else:
+            self.walker_type = 'SD'
             self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
                             for w in range(qmc.nwalkers)]
         if system.name == "Generic" or system.name == "UEG":
@@ -51,11 +53,9 @@ class Walkers(object):
         else:
             dtype = int
         self.pop_control = self.comb
-        self.add_field_config(nprop_tot, nbp, system.nfields, dtype)
+        self.stack_size = walker_opts.get('stack_size', 1)
         self.calculate_total_weight()
         self.calculate_nwalkers()
-        if verbose:
-            print ("# Finished setting up wavefunction object.")
 
     def calculate_total_weight(self):
         self.total_weight = sum(w.weight for w in self.walkers if w.alive)
@@ -80,7 +80,7 @@ class Walkers(object):
                 w.weight *= magn
                 w.phase *= cmath.exp(1j*dtheta)
 
-    def add_field_config(self, nprop_tot, nbp, nfields, dtype):
+    def add_field_config(self, nprop_tot, nbp, system, dtype):
         """Add FieldConfig object to walker object.
 
         Parameters
@@ -95,7 +95,9 @@ class Walkers(object):
             Field configuration type.
         """
         for w in self.walkers:
-            w.field_configs = FieldConfig(nfields, nprop_tot, nbp, dtype)
+            w.field_configs = FieldConfig(system.nfields, nprop_tot, nbp, dtype)
+            w.stack = PropagatorStack(self.stack_size, nprop_tot, system.nbasis,
+                                      dtype, None, None, False)
 
     def copy_historic_wfn(self):
         """Copy current wavefunction to psi_n for next back propagation step."""
@@ -120,7 +122,7 @@ class Walkers(object):
         calculating an ITCF or not.
         """
         for (i,w) in enumerate(self.walkers):
-            numpy.copyto(self.walkers[i].phi_init, self.walkers[i].phi)
+            numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
     def comb(self, comm):
         """Apply the comb method of population control / branching.
@@ -218,81 +220,3 @@ class Walkers(object):
             w.greens_function(trial)
             w.weight = 1.0
             w.phase = 1.0 + 0.0j
-
-class FieldConfig(object):
-    """Object for managing stored auxilliary field.
-
-    Parameters
-    ----------
-    nfields : int
-        Number of fields to store for each back propagation step.
-    nprop_tot : int
-        Total number of propagators to store for back propagation + itcf.
-    nbp : int
-        Number of back propagation steps.
-    dtype : type
-        Field configuration type.
-    """
-    def __init__(self, nfields, nprop_tot, nbp, dtype):
-        self.configs = numpy.zeros(shape=(nprop_tot, nfields), dtype=dtype)
-        self.cos_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=float)
-        self.weight_fac = numpy.zeros(shape=(nprop_tot, 1), dtype=complex)
-        self.step = 0
-        # need to account for first iteration and how we iterate
-        self.block = -1
-        self.ib = 0
-        self.nfields = nfields
-        self.nbp = nbp
-        self.nprop_tot = nprop_tot
-        self.nblock = nprop_tot // nbp
-
-    def push(self, config):
-        """Add field configuration to buffer.
-
-        Parameters
-        ----------
-        config : int
-            Auxilliary field configuration.
-        """
-        self.configs[self.step, self.ib] = config
-        self.ib = (self.ib + 1) % self.nfields
-        # Completed field configuration for this walker?
-        if self.ib == 0:
-            self.step = (self.step + 1) % self.nprop_tot
-            # Completed this block of back propagation steps?
-            if self.step % self.nbp == 0:
-                self.block = (self.block + 1) % self.nblock
-
-    def push_full(self, config, cfac, wfac):
-        """Add full field configuration for walker to buffer.
-
-        Parameters
-        ----------
-        config : :class:`numpy.ndarray`
-            Auxilliary field configuration.
-        cfac : float
-            Cosine factor if using phaseless approximation.
-        wfac : complex
-            Weight factor to restore full walker weight following phaseless
-            approximation.
-        """
-        self.configs[self.step] = config
-        self.cos_fac[self.step] = cfac
-        self.weight_fac[self.step] = wfac
-        # Completed field configuration for this walker?
-        self.step = (self.step + 1) % self.nprop_tot
-        # Completed this block of back propagation steps?
-        if self.step % self.nbp == 0:
-            self.block = (self.block + 1) % self.nblock
-
-    def get_block(self):
-        """Return a view to current block for back propagation."""
-        start = self.block * self.nbp
-        end = (self.block + 1) * self.nbp
-        return (self.configs[start:end], self.cos_fac[start:end],
-                self.weight_fac[start:end])
-
-    def get_superblock(self):
-        """Return a view to current super block for ITCF."""
-        end = self.nprop_tot - self.nbp
-        return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])

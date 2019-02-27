@@ -5,6 +5,7 @@ import scipy.linalg
 from pauxy.utils.linalg import regularise_matrix_inverse
 from pauxy.estimators.thermal import greens_function, one_rdm_from_G
 from pauxy.estimators.mixed import local_energy
+from pauxy.walkers.stack import PropagatorStack
 
 class ThermalWalker(object):
 
@@ -481,121 +482,6 @@ class ThermalWalker(object):
         self.Tr = [numpy.copy(buff['Tr'][0]), numpy.copy(buff['Tr'][1])]
         self.Qr = [numpy.copy(buff['Qr'][0]), numpy.copy(buff['Qr'][1])]
         self.Dr = [numpy.copy(buff['Dr'][0]), numpy.copy(buff['Dr'][1])]
-
-
-class PropagatorStack:
-    def __init__(self, bin_size, ntime_slices, nbasis, dtype, BT, BTinv,
-                 diagonal=False):
-        self.time_slice = 0
-        self.stack_size = bin_size
-        self.ntime_slices = ntime_slices
-        self.nbins = ntime_slices // bin_size
-        self.diagonal_trial = diagonal
-
-        if self.nbins * self.stack_size < self.ntime_slices:
-            print("stack_size must divide the total path length")
-            assert(self.nbins * self.stack_size == self.ntime_slices)
-
-        self.nbasis = nbasis
-        self.dtype = dtype
-        self.BT = BT
-        self.BTinv = BTinv
-        self.counter = 0
-        self.block = 0
-        self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
-                                 dtype=dtype)
-        self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
-                                dtype=dtype)
-        self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
-                                 dtype=dtype)
-        # set all entries to be the identity matrix
-        self.reset()
-
-    def get(self, ix):
-        return self.stack[ix]
-
-    def get_buffer(self):
-        buff = {
-            'left': self.left,
-            'right': self.right,
-            'stack': self.stack,
-        }
-        return buff
-
-    def set_buffer(self, buff):
-        self.stack = numpy.copy(buff['stack'])
-        self.left = numpy.copy(buff['left'])
-        self.right = numpy.copy(buff['right'])
-
-    def set_all(self, BT):
-        # Diagonal = True assumes BT is diagonal and left is also diagonal
-        if self.diagonal_trial:
-            for i in range(0, self.ntime_slices):
-                ix = i // self.stack_size # bin index
-                # Commenting out these two. It is only useful for Hubbard
-                # self.left[ix,0] = numpy.diag(numpy.einsum("ii,ii->i",BT[0],self.left[ix,0]))
-                # self.left[ix,1] = numpy.diag(numpy.einsum("ii,ii->i",BT[1],self.left[ix,1]))
-                self.left[ix,0] = numpy.diag(numpy.multiply(BT[0].diagonal(),self.left[ix,0].diagonal()))
-                self.left[ix,1] = numpy.diag(numpy.multiply(BT[1].diagonal(),self.left[ix,1].diagonal()))
-                self.stack[ix,0] = self.left[ix,0].copy()
-                self.stack[ix,1] = self.left[ix,1].copy()
-        else:
-            for i in range(0, self.ntime_slices):
-                ix = i // self.stack_size # bin index
-                self.left[ix,0] = numpy.dot(BT[0],self.left[ix,0])
-                self.left[ix,1] = numpy.dot(BT[1],self.left[ix,1])
-                self.stack[ix,0] = self.left[ix,0].copy()
-                self.stack[ix,1] = self.left[ix,1].copy()
-
-
-    def reset(self):
-        self.time_slice = 0
-        self.block = 0
-        for i in range(0, self.nbins):
-            self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
-            self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
-            self.right[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
-            self.right[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
-            self.left[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
-            self.left[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
-
-    def update(self, B):
-        if self.counter == 0:
-            self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
-            self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
-        self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
-        self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        self.time_slice = self.time_slice + 1
-        self.block = self.time_slice // self.stack_size
-        self.counter = (self.counter + 1) % self.stack_size
-
-    def update_new(self, B):
-        # Diagonal = True assumes BT is diagonal and left is also diagonal
-        if self.counter == 0:
-            self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
-            self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
-
-        if self.diagonal_trial:
-            self.left[self.block,0] = numpy.diag(numpy.multiply(self.left[self.block,0].diagonal(),self.BTinv[0].diagonal()))
-            self.left[self.block,1] = numpy.diag(numpy.multiply(self.left[self.block,1].diagonal(),self.BTinv[1].diagonal()))
-        else:
-            self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
-            self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
-
-        self.right[self.block,0] = B[0].dot(self.right[self.block,0])
-        self.right[self.block,1] = B[1].dot(self.right[self.block,1])
-
-
-        if self.diagonal_trial:
-            self.stack[self.block,0] = numpy.einsum('ii,ij->ij',self.left[self.block,0],self.right[self.block,0])
-            self.stack[self.block,1] = numpy.einsum('ii,ij->ij',self.left[self.block,1],self.right[self.block,1])
-        else:
-            self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
-            self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
-
-        self.time_slice = self.time_slice + 1 # Count the time slice
-        self.block = self.time_slice // self.stack_size # move to the next block if necessary
-        self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
 
 def unit_test():
     from pauxy.systems.ueg import UEG

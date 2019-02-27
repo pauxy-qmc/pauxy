@@ -13,8 +13,13 @@ from pauxy.propagation.hubbard import (
     construct_propagator_matrix_ghf,
     back_propagate_single
 )
+from pauxy.propagation.generic import (
+        back_propagate_generic,
+        construct_propagator_matrix_generic
+)
 from pauxy.propagation.operations import propagate_single
 from pauxy.utils.linalg import reortho
+import sys
 
 class ITCF(object):
     """Class for computing ITCF estimates.
@@ -69,12 +74,15 @@ class ITCF(object):
         Output dataset for real space itcfs.
     """
 
-    def __init__(self, itcf, qmc, trial, root, h5f, nbasis, dtype, nbp, BT2):
+    def __init__(self, itcf, qmc, trial, root, h5f, system, dtype, BT2):
         self.stable = itcf.get('stable', True)
-        self.tmax = itcf.get('tmax', 0.0)
+        self.restore_weights = itcf.get('restore_weights', True)
+        self.tmax = itcf.get('tau_max', 0.0)
+        self.teqlb = itcf.get('tau_eqlb', 0.0)
         self.mode = itcf.get('mode', 'full')
         self.nmax = int(self.tmax/qmc.dt)
-        self.nprop_tot = self.nmax + nbp
+        self.neqlb = int(self.teqlb/qmc.dt)
+        self.nprop_tot = self.nmax + self.neqlb
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.kspace = itcf.get('kspace', False)
@@ -82,6 +90,7 @@ class ITCF(object):
         # and 1 for down) k-ordered(0=greater,1=lesser) imaginary time green's
         # function at time i.
         # +1 in the first dimension is for the green's function at time tau = 0.
+        nbasis = system.nbasis
         self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2, nbasis, nbasis),
                                 dtype=trial.G.dtype)
         self.spgf_global = numpy.zeros(shape=self.spgf.shape,
@@ -100,8 +109,12 @@ class ITCF(object):
             self.I = numpy.identity(trial.psi.shape[0], dtype=trial.psi.dtype)
             self.initial_greens_function = self.initial_greens_function_uhf
             self.accumulate = self.accumulate_uhf
-            self.back_propagate_single = back_propagate_single
-            self.construct_propagator_matrix = construct_propagator_matrix
+            if system.name == "Generic":
+                self.back_propagate_single = back_propagate_generic
+                self.construct_propagator_matrix = construct_propagator_matrix_generic
+            if system.name == "Hubbard":
+                self.back_propagate_single = back_propagate_single
+                self.construct_propagator_matrix = construct_propagator_matrix
             if self.stable:
                 self.increment_tau = self.increment_tau_uhf_stable
             else:
@@ -165,30 +178,39 @@ class ITCF(object):
         """
 
         nup = system.nup
-        denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
+        if self.restore_weights:
+            denom = sum(w.weight*w.stack.wfac for w in psi.walkers)
+        else:
+            denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first nmax fields for estimating the ITCF.
-            configs = w.field_configs.get_superblock()[0]
-            self.back_propagate_single(w.phi_bp, configs, w.weights,
-                                       system, self.nstblz, self.BT2)
-            (Ggr, Gls) = self.initial_greens_function(w.phi_bp,
-                                                      w.phi_init,
+            # configs = w.field_configs.get_superblock()[0]
+            phi_left = trial.psi.copy()
+            self.back_propagate_single(phi_left, w.stack, system, self.nstblz)
+            (Ggr, Gls) = self.initial_greens_function(phi_left,
+                                                      w.phi_right,
                                                       trial, nup,
                                                       w.weights)
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_left back propagated along this path.)
-            self.accumulate(0, w.weight, Ggr, Gls, M)
+            if self.restore_weights:
+                wfac = w.weight*w.stack.wfac
+                w.stack.wfac = 1.0 + 0j
+            else:
+                wfac = w.weight
+            self.accumulate(0, wfac, Ggr, Gls, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(configs):
+            for it in range(self.nmax):
                 # B takes the state from time n to time n+1.
-                B = self.construct_propagator_matrix(system, self.BT2, c)
+                B = w.stack.get(it)
                 (Ggr, Gls) = self.increment_tau(Ggr, Gls, B)
-                self.accumulate(ic+1, w.weight, Ggr, Gls, M)
+                self.accumulate(it+1, wfac, Ggr, Gls, M)
+            w.stack.reset()
         self.spgf = self.spgf / denom
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
@@ -215,37 +237,47 @@ class ITCF(object):
         nup = system.nup
         denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
+        if self.restore_weights:
+            denom = sum(w.weight*w.stack.wfac for w in psi.walkers)
+        else:
+            denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
-            Ggr = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
-            Gls = numpy.identity(self.I.shape[0], dtype=self.I.dtype)
+            Ggr = numpy.array([self.I.copy(), self.I.copy()])
+            Gls = numpy.array([self.I.copy(), self.I.copy()])
             # 1. Construct psi_L for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
             # Note we use the first itcf_nmax fields for estimating the ITCF.
             # We store for intermediate back propagated left-hand wavefunctions.
             # This leads to more stable equal time green's functions compared to
             # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
-            configs = w.field_configs.get_superblock()[0]
-            psi_Ls = self.back_propagate_single(w.phi_bp, configs, w.weights,
-                                                system, self.nstblz, self.BT2,
-                                                store=True)
+            phi_left = trial.psi.copy()
+            psi_Ls = self.back_propagate_single(phi_left, w.stack, system,
+                                                self.nstblz, store=True)
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
-            (Ggr_nn, Gls_nn) = self.initial_greens_function(w.phi_bp,
-                                                            w.phi_init,
+            (Ggr_nn, Gls_nn) = self.initial_greens_function(phi_left,
+                                                            w.phi_right,
                                                             trial, nup,
                                                             w.weights)
             self.accumulate(0, w.weight, Ggr_nn, Gls_nn, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for (ic, c) in enumerate(configs):
+            if self.restore_weights:
+                wfac = w.weight*w.stack.wfac
+                w.stack.wfac = 1.0 + 0j
+            else:
+                wfac = w.weight
+            for ic in range(self.nmax):
                 # B takes the state from time n to time n+1.
-                B = self.construct_propagator_matrix(system, self.BT2, c)
+                B = w.stack.get(ic)
                 # G is the cumulative product of stabilised short-time ITCFs.
                 # The first term in brackets is the G(n+1,n) which should be
                 # well conditioned.
                 (Ggr, Gls) = self.increment_tau(Ggr, Gls, B, Ggr_nn, Gls_nn)
-                self.accumulate(ic+1, w.weight, Ggr, Gls, M)
+                # print(Ggr[0,1,1], Ggr_nn[0,1,1])
+                # sys.exit()
+                self.accumulate(ic+1, wfac, Ggr, Gls, M)
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
                 # (B(c)^{dagger})^{-1}|psi_L> and |psi_R> = B(c)|psi_R>, where c
@@ -253,13 +285,15 @@ class ITCF(object):
                 # |psi_L> along the path, so we don't need to remove the
                 # propagator matrices.
                 L = psi_Ls[len(psi_Ls)-ic-1]
-                propagate_single(w.phi_init, system, B)
+                propagate_single(w.phi_right, system, B)
                 if ic != 0 and ic % self.nstblz == 0:
-                    (w.phi_init[:,:nup], R) = reortho(w.phi_init[:,:nup])
-                    (w.phi_init[:,nup:], R) = reortho(w.phi_init[:,nup:])
-                (Ggr_nn, Gls_nn) = self.initial_greens_function(L, w.phi_init,
+                    (w.phi_right[:,:nup], R) = reortho(w.phi_right[:,:nup])
+                    (w.phi_right[:,nup:], R) = reortho(w.phi_right[:,nup:])
+                (Ggr_nn, Gls_nn) = self.initial_greens_function(L, w.phi_right,
                                                                 trial, nup,
                                                                 w.weights)
+            w.stack.reset()
+        # shouldn't divide here.
         self.spgf = self.spgf / denom
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF

@@ -22,7 +22,7 @@ class Continuous(object):
             self.force_bias = False
         else:
             print("# Setting force bias to %r."%self.force_bias)
-        self.exp_nmax = options.get('expansion_order', 4)
+        self.exp_nmax = options.get('expansion_order', 6)
         # Derived Attributes
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
@@ -130,11 +130,18 @@ class Continuous(object):
         VHS = self.propagator.construct_VHS(system, xshifted)
 
         # Apply propagator
-        self.apply_exponential(walker.phi[:,:system.nup], VHS)
-        if system.ndown > 0:
-            self.apply_exponential(walker.phi[:,system.nup:], VHS)
+        if self.construct_bmatrix:
+            EXPV = numpy.eye(system.nbasis, system.nbasis,
+                             dtype=numpy.complex128)
+            self.apply_exponential(EXPV, VHS)
+            walker.phi = numpy.dot(EXPV, walker.phi)
+        else:
+            EXPV = None
+            self.apply_exponential(walker.phi[:,:system.nup], VHS)
+            if system.ndown > 0:
+                self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (cmf, cfb, xshifted)
+        return (cmf, cfb, xshifted, EXPV)
 
     def propagate_walker_free(self, walker, system, trial):
         """Free projection propagator
@@ -152,7 +159,7 @@ class Continuous(object):
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply 2-body projector
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar, EXPV) = self.two_body_propagator(walker, system, trial)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         walker.inverse_overlap(trial)
@@ -179,7 +186,7 @@ class Continuous(object):
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar, EXPV) = self.two_body_propagator(walker, system, trial)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
@@ -201,8 +208,16 @@ class Continuous(object):
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
             walker.ot = ot_new
-            walker.field_configs.push_full(xmxbar, cosine_fac,
-                                           importance_function/magn)
+            if self.construct_bmatrix:
+                B = [numpy.dot(EXPV, self.propagator.BH1[0]),
+                     numpy.dot(EXPV, self.propagator.BH1[1])]
+                B = [numpy.dot(self.propagator.BH1[0], B[0]),
+                     numpy.dot(self.propagator.BH1[1], B[1])]
+                try:
+                    wfac = numpy.array([importance_function/magn, cosine_fac])
+                except ZeroDivisionError:
+                    wfac = numpy.array([0,0])
+                walker.stack.update(numpy.array(B),wfac)
         else:
             walker.ot = ot_new
             walker.weight = 0.0
