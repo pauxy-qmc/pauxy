@@ -80,7 +80,7 @@ class AFQMC(object):
                  verbose=False):
         if verbose is not None:
             self.verbosity = verbose
-            verbose = verbose > 0 
+            verbose = verbose > 0
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()
@@ -110,6 +110,7 @@ class AFQMC(object):
         self.propagators = get_propagator_driver(propagator, self.qmc,
                                                  self.system, self.trial,
                                                  verbose)
+        self.tsetup = time.time() - self._init_time
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
@@ -155,25 +156,34 @@ class AFQMC(object):
 
         for step in range(1, self.qmc.nsteps + 1):
             if step % self.qmc.nstblz == 0:
+                start = time.time()
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
+                self.tortho = time.time() - start
+            start = time.time()
             for w in self.psi.walkers:
                 if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system,
                                                       self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt * E_T.real)
+            self.tprop = time.time() - start
             # calculate estimators
+            start = time.time()
+            start = time.time()
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
+            self.testim = time.time() - start
             if step % self.qmc.nupdate_shift == 0:
                 E_T = self.estimators.estimators['mixed'].projected_energy()
             if step < self.qmc.nequilibrate:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
             if step % self.qmc.npop_control == 0:
+                start = time.time()
                 self.psi.pop_control(comm)
+                self.tpopc = time.time() - start
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
@@ -196,6 +206,12 @@ class AFQMC(object):
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self._init_time))
+                print("# Timing breakdown (per processor, per block): ")
+                print("# - Setup: %f s"%self.tsetup)
+                print("# - Orthogonalisation: %f s"%self.tortho)
+                print("# - Propagation: %f s"%self.tprop)
+                print("# - Estimators: %f s"%self.testim)
+                print("# - Population control: %f s"%self.tpopc)
 
 
     def determine_dtype(self, propagator, system):
@@ -222,7 +238,10 @@ class AFQMC(object):
             Mixed estimate for the energy and standard error.
         """
         filename = self.estimators.h5f_name
-        eloc = blocking.reblock_local_energy(filename, skip)
+        try:
+            eloc = blocking.reblock_local_energy(filename, skip)
+        except IndexError:
+            eloc = None
         return eloc
 
     def get_one_rdm(self, skip=0):
@@ -236,5 +255,8 @@ class AFQMC(object):
             Standard error in the RDM.
         """
         filename = self.estimators.h5f_name
-        bp_rdm, bp_rdm_err = blocking.reblock_rdm(filename)
+        try:
+            bp_rdm, bp_rdm_err = blocking.reblock_rdm(filename)
+        except IndexError:
+            bp_rdm, bp_rdm_err = None, None
         return (bp_rdm, bp_rdm_err)
