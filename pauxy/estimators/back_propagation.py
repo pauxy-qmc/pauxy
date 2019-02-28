@@ -89,8 +89,8 @@ class BackPropagation(object):
                                             trial.G.dtype)
             if self.rdm:
                 self.dm_output = H5EstimatorHelper(energies, 'one_rdm',
-                                                  (qmc.nsteps//self.nmax,)+self.G.shape,
-                                                  trial.G.dtype)
+                                                   (qmc.nsteps//self.nmax,)+self.G.shape,
+                                                   trial.G.dtype)
         if trial.type == 'GHF':
             self.update = self.update_ghf
             self.back_propagate = pauxy.propagation.hubbard.back_propagate_ghf
@@ -129,7 +129,6 @@ class BackPropagation(object):
             self.back_propagate(phi_bp, wnm.stack, system, self.nstblz)
             (self.G[0], Gmod_a) = gab_mod(phi_bp[:,:nup], wnm.phi_old[:,:nup])
             (self.G[1], Gmod_b) = gab_mod(phi_bp[:,nup:], wnm.phi_old[:,nup:])
-            # TODO Remove this / conditional.
             if self.eval_energy:
                 energies = numpy.array(list(local_energy(system, self.G, opt=False)))
             else:
