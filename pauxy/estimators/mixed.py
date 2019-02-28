@@ -65,6 +65,7 @@ class Mixed(object):
     def __init__(self, mixed, system, root, h5f, qmc, trial, dtype):
         self.thermal = mixed.get('thermal', False)
         self.average_gf = mixed.get('average_gf', False)
+        self.eval_energy = mixed.get('evaluate_energy', True)
         self.calc_one_rdm = mixed.get('one_rdm', False)
         self.calc_two_rdm = mixed.get('two_rdm', None)
         self.verbose = mixed.get('verbose', True)
@@ -147,7 +148,10 @@ class Mixed(object):
         if free_projection:
             for i, w in enumerate(psi.walkers):
                 w.greens_function(trial)
-                E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
+                if self.eval_energy:
+                    E, T, V = w.local_energy(system)
+                else:
+                    E, T, V = 0, 0, 0
                 # For T > 0 w.ot = 1 always.
                 wfac = w.weight * w.ot * w.phase
                 self.estimates[self.names.enumer] += wfac * E
@@ -194,7 +198,10 @@ class Mixed(object):
                         )
                 else:
                     w.greens_function(trial)
-                    E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
+                    if self.eval_energy:
+                        E, T, V = w.local_energy(system)
+                    else:
+                        E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += w.weight*E.real
                     self.estimates[self.names.ekin:self.names.epot+1] += (
                             w.weight*numpy.array([T,V]).real

@@ -62,6 +62,7 @@ class BackPropagation(object):
         self.header = ['iteration', 'weight', 'E', 'T', 'V']
         self.rdm = bp.get('rdm', False)
         self.nreg = len(self.header[1:])
+        self.eval_energy = bp.get('evaluate_energy', True)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
         self.estimates = numpy.zeros(self.nreg + self.G.size,
                                      dtype=trial.G.dtype)
@@ -129,7 +130,10 @@ class BackPropagation(object):
             (self.G[0], Gmod_a) = gab_mod(phi_bp[:,:nup], wnm.phi_old[:,:nup])
             (self.G[1], Gmod_b) = gab_mod(phi_bp[:,nup:], wnm.phi_old[:,nup:])
             # TODO Remove this / conditional.
-            energies = numpy.array(list(local_energy(system, self.G, opt=False)))
+            if self.eval_energy:
+                energies = numpy.array(list(local_energy(system, self.G, opt=False)))
+            else:
+                energies = numpy.zeros(3)
             if self.restore_weights is not None:
                 if self.restore_weights == "full":
                     wfac = wnm.stack.wfac[0]/wnm.stack.wfac[1]
