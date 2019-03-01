@@ -140,7 +140,6 @@ class Walkers(object):
         # Need make a copy to since the elements in psi are only references to
         # walker objects in memory. We don't want future changes in a given
         # element of psi having unintended consequences.
-        new_psi = copy.deepcopy(self.walkers)
         # todo : add phase to walker for free projection
         weights = numpy.array([abs(w.weight) for w in self.walkers])
         global_weights = None
@@ -172,7 +171,7 @@ class Walkers(object):
 
         # Wait for master
         comm.Bcast(parent_ix, root=0)
-        # Copy back new information
+        # # Copy back new information
         send = []
         recv = []
         for (i, w) in enumerate(parent_ix):
@@ -190,7 +189,7 @@ class Walkers(object):
             # don't want to access buffer during non-blocking send.
             if (comm.rank == s[0]):
                 # Sending duplicated walker
-                walker_buffers.append(new_psi[s[1]].get_buffer())
+                walker_buffers.append(self.walkers[s[1]].get_buffer())
                 reqs.append(comm.isend(walker_buffers[-1],
                             dest=r[0], tag=i))
         for i, (s,r) in enumerate(zip(send, recv)):
