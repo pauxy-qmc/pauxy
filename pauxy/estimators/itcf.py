@@ -209,13 +209,12 @@ class ITCF(object):
             self.accumulate(0, wfac, Ggr, Gls, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
-            for it in range(self.nmax):
+            for ic in range(self.nmax//w.stack.stack_size):
                 # B takes the state from time n to time n+1.
                 B = w.stack.get(it)
                 (Ggr, Gls) = self.increment_tau(Ggr, Gls, B)
-                self.accumulate(it+1, wfac, Ggr, Gls, M)
+                self.accumulate(ic+1, wfac, Ggr, Gls, M)
             w.stack.reset()
-        self.spgf = self.spgf
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
         psi.copy_init_wfn()
@@ -263,13 +262,13 @@ class ITCF(object):
                                                             w.phi_right,
                                                             trial, nup,
                                                             w.weights)
-            self.accumulate(0, w.weight, Ggr_nn, Gls_nn, M)
             # 3. Construct ITCF by moving forwards in imaginary time from time
             # slice n along our auxiliary field path.
             if self.restore_weights:
                 wfac = w.weight*w.stack.wfac[0]/w.stack.wfac[1]
             else:
                 wfac = w.weight
+            self.accumulate(0, wfac, Ggr_nn, Gls_nn, M)
             for ic in range(self.nmax//w.stack.stack_size):
                 # B takes the state from time n to time n+1.
                 B = w.stack.get(ic)
@@ -293,8 +292,6 @@ class ITCF(object):
                                                                 trial, nup,
                                                                 w.weights)
             w.stack.reset()
-        # shouldn't divide here.
-        self.spgf = self.spgf
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
         psi.copy_init_wfn()
