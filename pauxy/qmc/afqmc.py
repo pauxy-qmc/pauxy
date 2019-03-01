@@ -144,6 +144,7 @@ class AFQMC(object):
         """
         if psi is not None:
             self.psi = psi
+        self.setup_timers()
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
         self.propagators.mean_local_energy = E_T.real
         # Calculate estimates for initial distribution of walkers.
@@ -159,7 +160,7 @@ class AFQMC(object):
                 start = time.time()
                 self.psi.orthogonalise(self.trial,
                                        self.propagators.free_projection)
-                self.tortho = time.time() - start
+                self.tortho += time.time() - start
             start = time.time()
             for w in self.psi.walkers:
                 if abs(w.weight) > 1e-8:
@@ -167,14 +168,13 @@ class AFQMC(object):
                                                       self.trial)
                 # Constant factors
                 w.weight = w.weight * exp(self.qmc.dt * E_T.real)
-            self.tprop = time.time() - start
+            self.tprop += time.time() - start
             # calculate estimators
-            start = time.time()
             start = time.time()
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
-            self.testim = time.time() - start
+            self.testim += time.time() - start
             if step % self.qmc.nupdate_shift == 0:
                 E_T = self.estimators.estimators['mixed'].projected_energy()
             if step < self.qmc.nequilibrate:
@@ -183,7 +183,7 @@ class AFQMC(object):
             if step % self.qmc.npop_control == 0:
                 start = time.time()
                 self.psi.pop_control(comm)
-                self.tpopc = time.time() - start
+                self.tpopc += time.time() - start
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
@@ -206,12 +206,15 @@ class AFQMC(object):
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self._init_time))
-                print("# Timing breakdown (per processor, per block): ")
+                print("# Timing breakdown (per processor, per block/step): ")
                 print("# - Setup: %f s"%self.tsetup)
-                print("# - Orthogonalisation: %f s"%self.tortho)
-                print("# - Propagation: %f s"%self.tprop)
-                print("# - Estimators: %f s"%self.testim)
-                print("# - Population control: %f s"%self.tpopc)
+                nsteps = self.qmc.nsteps
+                nstblz = nsteps // self.qmc.nstblz
+                npcon = nsteps // self.qmc.npop_control
+                print("# - Orthogonalisation: %f s"%(self.tortho/nstblz))
+                print("# - Propagation: %f s"%(self.tprop/nsteps))
+                print("# - Estimators: %f s"%(self.testim/nsteps))
+                print("# - Population control: %f s"%(self.tpopc/npcon))
 
 
     def determine_dtype(self, propagator, system):
@@ -243,6 +246,13 @@ class AFQMC(object):
         except IndexError:
             eloc = None
         return eloc
+
+    def setup_timers(self):
+        self.tortho = 0
+        self.tprop = 0
+        self.testim = 0
+        self.tpopc = 0
+
 
     def get_one_rdm(self, skip=0):
         """Get back-propagated estimate for the one RDM.
