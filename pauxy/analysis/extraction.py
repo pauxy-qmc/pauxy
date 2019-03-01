@@ -116,8 +116,6 @@ def analysed_itcf(filename, elements, spin, order, kspace):
     data = h5py.File(filename, 'r')
     md = json.loads(data['metadata'][:][0])
     dt = md['qmc']['dt']
-    tmax = md['estimators']['estimators']['itcf']['tmax']
-    tau = numpy.arange(0, tmax+1e-8, dt)
     mode = md['estimators']['estimators']['itcf']['mode']
     convert = {'up': 0, 'down': 1, 'greater': 0, 'lesser': 1}
     if kspace:
@@ -126,6 +124,7 @@ def analysed_itcf(filename, elements, spin, order, kspace):
     else:
         gf = data['real_itcf'][:]
         gf_err = data['real_itcf_err'][:]
+    tau = dt * numpy.arange(0,gf.shape[0])
     isp = convert[spin]
     it = convert[order]
     results = pd.DataFrame()
