@@ -120,6 +120,8 @@ class Generic(object):
                 print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol= False
         mem = chol_vecs.nbytes / (1024.0**3)
+        print("# Number of orbitals: %d"%self.nbasis)
+        print("# Number of electrons: (%d, %d)"%(nup, ndown))
         print("# Approximate memory required by Cholesky vectors %f GB"%mem)
         self.H1 = numpy.array([h1e, h1e])
         # These will be reconstructed later.
@@ -276,6 +278,7 @@ class Generic(object):
         if self.verbose:
             print("# Time to construct V_{(ak)(bl)}: %f s"%(tvakbl))
             nnz = self.vakbl[0].nnz
+            mem = (2*nnz*16/(1024.0**3))
             print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
             print("# Approximate memory used %f GB"%mem)
             nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
