@@ -157,8 +157,11 @@ def setup_parallel(options, comm=None, verbose=False):
                   "input file. Setting one walker per core.")
         afqmc.qmc.nwalkers = 1
 
+    estimator_opts = options.get('estimates', {})
+    walker_opts = options.get('walkers', {'weight': 1})
+    estimator_opts['stack_size'] = walker_opts.get('stack_size', 1)
     afqmc.estimators = (
-        Estimators(options.get('estimates', {}),
+        Estimators(estimator_opts,
                    afqmc.root,
                    afqmc.qmc,
                    afqmc.system,
@@ -166,7 +169,6 @@ def setup_parallel(options, comm=None, verbose=False):
                    afqmc.propagators.BT_BP,
                    verbose=(comm.rank==0 and verbose))
     )
-    walker_opts = options.get('walkers', {'weight': 1})
     walker_opts["num_propg"] = afqmc.estimators.nprop_tot
     afqmc.propagators.construct_bmatrix = (afqmc.estimators.back_propagation or
                                            afqmc.estimators.calc_itcf)

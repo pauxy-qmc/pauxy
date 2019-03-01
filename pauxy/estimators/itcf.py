@@ -80,10 +80,13 @@ class ITCF(object):
         self.tmax = itcf.get('tau_max', 0.0)
         self.teqlb = itcf.get('tau_eqlb', 0.0)
         self.mode = itcf.get('mode', 'full')
+        self.stack_size = itcf.get('stack_size', 1)
         self.nmax = int(self.tmax/qmc.dt)
+        self.ntau = int(self.nmax/self.stack_size)
         self.neqlb = int(self.teqlb/qmc.dt)
         self.nprop_tot = self.nmax + self.neqlb
         self.nstblz = qmc.nstblz
+        self.denom = 0
         self.BT2 = BT2
         self.kspace = itcf.get('kspace', False)
         # self.spgf(i,j,k,l,m) gives the (l,m)th element of the spin-j(=0 for up
@@ -91,10 +94,12 @@ class ITCF(object):
         # function at time i.
         # +1 in the first dimension is for the green's function at time tau = 0.
         nbasis = system.nbasis
-        self.spgf = numpy.zeros(shape=(self.nmax+1, 2, 2, nbasis, nbasis),
-                                dtype=trial.G.dtype)
-        self.spgf_global = numpy.zeros(shape=self.spgf.shape,
-                                       dtype=trial.G.dtype)
+        self.spgf_shape = (self.ntau+1, 2, 2, nbasis, nbasis)
+        self.spgf = numpy.zeros(shape=self.spgf_shape, dtype=trial.G.dtype)
+        self.global_array = numpy.zeros(shape=(1+numpy.prod(self.spgf_shape),),
+                                        dtype=trial.G.dtype)
+        # self.global_array = numpy.zeros(shape=(self.nmax+1,2,2,nbasis,nbasis),
+                                        # dtype=trial.G.dtype)
         if trial.type == "GHF":
             self.I = numpy.identity(trial.psi.shape[1], dtype=trial.psi.dtype)
             self.initial_greens_function = self.initial_greens_function_ghf
@@ -180,9 +185,9 @@ class ITCF(object):
         nup = system.nup
         M = system.nbasis
         if self.restore_weights:
-            denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
+            self.denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
         else:
-            denom = sum(w.weight for w in psi.walkers)
+            self.denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
             # 1. Construct psi_left for first step in algorithm by back
             # propagating the input back propagated left hand wfn.
@@ -210,7 +215,7 @@ class ITCF(object):
                 (Ggr, Gls) = self.increment_tau(Ggr, Gls, B)
                 self.accumulate(it+1, wfac, Ggr, Gls, M)
             w.stack.reset()
-        self.spgf = self.spgf / denom
+        self.spgf = self.spgf
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
         psi.copy_init_wfn()
@@ -234,12 +239,11 @@ class ITCF(object):
         """
 
         nup = system.nup
-        denom = sum(w.weight for w in psi.walkers)
         M = system.nbasis
         if self.restore_weights:
-            denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
+            self.denom = sum(w.weight*w.stack.wfac[0]/w.stack.wfac[1] for w in psi.walkers)
         else:
-            denom = sum(w.weight for w in psi.walkers)
+            self.denom = sum(w.weight for w in psi.walkers)
         for ix, w in enumerate(psi.walkers):
             Ggr = numpy.array([self.I.copy(), self.I.copy()])
             Gls = numpy.array([self.I.copy(), self.I.copy()])
@@ -266,15 +270,13 @@ class ITCF(object):
                 wfac = w.weight*w.stack.wfac[0]/w.stack.wfac[1]
             else:
                 wfac = w.weight
-            for ic in range(self.nmax):
+            for ic in range(self.nmax//w.stack.stack_size):
                 # B takes the state from time n to time n+1.
                 B = w.stack.get(ic)
                 # G is the cumulative product of stabilised short-time ITCFs.
                 # The first term in brackets is the G(n+1,n) which should be
                 # well conditioned.
                 (Ggr, Gls) = self.increment_tau(Ggr, Gls, B, Ggr_nn, Gls_nn)
-                # print(Ggr[0,1,1], Ggr_nn[0,1,1])
-                # sys.exit()
                 self.accumulate(ic+1, wfac, Ggr, Gls, M)
                 # Construct equal-time green's function shifted forwards along
                 # the imaginary time interval. We need to update |psi_L> =
@@ -292,7 +294,7 @@ class ITCF(object):
                                                                 w.weights)
             w.stack.reset()
         # shouldn't divide here.
-        self.spgf = self.spgf / denom
+        self.spgf = self.spgf
         # copy current walker distribution to initial (right hand) wavefunction
         # for next estimate of ITCF
         psi.copy_init_wfn()
@@ -531,20 +533,25 @@ class ITCF(object):
             Number of steps between measurements.
         """
         if step != 0 and step % self.nprop_tot == 0:
-            comm.Reduce(self.spgf, self.spgf_global, op=mpi_sum)
+            sendbuf = numpy.concatenate([numpy.array([self.denom]),
+                                         self.spgf.ravel()])
+            comm.Reduce(sendbuf, self.global_array, op=mpi_sum)
             if comm.Get_rank() == 0:
-                self.to_file(self.rspace_unit, self.spgf_global/nprocs)
-                if self.kspace:
-                    M = self.spgf.shape[-1]
-                    # FFT the real space Green's function.
-                    # Todo : could just use numpy.fft.fft....
-                    # spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', self.P,
-                    # spgf, self.P.conj().T) / M
-                    spgf_k = numpy.fft.fft2(self.spgf_global)
-                    if self.spgf.dtype == complex:
-                        self.to_file(self.kspace_unit, spgf_k/nprocs)
-                    else:
-                        self.to_file(self.kspace_unit, spgf_k.real/nprocs)
+                itcf = self.global_array[1:].reshape(self.spgf_shape)
+                # print(self.global_array[0], self.global_array[1:].reshape(self.spgf_shape)[0,0,0].diagonal())
+                denom = self.global_array[0]
+                self.to_file(self.rspace_unit, itcf/denom)
+                # if self.kspace:
+                    # M = self.spgf.shape[-1]
+                    # # FFT the real space Green's function.
+                    # # Todo : could just use numpy.fft.fft....
+                    # # spgf_k = numpy.einsum('ik,rqpkl,lj->rqpij', self.P,
+                    # # spgf, self.P.conj().T) / M
+                    # spgf_k = numpy.fft.fft2(self.spgf_global)
+                    # if self.spgf.dtype == complex:
+                        # self.to_file(self.kspace_unit, spgf_k/nprocs)
+                    # else:
+                        # self.to_file(self.kspace_unit, spgf_k.real/nprocs)
             self.zero()
 
     def to_file(self, group, spgf):
@@ -567,5 +574,6 @@ class ITCF(object):
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""
         self.spgf[:] = 0
-        self.spgf_global[:] = 0
+        self.denom = 0
+        self.global_array[:] = 0
 

@@ -112,6 +112,7 @@ class AFQMC(object):
                                                  verbose)
         self.tsetup = time.time() - self._init_time
         if not parallel:
+            estimates['stack_size'] = walker_opts.get('stack_size', 1)
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
