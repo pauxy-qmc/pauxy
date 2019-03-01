@@ -117,6 +117,7 @@ def analysed_itcf(filename, elements, spin, order, kspace):
     md = json.loads(data['metadata'][:][0])
     dt = md['qmc']['dt']
     mode = md['estimators']['estimators']['itcf']['mode']
+    stack_size = md['psi']['stack_size']
     convert = {'up': 0, 'down': 1, 'greater': 0, 'lesser': 1}
     if kspace:
         gf = data['kspace_itcf'][:]
@@ -124,7 +125,7 @@ def analysed_itcf(filename, elements, spin, order, kspace):
     else:
         gf = data['real_itcf'][:]
         gf_err = data['real_itcf_err'][:]
-    tau = dt * numpy.arange(0,gf.shape[0])
+    tau = stack_size * dt * numpy.arange(0,gf.shape[0])
     isp = convert[spin]
     it = convert[order]
     results = pd.DataFrame()
