@@ -207,7 +207,7 @@ class AFQMC(object):
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self._init_time))
-                print("# Timing breakdown (per processor, per block/step): ")
+                print("# Timing breakdown (per processor, per block/step):")
                 print("# - Setup: %f s"%self.tsetup)
                 nsteps = self.qmc.nsteps
                 nstblz = nsteps // self.qmc.nstblz
