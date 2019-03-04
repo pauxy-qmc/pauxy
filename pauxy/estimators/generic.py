@@ -39,13 +39,9 @@ def local_energy_generic_opt(system, G, Ghalf=None, eos=None):
     euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
     edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
     if eos is None:
-        nb = system.nbasis
-        eud = 0
-        edu = 0
-        for c in system.chol_vecs:
-            eud += 0.5*numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
-            edu += 0.5*numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
-        eos = eud + edu
+        eos_n = Gup * system.rot_hs_pot[0]
+        eos_n += Gdn * system.rot_hs_pot[1]
+        eos = 0.25*numpy.dot(eos_n, eos_n)
     e2b = euu + edd + eos
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
