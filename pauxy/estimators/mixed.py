@@ -335,7 +335,7 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
+def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, eos=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -360,7 +360,7 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
         if opt:
-            return local_energy_generic_opt(system, G, Ghalf)
+            return local_energy_generic_opt(system, G, Ghalf, eos=eos)
         else:
             return local_energy_generic_cholesky(system, G)
 

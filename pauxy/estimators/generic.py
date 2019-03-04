@@ -31,19 +31,22 @@ def local_energy_generic(system, G, Ghalf=None):
     e2 = euu + edd + eud + edu
     return (e1+e2+system.ecore, e1+system.ecore, e2)
 
-def local_energy_generic_opt(system, G, Ghalf=None):
+def local_energy_generic_opt(system, G, Ghalf=None, eos=None):
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     Gup = Ghalf[0].ravel()
     Gdn = Ghalf[1].ravel()
     euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
     edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
-    eud = 0
-    edu = 0
-    for c in system.chol_vecs:
-        eud += 0.5*numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
-        edu += 0.5*numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
-    e2b = euu + edd + eud + edu
+    if eos is None:
+        nb = system.nbasis
+        eud = 0
+        edu = 0
+        for c in system.chol_vecs:
+            eud += 0.5*numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
+            edu += 0.5*numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
+        eos = eud + edu
+    e2b = euu + edd + eos
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 def local_energy_generic_cholesky(system, G, Ghalf=None):
