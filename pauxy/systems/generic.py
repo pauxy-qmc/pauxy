@@ -268,6 +268,7 @@ class Generic(object):
         self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
         tvakbl = time.time() - start
+        self.chol_vecs = None
         # TODO: Stop converting hs pot to dense
         if self.sparse:
             if self.cutoff is not None:
