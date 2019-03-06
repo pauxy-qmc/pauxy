@@ -22,6 +22,7 @@ class ThermalWalker(object):
             dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
+        self.total_weight = 0
         self.stack_size = walker_opts.get('stack_size', None)
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:

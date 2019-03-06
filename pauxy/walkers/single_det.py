@@ -46,6 +46,7 @@ class SingleDetWalker(object):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
+        self.total_weight = 0
         self.ot = 1.0
         # interface consistency
         self.ots = numpy.zeros(1)
