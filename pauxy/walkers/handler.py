@@ -150,7 +150,6 @@ class Walkers(object):
             global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.empty(len(global_weights), dtype='i')
         comm.Gather(weights, global_weights, root=0)
-        total_weight = 0
         if comm.rank == 0:
             total_weight = sum(global_weights)
             cprobs = numpy.cumsum(global_weights)
@@ -166,6 +165,8 @@ class Walkers(object):
                     ic += 1
                 else:
                     iw += 1
+        else:
+            total_weight = None
 
         comm.Bcast(parent_ix, root=0)
         comm.bcast(total_weight, root=0)
