@@ -435,8 +435,8 @@ class PlaneWave(object):
                 dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
-                if (walker.weight > self.total_weight * 0.10):
-                    walker.weight = self.total_weight * 0.10
+                if (walker.weight > walker.total_weight * 0.10):
+                    walker.weight = walker.total_weight * 0.10
             else:
                 walker.weight = 0.0
         except ZeroDivisionError:
