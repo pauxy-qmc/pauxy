@@ -69,8 +69,10 @@ class HartreeFock(object):
             if self.excite_ia is not None:
                 # "Promotion energy" calculation.
                 # Only deal with alpha spin excitation for the moment.
-                i = self.excite_ia[0]
-                a = self.excite_ia[1]
+                i = numpy.array(self.excite_ia[0])
+                a = numpy.array(self.excite_ia[1])
+                if verbose:
+                    print("# Exciting orbital %i to orbital %i in trial."%(i,a))
                 self.psi[:,i] = orbs_matrix[:,a]
         gup, self.gup_half = gab_mod(self.psi[:,:system.nup],
                                 self.psi[:,:system.nup])
