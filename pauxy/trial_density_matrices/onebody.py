@@ -34,7 +34,8 @@ class OneBody(object):
         if verbose:
             print("# chemical potential (mu) = %10.5f"%self.mu)
 
-        system.mu = self.mu
+        if system.mu is None:
+            system.mu = self.mu
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),

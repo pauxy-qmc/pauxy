@@ -71,6 +71,7 @@ class Hubbard(object):
         self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
+        self.mu = inputs.get('mu', None)
         # For interface consistency.
         self.ecore = 0.0
         # Number of field configurations per walker.

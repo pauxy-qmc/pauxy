@@ -19,8 +19,14 @@ class ThermalDiscrete(object):
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         self.BH1 = trial.dmat
-        self.BT_BP = trial.dmat
-        self.BH1_inv = trial.dmat_inv
+        dt = qmc.dt
+        dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
+        dmat_down = scipy.linalg.expm(-dt*(system.H1[1]))
+        dmat = numpy.array([dmat_up,dmat_down])
+        self.BH1 = trial.compute_rho(dmat, system.mu, dt)
+        self.BT_BP = None
+        self.BH1_inv = numpy.array([scipy.linalg.inv(self.BH1[0], check_finite=False),
+                                    scipy.linalg.inv(self.BH1[1], check_finite=False)])
         self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=trial.dmat.dtype)
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
