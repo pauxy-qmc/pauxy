@@ -54,11 +54,8 @@ class Walkers(object):
             dtype = int
         self.pop_control = self.comb
         self.stack_size = walker_opts.get('stack_size', 1)
-        self.calculate_total_weight()
         self.calculate_nwalkers()
-
-    def calculate_total_weight(self):
-        self.total_weight = sum(w.weight for w in self.walkers if w.alive)
+        self.set_total_weight(qmc.ntot_walkers)
 
     def calculate_nwalkers(self):
         self.nw = sum(w.alive for w in self.walkers)
@@ -152,26 +149,23 @@ class Walkers(object):
         else:
             global_weights = numpy.empty(len(weights)*comm.size)
             parent_ix = numpy.empty(len(global_weights), dtype='i')
-        comm.Gather(weights, global_weights, root=0)
-        if comm.rank == 0:
-            total_weight = sum(global_weights)
-            cprobs = numpy.cumsum(global_weights)
-            ntarget = self.nw * comm.size
+        comm.Allgather(weights, global_weights, root=0)
+        total_weight = sum(global_weights)
+        cprobs = numpy.cumsum(global_weights)
+        ntarget = self.nw * comm.size
 
-            r = numpy.random.random()
-            comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
-            iw = 0
-            ic = 0
-            while ic < len(comb):
-                if comb[ic] < cprobs[iw]:
-                    parent_ix[iw] += 1
-                    ic += 1
-                else:
-                    iw += 1
+        r = numpy.random.random()
+        comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
+        iw = 0
+        ic = 0
+        while ic < len(comb):
+            if comb[ic] < cprobs[iw]:
+                parent_ix[iw] += 1
+                ic += 1
+            else:
+                iw += 1
 
-        # Wait for master
-        comm.Bcast(parent_ix, root=0)
-        # # Copy back new information
+        # Copy back new information
         send = []
         recv = []
         for (i, w) in enumerate(parent_ix):
@@ -211,6 +205,10 @@ class Walkers(object):
     def recompute_greens_function(self, trial, time_slice=None):
         for w in self.walkers:
             w.greens_function(trial, time_slice)
+
+    def set_total_weight(self), total_weight:
+        for w in self.walkers:
+            w.total_weight = total_weight
 
     def reset(self, trial):
         for w in self.walkers:
