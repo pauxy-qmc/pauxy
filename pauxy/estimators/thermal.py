@@ -141,7 +141,7 @@ def particle_number(dmat):
     nav = dmat[0].trace() + dmat[1].trace()
     return nav
 
-def construct_trial_G_stable(BT, num_slices):
+def one_rdm_stable(BT, num_slices):
     nbasis = BT.shape[-1]
     G = []
     for spin in [0, 1]:
@@ -190,4 +190,4 @@ def construct_trial_G_stable(BT, num_slices):
         # Q is unitary.
         G.append(numpy.dot(numpy.dot(T1inv, Cinv),
                  numpy.einsum('ii,ij->ij', Db, Q1.conj().T)))
-    return numpy.array(G)
+    return one_rdm_from_G(numpy.array(G))
