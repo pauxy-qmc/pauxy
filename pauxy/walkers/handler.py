@@ -169,7 +169,7 @@ class Walkers(object):
             total_weight = None
 
         comm.Bcast(parent_ix, root=0)
-        comm.bcast(total_weight, root=0)
+        total_weight = comm.bcast(total_weight, root=0)
         self.set_total_weight(total_weight)
         # Copy back new information
         send = []
