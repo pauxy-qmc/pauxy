@@ -2,10 +2,11 @@ import copy
 import cmath
 import numpy
 import scipy.linalg
-from pauxy.utils.linalg import regularise_matrix_inverse
 from pauxy.estimators.thermal import greens_function, one_rdm_from_G, particle_number
 from pauxy.estimators.mixed import local_energy
 from pauxy.walkers.stack import PropagatorStack
+from pauxy.utils.linalg import regularise_matrix_inverse
+from pauxy.utils.misc import update_stack
 
 class ThermalWalker(object):
 
@@ -30,7 +31,11 @@ class ThermalWalker(object):
 
         if self.stack_size == None:
             self.stack_size = trial.stack_size
-        elif self.stack_size > trial.stack_size:
+        if (self.num_slices//self.stack_size)*self.stack_size != self.num_slices:
+            if verbose:
+                print("# Input stack size does not divide number of slices.")
+            self.stack_size = update_stack(self.stack_size, self.num_slices, verbose)
+        if self.stack_size > trial.stack_size:
             if verbose:
                 print("# Walker stack size differs from that estimated from "
                       "trial density matrix. Be careful.")

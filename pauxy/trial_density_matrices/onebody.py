@@ -9,6 +9,7 @@ from pauxy.estimators.thermal import (
 from pauxy.utils.io import (
         format_fixed_width_strings, format_fixed_width_floats
         )
+from pauxy.utils.misc import update_stack
 
 class OneBody(object):
 
@@ -47,25 +48,10 @@ class OneBody(object):
         if verbose:
             print("# Initial stack size is {}".format(self.stack_size))
         # adjust stack size
-        lower_bound = min(self.stack_size, self.num_slices)
-        upper_bound = min(self.stack_size, self.num_slices)
-
-        while (self.num_slices//lower_bound) * lower_bound < self.num_slices:
-            lower_bound -= 1
-        while (self.num_slices//upper_bound) * upper_bound < self.num_slices:
-            upper_bound += 1
-
-        if (self.stack_size-lower_bound) <= (upper_bound - self.stack_size):
-            self.stack_size = lower_bound
-        else:
-            self.stack_size = upper_bound
-
+        self.stack_size = update_stack(self.stack_size,self.num_slices, verbose)
         self.num_bins = int(beta/(self.stack_size*dt))
 
         if verbose:
-            print("# upper_bound is {}".format(upper_bound))
-            print("# lower_bound is {}".format(lower_bound))
-            print("# Adjusted stack size is {}".format(self.stack_size))
             print("# Number of stacks is {}".format(self.num_bins))
 
         if self.mu is None:
