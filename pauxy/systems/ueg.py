@@ -48,12 +48,7 @@ class UEG(object):
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist'))
-        self.ncore= inputs.get('nfrozen_core', 0)
-        self.nfv = inputs.get('nfrozen_virt', 0)
-        self.frozen_core = self.ncore > 0
-        if self.frozen_core:
-            self.nup = self.nup - self.ncore
-            self.ndown = self.ndown - self.ncore
+        self.mu = inputs.get('mu', None)
         # if(verbose):
         print("# Number of spin-up electrons = %i"%self.nup)
         print("# Number of spin-down electrons = %i"%self.ndown)
