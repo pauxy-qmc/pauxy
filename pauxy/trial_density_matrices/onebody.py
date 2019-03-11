@@ -23,8 +23,9 @@ class OneBody(object):
         else:
             self.H1 = H1
 
-        print("# beta in OneBody = {}".format(beta))
-        print("# dt in OneBody = {}".format(dt))
+        if verbose:
+            print("# beta in OneBody = {}".format(beta))
+            print("# dt in OneBody = {}".format(dt))
 
         dmat_up = scipy.linalg.expm(-dt*(self.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(self.H1[1]))
@@ -100,7 +101,8 @@ class OneBody(object):
                 if verbose:
                     print ("# Increasing chemical potential search to [%f,%f]"%(mu1, mu2))
         found_mu = False
-        print(format_fixed_width_strings(['iteration', 'mu', 'Dmu', '<N>']))
+        if verbose:
+            print(format_fixed_width_strings(['iteration', 'mu', 'Dmu', '<N>']))
         for i in range(0, self.max_it):
             mu = 0.5 * (mu1 + mu2)
             rho_mu = self.compute_rho(rho, mu, beta)
