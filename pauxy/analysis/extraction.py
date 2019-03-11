@@ -165,7 +165,10 @@ def set_info(frame, md):
     beta = qmc.get('beta')
     if beta is not None:
         frame['beta'] = beta
-        frame['mu'] = trial.get('mu')
+        mu = system.get('mu')
+        if mu is not None:
+            frame['mu'] = system.get('mu')
+        frame['mu_T'] = trial.get('mu')
     else:
         frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
