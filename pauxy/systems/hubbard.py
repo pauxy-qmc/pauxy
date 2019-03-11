@@ -60,8 +60,10 @@ class Hubbard(object):
         (self.kpoints, self.kc, self.eks) = kpoints(self.t, self.nx, self.ny)
         self.pinning = inputs.get('pinning_fields', False)
         if verbose:
-            print ("# Setting up one-body operator.")
+            print("# Setting up one-body operator.")
         if self.pinning:
+            if verbose:
+                print("# Using pinning field.")
             self.T = kinetic_pinning_alt(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
