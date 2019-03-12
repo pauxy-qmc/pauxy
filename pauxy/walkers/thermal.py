@@ -2,10 +2,11 @@ import copy
 import cmath
 import numpy
 import scipy.linalg
-from pauxy.utils.linalg import regularise_matrix_inverse
-from pauxy.estimators.thermal import greens_function, one_rdm_from_G
+from pauxy.estimators.thermal import greens_function, one_rdm_from_G, particle_number
 from pauxy.estimators.mixed import local_energy
 from pauxy.walkers.stack import PropagatorStack
+from pauxy.utils.linalg import regularise_matrix_inverse
+from pauxy.utils.misc import update_stack
 
 class ThermalWalker(object):
 
@@ -13,9 +14,7 @@ class ThermalWalker(object):
         self.weight = walker_opts.get('weight', 1.0)
         self.phase = 1.0 + 0.0j
         self.alive = True
-        self.num_slices = trial.ntime_slices
-        if verbose:
-            print("# Number of slices = {}".format(self.num_slices))
+        self.num_slices = trial.num_slices
         if system.name == "UEG" or system.name == "Generic":
             dtype = numpy.complex128
         else:
@@ -31,41 +30,22 @@ class ThermalWalker(object):
             self.diagonal_trial = False
 
         if self.stack_size == None:
+            self.stack_size = trial.stack_size
+        if (self.num_slices//self.stack_size)*self.stack_size != self.num_slices:
             if verbose:
-                print("# Stack size is determined by BT")
-            emax = numpy.max(numpy.diag(trial.dmat[0]))
-            emin = numpy.min(numpy.diag(trial.dmat[0]))
-            self.stack_size = min(self.num_slices,
-                int(1.5 / ((cmath.log(float(emax)) - cmath.log(float(emin))) / 8.0).real))
+                print("# Input stack size does not divide number of slices.")
+            self.stack_size = update_stack(self.stack_size, self.num_slices, verbose)
+        if self.stack_size > trial.stack_size:
             if verbose:
-                print("# Initial stack size is {}".format(self.stack_size))
-        # adjust stack size
-        lower_bound = min(self.stack_size, self.num_slices)
-        upper_bound = min(self.stack_size, self.num_slices)
-
-        while (self.num_slices//lower_bound) * lower_bound < self.num_slices:
-            lower_bound -= 1
-        while (self.num_slices//upper_bound) * upper_bound < self.num_slices:
-            upper_bound += 1
-
-        if (self.stack_size-lower_bound) <= (upper_bound - self.stack_size):
-            self.stack_size = lower_bound
-        else:
-            self.stack_size = upper_bound
-
+                print("# Walker stack size differs from that estimated from "
+                      "trial density matrix.")
+                print("# Be careful. cond(BT)**stack_size: %10.3e."
+                      %(trial.cond**self.stack_size))
         self.stack_length = self.num_slices // self.stack_size
-
-        if verbose:
-            print("# upper_bound is {}".format(upper_bound))
-            print("# lower_bound is {}".format(lower_bound))
-            print("# Adjusted stack size is {}".format(self.stack_size))
-            print("# Number of stacks is {}".format(self.stack_length))
-            # print("# Trial dmat = {}".format(trial.dmat[0]))
-
 
         if verbose and self.diagonal_trial:
             print("# Trial density matrix is diagonal.")
-        self.stack = PropagatorStack(self.stack_size, trial.ntime_slices,
+        self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
                                      diagonal=self.diagonal_trial)
@@ -83,17 +63,9 @@ class ThermalWalker(object):
         self.Qr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
         self.Dr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
 
-        cond = numpy.linalg.cond(trial.dmat[0])
-        if verbose:
-            print("# condition number of BT = {}".format(cond))
-
     def greens_function(self, trial, slice_ix=None, inplace=True):
-        if self.diagonal_trial:
-            return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
-                                                 inplace=inplace)
-        else:
-            return self.greens_function_svd(trial, slice_ix=slice_ix,
-                                            inplace=inplace)
+        return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
+                                             inplace=inplace)
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if slice_ix == None:
@@ -390,11 +362,12 @@ class ThermalWalker(object):
             # (A = QDT) starting from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
 
-            (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True, check_finite = False)
+            (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True,
+                                           check_finite=False)
             # Form D matrices
             D1 = numpy.diag(R1.diagonal())
             D1inv = numpy.diag(1.0/R1.diagonal())
-            T1 = numpy.einsum('ii,ij->ij',D1inv, R1)
+            T1 = numpy.einsum('ii,ij->ij', D1inv, R1)
             # permute them
             T1[:,P1] = T1 [:, range(self.nbasis)]
 
@@ -402,7 +375,8 @@ class ThermalWalker(object):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
-                (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting=True, check_finite = False)
+                (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting=True,
+                                               check_finite=False)
                 # Compute D matrices
                 D1inv = numpy.diag(1.0/R1.diagonal())
                 D1 = numpy.diag(R1.diagonal())
@@ -433,10 +407,10 @@ class ThermalWalker(object):
             # Q is unitary.
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                         numpy.einsum('ii,ij->ij',Db, Q1.conj().T))
+                                         numpy.einsum('ii,ij->ij', Db, Q1.conj().T))
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                                    numpy.einsum('ii,ij->ij',Db, Q1.conj().T))
+                                    numpy.einsum('ii,ij->ij', Db, Q1.conj().T))
         return G
 
     def local_energy(self, system, two_rdm=None):

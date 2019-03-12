@@ -69,8 +69,8 @@ class GenericContinuous(object):
         self.mu = system.mu
         self.construct_one_body_propagator(system, qmc.dt)
 
-        self.BT = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
-        self.BTinv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+        self.BT = trial.dmat
+        self.BTinv = trial.dmat_inv
 
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
@@ -343,6 +343,8 @@ class GenericContinuous(object):
                 dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
+                if walker.weight > walker.total_weight * 0.10:
+                    walker.weight = walker.total_weight * 0.10
             else:
                 walker.weight = 0.0
         except ZeroDivisionError:

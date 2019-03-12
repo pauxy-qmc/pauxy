@@ -107,7 +107,7 @@ class ThermalAFQMC(object):
         self.root = True
         self.nprocs = 1
         self.rank = 1
-        self.init_time = time.time()
+        self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         model['thermal'] = True # Add thermal keyword to model
@@ -129,6 +129,7 @@ class ThermalAFQMC(object):
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
 
+        self.tsetup = time.time() - self._init_time
         if not parallel:
             self.estimators = (
                 Estimators(estimates, self.root, self.qmc, self.system,
@@ -157,6 +158,7 @@ class ThermalAFQMC(object):
         """
         if psi is not None:
             self.psi = psi
+        self.setup_timers()
         (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
@@ -166,17 +168,25 @@ class ThermalAFQMC(object):
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
+            start_path = time.time()
             for ts in range(0, self.qmc.ntime_slices):
                 if self.verbosity >= 2 and comm.rank == 0:
-                    print(" # Timeslice %d of %d"%(ts, self.qmc.ntime_slices))
+                    print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
+                start = time.time()
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
                         self.propagators.propagate_walker(self.system, w, ts)
+                self.tprop += time.time() - start
+                start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:
                     self.psi.pop_control(comm)
+                self.tpopc += time.time() - start
+            self.tpath += time.time() - start_path
+            start = time.time()
             self.estimators.update(self.system, self.qmc,
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
+            self.testim += time.time() - start
             self.estimators.print_step(comm, self.nprocs, step, 1,
                                        self.propagators.free_projection)
             self.psi.reset(self.trial)
@@ -195,7 +205,16 @@ class ThermalAFQMC(object):
             if verbose:
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
-                      (time.time() - self.init_time))
+                      (time.time() - self._init_time))
+                print("# Timing breakdown (per processor, per path/slice):")
+                print("# - Setup: %f s"%self.tsetup)
+                nsteps = self.qmc.nsteps
+                nslice = nsteps * self.qmc.ntime_slices
+                npcon = nslice // self.qmc.npop_control
+                print("# - Path update: %f s"%(self.tpath/nsteps))
+                print("# - Propagation: %f s"%(self.tprop/nslice))
+                print("# - Estimators: %f s"%(self.testim/nsteps))
+                print("# - Population control: %f s"%(self.tpopc/npcon))
 
     def determine_dtype(self, propagator, system):
         """Determine dtype for trial wavefunction and walkers.
@@ -211,3 +230,9 @@ class ThermalAFQMC(object):
         continuous = 'continuous' in hs_type
         twist = system.ktwist.all() is not None
         return continuous or twist
+
+    def setup_timers(self):
+        self.tpath = 0
+        self.tprop = 0
+        self.testim = 0
+        self.tpopc = 0

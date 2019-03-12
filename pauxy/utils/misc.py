@@ -114,3 +114,22 @@ class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
+def update_stack(stack_size, num_slices, verbose=False):
+    lower_bound = min(stack_size, num_slices)
+    upper_bound = min(stack_size, num_slices)
+
+    while (num_slices//lower_bound) * lower_bound < num_slices:
+        lower_bound -= 1
+    while (num_slices//upper_bound) * upper_bound < num_slices:
+        upper_bound += 1
+
+    if (stack_size-lower_bound) <= (upper_bound - stack_size):
+        stack_size = lower_bound
+    else:
+        stack_size = upper_bound
+    if verbose:
+        print("# upper_bound is {}".format(upper_bound))
+        print("# lower_bound is {}".format(lower_bound))
+        print("# Adjusted stack size is {}".format(stack_size))
+    return stack_size

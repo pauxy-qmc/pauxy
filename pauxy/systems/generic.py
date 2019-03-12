@@ -68,6 +68,7 @@ class Generic(object):
         self.sparse = inputs.get('sparse', True)
         self.threshold = inputs.get('cholesky_threshold', 1e-5)
         self.cplx_chol = inputs.get('complex_cholesky', False)
+        self.mu = inputs.get('mu', None)
         if verbose:
             print("# Reading integrals from %s." % self.integral_file)
         self.chol_vecs = self.read_integrals()
@@ -92,7 +93,6 @@ class Generic(object):
             print("# Number of fields: %d"%(self.nfields))
             print("# Time to construct Hubbard--Stratonovich potentials: "
                   "%f s"%(time.time()-start))
-        self.mu = None
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0

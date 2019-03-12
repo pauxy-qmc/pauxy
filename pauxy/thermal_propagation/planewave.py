@@ -45,8 +45,8 @@ class PlaneWave(object):
 
         self.construct_one_body_propagator(system, qmc.dt)
 
-        self.BT = numpy.array([(trial.dmat[0]),(trial.dmat[1])])
-        self.BTinv = numpy.array([(trial.dmat_inv[0]),(trial.dmat_inv[1])])
+        self.BT = trial.dmat
+        self.BTinv = trial.dmat_inv
 
         self.mf_const_fac = 1
 
