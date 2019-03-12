@@ -107,7 +107,7 @@ class OneBody(object):
                     print ("# Increasing chemical potential search to [%f,%f]"%(mu1, mu2))
         found_mu = False
         if verbose:
-            print(format_fixed_width_strings(['iteration', 'mu', 'Dmu', '<N>']))
+            print("# "+format_fixed_width_strings(['iteration', 'mu', 'Dmu', '<N>']))
         for i in range(0, self.max_it):
             mu = 0.5 * (mu1 + mu2)
             rho_mu = self.compute_rho(rho, mu, beta)
@@ -115,7 +115,7 @@ class OneBody(object):
             dmu = self.delta(dmat).real
             if verbose:
                 out = [i, mu, dmu, particle_number(dmat).real]
-                print(format_fixed_width_floats(out))
+                print("# "+format_fixed_width_floats(out))
             if abs(dmu) < self.deps:
                 found_mu = True
                 break
