@@ -46,7 +46,7 @@ class FieldConfig(object):
             if self.step % self.nbp == 0:
                 self.block = (self.block + 1) % self.nblock
 
-    def push_full(self, config, cfac, wfac):
+    def update(self, config, wfac):
         """Add full field configuration for walker to buffer.
 
         Parameters
@@ -60,8 +60,8 @@ class FieldConfig(object):
             approximation.
         """
         self.configs[self.step] = config
-        self.cos_fac[self.step] = cfac
-        self.weight_fac[self.step] = wfac
+        self.weight_fac[self.step] = wfac[0]
+        self.cos_fac[self.step] = wfac[1]
         try:
             self.tot_wfac *= wfac/cfac
         except ZeroDivisionError:
@@ -83,6 +83,26 @@ class FieldConfig(object):
         """Return a view to current super block for ITCF."""
         end = self.nprop_tot - self.nbp
         return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
+
+    def get_wfac(self):
+        weight_fac = [1,1]
+        for c, w in zip(self.cosine_fac, self.weight_fac):
+            weight_fac[0] *= w
+            weight_fac[1] *= c
+        return weight_fac
+
+    def get_buffer(self):
+        buff = {
+            'configs': self.configs,
+            'cos_fac': self.cos_fac,
+            'weight_fac': self.weight_fac
+        }
+        return buff
+
+    def set_buffer(self, buff):
+        self.configs = numpy.copy(buff['configs'])
+        self.weight_fac = numpy.copy(buff['weight_fac'])
+        self.cos_fac = numpy.copy(buff['cos_fac'])
 
 class PropagatorStack:
     def __init__(self, stack_size, ntime_slices, nbasis, dtype, BT=None, BTinv=None,
@@ -202,3 +222,6 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
+
+    def get_wfac(self):
+        return self.wfac
