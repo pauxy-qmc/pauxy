@@ -24,15 +24,15 @@ class OneBody(object):
             self.H1 = H1
 
         if verbose:
-            print("# beta in OneBody = {}".format(beta))
-            print("# dt in OneBody = {}".format(dt))
+            print("# beta in OneBody: {}".format(beta))
+            print("# dt in OneBody: {}".format(dt))
 
         dmat_up = scipy.linalg.expm(-dt*(self.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(self.H1[1]))
         self.dmat = numpy.array([dmat_up, dmat_down])
         cond = numpy.linalg.cond(self.dmat[0])
         if verbose:
-            print("# condition number of BT = {: 10e}".format(cond))
+            print("# condition number of BT: {: 10e}".format(cond))
 
         self.nav = system.nup + system.ndown
         self.max_it = options.get('max_it', 1000)
@@ -44,16 +44,21 @@ class OneBody(object):
         emax = numpy.max(eigs)
         emin = numpy.min(eigs)
         self.num_slices = int(beta/dt)
-        self.stack_size = min(self.num_slices,
-                              int(1.5/((math.log(emax)-math.log(emin)))))
+        self.cond = numpy.linalg.cond(self.dmat[0])
+        # We will end up multiplying many BTs together. Can roughly determine
+        # safe stack size from condition number of BT as the condition number of
+        # the product will scale roughly as cond(BT)^(number of products).
+        # We can determine a conservative stack size by requiring that the
+        # condition number of the product does not exceed 1e3.
+        self.stack_size = min(self.num_slices, int(3.0/numpy.log10(self.cond)))
         if verbose:
-            print("# Initial stack size is {}".format(self.stack_size))
+            print("# Initial stack size: {}".format(self.stack_size))
         # adjust stack size
         self.stack_size = update_stack(self.stack_size,self.num_slices, verbose)
         self.num_bins = int(beta/(self.stack_size*dt))
 
         if verbose:
-            print("# Number of stacks is {}".format(self.num_bins))
+            print("# Number of stacks: {}".format(self.num_bins))
 
         if self.mu is None:
             dtau = self.stack_size * dt

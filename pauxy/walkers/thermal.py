@@ -38,7 +38,9 @@ class ThermalWalker(object):
         if self.stack_size > trial.stack_size:
             if verbose:
                 print("# Walker stack size differs from that estimated from "
-                      "trial density matrix. Be careful.")
+                      "trial density matrix.")
+                print("# Be careful. cond(BT)**stack_size: %10.3e."
+                      %(trial.cond**self.stack_size))
         self.stack_length = self.num_slices // self.stack_size
 
         if verbose and self.diagonal_trial:
