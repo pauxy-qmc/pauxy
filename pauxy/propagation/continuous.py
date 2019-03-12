@@ -213,11 +213,11 @@ class Continuous(object):
                      numpy.dot(EXPV, self.propagator.BH1[1])]
                 B = [numpy.dot(self.propagator.BH1[0], B[0]),
                      numpy.dot(self.propagator.BH1[1], B[1])]
-                try:
-                    wfac = numpy.array([importance_function/magn, cosine_fac])
-                except ZeroDivisionError:
-                    wfac = numpy.array([0,0])
-                walker.stack.update(numpy.array(B),wfac)
+            try:
+                wfac = numpy.array([importance_function/magn, cosine_fac])
+            except ZeroDivisionError:
+                wfac = numpy.array([0,0])
+            walker.stack.update(numpy.array(B), wfac)
         else:
             walker.ot = ot_new
             walker.weight = 0.0
