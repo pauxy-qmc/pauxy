@@ -108,6 +108,7 @@ class UEG(object):
         self.vqvec = numpy.array([self.vq(self.kfac*q) for q in self.qvecs])
         # Number of momentum transfer vectors / auxiliary fields.
         # Can reduce by symmetry but be stupid for the moment.
+        self.nchol = len(self.qvecs)
         self.nfields = 2*len(self.qvecs)
         # For consistency with frozen core molecular code.
         self.orbs = None
