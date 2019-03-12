@@ -139,8 +139,7 @@ class PlaneWave(object):
             VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
         return  VHS * self.sqrt_dt
 
-
-    def construct_VHS_incore(self, system, xshifted):
+    def construct_VHS_incore(self, system, xshifted)
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -153,12 +152,98 @@ class PlaneWave(object):
         VHS : numpy array
             the HS potential
         """
-        VHS = numpy.zeros((system.nbasis, system.nbasis),
-                          dtype=numpy.complex128)
-        VHS = (system.iA * xshifted[:self.num_vplus] +
-               system.iB * xshifted[self.num_vplus:])
-        VHS = VHS.reshape(system.nbasis, system.nbasis)
-        return  VHS * self.sqrt_dt
+        return construct_VHS_incore(system, xshifted, self.sqrt_dt)
+
+
+def construct_VHS_incore(system, xshifted, sqrt_dt):
+    """Construct the one body potential from the HS transformation
+    Parameters
+    ----------
+    system :
+        system class
+    xshifted : numpy array
+        shifited auxiliary field
+    Returns
+    -------
+    VHS : numpy array
+        the HS potential
+    """
+    VHS = numpy.zeros((system.nbasis, system.nbasis),
+                      dtype=numpy.complex128)
+    VHS = (system.iA * xshifted[:system.nchol] +
+           system.iB * xshifted[system.nchol:])
+    VHS = VHS.reshape(system.nbasis, system.nbasis)
+    return  sqrt_dt * VHS
+
+def construct_propagator_matrix_planewave(system, BT2, config, dt, conjt=False):
+    """Construct the full projector from a configuration of auxiliary fields.
+
+    For use with generic system object.
+
+    Parameters
+    ----------
+    system : class
+        System class.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    config : numpy array
+        Auxiliary field configuration.
+    conjt : bool
+        If true return Hermitian conjugate of matrix.
+
+    Returns
+    -------
+    B : :class:`numpy.ndarray`
+        Full propagator matrix.
+    """
+    VHS = construct_VHS_incore(system, config, dt**0.5)
+    EXP_VHS = exponentiate_matrix(VHS)
+    Bup = BT2[0].dot(EXP_VHS).dot(BT2[0])
+    Bdown = BT2[1].dot(EXP_VHS).dot(BT2[1])
+
+    if conjt:
+        return [Bup.conj().T, Bdown.conj().T]
+    else:
+        return [Bup, Bdown]
+
+def back_propagate_planewave(phi, stack, system, nstblz, store=False):
+    r"""Perform back propagation for RHF/UHF style wavefunction.
+
+    For use with generic system hamiltonian.
+
+    Parameters
+    ---------
+    system : system object in general.
+        Container for model input options.
+    psi : :class:`pauxy.walkers.Walkers` object
+        CPMC wavefunction.
+    trial : :class:`pauxy.trial_wavefunction.X' object
+        Trial wavefunction class.
+    nstblz : int
+        Number of steps between GS orthogonalisation.
+    BT2 : :class:`numpy.ndarray`
+        One body propagator.
+    dt : float
+        Timestep.
+
+    Returns
+    -------
+    psi_bp : list of :class:`pauxy.walker.Walker` objects
+        Back propagated list of walkers.
+    """
+    nup = system.nup
+    psi_store = []
+    for (i, c) in enumerate(stack.get_block()[0][::-1]):
+        B = construct_propagator_matrix_planewave(system, BT2, c, conjt=True)
+        phi[:,:nup] = numpy.dot(B[0].conj().T, phi[:,:nup])
+        phi[:,nup:] = numpy.dot(B[1].conj().T, phi[:,nup:])
+        if i != 0 and i % nstblz == 0:
+            (phi[:,:nup], R) = reortho(phi[:,:nup])
+            (phi[:,nup:], R) = reortho(phi[:,nup:])
+        if store:
+            psi_store.append(phi.copy())
+
+    return psi_store
 
 
 def unit_test():
