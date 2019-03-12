@@ -18,20 +18,38 @@ class ThermalDiscrete(object):
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
-        self.BH1 = trial.dmat
         dt = qmc.dt
         dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(system.H1[1]))
         dmat = numpy.array([dmat_up,dmat_down])
-        self.BH1 = trial.compute_rho(dmat, system.mu, dt)
+        self.construct_one_body_propagator(system, dt)
         self.BT_BP = None
-        self.BH1_inv = numpy.array([scipy.linalg.inv(self.BH1[0], check_finite=False),
-                                    scipy.linalg.inv(self.BH1[1], check_finite=False)])
+        self.BT = trial.dmat
+        self.BT_inv = trial.dmat_inv
         self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=trial.dmat.dtype)
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
+
+    def construct_one_body_propagator(self, system, dt):
+        """Construct the one-body propagator Exp(-dt/2 H0)
+        Parameters
+        ----------
+        system :
+            system class
+        dt : float
+            time-step
+        Returns
+        -------
+        self.BH1 : numpy array
+            Exp(-dt/2 H0)
+        """
+        H1 = system.H1
+        I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
+        # No spin dependence for the moment.
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
+                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
 
     def update_greens_function_simple(self, walker, time_slice):
         walker.construct_greens_function_stable(time_slice)
@@ -48,8 +66,8 @@ class ThermalDiscrete(object):
 
     def propagate_greens_function(self, walker):
         if walker.stack.time_slice < walker.stack.ntime_slices:
-            walker.G[0] = self.BH1[0].dot(walker.G[0]).dot(self.BH1_inv[0])
-            walker.G[1] = self.BH1[1].dot(walker.G[1]).dot(self.BH1_inv[1])
+            walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BT_inv[0])
+            walker.G[1] = self.BT[1].dot(walker.G[1]).dot(self.BT_inv[1])
 
     def calculate_overlap_ratio(self, walker, i):
         R1_up = 1 + (1-walker.G[0,i,i])*self.delta[0,0]
@@ -78,6 +96,7 @@ class ThermalDiscrete(object):
             else:
                 walker.weight = 0
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
+        B = numpy.einsum('kin,knj->kij', self.BH1, B)
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
@@ -106,6 +125,7 @@ class ThermalDiscrete(object):
             else:
                 walker.weight = 0
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
+        B = numpy.einsum('kin,knj->kij', self.BH1, B)
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
