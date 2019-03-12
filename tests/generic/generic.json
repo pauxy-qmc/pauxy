@@ -26,7 +26,7 @@
     "estimates": {
         "back_propagated": {
             "rdm": true,
-            "nback_prop": 20
+            "tau_bp": 1
         }
     }
 }
