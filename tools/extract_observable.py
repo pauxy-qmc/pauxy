@@ -99,7 +99,7 @@ def main(args):
         print ('Unknown observable')
 
     if not options.plot:
-        print (results.to_string(index=print_index))
+        print (results.to_string())
 
 if __name__ == '__main__':
 
