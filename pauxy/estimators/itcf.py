@@ -82,6 +82,7 @@ class ITCF(object):
         self.mode = itcf.get('mode', 'full')
         self.stack_size = itcf.get('stack_size', 1)
         self.nmax = int(self.tmax/qmc.dt)
+        self.dt = qmc.dt
         self.ntau = int(self.nmax/self.stack_size)
         self.neqlb = int(self.teqlb/qmc.dt)
         self.nprop_tot = self.nmax + self.neqlb
@@ -194,7 +195,9 @@ class ITCF(object):
             # Note we use the first nmax fields for estimating the ITCF.
             # configs = w.field_configs.get_superblock()[0]
             phi_left = trial.psi.copy()
-            self.back_propagate_single(phi_left, w.stack, system, self.nstblz)
+            self.back_propagate_single(phi_left, w.stack,
+                                       system, self.nstblz,
+                                       self.BT2, self.dt)
             (Ggr, Gls) = self.initial_greens_function(phi_left,
                                                       w.phi_right,
                                                       trial, nup,
@@ -254,7 +257,8 @@ class ITCF(object):
             # that found by multiplying psi_L^n by B^{-1}(x^(n)) factors.
             phi_left = trial.psi.copy()
             psi_Ls = self.back_propagate_single(phi_left, w.stack, system,
-                                                self.nstblz, store=True)
+                                                self.nstblz, self.BT2, self.dt,
+                                                store=True)
             # 2. Calculate G(n,n). This is the equal time Green's function at
             # the step where we began saving auxilary fields (constructed with
             # psi_L back propagated along this path.)
