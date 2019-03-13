@@ -61,9 +61,10 @@ class FieldConfig(object):
         """
         self.configs[self.step] = config
         self.weight_fac[self.step] = wfac[0]
-        self.cos_fac[self.step] = wfac[1]
+        # cosine factor is real..
+        self.cos_fac[self.step] = wfac[1].real
         try:
-            self.tot_wfac *= wfac/cfac
+            self.tot_wfac *= wfac[0]/wfac[1]
         except ZeroDivisionError:
             self.tot_wfac = 0.0
         # Completed field configuration for this walker?
@@ -103,6 +104,9 @@ class FieldConfig(object):
         self.configs = numpy.copy(buff['configs'])
         self.weight_fac = numpy.copy(buff['weight_fac'])
         self.cos_fac = numpy.copy(buff['cos_fac'])
+
+    def reset(self):
+        self.tot_wfac = 1.0 + 0j
 
 class PropagatorStack:
     def __init__(self, stack_size, ntime_slices, nbasis, dtype, BT=None, BTinv=None,
