@@ -10,7 +10,7 @@ from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.greens_function import gab
 from pauxy.estimators.mixed import local_energy
 from pauxy.propagation.generic import back_propagate_generic
-from pauxy.propagation.plane_wave import back_propagate_ueg
+from pauxy.propagation.planewave import back_propagate_planewave
 import pauxy.propagation.hubbard
 
 class BackPropagation(object):
@@ -60,9 +60,9 @@ class BackPropagation(object):
     def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
         self.tau_bp = bp.get('tau_bp', 0)
         self.nmax = int(self.tau_bp/qmc.dt)
-        self.header = ['iteration', 'weight', 'E', 'T', 'V']
-        self.calc_one_rdm = mixed.get('one_rdm', False)
-        self.calc_two_rdm = mixed.get('two_rdm', None)
+        self.header = ['iteration', 'Weight', 'E', 'E1b', 'E2b']
+        self.calc_one_rdm = bp.get('one_rdm', False)
+        self.calc_two_rdm = bp.get('two_rdm', None)
         self.nreg = len(self.header[1:])
         self.eval_energy = bp.get('evaluate_energy', True)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
@@ -99,14 +99,14 @@ class BackPropagation(object):
             self.output = H5EstimatorHelper(energies, 'energies',
                                             (qmc.nsteps//self.nmax, self.nreg),
                                             trial.G.dtype)
-            if self.one_rdm:
-                one_rdm_shape = (qmc.nsteps//self.nmax,)+self.G.shape,
+            if self.calc_one_rdm:
+                one_rdm_shape = (qmc.nsteps//self.nmax+1,)+self.G.shape
                 self.one_rdm_output = H5EstimatorHelper(energies, 'one_rdm',
                                                         one_rdm_shape,
                                                         trial.G.dtype)
             if self.calc_two_rdm is not None:
                 name = 'two_rdm'
-                two_rdm_shape = (qmc.nsteps//self.nmax,) + two_rdm_shape
+                two_rdm_shape = (qmc.nsteps//self.nmax+1,) + two_rdm_shape
                 self.two_rdm_output = H5EstimatorHelper(energies, name,
                                                         two_rdm_shape, dtype)
 
@@ -118,7 +118,7 @@ class BackPropagation(object):
             if system.name == "Generic":
                 self.back_propagate = back_propagate_generic
             elif system.name == "UEG":
-                self.back_propagate = back_propagate_ueg
+                self.back_propagate = back_propagate_planewave
             else:
                 self.back_propagate = pauxy.propagation.hubbard.back_propagate
 
@@ -146,7 +146,8 @@ class BackPropagation(object):
         for i, wnm in enumerate(psi.walkers):
             phi_bp = trial.psi.copy()
             # TODO: Fix for ITCF.
-            self.back_propagate(phi_bp, wnm.stack, system, self.nstblz)
+            self.back_propagate(phi_bp, wnm.stack, system,
+                                self.nstblz, self.BT2, self.dt)
             self.G[0] = gab(phi_bp[:,:nup], wnm.phi_old[:,:nup])
             self.G[1] = gab(phi_bp[:,nup:], wnm.phi_old[:,nup:])
             if self.eval_energy:
@@ -165,16 +166,17 @@ class BackPropagation(object):
             else:
                 weight = wnm.weight
             self.estimates[0] += weight
-            self.estimates[1:self.nreg] += self.estimates[1:nreg] + weight*energies
+            self.estimates[1:self.nreg] += (
+                    self.estimates[1:self.nreg] + weight*energies
+                    )
             start = self.nreg
             end = self.nreg + self.G.size
-            self.estimates[start:end] += w.weight*w.G.flatten().real
+            self.estimates[start:end] += weight*self.G.flatten().real
             if self.calc_two_rdm is not None:
                 start = end
                 end = end + self.two_rdm.size
-                self.estimates[start:end] += w.weight*self.two_rdm.flatten().real
+                self.estimates[start:end] += weight*self.two_rdm.flatten().real
             wnm.stack.reset()
-        self.estimates[0] += denominator
         psi.copy_historic_wfn()
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
@@ -235,12 +237,12 @@ class BackPropagation(object):
         """
         if step != 0 and step % self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
-            if comm.Get_rank() == 0:
+            if comm.rank == 0:
                 self.output.push(self.global_estimates[:self.nreg])
                 if self.calc_one_rdm:
                     start = self.nreg
                     end = self.nreg + self.G.size
-                    rdm = self.global_estimates[self.nreg:].reshape(self.G.shape)
+                    rdm = self.global_estimates[self.nreg:end].reshape(self.G.shape)
                     self.one_rdm_output.push(rdm)
                 if self.calc_two_rdm:
                     start = self.nreg + self.G.size
