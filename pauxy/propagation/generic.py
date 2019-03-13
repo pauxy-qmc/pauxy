@@ -145,8 +145,6 @@ class GenericContinuous(object):
         VHS : numpy array
             the HS potential
         """
-        # print(xshifted)
-        # print("HERE")
         VHS = system.hs_pot.dot(xshifted)
         VHS = VHS.reshape(system.nbasis, system.nbasis)
         return  self.isqrt_dt * VHS
@@ -222,7 +220,7 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
                 # psi_bp[iw].reortho(trial)
     # return psi_bp
 
-def back_propagate_generic(phi, stack, system, nstblz, store=False):
+def back_propagate_generic(phi, stack, system, nstblz, BT2, dt, store=False):
     r"""Perform back propagation for RHF/UHF style wavefunction.
 
     For use with generic system hamiltonian.
