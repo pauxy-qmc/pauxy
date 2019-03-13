@@ -207,8 +207,6 @@ class Continuous(object):
             dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
-            if (walker.weight > walker.total_weight * 0.10):
-                walker.weight = walker.total_weight * 0.10
             walker.ot = ot_new
             if self.construct_bmatrix:
                 B = [numpy.dot(EXPV, self.propagator.BH1[0]),
