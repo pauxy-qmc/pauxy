@@ -50,9 +50,9 @@ class UEG(object):
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.mu = inputs.get('mu', None)
         # if(verbose):
-        print("# Number of spin-up electrons = %i"%self.nup)
-        print("# Number of spin-down electrons = %i"%self.ndown)
-        print("# rs = %10.5f"%self.rs)
+        print("# Number of spin-up electrons: %i"%self.nup)
+        print("# Number of spin-down electrons: %i"%self.ndown)
+        print("# rs: %10.5f"%self.rs)
 
         self.thermal = inputs.get('thermal', False)
 
@@ -76,13 +76,13 @@ class UEG(object):
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
 
-        # if(verbose):
-        print("# zeta = %10.5f"%self.zeta)
-        print("# rho = %10.5f"%self.rho)
-        print("# L = %10.5f"%self.L)
-        print("# vol = %10.5f"%self.vol)
-        print("# kfac = %10.5f"%self.kfac)
-        print("# ecore = %10.5f"%self.ecore)
+        if verbose:
+            print("# zeta: %d"%self.zeta)
+            print("# rho: %13.8e"%self.rho)
+            print("# L: %13.8e"%self.L)
+            print("# vol: %13.8e"%self.vol)
+            print("# kfac: %13.8e"%self.kfac)
+            print("# E_M: %13.8e"%self.ecore)
 
         # Single particle eigenvalues and corresponding kvectors
         (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
@@ -100,7 +100,7 @@ class UEG(object):
         self.nfv = 0
         self.mo_coeff = None
         # if(verbose):
-        print("# Number of plane waves = %i"%self.nbasis)
+        print("# Number of plane waves: %i"%self.nbasis)
         # Allowed momentum transfers (4*ecut)
         (eigs, qvecs, self.qnmax) = self.sp_energies(self.kfac, 4*self.ecut)
         # Omit Q = 0 term.
