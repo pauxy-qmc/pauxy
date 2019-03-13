@@ -25,7 +25,7 @@
     },
     "estimates": {
         "back_propagated": {
-            "rdm": true,
+            "one_rdm": true,
             "tau_bp": 1
         }
     }
