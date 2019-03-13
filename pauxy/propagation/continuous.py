@@ -10,7 +10,7 @@ class Continuous(object):
     """
     def __init__(self, options, qmc, system, trial, verbose=False):
         if verbose:
-            print ("# Parsing propagator input options.")
+            print("# Parsing propagator input options.")
         # Input options
         self.free_projection = options.get('free_projection', False)
         if verbose:
@@ -208,20 +208,21 @@ class Continuous(object):
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
             walker.ot = ot_new
+            if magn > 1e-16:
+                wfac = numpy.array([importance_function/magn, cosine_fac])
+            else:
+                wfac = numpy.array([0,0])
             if self.construct_bmatrix:
                 B = [numpy.dot(EXPV, self.propagator.BH1[0]),
                      numpy.dot(EXPV, self.propagator.BH1[1])]
                 B = [numpy.dot(self.propagator.BH1[0], B[0]),
                      numpy.dot(self.propagator.BH1[1], B[1])]
-            try:
-                wfac = numpy.array([importance_function/magn, cosine_fac])
-            except ZeroDivisionError:
-                wfac = numpy.array([0,0])
-            walker.stack.update(numpy.array(B), wfac)
+                walker.stack.update(numpy.array(B), wfac)
+            else:
+                walker.stack.update(xmxbar, wfac)
         else:
             walker.ot = ot_new
             walker.weight = 0.0
-            walker.field_configs.push_full(xmxbar, 0.0, 0.0)
 
 
 def unit_test():
