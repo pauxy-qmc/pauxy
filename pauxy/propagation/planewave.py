@@ -5,7 +5,7 @@ import scipy.sparse.linalg
 import time
 import sys
 from pauxy.propagation.operations import local_energy_bound
-from pauxy.utils.linalg import exponentiate_matrix
+from pauxy.utils.linalg import exponentiate_matrix, reortho
 from pauxy.walkers.single_det import SingleDetWalker
 
 class PlaneWave(object):
@@ -46,7 +46,6 @@ class PlaneWave(object):
         # No spin dependence for the moment.
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
-        print(self.BH1[0])
 
     def two_body_potentials(self, system, iq):
         """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
@@ -139,7 +138,7 @@ class PlaneWave(object):
             VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
         return  VHS * self.sqrt_dt
 
-    def construct_VHS_incore(self, system, xshifted)
+    def construct_VHS_incore(self, system, xshifted):
         """Construct the one body potential from the HS transformation
         Parameters
         ----------
@@ -206,7 +205,7 @@ def construct_propagator_matrix_planewave(system, BT2, config, dt, conjt=False):
     else:
         return [Bup, Bdown]
 
-def back_propagate_planewave(phi, stack, system, nstblz, store=False):
+def back_propagate_planewave(phi, stack, system, nstblz, BT2, dt, store=False):
     r"""Perform back propagation for RHF/UHF style wavefunction.
 
     For use with generic system hamiltonian.
@@ -234,7 +233,7 @@ def back_propagate_planewave(phi, stack, system, nstblz, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(stack.get_block()[0][::-1]):
-        B = construct_propagator_matrix_planewave(system, BT2, c, conjt=True)
+        B = construct_propagator_matrix_planewave(system, BT2, c, dt, conjt=True)
         phi[:,:nup] = numpy.dot(B[0].conj().T, phi[:,:nup])
         phi[:,nup:] = numpy.dot(B[1].conj().T, phi[:,nup:])
         if i != 0 and i % nstblz == 0:
