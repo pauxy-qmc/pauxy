@@ -136,8 +136,15 @@ def reblock_local_energy(filename, skip=0):
             return None
 
 
-def reblock_rdm(filename, skip=1, est_type='back_propagated'):
-    rdm_series = pauxy.analysis.extraction.extract_rdm(filename, skip, est_type)
+def reblock_rdm(filename, skip=1, est_type='back_propagated',
+                free_projection=False, rdm_type='one_rdm'):
+    rdm_series, weights = pauxy.analysis.extraction.extract_rdm(filename, skip,
+                                                                est_type=est_type,
+                                                                rdm_type=rdm_type)
+    if not free_projection:
+        rdm_series = rdm_series / weights
+    else:
+        print("Analysis for FP RDM not implemented.")
     rdm, rdm_err = average_rdm(rdm_series)
     return rdm, rdm_err
 
@@ -197,7 +204,7 @@ def average_tau(frames):
 
 
 def analyse_back_propagation(frames):
-    frames[['E', 'T', 'V']] = frames[['E','T','V']].div(frames.weight, axis=0)
+    frames[['E', 'E1b', 'E2b']] = frames[['E','E1b','E2b']].div(frames.Weight, axis=0)
     frames = frames.apply(numpy.real)
     frames = frames.groupby(['nbp','dt'])
     data_len = frames.size()
@@ -266,7 +273,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
             nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
             bp['dt'] = dt
             bp['nbp'] = nbp
-            weights = bp['weight'].values.real
+            weights = bp['Weight'].values.real
             nzero = numpy.nonzero(bp['E'].values)[0][-1]
             skip = max(1, int(start*step/nbp))
             bp_data.append(bp[skip:nzero:2])

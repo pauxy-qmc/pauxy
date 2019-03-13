@@ -4,7 +4,7 @@ import scipy.linalg
 from pauxy.estimators.mixed import local_energy
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
-from pauxy.walkers.stack import PropagatorStack
+from pauxy.walkers.stack import PropagatorStack, FieldConfig
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -63,10 +63,14 @@ class SingleDetWalker(object):
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
         self.stack_size = walker_opts.get('stack_size', 1)
-        self.stack = PropagatorStack(self.stack_size, num_propg,
-                                     system.nbasis, trial.psi.dtype,
-                                     BT=None, BTinv=None,
-                                     diagonal=False)
+        if system.name == "Generic":
+            self.stack = PropagatorStack(self.stack_size, num_propg,
+                                         system.nbasis, trial.psi.dtype,
+                                         BT=None, BTinv=None,
+                                         diagonal=False)
+        else:
+            self.stack = FieldConfig(system.nfields, num_propg,
+                                     num_propg, trial.psi.dtype)
         self.eos = None
         try:
             excite = trial.excite_ia

@@ -23,24 +23,28 @@ def extract_mixed_estimates(filename, skip=0):
     nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
-def extract_rdm(filename, skip, est_type='back_propagated'):
+def extract_rdm(filename, skip, est_type='back_propagated', rdm_type='one_rdm'):
     data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
     bpe = data[est_type+'_estimates/energies'][:]
     headers = data[est_type+'_estimates/headers'][:]
     est_data = pd.DataFrame(bpe)
     est_data.columns = headers
-    nzero = numpy.nonzero(est_data['E'].values)[0][-1]
+    nzero = numpy.nonzero(est_data['Weight'].values)[0][-1]
     try:
-        rdm = data[est_type+'_estimates/one_rdm'][:]
+        rdm = data[est_type+'_estimates/'+rdm_type][:]
         weights = est_data['Weight'].values.real
-        # if len(rdm.shape) == 3:
-            # # GHF format
-            # w = weights[skip:nzero,None,None]
-        # else:
-            # # UHF format
-            # w = weights[skip:nzero,None,None,None]
-        return rdm[skip:nzero]
+        if rdm_type == 'one_rdm':
+            if len(rdm.shape) == 3:
+                # GHF format
+                w = weights[skip:nzero,None,None]
+            else:
+                # UHF format
+                w = weights[skip:nzero,None,None,None]
+        else:
+            # Update if measuring two_rdm proper.
+            w = weights[skip:nzero,None,None,None]
+        return (rdm[skip:nzero], w)
     except KeyError:
         return None
 
@@ -63,7 +67,7 @@ def extract_hdf5(filename):
                 headers = fh5['back_propagated_estimates/headers'][:]
                 bp_data = pd.DataFrame(bpe)
                 bp_data.columns = headers
-                if bp['rdm']:
+                if bp['calc_one_rdm']:
                     try:
                         bp_rdm = fh5['back_propagated_estimates/one_rdm'][:]
                     except KeyError:
