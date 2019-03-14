@@ -87,7 +87,7 @@ class FieldConfig(object):
 
     def get_wfac(self):
         weight_fac = [1,1]
-        for c, w in zip(self.cosine_fac, self.weight_fac):
+        for c, w in zip(self.cos_fac, self.weight_fac):
             weight_fac[0] *= w
             weight_fac[1] *= c
         return weight_fac
