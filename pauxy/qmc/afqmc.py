@@ -124,7 +124,7 @@ class AFQMC(object):
                     self.estimators.calc_itcf) and self.system.name == "Generic"
                     )
             self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc, verbose)
+                               self.qmc, verbose, comm=None)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string
@@ -172,6 +172,8 @@ class AFQMC(object):
                 if (w.weight > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
+            if self.psi.write_restart and step % self.psi.write_freq == 0:
+                self.psi.write_walkers(comm)
             # calculate estimators
             start = time.time()
             self.estimators.update(self.system, self.qmc,

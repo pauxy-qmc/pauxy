@@ -1,8 +1,10 @@
 import copy
-import numpy
-import math
 import cmath
+import h5py
+import math
+import numpy
 import scipy.linalg
+import time
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
@@ -27,9 +29,31 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc, verbose=False):
+    def __init__(self, walker_opts, system, trial, qmc, verbose=False,
+                comm=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
+        self.write_freq = walker_opts.get('write_freq', 0)
+        self.write_file = walker_opts.get('write_file', 'restart.h5')
+        self.read_file = walker_opts.get('read_file', None)
+        if comm is None:
+            rank = 0
+        else:
+            rank = comm.rank
+        if self.write_freq > 0:
+            self.write_restart = True
+            self.write_file = (
+                    self.write_file.split(".")[0] + "." + str(rank) + ".h5"
+                    )
+        else:
+            self.write_restart = False
+        if self.read_file is not None:
+            self.read_restart = True
+            self.read_file = (
+                    self.read_file.split(".")[0] + "." + str(rank) + ".h5"
+                    )
+        else:
+            self.read_restart = False
         if verbose:
             print ("# Setting up wavefunction object.")
         if trial.name == 'multi_determinant':
@@ -54,6 +78,10 @@ class Walkers(object):
             dtype = int
         self.pop_control = self.comb
         self.stack_size = walker_opts.get('stack_size', 1)
+        if self.read_restart:
+            if verbose:
+                print("# Reading walkers from %s file series."%self.read_file)
+            self.read_walkers()
         self.calculate_nwalkers()
         self.set_total_weight(qmc.ntot_walkers)
 
@@ -223,3 +251,28 @@ class Walkers(object):
             w.greens_function(trial)
             w.weight = 1.0
             w.phase = 1.0 + 0.0j
+
+    def write_walkers(self, comm):
+        start = time.time()
+        with h5py.File(self.write_file, 'w') as fh5:
+            for (i,w) in enumerate(self.walkers):
+                fh5['slater_matrix_%d'%i] = w.phi
+                fh5['weight_%d'%i] = w.weight
+                fh5['phase_%d'%i] = w.phase
+                fh5['overlap_%d'%i] = w.ot
+        if comm.rank == 0:
+            print(" # Writing walkers to file.")
+            print(" # Time to write restart: {:13.8e} s"
+                  .format(time.time()-start))
+
+    def read_walkers(self):
+        with h5py.File(self.read_file, 'r') as fh5:
+            for (i,w) in enumerate(self.walkers):
+                try:
+                    w.phi = fh5['slater_matrix_%d'%i][:]
+                    w.weight = fh5['weight_%d'%i][()]
+                    w.phase = fh5['phase_%d'%i][()]
+                    w.ot = fh5['overlap_%d'%i][()]
+                except KeyError:
+                    print(" # Could not read walker data from:"
+                          " %s"%(self.read_file))
