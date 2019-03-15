@@ -177,7 +177,8 @@ def setup_parallel(options, comm=None, verbose=False):
     afqmc.psi = Walkers(walker_opts, afqmc.system,
                         afqmc.trial,
                         afqmc.qmc,
-                        verbose=(comm.rank==0 and verbose))
+                        verbose=(comm.rank==0 and verbose),
+                        comm=comm)
     if comm.rank == 0:
         json_string = to_json(afqmc)
         afqmc.estimators.json_string = json_string
