@@ -9,7 +9,7 @@ def extract_hdf5_data_sets(files):
         try:
             data.append(extract_hdf5(f))
         except OSError:
-            print("Error reading %f."%f)
+            print("Error reading %s."%f)
 
     return data
 
