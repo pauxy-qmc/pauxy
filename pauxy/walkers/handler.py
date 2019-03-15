@@ -40,20 +40,6 @@ class Walkers(object):
             rank = 0
         else:
             rank = comm.rank
-        if self.write_freq > 0:
-            self.write_restart = True
-            self.write_file = (
-                    self.write_file.split(".")[0] + "." + str(rank) + ".h5"
-                    )
-        else:
-            self.write_restart = False
-        if self.read_file is not None:
-            self.read_restart = True
-            self.read_file = (
-                    self.read_file.split(".")[0] + "." + str(rank) + ".h5"
-                    )
-        else:
-            self.read_restart = False
         if verbose:
             print ("# Setting up wavefunction object.")
         if trial.name == 'multi_determinant':
@@ -78,10 +64,21 @@ class Walkers(object):
             dtype = int
         self.pop_control = self.comb
         self.stack_size = walker_opts.get('stack_size', 1)
-        if self.read_restart:
+        walker_size = 3 + self.walkers[0].phi.size
+        if self.write_freq > 0:
+            self.write_restart = True
+            self.dsets = []
+            with h5py.File(self.write_file,'w',driver='mpio',comm=comm) as fh5:
+                for i in range(self.ntot_walkers):
+                    fh5.create_dataset('walker_%d'%i, (walker_size,),
+                                       dtype=numpy.complex128)
+
+        else:
+            self.write_restart = False
+        if self.read_file is not None:
             if verbose:
                 print("# Reading walkers from %s file series."%self.read_file)
-            self.read_walkers()
+            self.read_walkers(comm)
         self.calculate_nwalkers()
         self.set_total_weight(qmc.ntot_walkers)
 
@@ -252,27 +249,36 @@ class Walkers(object):
             w.weight = 1.0
             w.phase = 1.0 + 0.0j
 
+    def get_write_buffer(self, i):
+        w = self.walkers[i]
+        buff = numpy.concatenate([[w.weight], [w.phase], [w.ot], w.phi.ravel()])
+        return buff
+
+    def set_walker_from_buffer(self, i, buff):
+        w = self.walkers[i]
+        w.weight = buff[0]
+        w.phase = buff[1]
+        w.ot = buff[2]
+        w.phi = buff[3:].reshape(self.walkers[i].phi.shape)
+
     def write_walkers(self, comm):
         start = time.time()
-        with h5py.File(self.write_file, 'w') as fh5:
+        with h5py.File(self.write_file,'r+',driver='mpio',comm=comm) as fh5:
             for (i,w) in enumerate(self.walkers):
-                fh5['slater_matrix_%d'%i] = w.phi
-                fh5['weight_%d'%i] = w.weight
-                fh5['phase_%d'%i] = w.phase
-                fh5['overlap_%d'%i] = w.ot
+                ix = i + self.nwalkers*comm.rank
+                buff = self.get_write_buffer(i)
+                fh5['walker_%d'%ix][:] = self.get_write_buffer(i)
         if comm.rank == 0:
             print(" # Writing walkers to file.")
             print(" # Time to write restart: {:13.8e} s"
                   .format(time.time()-start))
 
-    def read_walkers(self):
+    def read_walkers(self, comm):
         with h5py.File(self.read_file, 'r') as fh5:
             for (i,w) in enumerate(self.walkers):
                 try:
-                    w.phi = fh5['slater_matrix_%d'%i][:]
-                    w.weight = fh5['weight_%d'%i][()]
-                    w.phase = fh5['phase_%d'%i][()]
-                    w.ot = fh5['overlap_%d'%i][()]
+                    ix = i + self.nwalkers*comm.rank
+                    self.set_walker_from_buffer(i, fh5['walker_%d'%ix][:])
                 except KeyError:
                     print(" # Could not read walker data from:"
                           " %s"%(self.read_file))
