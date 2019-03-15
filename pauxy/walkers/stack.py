@@ -63,10 +63,10 @@ class FieldConfig(object):
         self.weight_fac[self.step] = wfac[0]
         # cosine factor is real..
         self.cos_fac[self.step] = wfac[1].real
-        try:
+        if abs(wfac[1]) > 1e-16:
             self.tot_wfac *= wfac[0]/wfac[1]
-        except ZeroDivisionError:
-            self.tot_wfac = 0.0
+        else:
+            self.tot_wfac = 0
         # Completed field configuration for this walker?
         self.step = (self.step + 1) % self.nprop_tot
         # Completed this block of back propagation steps?
