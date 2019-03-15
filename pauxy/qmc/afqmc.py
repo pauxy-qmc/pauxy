@@ -172,8 +172,6 @@ class AFQMC(object):
                 if (w.weight > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
-            if self.psi.write_restart and step % self.psi.write_freq == 0:
-                self.psi.write_walkers(comm)
             # calculate estimators
             start = time.time()
             self.estimators.update(self.system, self.qmc,
@@ -192,6 +190,8 @@ class AFQMC(object):
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
+            if self.psi.write_restart and step % self.psi.write_freq == 0:
+                self.psi.write_walkers(comm)
 
     def finalise(self, verbose=False):
         """Tidy up.
