@@ -23,8 +23,8 @@ def extract_mixed_estimates(filename, skip=0):
     nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
-def extract_rdm(filename, skip, est_type='back_propagated', rdm_type='one_rdm'):
-    data = h5py.File(filename, 'r')
+def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
+    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
     metadata = json.loads(data['metadata'][:][0])
     bpe = data[est_type+'_estimates/energies'][:]
     headers = data[est_type+'_estimates/headers'][:]

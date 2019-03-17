@@ -138,6 +138,12 @@ def reblock_local_energy(filename, skip=0):
 
 def reblock_rdm(filename, skip=1, est_type='back_propagated',
                 free_projection=False, rdm_type='one_rdm'):
+
+    if '*' in filename:
+        files = glob.glob(filename)
+    else:
+        files = filename
+
     rdm_series, weights = pauxy.analysis.extraction.extract_rdm(filename, skip,
                                                                 est_type=est_type,
                                                                 rdm_type=rdm_type)
