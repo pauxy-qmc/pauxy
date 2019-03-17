@@ -2,6 +2,7 @@ import pandas as pd
 import numpy
 import json
 import h5py
+import pauxy.analysis.extraction
 
 def extract_hdf5_data_sets(files):
     data = []
@@ -23,14 +24,15 @@ def extract_mixed_estimates(filename, skip=0):
     nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
-def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
-    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
+def extract_rdm(filename, skip, est_type='back_propagated', rdm_type='one_rdm'):
+    data = h5py.File(filename, 'r')
     metadata = json.loads(data['metadata'][:][0])
     bpe = data[est_type+'_estimates/energies'][:]
     headers = data[est_type+'_estimates/headers'][:]
     est_data = pd.DataFrame(bpe)
     est_data.columns = headers
     nzero = numpy.nonzero(est_data['Weight'].values)[0][-1]
+
     try:
         rdm = data[est_type+'_estimates/'+rdm_type][:]
         weights = est_data['Weight'].values.real
@@ -88,7 +90,7 @@ def extract_hdf5(filename):
             else:
                 itcf = None
                 kspace_itcf = None
-
+    print("metadata = {}".format(metadata))
     return (metadata, basic, bp_data, itcf, kspace_itcf, mixed_rdm, bp_rdm)
 
 def extract_hdf5_simple(filename):

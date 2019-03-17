@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''Run a reblocking analysis on pauxy QMC output files.'''
 
+import glob
 import h5py
 import json
 import matplotlib.pyplot as pl
@@ -136,17 +137,14 @@ def reblock_local_energy(filename, skip=0):
             return None
 
 
-def reblock_rdm(filename, skip=1, est_type='back_propagated',
+def reblock_rdm(files, skip=1, est_type='back_propagated',
                 free_projection=False, rdm_type='one_rdm'):
 
-    if '*' in filename:
-        files = glob.glob(filename)
-    else:
-        files = filename
+    for file in files:
+        rdm_series, weights = pauxy.analysis.extraction.extract_rdm(file, skip,
+                                                                    est_type=est_type,
+                                                                    rdm_type=rdm_type)
 
-    rdm_series, weights = pauxy.analysis.extraction.extract_rdm(filename, skip,
-                                                                est_type=est_type,
-                                                                rdm_type=rdm_type)
     if not free_projection:
         rdm_series = rdm_series / weights
     else:
