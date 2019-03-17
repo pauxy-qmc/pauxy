@@ -24,31 +24,40 @@ def extract_mixed_estimates(filename, skip=0):
     nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
-def extract_rdm(filename, skip, est_type='back_propagated', rdm_type='one_rdm'):
-    data = h5py.File(filename, 'r')
-    metadata = json.loads(data['metadata'][:][0])
-    bpe = data[est_type+'_estimates/energies'][:]
-    headers = data[est_type+'_estimates/headers'][:]
-    est_data = pd.DataFrame(bpe)
-    est_data.columns = headers
-    nzero = numpy.nonzero(est_data['Weight'].values)[0][-1]
+def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
+    rdmtot = numpy.zeros((0))
+    wtot = numpy.zeros((0))
+    for filename in files:
+        with h5py.File(filename, 'r') as data:
+            bpe = data[est_type+'_estimates/energies'][:]
+            headers = data[est_type+'_estimates/headers'][:]
+            est_data = pd.DataFrame(bpe)
+            est_data.columns = headers
+            nzero = numpy.nonzero(est_data['Weight'].values)[0][-1]
 
-    try:
-        rdm = data[est_type+'_estimates/'+rdm_type][:]
-        weights = est_data['Weight'].values.real
-        if rdm_type == 'one_rdm':
-            if len(rdm.shape) == 3:
-                # GHF format
-                w = weights[skip:nzero,None,None]
-            else:
-                # UHF format
-                w = weights[skip:nzero,None,None,None]
-        else:
-            # Update if measuring two_rdm proper.
-            w = weights[skip:nzero,None,None,None]
-        return (rdm[skip:nzero], w)
-    except KeyError:
-        return None
+            try:
+                rdm = data[est_type+'_estimates/'+rdm_type][:]
+                weights = est_data['Weight'].values.real
+                if rdm_type == 'one_rdm':
+                    if len(rdm.shape) == 3:
+                        # GHF format
+                        w = weights[skip:nzero,None,None]
+                    else:
+                        # UHF format
+                        w = weights[skip:nzero,None,None,None]
+                else:
+                    # Update if measuring two_rdm proper.
+                    w = weights[skip:nzero,None,None,None]
+                # return (rdm[skip:nzero], w)
+                if (len(rdmtot) == 0):
+                    rdmtot = rdm[skip:nzero]
+                    wtot = w
+                else:
+                    rdmtot = numpy.append(rdmtot, rdm[skip:nzero], axis=0)
+                    wtot = numpy.append(wtot,w, axis=0)
+            except KeyError:
+                return None
+    return (rdmtot, wtot)
 
 def extract_hdf5(filename):
     with h5py.File(filename, 'r') as fh5:

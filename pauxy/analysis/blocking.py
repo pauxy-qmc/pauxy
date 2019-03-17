@@ -140,15 +140,15 @@ def reblock_local_energy(filename, skip=0):
 def reblock_rdm(files, skip=1, est_type='back_propagated',
                 free_projection=False, rdm_type='one_rdm'):
 
-    for file in files:
-        rdm_series, weights = pauxy.analysis.extraction.extract_rdm(file, skip,
-                                                                    est_type=est_type,
-                                                                    rdm_type=rdm_type)
+    rdm_series, weights = pauxy.analysis.extraction.extract_rdm(files, skip,
+                                                                est_type=est_type,
+                                                                rdm_type=rdm_type)
 
     if not free_projection:
         rdm_series = rdm_series / weights
     else:
         print("Analysis for FP RDM not implemented.")
+
     rdm, rdm_err = average_rdm(rdm_series)
     return rdm, rdm_err
 
