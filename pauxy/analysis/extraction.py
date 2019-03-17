@@ -90,7 +90,6 @@ def extract_hdf5(filename):
             else:
                 itcf = None
                 kspace_itcf = None
-    print("metadata = {}".format(metadata))
     return (metadata, basic, bp_data, itcf, kspace_itcf, mixed_rdm, bp_rdm)
 
 def extract_hdf5_simple(filename):
