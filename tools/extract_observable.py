@@ -100,6 +100,7 @@ def main(args):
 
     if not options.plot:
         print (results.to_string())
+        results.to_csv("%s"%options.obs)
 
 if __name__ == '__main__':
 
