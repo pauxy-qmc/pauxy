@@ -172,6 +172,10 @@ class AFQMC(object):
                 if (w.weight > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
+            if step % self.qmc.npop_control == 0:
+                start = time.time()
+                self.psi.pop_control(comm)
+                self.tpopc += time.time() - start
             # calculate estimators
             start = time.time()
             self.estimators.update(self.system, self.qmc,
@@ -183,10 +187,6 @@ class AFQMC(object):
             if step < self.qmc.nequilibrate:
                 # Update local energy bound.
                 self.propagators.mean_local_energy = E_T
-            if step % self.qmc.npop_control == 0:
-                start = time.time()
-                self.psi.pop_control(comm)
-                self.tpopc += time.time() - start
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)
