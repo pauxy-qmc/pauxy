@@ -159,7 +159,7 @@ class BackPropagation(object):
             if self.restore_weights is not None:
                 wfac = wnm.stack.get_wfac()
                 if self.restore_weights == "full":
-                    wfac = wfac[0]*wfac[1]
+                    wfac = wfac[0]/wfac[1]
                 else:
                     wfac  = wfac[1]
                 weight = wnm.weight * wfac
