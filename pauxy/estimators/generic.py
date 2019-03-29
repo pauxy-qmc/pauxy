@@ -1,7 +1,7 @@
 import numpy
 import sys
 
-def local_energy_generic(system, G, Ghalf=None):
+def local_energy_generic(h1e, eri, G, ecore=0.0, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
 
     This uses the full form for the two-electron integrals.
@@ -20,14 +20,14 @@ def local_energy_generic(system, G, Ghalf=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    e1 = (numpy.einsum('ij,ij->', system.H1[0], G[0]) +
-          numpy.einsum('ij,ij->', system.H1[1], G[1]))
-    euu = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[0]) -
-               numpy.einsum('prqs,ps,qr->', system.h2e, G[0], G[0]))
-    edd = 0.5*(numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[1]) -
-               numpy.einsum('prqs,ps,qr->', system.h2e, G[1], G[1]))
-    eud = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[0], G[1])
-    edu = 0.5*numpy.einsum('prqs,pr,qs->', system.h2e, G[1], G[0])
+    e1 = (numpy.einsum('ij,ij->', h1e[0], G[0]) +
+          numpy.einsum('ij,ij->', h1e[1], G[1]))
+    euu = 0.5*(numpy.einsum('prqs,pr,qs->', eri, G[0], G[0]) -
+               numpy.einsum('prqs,ps,qr->', eri, G[0], G[0]))
+    edd = 0.5*(numpy.einsum('prqs,pr,qs->', eri, G[1], G[1]) -
+               numpy.einsum('prqs,ps,qr->', eri, G[1], G[1]))
+    eud = 0.5*numpy.einsum('prqs,pr,qs->', eri, G[0], G[1])
+    edu = 0.5*numpy.einsum('prqs,pr,qs->', eri, G[1], G[0])
     e2 = euu + edd + eud + edu
     return (e1+e2+system.ecore, e1+system.ecore, e2)
 
