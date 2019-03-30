@@ -146,8 +146,9 @@ class AFQMC(object):
         if psi is not None:
             self.psi = psi
         self.setup_timers()
-        (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
-        self.propagators.mean_local_energy = E_T.real
+        (etot, e1b, e2b) = self.psi.walkers[0].local_energy(self.system)
+        eshift = 0
+        self.propagators.mean_local_energy = eshift.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,
@@ -166,9 +167,9 @@ class AFQMC(object):
             for w in self.psi.walkers:
                 if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system,
-                                                      self.trial)
+                                                      self.trial, eshift)
                 # Constant factors
-                w.weight = w.weight * exp(self.qmc.dt * E_T.real)
+                # w.weight = w.weight * exp(self.qmc.dt * E_T.real)
                 if (w.weight > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
@@ -183,10 +184,7 @@ class AFQMC(object):
                                    self.propagators.free_projection)
             self.testim += time.time() - start
             if step % self.qmc.nupdate_shift == 0:
-                E_T = self.estimators.estimators['mixed'].projected_energy()
-            if step < self.qmc.nequilibrate:
-                # Update local energy bound.
-                self.propagators.mean_local_energy = E_T
+                eshift = self.estimators.estimators['mixed'].get_shift()
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, self.nprocs, step,
                                            self.qmc.nmeasure)

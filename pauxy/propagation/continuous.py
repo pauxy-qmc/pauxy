@@ -143,7 +143,7 @@ class Continuous(object):
 
         return (cmf, cfb, xshifted, EXPV)
 
-    def propagate_walker_free(self, walker, system, trial):
+    def propagate_walker_free(self, walker, system, trial, eshift):
         """Free projection propagator
         Parameters
         ----------
@@ -166,11 +166,11 @@ class Continuous(object):
         walker.ot = walker.calc_otrial(trial)
         walker.greens_function(trial)
         # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(cmath.exp(cmf))
+        (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-    def propagate_walker_phaseless(self, walker, system, trial, hybrid=True):
+    def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
         Parameters
         ----------
@@ -195,8 +195,10 @@ class Continuous(object):
         walker.greens_function(trial)
         ot_new = walker.calc_otrial(trial)
         # Might want to cap this at some point
-        hybrid_energy = cmath.log(ot_new) - cmath.log(walker.ot) + cfb + cmf
-        importance_function = self.mf_const_fac * cmath.exp(hybrid_energy)
+        hybrid_energy = -(cmath.log(ot_new) - cmath.log(walker.ot)
+                          + cfb + cmf)/self.dt
+        walker.hybrid_energy = hybrid_energy
+        importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift))
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
         (magn, phase) = cmath.polar(importance_function)
 
@@ -204,7 +206,7 @@ class Continuous(object):
             # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)
             # Note this doesn't include exponential factor from shifting
             # propability distribution.
-            dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+            dtheta = cmath.phase(cmath.exp(-self.dt*hybrid_energy-cfb))
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
             walker.ot = ot_new
