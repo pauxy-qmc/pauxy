@@ -75,7 +75,7 @@ class Mixed(object):
                            'EKin', 'EPot', 'Nav', 'time']
         else:
             self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'EHybrid', 'time']
+                           'EKin', 'EPot', 'EHybrid', 'Overlap', 'time']
         self.nreg = len(self.header[1:])
         self.dtype = dtype
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
@@ -164,6 +164,7 @@ class Mixed(object):
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += wfac
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
+                self.estimates[self.names.ovlp] += abs(w.ot)
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -209,6 +210,7 @@ class Mixed(object):
                     )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
+                self.estimates[self.names.ovlp] += abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
                 if self.calc_one_rdm:
                     start = self.names.time+1
@@ -245,7 +247,7 @@ class Mixed(object):
                 es[ns.nav] = es[ns.nav]
             else:
                 es[ns.nav] = es[ns.nav] / denom
-        es[ns.ekin:ns.ehyb+1] /= denom
+        es[ns.ekin:ns.ovlp+1] /= denom
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
@@ -421,11 +423,12 @@ class EstimatorEnum(object):
         self.ekin = 4
         self.epot = 5
         self.ehyb = 6
+        self.ovlp = 7
         if thermal:
-            self.nav = 7
-            self.time = 8
+            self.nav = 8
+            self.time = 9
         else:
-            self.time = 7
+            self.time = 8
 
 
 def eproj(estimates, enum):
