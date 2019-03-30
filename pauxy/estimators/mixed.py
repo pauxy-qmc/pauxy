@@ -75,7 +75,7 @@ class Mixed(object):
                            'EKin', 'EPot', 'Nav', 'time']
         else:
             self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'time']
+                           'EKin', 'EPot', 'EHybrid', 'time']
         self.nreg = len(self.header[1:])
         self.dtype = dtype
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
@@ -163,6 +163,7 @@ class Mixed(object):
                     self.estimates[self.names.nav] += wfac * nav
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += wfac
+                self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -208,6 +209,7 @@ class Mixed(object):
                     )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
+                self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
                 if self.calc_one_rdm:
                     start = self.names.time+1
                     end = self.names.time+1+w.G.size
@@ -243,10 +245,13 @@ class Mixed(object):
                 es[ns.nav] = es[ns.nav]
             else:
                 es[ns.nav] = es[ns.nav] / denom
-        es[ns.ekin:ns.epot+1] /= denom
+        es[ns.ekin:ns.ehyb+1] /= denom
         es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
+        eshift = self.global_estimates[ns.ehyb]
+        eshift = comm.bcast(eshift, root=0)
+        self.eshift = eshift
         if comm.rank == 0:
             if self.verbose:
                 print (format_fixed_width_floats([step]+
@@ -316,6 +321,16 @@ class Mixed(object):
         numerator = self.estimates[self.names.enumer]
         denominator = self.estimates[self.names.edenom]
         return (numerator / denominator).real
+
+    def get_shift(self):
+        """Get hybrid shift.
+
+        Returns
+        -------
+        eshift : float
+            Walker averaged hybrid energy.
+        """
+        return self.eshift.real
 
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""
@@ -405,11 +420,12 @@ class EstimatorEnum(object):
         self.eproj = 3
         self.ekin = 4
         self.epot = 5
+        self.ehyb = 6
         if thermal:
-            self.nav = 6
-            self.time = 7
+            self.nav = 7
+            self.time = 8
         else:
-            self.time = 6
+            self.time = 7
 
 
 def eproj(estimates, enum):
