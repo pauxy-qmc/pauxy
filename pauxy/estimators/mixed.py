@@ -164,7 +164,7 @@ class Mixed(object):
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += wfac
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
-                self.estimates[self.names.ovlp] += abs(w.ot)
+                self.estimates[self.names.ovlp] += wfac * abs(w.ot)
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -210,7 +210,7 @@ class Mixed(object):
                     )
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.edenom] += w.weight
-                self.estimates[self.names.ovlp] += abs(w.ot)
+                self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
                 if self.calc_one_rdm:
                     start = self.names.time+1
