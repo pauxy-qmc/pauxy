@@ -29,7 +29,7 @@ def local_energy_generic(h1e, eri, G, ecore=0.0, Ghalf=None):
     eud = 0.5*numpy.einsum('prqs,pr,qs->', eri, G[0], G[1])
     edu = 0.5*numpy.einsum('prqs,pr,qs->', eri, G[1], G[0])
     e2 = euu + edd + eud + edu
-    return (e1+e2+system.ecore, e1+system.ecore, e2)
+    return (e1+e2+ecore, e1+ecore, e2)
 
 def local_energy_generic_opt(system, G, Ghalf=None, eos=None):
     # Element wise multiplication.
