@@ -57,6 +57,7 @@ class SingleDetWalker(object):
         self.weight_bp = self.weight
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
+        self.hybrid_energy = 0.0
         # Historic wavefunction for ITCF.
         self.phi_right = copy.deepcopy(self.phi)
         self.weights = numpy.array([1])
@@ -303,6 +304,7 @@ class SingleDetWalker(object):
             'overlap': self.ot,
             'overlaps': self.ots,
             'E_L': self.E_L,
+            'ehyb': self.hybrid_energy,
             'stack': self.stack.get_buffer()
         }
         return buff
@@ -324,5 +326,6 @@ class SingleDetWalker(object):
         self.phase = buff['phase']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
+        self.hybrid_energy = buff['ehyb']
         self.ots = numpy.copy(buff['overlaps'])
         self.stack.set_buffer(buff['stack'])
