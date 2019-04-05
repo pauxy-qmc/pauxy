@@ -47,7 +47,7 @@ class UEG(object):
         self.ndown = inputs.get('ndown')
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
-        self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.ktwist = numpy.array(inputs.get('ktwist', [0,0,0])).reshape(3)
         self.mu = inputs.get('mu', None)
         # if(verbose):
         print("# Number of spin-up electrons: %i"%self.nup)
@@ -201,21 +201,25 @@ class UEG(object):
         spval = []
         vec = []
         kval = []
+        ks = self.ktwist
 
         for ni in range(-nmax, nmax+1):
             for nj in range(-nmax, nmax+1):
                 for nk in range(-nmax, nmax+1):
                     spe = 0.5*(ni**2 + nj**2 + nk**2)
                     if (spe <= ecut):
-                        kval.append([ni,nj,nk])
+                        kijk = [ni,nj,nk]
+                        kval.append(kijk)
                         # Reintroduce 2 \pi / L factor.
-                        spval.append(kfac**2*spe)
+                        ek = 0.5*numpy.dot(numpy.array(kijk)+ks,
+                                       numpy.array(kijk)+ks)
+                        spval.append(kfac**2*ek)
 
         # Sort the arrays in terms of increasing energy.
         spval = numpy.array(spval)
-        kval = [x for y, x in sorted(zip(spval, kval))]
-        kval = numpy.array(kval)
-        spval.sort()
+        ix = numpy.argsort(spval)
+        spval = spval[ix]
+        kval = numpy.array(kval)[ix]
 
         return (spval, kval, nmax)
 
