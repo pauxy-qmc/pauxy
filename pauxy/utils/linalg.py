@@ -79,15 +79,6 @@ def regularise_matrix_inverse(A, cutoff=1e-10):
     D = D / (cutoff**2.0 + D**2.0)
     return (V.conj().T).dot(numpy.diag(D)).dot(U.conj().T)
 
-
-def reortho(A):
-    (A, R) = scipy.linalg.qr(A, mode='economic')
-    signs = numpy.diag(numpy.sign(numpy.diag(R)))
-    A = A.dot(signs)
-    detR = scipy.linalg.det(signs.dot(R))
-    return detR
-
-
 def reortho(A):
     """Reorthogonalise a MxN matrix A.
 
