@@ -147,10 +147,10 @@ def fock_ueg(system, G):
 def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
-    inputs = {'nup':7,
-    'ndown':7,
-    'rs':5.0,
-    'ecut':2.5}
+    inputs = {'nup':27,
+    'ndown':27,
+    'rs':100.0,
+    'ecut':5.0}
     system = UEG(inputs, True)
     nbsf = system.nbasis
     Pa = np.zeros([nbsf,nbsf],dtype = np.complex128)
@@ -163,26 +163,72 @@ def unit_test():
         Pb[i,i] = 1.0
     P = np.array([Pa, Pb])
     etot, ekin, epot = local_energy_ueg(system, G=P)
-    print("initial = {}".format(etot, ekin, epot))
+    print("ERHF = {}".format(etot, ekin, epot))
 
     from pauxy.utils.linalg import exponentiate_matrix, reortho
     from pauxy.estimators.greens_function import gab
+    # numpy.random.seed()
+    rCa = numpy.random.randn(nbsf, na)
+    zCa = numpy.random.randn(nbsf, na)
+    rCb = numpy.random.randn(nbsf, nb)
+    zCb = numpy.random.randn(nbsf, nb)
+    
+    Ca = rCa + 1j * zCa
+    Cb = rCb + 1j * zCb
 
-    Ca = numpy.random.rand(nbsf, na)
-    Cb = numpy.random.rand(nbsf, nb)
     Ca, detR = reortho(Ca)
     Cb, detR = reortho(Cb)
+    # S = print(Ca.dot(Cb.T))
+    # print(S)
+    # exit()
+    Ca = numpy.array(Ca, dtype=numpy.complex128)
+    Cb = numpy.array(Cb, dtype=numpy.complex128)
+    P = [gab(Ca, Ca), gab(Cb, Cb)]
+    # diff = P[0] - P[1]
+    # print("fro = {}".format(numpy.linalg.norm(diff,ord='fro')))
 
-    dt = 0.5
-    for i in range(10000):
+    # from pyscf import lib
+    # solver = lib.diis.DIIS()
+
+    dt = 0.1
+    for i in range(100):
+        # Compute Fock matrix
         Fock = fock_ueg(system, G=P)
-        expF = [exponentiate_matrix(-dt*Fock[0]), exponentiate_matrix(-dt*Fock[1])]
-        Ca = expF[0].dot(Ca)
-        Cb = expF[1].dot(Cb)
+        # Compute DIIS Errvec
+        PFmFPa = P[0].dot(Fock[0]) - Fock[0].dot(P[0])
+        PFmFPb = P[1].dot(Fock[1]) - Fock[1].dot(P[1])
+        errvec = numpy.append(numpy.reshape(PFmFPa, nbsf*nbsf),numpy.reshape(PFmFPb, nbsf*nbsf))
+        RMS = np.sqrt(np.dot(errvec, errvec))
+        print ("{} {} {}".format(i,numpy.real(local_energy_ueg(system, P)), numpy.real(RMS)))
+        # Form Fockvec
+        Fock[0] = numpy.array(Fock[0])
+        Fock[1] = numpy.array(Fock[1])
+        Fockvec = numpy.append(numpy.reshape(Fock[0],nbsf*nbsf), numpy.reshape(Fock[1],nbsf*nbsf))
+        # Extrapolate Fockvec
+        # Fockvec = solver.update(Fockvec, xerr=errvec)
+
+        # Apply Propagator
+        Fock = numpy.reshape(Fockvec, (2, nbsf, nbsf))
+        ea, Ca = numpy.linalg.eig(Fock[0])
+        eb, Cb = numpy.linalg.eig(Fock[1])
+        sort_perm = ea.argsort()
+        ea.sort()
+        Ca = Ca[:, sort_perm]
+        sort_perm = eb.argsort()
+        eb.sort()
+        Cb = Cb[:, sort_perm]
+
+        Ca = Ca[:,:na]
+        Cb = Cb[:,:nb]
         Ca, detR = reortho(Ca)
         Cb, detR = reortho(Cb)
+
         P = [gab(Ca, Ca), gab(Cb, Cb)]
-        print (local_energy_ueg(system, P))
+        # expF = [exponentiate_matrix(-dt*Fock[0]), exponentiate_matrix(-dt*Fock[1])]
+        # Ca = expF[0].dot(Ca)
+        # Cb = expF[1].dot(Cb)
+        # diff = P[0] - P[1]
+        # print("fro = {}".format(numpy.linalg.norm(diff,ord='fro')))
 
 
 if __name__=="__main__":
