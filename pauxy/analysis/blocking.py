@@ -240,8 +240,11 @@ def analyse_simple(files, start_time):
         dt = m.get('qmc').get('dt')
         free_projection = m.get('propagators').get('free_projection')
         step = m.get('qmc').get('nmeasure')
+        read_rs = m.get('psi').get('read_file') is not None
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
+        if read_rs:
+            start = 0
         if free_projection:
             reblocked = average_fp(norm[start:nzero])
         else:
@@ -265,9 +268,13 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         dt = m.get('qmc').get('dt')
         step = m.get('qmc').get('nmeasure')
         ndets = m.get('trial').get('ndets')
+        write_rs = m.get('psi').get('write_restart')
+        read_rs = m.get('psi').get('read_file') is not None
         free_projection = m.get('propagators').get('free_projection', False)
         nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
         start = int(start_time/(step*dt)) + 1
+        if read_rs:
+            start = 0
         norm_data.append(norm[start:nzero].apply(numpy.real))
         if mixed_rdm is not None:
             mrdm, mrdm_err = average_rdm(mixed_rdm[start:nzero])
@@ -356,4 +363,6 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
                                                    m_spin_err]))
     store.close()
 
+    fmt = lambda x: "{:13.8f}".format(x)
+    print(norm_av.to_string(float_format=fmt))
     return (bp_av, norm_av)
