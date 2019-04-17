@@ -104,6 +104,10 @@ def reortho(A):
     detR = scipy.linalg.det(signs.dot(R))
     return (Q, detR)
 
+def overlap(A,B):
+    S = numpy.dot(A.conj().T, B)
+    return S
+
 
 def modified_cholesky(M, kappa, verbose=False, cmax=10):
     """Modified cholesky decomposition of matrix.

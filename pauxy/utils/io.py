@@ -241,3 +241,30 @@ def read_qmcpack_wfn(filename):
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
     return numpy.array(orbs)
+
+def read_phfmol(filename, nmo, nalpha):
+    with open(filename) as f:
+        content = f.read().split()
+    start = False
+    idet = 0
+    data = []
+    for (i,f) in enumerate(content):
+        if 'NCI' in f:
+            ndets = int(f.split("=")[1])
+            dets = numpy.zeros((ndets,nmo,2*nalpha), dtype=numpy.complex128)
+        # print(f,start,data)
+        # print(len(data),f)
+        if 'Determinant' in f:
+            break
+    start = i + 2
+    for idet in range(ndets):
+        end = start+nmo*nmo
+        data = []
+        for line in content[start:end]:
+            v = ast.literal_eval(line)
+            data.append(complex(v[0],v[1]))
+        psi = numpy.copy(numpy.array(data).reshape(nmo,nmo).T)[:,:nalpha]
+        dets[idet,:,:nalpha] = numpy.copy(psi)
+        dets[idet,:,nalpha:] = numpy.copy(psi)
+        start = end + 2
+    return dets

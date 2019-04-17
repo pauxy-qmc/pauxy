@@ -9,7 +9,10 @@ import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
-from pauxy.estimators.ueg import local_energy_ueg
+try:
+    from pauxy.estimators.ueg import local_energy_ueg
+except ImportError as e:
+    print(e)
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
 from pauxy.estimators.greens_function import gab_mod_ovlp
 from pauxy.estimators.generic import (
