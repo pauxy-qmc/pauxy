@@ -169,16 +169,15 @@ def setup_parallel(options, comm=None, verbose=False):
                    afqmc.propagators.BT_BP,
                    verbose=(comm.rank==0 and verbose))
     )
-    walker_opts["num_propg"] = afqmc.estimators.nprop_tot
-    afqmc.propagators.construct_bmatrix = (
-            (afqmc.estimators.back_propagation or afqmc.estimators.calc_itcf)
-            and afqmc.system.name == "Generic"
-            )
     afqmc.psi = Walkers(walker_opts, afqmc.system,
                         afqmc.trial,
                         afqmc.qmc,
                         verbose=(comm.rank==0 and verbose),
                         comm=comm)
+    afqmc.psi.add_field_config(afqmc.estimators.nprop_tot,
+                               afqmc.estimators.nbp,
+                               afqmc.system,
+                               numpy.complex128)
     if comm.rank == 0:
         json_string = to_json(afqmc)
         afqmc.estimators.json_string = json_string

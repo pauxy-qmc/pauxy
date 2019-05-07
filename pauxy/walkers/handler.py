@@ -9,6 +9,7 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
+from pauxy.walkers.stack import FieldConfig
 from pauxy.qmc.comm import FakeComm
 
 

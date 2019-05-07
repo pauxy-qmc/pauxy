@@ -118,13 +118,12 @@ class AFQMC(object):
                            self.trial, self.propagators.BT_BP, verbose)
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
-            walker_opts["num_propg"] = self.estimators.nprop_tot
-            self.propagators.construct_bmatrix = (
-                    (self.estimators.back_propagation or
-                    self.estimators.calc_itcf) and self.system.name == "Generic"
-                    )
             self.psi = Walkers(walker_opts, self.system, self.trial,
                                self.qmc, verbose, comm=None)
+            self.psi.add_field_config(self.estimators.nprop_tot,
+                                      self.estimators.nbp,
+                                      self.system,
+                                      numpy.complex128)
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string

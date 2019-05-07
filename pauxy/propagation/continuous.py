@@ -131,18 +131,11 @@ class Continuous(object):
         VHS = self.propagator.construct_VHS(system, xshifted)
 
         # Apply propagator
-        if self.construct_bmatrix:
-            EXPV = numpy.eye(system.nbasis, system.nbasis,
-                             dtype=numpy.complex128)
-            self.apply_exponential(EXPV, VHS)
-            walker.phi = numpy.dot(EXPV, walker.phi)
-        else:
-            EXPV = None
-            self.apply_exponential(walker.phi[:,:system.nup], VHS)
-            if system.ndown > 0:
-                self.apply_exponential(walker.phi[:,system.nup:], VHS)
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        if system.ndown > 0:
+            self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (cmf, cfb, xshifted, EXPV)
+        return (cmf, cfb, xshifted)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         """Free projection propagator
@@ -160,7 +153,7 @@ class Continuous(object):
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply 2-body projector
-        (cmf, cfb, xmxbar, EXPV) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         walker.inverse_overlap(trial)
@@ -187,7 +180,7 @@ class Continuous(object):
         # 1. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar, EXPV) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply one_body propagator.
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
@@ -207,13 +200,6 @@ class Continuous(object):
             hybrid_energy = eshift.real-self.ebound+1j*hybrid_energy.imag
             self.nhe_trig += 1
             trig = True
-        if self.nhe_trig < 10 and trig:
-            print("# Hybrid energy bound triggered:"
-                  " (%f,%f) %f %f"%(hybrid_energy.real, hybrid_energy.imag,
-                      eshift, self.ebound))
-            print("# Warning will only be printed 10 times.")
-            self.nhe_trig += 1
-            trig = False
         walker.hybrid_energy = hybrid_energy
         importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift.real))
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
@@ -231,7 +217,7 @@ class Continuous(object):
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
-            walker.stack.update(xmxbar, wfac)
+            walker.field_configs.update(xmxbar, wfac)
         else:
             walker.ot = ot_new
             walker.weight = 0.0
