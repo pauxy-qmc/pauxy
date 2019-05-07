@@ -190,8 +190,10 @@ class PropagatorStack:
 
     def update(self, B, wfac=1.0):
         if self.counter == 0:
-            self.stack[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
-            self.stack[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.stack[self.block,0] = numpy.identity(B.shape[-1],
+                                                      dtype=B.dtype)
+            self.stack[self.block,1] = numpy.identity(B.shape[-1],
+                                                      dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
         self.wfac *= wfac
