@@ -212,7 +212,7 @@ class UEG(object):
                         kval.append(kijk)
                         # Reintroduce 2 \pi / L factor.
                         ek = 0.5*numpy.dot(numpy.array(kijk)+ks,
-                                       numpy.array(kijk)+ks)
+                                           numpy.array(kijk)+ks)
                         spval.append(kfac**2*ek)
 
         # Sort the arrays in terms of increasing energy.
