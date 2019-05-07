@@ -118,8 +118,6 @@ class Walkers(object):
         """
         for w in self.walkers:
             w.field_configs = FieldConfig(system.nfields, nprop_tot, nbp, dtype)
-            w.stack = PropagatorStack(self.stack_size, nprop_tot, system.nbasis,
-                                      dtype, None, None, False)
 
     def copy_historic_wfn(self):
         """Copy current wavefunction to psi_n for next back propagation step."""
