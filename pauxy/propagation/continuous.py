@@ -231,14 +231,7 @@ class Continuous(object):
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
-            if self.construct_bmatrix:
-                B = [numpy.dot(EXPV, self.propagator.BH1[0]),
-                     numpy.dot(EXPV, self.propagator.BH1[1])]
-                B = [numpy.dot(self.propagator.BH1[0], B[0]),
-                     numpy.dot(self.propagator.BH1[1], B[1])]
-                walker.stack.update(numpy.array(B), wfac)
-            else:
-                walker.stack.update(xmxbar, wfac)
+            walker.stack.update(xmxbar, wfac)
         else:
             walker.ot = ot_new
             walker.weight = 0.0
