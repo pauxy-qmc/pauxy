@@ -124,7 +124,6 @@ class GenericContinuous(object):
         G = walker.Gmod
         self.vbias = G[0].ravel() * system.rot_hs_pot[0]
         self.vbias += G[1].ravel() * system.rot_hs_pot[1]
-        walker.eos = 0.25*numpy.dot(self.vbias,self.vbias)
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_VHS_slow(self, system, shifted):

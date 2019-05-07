@@ -72,7 +72,6 @@ class SingleDetWalker(object):
         else:
             self.stack = FieldConfig(system.nfields, num_propg,
                                      num_propg, trial.psi.dtype)
-        self.eos = None
         try:
             excite = trial.excite_ia
         except AttributeError:
@@ -282,8 +281,7 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm,
-                            eos=self.eos)
+        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

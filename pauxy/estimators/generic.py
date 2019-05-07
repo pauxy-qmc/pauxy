@@ -31,17 +31,16 @@ def local_energy_generic(h1e, eri, G, ecore=0.0, Ghalf=None):
     e2 = euu + edd + eud + edu
     return (e1+e2+ecore, e1+ecore, e2)
 
-def local_energy_generic_opt(system, G, Ghalf=None, eos=None):
+def local_energy_generic_opt(system, G, Ghalf=None):
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     Gup = Ghalf[0].ravel()
     Gdn = Ghalf[1].ravel()
     euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
     edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
-    if eos is None:
-        eos_n = Gup * system.rot_hs_pot[0]
-        eos_n += Gdn * system.rot_hs_pot[1]
-        eos = 0.25*numpy.dot(eos_n, eos_n)
+    eos_n = Gup * system.rot_hs_pot[0]
+    eos_n += Gdn * system.rot_hs_pot[1]
+    eos = 0.25*numpy.dot(eos_n, eos_n)
     e2b = euu + edd + eos
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
