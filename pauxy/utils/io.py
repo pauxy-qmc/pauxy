@@ -97,25 +97,38 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
 
 def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
-        enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
+        real_ints = False
+        try:
+            enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
+        except ValueError:
+            enuc = fh5['Hamiltonian/Energies'][:][0]
+            real_ints = True
         dims = fh5['Hamiltonian/dims'][:]
         nmo = dims[3]
         try:
             hcore = fh5['Hamiltonian/hcore'][:]
             hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
         except KeyError:
+            # Old sparse format.
             hcore = fh5['Hamiltonian/H1'][:].view(numpy.complex128).ravel()
             idx = fh5['Hamiltonian/H1_indx'][:]
             row_ix = idx[::2]
             col_ix = idx[1::2]
             hcore = scipy.sparse.csr_matrix((hcore, (row_ix, col_ix))).toarray()
             hcore = numpy.tril(hcore, -1) + numpy.tril(hcore, 0).conj().T
+        except ValueError:
+            # Real format.
+            hcore = fh5['Hamiltonian/hcore'][:]
+            real_ints = True
         chunks = dims[2]
         idx = []
         h2 = []
         for ic in range(chunks):
             idx.append(fh5['Hamiltonian/Factorized/index_%i'%ic][:])
-            h2.append(fh5['Hamiltonian/Factorized/vals_%i'%ic][:].view(numpy.complex128).ravel())
+            if real_ints:
+                h2.append(fh5['Hamiltonian/Factorized/vals_%i'%ic][:].ravel())
+            else:
+                h2.append(fh5['Hamiltonian/Factorized/vals_%i'%ic][:].view(numpy.complex128).ravel())
         idx = numpy.array([i for sub in idx for i in sub])
         h2 = numpy.array([v for sub in h2 for v in sub])
         nalpha = dims[4]
@@ -210,12 +223,15 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
     dump_qmcpack_cholesky(numpy.array([hcore, hcore]), chol_vecs, nelec,
                                       nbasis, enuc, filename=filename)
 
+def qmcpack_wfn_namelist(nci, uhf, fullmo=True):
+    return "&FCI\n UHF = %d\n NCI = %d \n %s TYPE = matrix\n/\n"%(uhf,nci,'FullMO\n' if fullmo else '')
+
 def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
     UHF = len(wfn.shape) == 3
-    namelist = "&FCI\n UHF = %d\n FullMO \n NCI = 1\n TYPE = matrix\n/"%UHF
     # Single determinant for the moment.
+    namelist = qmcpack_wfn_namelist(1, UHF)
     with open(filename, 'w') as f:
-        f.write(namelist+'\n')
+        f.write(namelist)
         f.write('Coefficients: 1.0\n')
         f.write('Determinant: 1\n')
         nao = wfn.shape[-1]
@@ -234,15 +250,15 @@ def write_qmcpack_wfn(out, mos, nao):
             out.write('(%.10e,%.10e) '%(val.real, val.imag))
         out.write('\n')
 
-def read_qmcpack_wfn(filename):
+def read_qmcpack_wfn(filename, skip=9):
     with open(filename) as f:
-        content = f.readlines()[9:]
+        content = f.readlines()[skip:]
     useable = numpy.array([c.split() for c in content]).flatten()
     tuples = [ast.literal_eval(u) for u in useable]
     orbs = [complex(t[0], t[1]) for t in tuples]
     return numpy.array(orbs)
 
-def read_phfmol(filename, nmo, nalpha):
+def read_phfmol(filename, nmo):
     with open(filename) as f:
         content = f.read().split()
     start = False
@@ -250,21 +266,47 @@ def read_phfmol(filename, nmo, nalpha):
     data = []
     for (i,f) in enumerate(content):
         if 'NCI' in f:
-            ndets = int(f.split("=")[1])
-            dets = numpy.zeros((ndets,nmo,2*nalpha), dtype=numpy.complex128)
+            try:
+                ndets = int(content[i+1])
+            except ValueError:
+                ndets = int(content[i+2])
+            dets = numpy.zeros((ndets,nmo,nmo), dtype=numpy.complex128)
         # print(f,start,data)
         # print(len(data),f)
+        if 'Coefficients' in f:
+            string_coeffs = content[i+1:i+1+ndets]
         if 'Determinant' in f:
             break
     start = i + 2
+    coeffs = []
+    for c in string_coeffs:
+        v = ast.literal_eval(c)
+        coeffs.append(complex(v[0],v[1]))
+
     for idet in range(ndets):
         end = start+nmo*nmo
         data = []
         for line in content[start:end]:
             v = ast.literal_eval(line)
             data.append(complex(v[0],v[1]))
-        psi = numpy.copy(numpy.array(data).reshape(nmo,nmo).T)[:,:nalpha]
-        dets[idet,:,:nalpha] = numpy.copy(psi)
-        dets[idet,:,nalpha:] = numpy.copy(psi)
+        C = numpy.copy(numpy.array(data).reshape(nmo,nmo).T)
+        dets[idet] = C
+        dets[idet] = C
         start = end + 2
-    return dets
+    return numpy.array(coeffs), dets
+
+def write_phfmol_wavefunction(coeffs, dets, filename='wfn.dat', padding=0):
+    with open(filename, 'w') as f:
+        UHF = len(dets.shape) == 4
+        namelist = qmcpack_wfn_namelist(len(coeffs), UHF)
+        f.write(namelist)
+        f.write('Coefficients:\n')
+        for c in coeffs:
+            f.write('({:13.8e},{:13.8e})\n'.format(c.real,c.imag))
+        for idet, C in enumerate(dets):
+            nmo = C.shape[-1]
+            padded = numpy.pad(C,[(0,padding), (0,padding)],'constant')
+            f.write('Determinant: {}\n'.format(idet+1))
+            # Write in fortran order.
+            for cij in numpy.ravel(padded, order='F'):
+                f.write('({:13.8e},{:13.8e})\n'.format(cij.real,cij.imag))
