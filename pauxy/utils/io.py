@@ -247,7 +247,7 @@ def write_qmcpack_wfn(out, mos, nao):
     for i in range(0, nao):
         for j in range(0, nao):
             val = mos[i,j]
-            out.write('(%.10e,%.10e) '%(val.real, val.imag))
+            out.write('(%.16e,%.16e) '%(val.real, val.imag))
         out.write('\n')
 
 def read_qmcpack_wfn(filename, skip=9):
