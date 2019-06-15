@@ -75,9 +75,7 @@ class AFQMC(object):
         Walker handler. Stores the AFQMC wavefunction.
     """
 
-    def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, walker_opts={'weight': 1}, parallel=False,
-                 verbose=False):
+    def __init__(self, options=None, mf=None, parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
@@ -93,11 +91,11 @@ class AFQMC(object):
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        self.system = get_system(model, verbose)
-        self.qmc = QMCOpts(qmc_opts, self.system, verbose)
-        self.cplx = self.determine_dtype(propagator, self.system)
+        self.system = get_system(options.get('system', {}), mf, verbose)
+        self.qmc = QMCOpts(options.get('qmc', {}), self.system, verbose)
+        self.cplx = self.determine_dtype(options.get('propagator', {}), self.system)
         self.trial = (
-            get_trial_wavefunction(trial, self.system, self.cplx,
+            get_trial_wavefunction(options.get('trial', {}), self.system, self.cplx,
                                    parallel, verbose)
         )
         if self.system.name == "Generic":
@@ -107,18 +105,18 @@ class AFQMC(object):
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
         self.trial.calculate_energy(self.system)
-        self.propagators = get_propagator_driver(propagator, self.qmc,
+        self.propagators = get_propagator_driver(options.get('propagator', {}), self.qmc,
                                                  self.system, self.trial,
                                                  verbose)
         self.tsetup = time.time() - self._init_time
         if not parallel:
             estimates['stack_size'] = walker_opts.get('stack_size', 1)
             self.estimators = (
-                Estimators(estimates, self.root, self.qmc, self.system,
+                Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
-            self.psi = Walkers(walker_opts, self.system, self.trial,
+            self.psi = Walkers(options['walker'], self.system, self.trial,
                                self.qmc, verbose, comm=None)
             self.psi.add_field_config(self.estimators.nprop_tot,
                                       self.estimators.nbp,

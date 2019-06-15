@@ -15,22 +15,32 @@ from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
 class Generic(object):
-    """Generic system class (integrals read from fcidump)
+    """Generic system defined by ab-initio Hamiltonian.
+
+    Can be created by either passing the one and two electron integrals directly
+    or initialised from integrals stored in QMCPACK hdf5 format. If initialising
+    from file the `inputs' optional dictionary should be populated.
 
     Parameters
     ----------
+    nelec : tuple
+        Number of alpha and beta electrons.
+    h1e : :class:`numpy.ndarray'
+        One-electron integrals. Optional. Default: None.
+    chol : :class:`numpy.ndarray'
+        Factorized 2-electron integrals of shape (naux, nbasis, nbasis).
+        Optional. Default: None.
+    ecore : float
+        Core energy.
+    inputs : dict
+        Input options defined below.
     nup : int
         Number of up electrons.
     ndown : int
         Number of down electrons.
     integrals : string
-        Path to FCIDUMP containing one- and two-electron integrals.
-    decomposition : string
-        Method by which to decompose two-electron integrals. Options:
-
-            - cholesky: Use cholesky decomposition. Default.
-            - eigenvalue: Use eigenvalue decomposition. Not implemented.
-
+        Path to file containing one- and two-electron integrals in QMCPACK
+        format.
     threshold : float
         Cutoff for cholesky decomposition or minimum eigenvalue.
     verbose : bool
@@ -38,56 +48,82 @@ class Generic(object):
 
     Attributes
     ----------
-    T : :class:`numpy.ndarray`
-        One-body part of the Hamiltonian.
-    h2e : :class:`numpy.ndarray`
-        Two-electron integrals.
+    H1 : :class:`numpy.ndarray`
+        One-body part of the Hamiltonian. Spin-dependent by default.
     ecore : float
         Core contribution to the total energy.
     h1e_mod : :class:`numpy.ndarray`
         Modified one-body Hamiltonian.
     chol_vecs : :class:`numpy.ndarray`
         Cholesky vectors.
-    nchol_vec : int
+    nchol : int
         Number of cholesky vectors.
     nfields : int
-        Number of field configurations per walker for back propagation.
+        Number of auxiliary fields required.
+    sparse_cutoff : float
+        Screen out integrals below this threshold. Optional. Default 0.
+    cplx_chol : bool
+        Force setting of interpretation of cholesky decomposition. Optional.
+        Default False, i.e. real/complex factorization determined from cholesky
+        integrals.
     """
 
-    def __init__(self, inputs, verbose=False):
+    def __init__(self, nelec=None, h1e=None, chol=None, ecore=None, inputs={}, verbose=False):
         if verbose:
             print("# Parsing input options.")
         self.name = "Generic"
         self.atom = inputs.get('atom', None)
         self.verbose = verbose
-        self.nup = inputs['nup']
-        self.ndown = inputs['ndown']
+        if nelec is None:
+            self.nup = inputs['nup']
+            self.ndown = inputs['ndown']
+        else:
+            self.nup, self.ndown = nelec
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
-        self.threshold = inputs.get('cholesky_threshold', 1e-5)
         self.cplx_chol = inputs.get('complex_cholesky', False)
         self.mu = inputs.get('mu', None)
         if verbose:
             print("# Reading integrals from %s." % self.integral_file)
-        self.chol_vecs = self.read_integrals()
+        if chol is not None:
+            self.chol_vecs = chol
+            self.ecore = ecore
+            if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
+                self.cplx_chol = True
+                if verbose:
+                    print("# Found complex integrals.")
+                    print("# Using Hermitian Cholesky decomposition.")
+            else:
+                if verbose:
+                    print("# Using real symmetric Cholesky decomposition.")
+                self.cplx_chol = True
+        else:
+            h1e, self.chol_vecs, ecore = self.read_integrals()
+        self.H1 = numpy.array([h1e,h1e])
+        self.nbasis = h1e.shape[0]
+        mem = self.chol_vecs.nbytes / (1024.0**3)
+        if verbose:
+            print("# Number of orbitals: %d"%self.nbasis)
+            print("# Number of electrons: (%d, %d)"%(self.nup, self.ndown))
+            print("# Approximate memory required by Cholesky vectors %f GB"%mem)
         self.nchol = self.chol_vecs.shape[0]
         self.construct_h1e_mod()
         self.ktwist = numpy.array([None])
         start = time.time()
         if self.cplx_chol:
-            self.nfields = 2 * self.nchol_vec
+            self.nfields = 2 * self.nchol
             self.hs_pot = numpy.zeros(shape=(self.nfields,self.nbasis,self.nbasis),
                                       dtype=numpy.complex128)
             for (n,cn) in enumerate(self.chol_vecs):
                 vplus = 0.5*(cn+cn.conj().T)
                 vminus = 0.5j*(cn-cn.conj().T)
                 self.hs_pot[n] = vplus
-                self.hs_pot[self.nchol_vec+n] = vminus
+                self.hs_pot[self.nchol+n] = vminus
         else:
             self.hs_pot = self.chol_vecs
-            self.nfields = self.nchol_vec
+            self.nfields = self.nchol
         if verbose:
             print("# Number of Cholesky vectors: %d"%(self.nchol))
             print("# Number of fields: %d"%(self.nfields))
@@ -103,31 +139,13 @@ class Generic(object):
             print("# Finished setting up Generic system object.")
 
     def read_integrals(self):
-        (h1e, schol_vecs, self.ecore,
-        self.nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
+        (h1e, schol_vecs, ecore,
+        nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
-        self.nchol_vec = int(schol_vecs.shape[-1])
         chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
-        if numpy.max(numpy.abs(chol_vecs.imag)) > 1e-6:
-            print("# Found complex integrals.")
-            self.cplx_chol = True
-        else:
-            if self.cplx_chol:
-                print("# Using Hermitian Cholesky decomposition.")
-            else:
-                print("# Using real symmetric Cholesky decomposition.")
-                self.cplx_chol= False
-        mem = chol_vecs.nbytes / (1024.0**3)
-        print("# Number of orbitals: %d"%self.nbasis)
-        print("# Number of electrons: (%d, %d)"%(nup, ndown))
-        print("# Approximate memory required by Cholesky vectors %f GB"%mem)
-        self.H1 = numpy.array([h1e, h1e])
-        # These will be reconstructed later.
-        self.orbs = None
-        self.h2e = None
-        return chol_vecs
+        return h1e, chol_vecs, ecore
 
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
@@ -145,9 +163,9 @@ class Generic(object):
         nb = self.ndown
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
-        rup = numpy.zeros(shape=(self.nchol_vec, na, M),
+        rup = numpy.zeros(shape=(self.nchol, na, M),
                           dtype=numpy.complex128)
-        rdn = numpy.zeros(shape=(self.nchol_vec, nb, M),
+        rdn = numpy.zeros(shape=(self.nchol, nb, M),
                           dtype=numpy.complex128)
         # rup = numpy.einsum('ia,lik->lak',
                            # trial.psi[:,:na].conj(),
@@ -159,7 +177,7 @@ class Generic(object):
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
             self.hs_pot = self.hs_pot.transpose(2,0,1)
-        for l in range(self.nchol_vec):
+        for l in range(self.nchol):
             rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
             rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
         if self.verbose:
@@ -170,8 +188,8 @@ class Generic(object):
                    # numpy.einsum('gbk,gal->akbl', rdn, rdn))
         # This is also much faster than einsum.
         start = time.time()
-        rup = rup.reshape((self.nchol_vec, -1))
-        rdn = rdn.reshape((self.nchol_vec, -1))
+        rup = rup.reshape((self.nchol, -1))
+        rdn = rdn.reshape((self.nchol, -1))
         Ma = numpy.dot(rup.T, rup)
         Mb = numpy.dot(rdn.T, rdn)
         vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)

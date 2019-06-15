@@ -21,29 +21,42 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                chol_cut=1e-5, sparse_zero=1e-16, pbc=False, cholesky=False,
                cas=None):
     if chkfile is not None:
-        (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs) = (
+        (hcore, fock, oao, enuc, mol, orbs, mf) = (
                                       from_pyscf_chkfile(chkfile, verbose, pbc)
                                       )
     else:
-        (hcore, fock, orthoAO, enuc) = from_pyscf_mol(mol, mf)
+        (hcore, fock, oao, enuc) = from_pyscf_scf(mf)
+        mol = mf.mol
     if verbose:
         print (" # Transforming hcore and eri to ortho AO basis.")
-    h1e = numpy.dot(orthoAO.conj().T, numpy.dot(hcore, orthoAO))
     nbasis = h1e.shape[-1]
-    if cholesky:
-        eri = chunked_cholesky(mol, max_error=chol_cut, verbose=True)
-        if verbose:
-            print (" # Orthogonalising Cholesky vectors.")
-        start = time.time()
-        ao2mo_chol(eri, orthoAO)
-        if verbose:
-            print (" # Time to orthogonalise: %f"%(time.time() - start))
-    elif pbc:
-        eri = mf.with_df.ao2mo(orthoAO, compact=False).reshape(nbasis, nbasis,
-                                                               nbasis, nbasis)
-    else:
-        eri = ao2mo.kernel(mol, orthoAO, compact=False)
-        eri = eri.reshape(nbasis,nbasis,nbasis,nbasis)
+    h1e, eri = generate_integrals(mol, hcore, oao, chol_cut=chol_cut,
+                                  verbose=verbose, cas=cas)
+    dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
+                 mol.nelec, enuc, threshold=chol_cut,
+                 sparse_zero=sparse_zero, orbs=orbs)
+
+def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None):
+    mol = mf.mol
+    ecore = mf.energy_nuc()
+    hcore = mf.get_hcore()
+    s1e = mf.mol.intor('int1e_ovlp_sph')
+    oao = get_orthoAO(s1e)
+    h1e, eri = generate_integrals(mol, hcore, oao,
+                                  chol_cut=chol_cut,
+                                  verbose=verbose,
+                                  cas=cas)
+    return h1e, eri, ecore, oao
+
+def generate_integrals(mol, hcore, oao, chol_cut=1e-5, verbose=0, cas=None):
+    eri = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
+    if verbose:
+        print (" # Orthogonalising Cholesky vectors.")
+    start = time.time()
+    h1e = numpy.dot(oao.conj().T, numpy.dot(hcore, oao))
+    ao2mo_chol(eri, oao)
+    if verbose:
+        print (" # Time to orthogonalise: %f"%(time.time() - start))
     if cas is not None:
         nfzc = (sum(mol.nelec)-cas[0])//2
         ncas = cas[1]
@@ -56,14 +69,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
             orbs = orbs[:,nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
         else:
             orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-    if qmcpack:
-        dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
-                     mol.nelec, enuc, threshold=chol_cut,
-                     sparse_zero=sparse_zero, orbs=orbs)
-    else:
-        dump_native(outfile, h1e, eri, orthoAO, fock, mol.nelec, enuc,
-                    orbs=orbs, coeffs=coeffs)
-    return eri
+    return h1e, eri
 
 def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
     # 1. Construct one-body hamiltonian
@@ -120,20 +126,20 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         except KeyError:
             enuc = mf.energy_nuc()
     if verbose:
-        print (" # Generating PAUXY input from %s."%chkfile)
-        print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
-        print (" # nbasis: %d"%hcore.shape[-1])
+        print(" # Generating PAUXY input from %s."%chkfile)
+        print(" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
+        print(" # nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs)
 
-def from_pyscf_mol(mol, mf, verbose=True):
+def from_pyscf_scf(mf, verbose=True):
     hcore = mf.get_hcore()
     fock = hcore + mf.get_veff()
-    s1e = mol.intor('int1e_ovlp_sph')
+    s1e = mf.mol.intor('int1e_ovlp_sph')
     orthoAO = get_orthoAO(s1e)
     enuc = mf.energy_nuc()
     if verbose:
         print (" # Generating PAUXY input PYSCF mol and scf objects.")
-        print (" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
+        print (" # (nalpha, nbeta): (%d, %d)"%mf.mol.nelec)
         print (" # nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc)
 
