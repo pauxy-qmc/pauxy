@@ -20,7 +20,6 @@ Refactor
 ========
 
 - population control
-- pyscf checkpoint file
 - reenable multi determinant
 - input file writer
 - logger
