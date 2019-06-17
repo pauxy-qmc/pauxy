@@ -1,25 +1,23 @@
 {
     "model": {
         "name": "Generic",
-        "atom": "Neon",
-        "nup": 5,
-        "ndown": 5,
-        "integrals": "ham.h5"
+        "atom": "Neon@aug-cc-pvtz",
+        "pyscf_chk": "neon.scf.chk"
     },
-    "qmc_options": {
+    "qmc": {
         "dt": 0.01,
-        "nsteps": 1000,
+        "nsteps": 10,
         "nmeasure": 10,
-        "nwalkers": 100,
+        "nwalkers": 10,
         "npop_control": 1,
         "nstabilise": 1
     },
-    "trial_wavefunction": {
+    "trial": {
         "name": "hartree_fock"
     },
     "propagator": {
         "hubbard_stratonovich": "continuous",
-        "expansion_order": 6,
+        "expansion_order": 4,
         "free_projection": false
     }
 }

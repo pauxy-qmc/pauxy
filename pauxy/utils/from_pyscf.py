@@ -55,7 +55,7 @@ def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False, cas=None):
                                   chol_cut=chol_cut,
                                   verbose=verbose,
                                   cas=cas)
-    return h1e, eri, ecore, oao
+    return h1e, eri, ecore, oao, mol
 
 def generate_integrals(mol, hcore, oao, chol_cut=1e-5, verbose=0, cas=None):
     eri = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
@@ -350,7 +350,7 @@ def get_pyscf_wfn(system, mf):
     if len(C.shape) == 3:
         # UHF trial.
         pa = numpy.dot(Xinv, C[0][:,:na])
-        pb = numpy.dot(Xinv, C[1][:,na:])
+        pb = numpy.dot(Xinv, C[1][:,:nb])
     else:
         pa = numpy.dot(Xinv, C[:,:na])
         pb = pa.copy()
