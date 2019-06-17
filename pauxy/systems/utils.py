@@ -27,6 +27,7 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
                 )
         system = Generic(nelec=mf.mol.nelec, h1e=h1e, chol=chol,
                          ecore=ecore, verbose=verbose)
+        system.oao = oao
     else:
         if sys_opts['name'] == 'Hubbard':
             system = Hubbard(sys_opts, verbose)

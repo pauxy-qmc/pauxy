@@ -2,6 +2,7 @@
 import h5py
 import numpy
 import time
+import scipy.linalg
 from pauxy.utils.io import dump_native, dump_qmcpack
 from pauxy.utils.linalg import get_orthoAO
 from pauxy.utils.misc import dotdict
@@ -315,3 +316,24 @@ def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
         oup = ' '.join('{:d}'.format(x+1+mc.ncore) for x in ia)
         odown = ' '.join('{:d}'.format(x+norb+1+mc.ncore) for x in ib)
         output.write(coeff+' '+ocore_up+' '+oup+' '+ocore_dn+' '+odown+'\n')
+
+def get_pyscf_wfn(system, mf):
+    """Return trial wavefunction from pyscf mf object.
+    """
+    C = mf.mo_coeff
+    na = system.nup
+    nb = system.ndown
+    X = system.oao
+    Xinv = scipy.linalg.inv(X)
+    # TODO : Update for mcscf object.
+    if len(C.shape) == 3:
+        # UHF trial.
+        pa = numpy.dot(Xinv, C[0][:,:na])
+        pb = numpy.dot(Xinv, C[1][:,na:])
+    else:
+        pa = numpy.dot(Xinv, C[:,:na])
+        pb = pa.copy()
+    wfn = numpy.zeros((1,system.nbasis, na+nb), dtype=numpy.complex128)
+    wfn[0,:,:na] = pa
+    wfn[0,:,na:] = pb
+    return (wfn, numpy.array([1.0+0j]))

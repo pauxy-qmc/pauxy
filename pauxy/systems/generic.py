@@ -77,8 +77,10 @@ class Generic(object):
         if nelec is None:
             self.nup = inputs['nup']
             self.ndown = inputs['ndown']
+            self.nelec = (self.nup, self.ndown)
         else:
             self.nup, self.ndown = nelec
+            self.nelec = nelec
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)

@@ -95,8 +95,8 @@ class AFQMC(object):
         self.qmc = QMCOpts(options.get('qmc', {}), self.system, verbose)
         self.cplx = self.determine_dtype(options.get('propagator', {}), self.system)
         self.trial = (
-            get_trial_wavefunction(options.get('trial', {}), self.system, self.cplx,
-                                   parallel, verbose)
+            get_trial_wavefunction(system, options=options.get('trial', {}),
+                                   parallel=parallel, verbose=verbose)
         )
         if self.system.name == "Generic":
             if self.trial.name != "multi_determinant":
