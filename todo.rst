@@ -16,6 +16,19 @@ Code
 - json error handling
 - logger
 
+Refactor
+========
+
+- population control
+- pyscf checkpoint file
+- reenable multi determinant
+- input file writer
+- logger
+- unit tests
+- check hubbard
+- check estimators
+- ueg module import handling
+
 Imaginary time green's functions
 ----------------------------------
 - targeted algorithm
