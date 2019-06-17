@@ -49,6 +49,14 @@ def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None):
                                   cas=cas)
     return h1e, eri, ecore, oao
 
+def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False, cas=None):
+    (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose)
+    h1e, eri = generate_integrals(mol, hcore, oao,
+                                  chol_cut=chol_cut,
+                                  verbose=verbose,
+                                  cas=cas)
+    return h1e, eri, ecore, oao
+
 def generate_integrals(mol, hcore, oao, chol_cut=1e-5, verbose=0, cas=None):
     eri = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
     if verbose:
@@ -111,13 +119,26 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         mol = load_mol(scfdump)
         mf = scf.RHF(mol)
     with h5py.File(scfdump, 'r') as fh5:
-        hcore = fh5['/scf/hcore'][:]
+        try:
+            hcore = fh5['/scf/hcore'][:]
+        except KeyError:
+            hcore = mol.intor_symmetric('int1e_nuc')
+            hcore += mol.intor_symmetric('int1e_kin')
+            if len(mol._ecpbas) > 0:
+                hcore += mol.intor_symmetric('ECPScalar')
         try:
             fock = fh5['/scf/fock'][:]
         except KeyError:
             fock = None
-        orthoAO = fh5['/scf/orthoAORot'][:]
-        orbs = fh5['/scf/orbs'][:]
+        try:
+            oao = fh5['/scf/orthoAORot'][:]
+        except:
+            s1e = mf.mol.intor('int1e_ovlp_sph')
+            oao = get_orthoAO(s1e)
+        try:
+            orbs = fh5['/scf/orbs'][:]
+        except KeyError:
+            orbs = None
         try:
             coeffs = fh5['/scf/coeffs'][:]
         except KeyError:
@@ -127,10 +148,10 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
         except KeyError:
             enuc = mf.energy_nuc()
     if verbose:
-        print(" # Generating PAUXY input from %s."%chkfile)
-        print(" # (nalpha, nbeta): (%d, %d)"%mol.nelec)
-        print(" # nbasis: %d"%hcore.shape[-1])
-    return (hcore, fock, orthoAO, enuc, mol, orbs, mf, coeffs)
+        print("# Generating PAUXY input from %s."%chkfile)
+        print("# (nalpha, nbeta): (%d, %d)"%mol.nelec)
+        print("# nbasis: %d"%hcore.shape[-1])
+    return (hcore, fock, oao, enuc, mol, orbs, mf, coeffs)
 
 def from_pyscf_scf(mf, verbose=True):
     hcore = mf.get_hcore()
@@ -139,9 +160,9 @@ def from_pyscf_scf(mf, verbose=True):
     orthoAO = get_orthoAO(s1e)
     enuc = mf.energy_nuc()
     if verbose:
-        print (" # Generating PAUXY input PYSCF mol and scf objects.")
-        print (" # (nalpha, nbeta): (%d, %d)"%mf.mol.nelec)
-        print (" # nbasis: %d"%hcore.shape[-1])
+        print ("# Generating PAUXY input PYSCF mol and scf objects.")
+        print ("# (nalpha, nbeta): (%d, %d)"%mf.mol.nelec)
+        print ("# nbasis: %d"%hcore.shape[-1])
     return (hcore, fock, orthoAO, enuc)
 
 def write_fcidump(system, name='FCIDUMP'):

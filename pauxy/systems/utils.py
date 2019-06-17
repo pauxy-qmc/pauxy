@@ -30,7 +30,7 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
                          chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=verbose)
         system.oao = oao
-    else:
+    elif sys_opts.get('pyscf_chk', None) is not None:
         if sys_opts['name'] == 'Hubbard':
             system = Hubbard(sys_opts, verbose)
         elif sys_opts['name'] == 'Generic':
