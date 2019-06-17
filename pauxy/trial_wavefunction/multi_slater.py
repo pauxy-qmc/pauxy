@@ -14,6 +14,10 @@ class MultiSlater(object):
         self.name = "MultiSlater"
         # TODO : Fix for MSD.
         self.psi = wfn[0]
+        if init is not None:
+            self.init = init
+        else:
+            self.init = self.psi.copy()
         self.coeffs = coeffs
         self.error = False
         na, nb = system.nelec
