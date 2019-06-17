@@ -90,7 +90,7 @@ class AFQMC(object):
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        self.system = get_system(sys_opts=options.get('system', {}),
+        self.system = get_system(sys_opts=options.get('model', {}),
                                  mf=mf, verbose=verbose)
         self.qmc = QMCOpts(options.get('qmc', {}), self.system,
                            verbose=self.verbosity>1)
@@ -247,6 +247,8 @@ class AFQMC(object):
         try:
             eloc = blocking.reblock_local_energy(filename, skip)
         except IndexError:
+            eloc = None
+        except ValueError:
             eloc = None
         return eloc
 

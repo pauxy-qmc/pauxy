@@ -1,7 +1,7 @@
 from pauxy.systems.hubbard import Hubbard
 from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
-from pauxy.utils.from_pyscf import integrals_from_scf
+from pauxy.utils.from_pyscf import integrals_from_scf, integrals_from_chkfile
 
 
 def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
@@ -30,14 +30,23 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
                          chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=verbose)
         system.oao = oao
+    elif sys_opts.get('pyscf_chk', None) is not None:
+        chkfile = sys_opts.get('pyscf_chk', None)
+        h1e, chol, ecore, oao, mol = (
+                integrals_from_chkfile(chkfile, verbose=verbose, chol_cut=chol_cut)
+                )
+        nb = h1e.shape[0]
+        system = Generic(nelec=mol.nelec, h1e=h1e,
+                         chol=chol.reshape((-1,nb,nb)),
+                         ecore=ecore, verbose=verbose)
+        system.oao = oao
+    elif sys_opts['name'] == 'Hubbard':
+        system = Hubbard(sys_opts, verbose)
+    elif sys_opts['name'] == 'Generic':
+        system = Generic(sys_opts, verbose)
+    elif sys_opts['name'] == 'UEG':
+        system = UEG(sys_opts, verbose)
     else:
-        if sys_opts['name'] == 'Hubbard':
-            system = Hubbard(sys_opts, verbose)
-        elif sys_opts['name'] == 'Generic':
-            system = Generic(sys_opts, verbose)
-        elif sys_opts['name'] == 'UEG':
-            system = UEG(sys_opts, verbose)
-        else:
-            system = None
+        system = None
 
     return system

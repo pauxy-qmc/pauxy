@@ -74,16 +74,16 @@ class QMCOpts(object):
         self.nsteps = get_input_value(inputs, 'num_steps',
                                       default=10, alias=['nsteps'],
                                       verbose=verbose)
-        self.nmeasure = get_input_value(inputs, 'num_blocks',
+        self.nmeasure = get_input_value(inputs, 'print_freq',
                                         default=1000,
-                                        alias=['nmeasure', 'blocks'],
+                                        alias=['nmeasure'],
                                         verbose=verbose)
         self.nstblz = get_input_value(inputs, 'stabilise_freq',
                                       default=10,
                                       alias=['nstabilise', 'reortho'],
                                       verbose=verbose)
         self.npop_control = get_input_value(inputs, 'pop_control_freq',
-                                            default=10,
+                                            default=1,
                                             alias=['npop_control'],
                                             verbose=verbose)
         self.nupdate_shift = get_input_value(inputs, 'update_shift_freq',

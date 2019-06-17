@@ -1,3 +1,0 @@
-1. Run scf.py to peform RHF calculation on neon atom to generate
-necessary integrals and trial wavefunction in MO basis.
-2. Run pauxy with input file generic.json.
