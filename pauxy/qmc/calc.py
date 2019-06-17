@@ -92,7 +92,7 @@ def read_input(input_file, comm, verbose=False):
 
 
 def set_rng_seed(qmc_opts, comm):
-    seed = get_input_value(inputs, 'rng_seed',
+    seed = get_input_value(qmc_opts, 'rng_seed',
                            default=None,
                            alias=['random_seed', 'seed'])
     if seed is None:

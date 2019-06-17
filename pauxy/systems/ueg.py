@@ -45,14 +45,15 @@ class UEG(object):
         self.name = "UEG"
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
+        self.nelec = (self.nup,self.ndown)
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist', [0,0,0])).reshape(3)
         self.mu = inputs.get('mu', None)
-        # if(verbose):
-        print("# Number of spin-up electrons: %i"%self.nup)
-        print("# Number of spin-down electrons: %i"%self.ndown)
-        print("# rs: %10.5f"%self.rs)
+        if verbose:
+            print("# Number of spin-up electrons: %i"%self.nup)
+            print("# Number of spin-down electrons: %i"%self.ndown)
+            print("# rs: %10.5f"%self.rs)
 
         self.thermal = inputs.get('thermal', False)
 
@@ -99,8 +100,8 @@ class UEG(object):
         self.ncore = 0
         self.nfv = 0
         self.mo_coeff = None
-        # if(verbose):
-        print("# Number of plane waves: %i"%self.nbasis)
+        if verbose:
+            print("# Number of plane waves: %i"%self.nbasis)
         # Allowed momentum transfers (4*ecut)
         (eigs, qvecs, self.qnmax) = self.sp_energies(self.kfac, 4*self.ecut)
         # Omit Q = 0 term.
@@ -166,14 +167,14 @@ class UEG(object):
             self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
 
 
-        # if(verbose):
-        print("# Constructing two-body potentials incore.")
-        (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
-        print("# Approximate memory required for "
-              "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
-        print("# Constructing two_body_potentials_incore finished")
         if verbose:
-            print ("# Finished setting up Generic system object.")
+            print("# Constructing two-body potentials incore.")
+        (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
+        if verbose:
+            print("# Approximate memory required for "
+                  "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
+            print("# Constructing two_body_potentials_incore finished")
+            print ("# Finished setting up UEG system object.")
 
 
     def sp_energies(self, kfac, ecut):
