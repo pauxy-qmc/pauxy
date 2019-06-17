@@ -25,7 +25,9 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
         h1e, chol, ecore, oao = (
                 integrals_from_scf(mf, verbose=verbose, chol_cut=chol_cut)
                 )
-        system = Generic(nelec=mf.mol.nelec, h1e=h1e, chol=chol,
+        nb = h1e.shape[0]
+        system = Generic(nelec=mf.mol.nelec, h1e=h1e,
+                         chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=verbose)
         system.oao = oao
     else:

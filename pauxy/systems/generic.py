@@ -100,7 +100,7 @@ class Generic(object):
             else:
                 if verbose:
                     print("# Using real symmetric Cholesky decomposition.")
-                self.cplx_chol = True
+                self.cplx_chol = False
         else:
             h1e, self.chol_vecs, ecore = self.read_integrals()
         self.H1 = numpy.array([h1e,h1e])
@@ -288,7 +288,6 @@ class Generic(object):
         self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
         tvakbl = time.time() - start
-        self.chol_vecs = None
         # TODO: Stop converting hs pot to dense
         if self.sparse:
             if self.cutoff is not None:

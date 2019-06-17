@@ -29,7 +29,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
         (hcore, fock, oao, enuc) = from_pyscf_scf(mf)
         mol = mf.mol
     if verbose:
-        print (" # Transforming hcore and eri to ortho AO basis.")
+        print(" # Transforming hcore and eri to ortho AO basis.")
     nbasis = h1e.shape[-1]
     h1e, eri = generate_integrals(mol, hcore, oao, chol_cut=chol_cut,
                                   verbose=verbose, cas=cas)
@@ -52,12 +52,12 @@ def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None):
 def generate_integrals(mol, hcore, oao, chol_cut=1e-5, verbose=0, cas=None):
     eri = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
     if verbose:
-        print (" # Orthogonalising Cholesky vectors.")
+        print("# Orthogonalising Cholesky vectors.")
     start = time.time()
     h1e = numpy.dot(oao.conj().T, numpy.dot(hcore, oao))
     ao2mo_chol(eri, oao)
     if verbose:
-        print (" # Time to orthogonalise: %f"%(time.time() - start))
+        print("# Time to orthogonalise: %f"%(time.time() - start))
     if cas is not None:
         nfzc = (sum(mol.nelec)-cas[0])//2
         ncas = cas[1]

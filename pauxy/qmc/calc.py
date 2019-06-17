@@ -13,7 +13,7 @@ except ImportError:
 from pauxy.qmc.afqmc import AFQMC
 from pauxy.qmc.thermal_afqmc import ThermalAFQMC
 from pauxy.estimators.handler import Estimators
-from pauxy.utils.io import  to_json
+from pauxy.utils.io import  to_json, get_input_value
 from pauxy.utils.misc import serialise
 from pauxy.walkers.handler import Walkers
 from pauxy.qmc.comm import FakeComm
@@ -28,11 +28,11 @@ def init_communicator():
 
 def setup_calculation(input_options):
     comm = init_communicator()
-    if (isinstance(input_options, str)):
+    if isinstance(input_options, str):
         options = read_input(input_options, comm, verbose=True)
     else:
         options = input_options
-    set_rng_seed(options['qmc_options'], comm)
+    set_rng_seed(options['qmc'], comm)
     if comm.size > 1:
         afqmc = setup_parallel(options, comm, verbose=True)
     else:
@@ -40,11 +40,11 @@ def setup_calculation(input_options):
     return (afqmc, comm)
 
 def get_driver(options, comm):
-    beta = options.get('qmc_options').get('beta', None)
+    beta = options.get('qmc').get('beta', None)
     verbosity = options.get('verbosity', 1)
     if beta is not None:
         afqmc = ThermalAFQMC(options.get('model'),
-                             options.get('qmc_options'),
+                             options.get('qmc'),
                              options.get('estimates', {}),
                              options.get('trial', {}),
                              options.get('propagator', {}),
@@ -52,12 +52,7 @@ def get_driver(options, comm):
                              parallel=comm.size>1,
                              verbose=verbosity)
     else:
-        afqmc = AFQMC(options.get('model'),
-                      options.get('qmc_options'),
-                      options.get('estimates', {}),
-                      options.get('trial_wavefunction', {}),
-                      options.get('propagator', {}),
-                      options.get('walkers', {}),
+        afqmc = AFQMC(options=options,
                       parallel=comm.size>1,
                       verbose=verbosity)
     return afqmc
@@ -97,7 +92,9 @@ def read_input(input_file, comm, verbose=False):
 
 
 def set_rng_seed(qmc_opts, comm):
-    seed = qmc_opts.get('rng_seed', None)
+    seed = get_input_value(inputs, 'rng_seed',
+                           default=None,
+                           alias=['random_seed', 'seed'])
     if seed is None:
         # only set "random" part of seed on parent processor so we can reproduce
         # results in when running in parallel.
@@ -132,7 +129,7 @@ def setup_parallel(options, comm=None, verbose=False):
     """
     if comm.rank == 0:
         afqmc = get_driver(options, comm)
-        print ("# Setup base driver.")
+        print("# Setup base driver.")
     else:
         afqmc = None
     afqmc = comm.bcast(afqmc, root=0)
@@ -182,7 +179,6 @@ def setup_parallel(options, comm=None, verbose=False):
         json_string = to_json(afqmc)
         afqmc.estimators.json_string = json_string
         afqmc.estimators.dump_metadata()
-        print(json_string)
         afqmc.estimators.estimators['mixed'].print_key()
         afqmc.estimators.estimators['mixed'].print_header()
 

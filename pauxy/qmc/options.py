@@ -1,5 +1,6 @@
-import numpy
 import copy
+import numpy
+from pauxy.utils.io import get_input_value
 
 
 class QMCOpts(object):
@@ -65,15 +66,40 @@ class QMCOpts(object):
     """
 
     def __init__(self, inputs, system, verbose=False):
-        self.nwalkers = inputs.get('nwalkers', None)
-        self.dt = inputs.get('dt', None)
-        self.nsteps = inputs.get('nsteps', None)
-        self.nmeasure = inputs.get('nmeasure', 10)
-        self.nstblz = inputs.get('nstabilise', 10)
-        self.npop_control = inputs.get('npop_control', 10)
-        self.nupdate_shift = inputs.get('nupdate_shift', 10)
-        self.temp = inputs.get('temperature', None)
-        self.nequilibrate = inputs.get('nequilibrate', int(1.0/self.dt))
-        self.ffts = inputs.get('kinetic_kspace', False)
-        self.beta = inputs.get('beta', None)
-        self.beta_reduced = inputs.get('beta_reduced', None)
+        self.nwalkers = get_input_value(inputs, 'num_walkers',
+                                        default=10, alias=['nwalkers'],
+                                        verbose=verbose)
+        self.dt = get_input_value(inputs, 'timestep', default=0.005,
+                                  alias=['dt'], verbose=verbose)
+        self.nsteps = get_input_value(inputs, 'num_steps',
+                                      default=10, alias=['nsteps'],
+                                      verbose=verbose)
+        self.nmeasure = get_input_value(inputs, 'num_blocks',
+                                        default=1000,
+                                        alias=['nmeasure', 'blocks'],
+                                        verbose=verbose)
+        self.nstblz = get_input_value(inputs, 'stabilise_freq',
+                                      default=10,
+                                      alias=['nstabilise', 'reortho'],
+                                      verbose=verbose)
+        self.npop_control = get_input_value(inputs, 'pop_control_freq',
+                                            default=10,
+                                            alias=['npop_control'],
+                                            verbose=verbose)
+        self.nupdate_shift = get_input_value(inputs, 'update_shift_freq',
+                                             default=10,
+                                             alias=['nupdate_shift'],
+                                             verbose=verbose)
+        self.nequilibrate = get_input_value(inputs, 'num_equilibrate_steps',
+                                            default=int(1.0/self.dt),
+                                            alias=['nequilibrate'],
+                                            verbose=verbose)
+        self.beta = get_input_value(inputs, 'beta', default=None,
+                                    verbose=verbose)
+        self.beta_reduced = get_input_value(inputs, 'beta_reduced',
+                                            default=None,
+                                            verbose=verbose)
+        self.rng_seed = get_input_value(inputs, 'rng_seed',
+                                        default=None,
+                                        alias=['random_seed', 'seed'],
+                                        verbose=verbose)
