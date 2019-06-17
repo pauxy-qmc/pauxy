@@ -14,6 +14,7 @@ Code
 - walker buffer using __dict__ attribute.
 - Energy / FB bounds
 - json error handling
+- logger
 
 Imaginary time green's functions
 ----------------------------------
