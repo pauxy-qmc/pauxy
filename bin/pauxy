@@ -2,7 +2,6 @@
 
 import sys
 from pauxy.qmc.calc import setup_calculation
-from pauxy.qmc.calc import AFQMC
 import json
 
 

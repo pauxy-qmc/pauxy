@@ -33,7 +33,7 @@ class Continuous(object):
 
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
-        self.mf_const_fac = math.exp(-self.dt*mf_core)
+        self.mf_const_fac = math.exp(-self.dt*mf_core.real)
         self.propagator.construct_one_body_propagator(system, qmc.dt)
         self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz
