@@ -21,7 +21,8 @@ class Continuous(object):
                 print("# Setting force_bias to False with free projection.")
             self.force_bias = False
         else:
-            print("# Setting force bias to %r."%self.force_bias)
+            if verbose:
+                print("# Setting force bias to %r."%self.force_bias)
         self.exp_nmax = options.get('expansion_order', 6)
         # Derived Attributes
         self.dt = qmc.dt
@@ -33,7 +34,7 @@ class Continuous(object):
 
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
-        self.mf_const_fac = math.exp(-self.dt*mf_core)
+        self.mf_const_fac = math.exp(-self.dt*mf_core.real)
         self.propagator.construct_one_body_propagator(system, qmc.dt)
         self.BT_BP = self.propagator.BH1
         self.nstblz = qmc.nstblz

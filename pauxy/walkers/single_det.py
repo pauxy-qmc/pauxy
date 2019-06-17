@@ -25,16 +25,9 @@ class SingleDetWalker(object):
         self.weight = walker_opts.get('weight', 1)
         self.phase = 1 + 0j
         self.alive = 1
-        if trial.initial_wavefunction == 'free_electron':
-            self.phi = numpy.zeros(shape=(system.nbasis,system.ne),
-                                   dtype=trial.psi.dtype)
-            tmp = FreeElectron(system, system.ktwist.all() != None, {})
-            self.phi[:,:system.nup] = tmp.psi[:,:system.nup]
-            self.phi[:,system.nup:] = tmp.psi[:,system.nup:]
-        else:
-            self.phi = copy.deepcopy(trial.psi)
-            # JOONHO randomizing the guess
-            # self.phi = numpy.random.rand([system.nbasis,system.ne])
+        self.phi = trial.init.copy()
+        # JOONHO randomizing the guess
+        # self.phi = numpy.random.rand([system.nbasis,system.ne])
         self.inv_ovlp = [0, 0]
         self.nup = system.nup
         self.ndown = system.ndown

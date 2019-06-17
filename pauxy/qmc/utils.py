@@ -3,7 +3,7 @@ from pauxy.propagation.continuous import Continuous
 from pauxy.propagation.utils import get_discrete_propagator
 
 def get_propagator_driver(options, qmc, system, trial, verbose=False):
-    hs = options['hubbard_stratonovich']
+    hs = options.get('hubbard_stratonovich', 'continuous')
     if 'discrete' in hs:
         return get_discrete_propagator(options, qmc, system, trial, verbose)
     else:

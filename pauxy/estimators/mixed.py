@@ -83,6 +83,7 @@ class Mixed(object):
         self.dtype = dtype
         self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
         dms_size = self.G.size
+        self.eshift = 0
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
         # TODO: Add functionality to accumulate 2RDM?
         if self.calc_two_rdm is not None:

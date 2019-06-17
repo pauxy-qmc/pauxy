@@ -310,3 +310,20 @@ def write_phfmol_wavefunction(coeffs, dets, filename='wfn.dat', padding=0):
             # Write in fortran order.
             for cij in numpy.ravel(padded, order='F'):
                 f.write('({:13.8e},{:13.8e})\n'.format(cij.real,cij.imag))
+
+def get_input_value(inputs, key, default=0, alias=None, verbose=False):
+    """Helper routine to parse input options.
+    """
+    val = inputs.get(key, None)
+    if val is None:
+        if alias is not None:
+            for a in alias:
+                val = inputs.get(a, None)
+                if val is not None:
+                    break
+        if val is None:
+            val = default
+            if verbose:
+                print("# Warning: {} not specified. Setting to default value"
+                      " of {}.".format(key, default))
+    return val

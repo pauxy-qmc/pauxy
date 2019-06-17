@@ -75,16 +75,13 @@ class AFQMC(object):
         Walker handler. Stores the AFQMC wavefunction.
     """
 
-    def __init__(self, model, qmc_opts, estimates,
-                 trial, propagator, walker_opts={'weight': 1}, parallel=False,
-                 verbose=False):
+    def __init__(self, options=None, mf=None, parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
         self.sha1 = get_git_revision_hash()
-        self.seed = qmc_opts['rng_seed']
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = True
@@ -93,12 +90,15 @@ class AFQMC(object):
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        self.system = get_system(model, verbose)
-        self.qmc = QMCOpts(qmc_opts, self.system, verbose)
-        self.cplx = self.determine_dtype(propagator, self.system)
+        self.system = get_system(sys_opts=options.get('system', {}),
+                                 mf=mf, verbose=verbose)
+        self.qmc = QMCOpts(options.get('qmc', {}), self.system,
+                           verbose=self.verbosity>1)
+        self.seed = self.qmc.rng_seed
+        self.cplx = self.determine_dtype(options.get('propagator', {}), self.system)
         self.trial = (
-            get_trial_wavefunction(trial, self.system, self.cplx,
-                                   parallel, verbose)
+            get_trial_wavefunction(self.system, options=options.get('trial', {}),
+                                   mf=mf, parallel=parallel, verbose=verbose)
         )
         if self.system.name == "Generic":
             if self.trial.name != "multi_determinant":
@@ -107,14 +107,16 @@ class AFQMC(object):
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
         self.trial.calculate_energy(self.system)
-        self.propagators = get_propagator_driver(propagator, self.qmc,
+        self.propagators = get_propagator_driver(options.get('propagator', {}), self.qmc,
                                                  self.system, self.trial,
                                                  verbose)
         self.tsetup = time.time() - self._init_time
         if not parallel:
+            walker_opts = options.get('walkers', {})
+            estimates = options.get('estimates', {})
             estimates['stack_size'] = walker_opts.get('stack_size', 1)
             self.estimators = (
-                Estimators(estimates, self.root, self.qmc, self.system,
+                Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
                            self.trial, self.propagators.BT_BP, verbose)
             )
             self.qmc.ntot_walkers = self.qmc.nwalkers
@@ -129,7 +131,6 @@ class AFQMC(object):
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
             if verbose:
-                print(json_string)
                 self.estimators.estimators['mixed'].print_key()
                 self.estimators.estimators['mixed'].print_header()
 
