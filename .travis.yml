@@ -4,7 +4,10 @@ dist: trusty
 language: python
 
 python:
+    2.7
+    3.5
     3.6
+    3.7
 
 addons:
     apt:
@@ -25,10 +28,12 @@ install:
 script:
     - cd tests
     - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
-    - python3 -c "import sys; print (sys.path)"
-    - python3 -c "import pauxy; import pauxy.analysis"
-    - python3 -c "import pauxy.qmc"
+    - python -c "import sys; print (sys.path)"
+    - python -c "import pauxy; import pauxy.analysis"
+    - python -c "import pauxy.qmc"
     - $HOME/testcode/bin/testcode.py -vvv
+    - cd $HOME/pauxy
+    - nosetests -v
 
 after_failure:
     - cat */*.err*
