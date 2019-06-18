@@ -23,39 +23,36 @@ class MultiDetWalker(object):
     """
 
     def __init__(self, walker_opts, system, trial, index=0,
-                 weights='zeros', wfn0='init'):
+                 weights='zeros'):
         self.weight = walker_opts.get('weight', 1)
         self.alive = 1
         self.phase = 1 + 0j
         self.nup = system.nup
-        self.phi = copy.deepcopy(trial.psi[0])
-        self.phi[:,:system.nup] = numpy.dot(scipy.linalg.expm(-0.01*system.T[0]), self.phi[:,:system.nup])
-        self.phi[:,system.nup:] = numpy.dot(scipy.linalg.expm(-0.01*system.T[0]), self.phi[:,system.nup:])
-        self.ndets = trial.ndets
+        self.phi = copy.deepcopy(trial.init)
+        self.ndets = trial.psi.shape[0]
+        dtype = numpy.complex128
         # This stores an array of overlap matrices with the various elements of
         # the trial wavefunction.
-        self.inv_ovlp = [numpy.zeros(shape=(trial.ndets, system.nup, system.nup),
-                                     dtype=self.phi.dtype),
-                         numpy.zeros(shape=(trial.ndets, system.nup, system.nup),
-                                    dtype=self.phi.dtype)]
+        self.inv_ovlp = [numpy.zeros(shape=(self.ndets, system.nup, system.nup),
+                                     dtype=dtype),
+                         numpy.zeros(shape=(self.ndets, system.ndown, system.ndown),
+                                    dtype=dtype)]
         if weights == 'zeros':
-            self.weights = numpy.zeros(trial.ndets, dtype=trial.psi.dtype)
+            self.weights = numpy.zeros(self.ndets, dtype=dtype)
         else:
-            self.weights = numpy.ones(trial.ndets, dtype=trial.psi.dtype)
+            self.weights = numpy.ones(self.ndets, dtype=dtype)
         self.inverse_overlap(trial)
         # Green's functions for various elements of the trial wavefunction.
-        self.Gi = numpy.zeros(shape=(trial.ndets, 2, system.nbasis,
-                                     system.nbasis), dtype=self.phi.dtype)
+        self.Gi = numpy.zeros(shape=(self.ndets, 2, system.nbasis,
+                                     system.nbasis), dtype=dtype)
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
-                             dtype=self.phi.dtype)
-        self.ots = numpy.zeros(trial.ndets, dtype=self.phi.dtype)
+                             dtype=dtype)
+        self.ovlps = numpy.zeros(self.ndets, dtype=dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        if wfn0 != 'GHF':
-            self.ot = self.calc_otrial(trial)
-            self.greens_function(trial)
-            self.E_L = local_energy_multi_det(system, self.Gi, self.weights)
+        self.ovlp = self.calc_ovlp(trial)
+        self.greens_function(trial)
         self.nb = system.nbasis
         self.nup = system.nup
         self.ndown = system.ndown
@@ -81,7 +78,7 @@ class MultiDetWalker(object):
             Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
             self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
 
-    def calc_otrial(self, trial):
+    def calc_ovlp(self, trial):
         """Caculate overlap with trial wavefunction.
 
         Parameters
@@ -91,16 +88,14 @@ class MultiDetWalker(object):
 
         Returns
         -------
-        ot : float / complex
+        ovlp : float / complex
             Overlap.
         """
-        # The trial wavefunctions coefficients should be complex conjugated
-        # on initialisation!
         for ix in range(self.ndets):
             det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
             det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
-            self.ots[ix] = det_O_up * det_O_dn
-            self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix]
+            self.ovlps[ix] = det_O_up * det_O_dn
+            self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
         return sum(self.weights)
 
     def reortho(self, trial):
@@ -184,7 +179,7 @@ class MultiDetWalker(object):
             'inv_ovlp': self.inv_ovlp,
             'G': self.G,
             'overlap': self.ot,
-            'overlaps': self.ots,
+            'overlaps': self.ovlps,
             'fields': self.field_configs.configs,
             'cfacs': self.field_configs.cos_fac,
             'E_L': self.E_L,
@@ -210,7 +205,7 @@ class MultiDetWalker(object):
         self.phase = buff['phase']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
-        self.ots = numpy.copy(buff['overlaps'])
+        self.ovlps = numpy.copy(buff['overlaps'])
         self.field_configs.configs = numpy.copy(buff['fields'])
         self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])

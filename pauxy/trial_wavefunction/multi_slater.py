@@ -13,11 +13,14 @@ class MultiSlater(object):
         init_time = time.time()
         self.name = "MultiSlater"
         # TODO : Fix for MSD.
-        self.psi = wfn[0]
+        self.psi = wfn
         if init is not None:
             self.init = init
         else:
-            self.init = self.psi.copy()
+            if len(self.psi.shape) == 3:
+                self.init = self.psi[0].copy()
+            else:
+                self.init = self.psi.copy()
         self.coeffs = coeffs
         self.error = False
         na, nb = system.nelec
