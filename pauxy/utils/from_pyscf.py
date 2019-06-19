@@ -354,7 +354,7 @@ def get_pyscf_wfn(system, mf):
     else:
         pa = numpy.dot(Xinv, C[:,:na])
         pb = pa.copy()
-    wfn = numpy.zeros((1,system.nbasis, na+nb), dtype=numpy.complex128)
-    wfn[0,:,:na] = pa
-    wfn[0,:,na:] = pb
+    wfn = numpy.zeros((system.nbasis, na+nb), dtype=numpy.complex128)
+    wfn[:,:na] = pa
+    wfn[:,na:] = pb
     return (wfn, numpy.array([1.0+0j]))

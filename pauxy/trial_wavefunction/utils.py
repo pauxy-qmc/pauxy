@@ -32,12 +32,12 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
     elif options['name'] == 'hartree_fock':
         na = system.nup
         nb = system.ndown
-        wfn = numpy.zeros((1,system.nbasis,system.nup+system.ndown),
+        wfn = numpy.zeros((system.nbasis,system.nup+system.ndown),
                           dtype=numpy.complex128)
         coeffs = numpy.array([1.0+0j])
         I = numpy.identity(system.nbasis, dtype=numpy.complex128)
-        wfn[0,:,:na] = I[:,:na]
-        wfn[0,:,na:] = I[:,:nb]
+        wfn[:,:na] = I[:,:na]
+        wfn[:,na:] = I[:,:nb]
         trial = MultiSlater(system, wfn, coeffs, options=options,
                             parallel=parallel, verbose=verbose)
     elif options['name'] == 'free_electron':
