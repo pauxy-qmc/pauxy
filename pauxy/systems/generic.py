@@ -11,7 +11,6 @@ from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
         local_energy_generic_cholesky, core_contribution_cholesky
 )
-from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
 class Generic(object):

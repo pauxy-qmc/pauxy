@@ -1,6 +1,6 @@
 import numpy
 import time
-from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.mixed import variational_energy
 from pauxy.estimators.greens_function import gab, gab_mod
 
 class MultiSlater(object):
@@ -23,11 +23,6 @@ class MultiSlater(object):
                 self.init = self.psi.copy()
         self.coeffs = coeffs
         self.error = False
-        na, nb = system.nelec
-        Ga, Gha = gab_mod(wfn[0,:,:na], wfn[0,:,:na])
-        Gb, Ghb = gab_mod(wfn[0,:,na:], wfn[0,:,na:])
-        self.G = numpy.array([Ga, Gb])
-        self.Ghalf = numpy.array([Gha, Ghb])
         self.initialisation_time = time.time() - init_time
         if verbose:
             print ("# Finished setting up trial wavefunction.")
@@ -37,9 +32,9 @@ class MultiSlater(object):
             print ("# Computing trial wavefunction energy.")
         start = time.time()
         # Write separate energy routine based on wavefunction.
-        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
-                                                         Ghalf=self.Ghalf,
-                                                         opt=True)
+        (self.energy, self.e1b, self.e2b) = variational_energy(system,
+                                                               self.psi,
+                                                               self.coeffs)
         if self.verbose:
             print("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))

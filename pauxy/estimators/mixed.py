@@ -14,7 +14,7 @@ try:
 except ImportError as e:
     print(e)
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
-from pauxy.estimators.greens_function import gab_mod_ovlp
+from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic,
@@ -385,24 +385,6 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         else:
             return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
-    weight = 0
-    energies = 0
-    denom = 0
-    nup = system.nup
-    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
-        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
-            # construct "local" green's functions for each component of A
-            Gup, inv_O_up = gab_mod_ovlp(Biy[:,:nup], Aix[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Biy[:,nup:], Aix[:,nup:])
-            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
-            weight = cix*(ciy.conj()) * ovlp
-            G = numpy.array([Gup, Gdn])
-            e = numpy.array(local_energy(system, G, opt=False))
-            energies += weight * e
-            denom += weight
-    return tuple(energies/denom)
-
 def local_energy_multi_det(system, Gi, weights):
     weight = 0
     energies = 0
@@ -454,3 +436,51 @@ def eproj(estimates, enum):
     numerator = estimates[enum.enumer]
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
+
+def variational_energy(system, psi, coeffs):
+    if len(psi.shape) == 3:
+        return variational_energy_multi_det(system, psi, coeffs)
+    else:
+        return variational_energy_single_det(system, psi)
+
+def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
+    weight = 0
+    energies = 0
+    denom = 0
+    nup = system.nup
+    ndet = len(coeffs)
+    if H is not None and S is not None:
+        store = True
+    else:
+        store = False
+    for i, (Bi, ci) in enumerate(zip(psi, coeffs)):
+        for j, (Aj, cj) in enumerate(zip(psi, coeffs)):
+            # construct "local" green's functions for each component of A
+            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
+            weight = (ci.conj()*cj) * ovlp
+            G = numpy.array([Gup, Gdn])
+            e = numpy.array(local_energy(system, G, opt=False))
+            if (i == 0 and j == 1) or (i == 1 and j == 0):
+                Gup, inv_O_up = gab_mod_ovlp(Aj[:,:nup],Bi[:,:nup])
+                Gdn, inv_O_dn = gab_mod_ovlp(Aj[:,nup:], Bi[:,nup:])
+                G = numpy.array([Gup, Gdn])
+                e2 = numpy.array(local_energy(system, G, opt=False))
+
+            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            if store:
+                H[i,j] = ovlp*e[0]
+                S[i,j] = ovlp
+            energies += weight * e
+            denom += weight
+    return tuple(energies/denom)
+
+def variational_energy_single_det(system, psi):
+    na = system.nup
+    ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
+    gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
+    return local_energy(system, numpy.array([ga,gb]),
+                        Ghalf=numpy.array([ga_half,gb_half]),
+                        opt=True)
