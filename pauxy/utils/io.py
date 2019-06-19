@@ -95,6 +95,9 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
 
+def from_qmcpack_complex(data, shape):
+    return data.view(numpy.complex128).ravel().reshape(shape)
+
 def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
         real_ints = False
@@ -327,3 +330,63 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
                 print("# Warning: {} not specified. Setting to default value"
                       " of {}.".format(key, default))
     return val
+
+def read_qmcpack_wfn_hdf(filename):
+    try:
+        with h5py.File(filename) as fh5:
+            wgroup = fh5['Wavefunction/NOMSD']
+            wfn, coeff, psi0 = read_qmcpack_nomsd_hdf5(wgroup)
+    except KeyError:
+        with h5py.File(filename) as fh5:
+            wgroup = fh5['Wavefunction/PHMSD']
+            wfn, coeff, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
+    return wfn, coeff, psi0
+
+def read_qmcpack_nomsd_hdf5(wgroup):
+    dims = wgroup['dims']
+    nmo = dims[0]
+    na = dims[1]
+    nb = dims[2]
+    walker_type = dims[3]
+    if walker_type == 2:
+        uhf = True
+    else:
+        uhf = False
+    nci = dims[4]
+    coeffs = from_qmcpack_complex(wgroup['ci_coeffs'][:], (nci,))
+    psi0a = from_qmcpack_complex(wgroup['Psi0_alpha'][:], (nmo,na))
+    if uhf:
+        psi0b = from_qmcpack_complex(wgroup['Psi0_beta'][:], (nmo,nb))
+    psi0 = numpy.zeros((nmo,na+nb),dtype=numpy.complex128)
+    psi0[:,:na] = psi0a.copy()
+    if uhf:
+        psi0[:,na:] = psi0b.copy()
+    else:
+        psi0[:,na:] = psi0a.copy()
+    wfn = numpy.zeros((nci,nmo,na+nb), dtype=numpy.complex128)
+    for idet in range(nci):
+        ix = 2*idet if uhf else idet
+        pa = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(idet)])
+        wfn[idet,:,:na] = pa
+        if uhf:
+            ix = 2*idet + 1
+            wfn[idet,:,na:] = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(ix)])
+        else:
+            wfn[idet,:,na:] = pa
+    return wfn, coeffs, psi0
+
+def from_qmcpack_sparse(dset):
+    """Will read actually A^{H} but return A.
+    """
+    dims = dset['dims'][:]
+    wfn_shape = (dims[0],dims[1])
+    nnz = dims[2]
+    data = from_qmcpack_complex(dset['data_'][:],(nnz,))
+    indices = dset['jdata_'][:]
+    pbb = dset['pointers_begin_'][:]
+    pbe = dset['pointers_end_'][:]
+    indptr = numpy.zeros(dims[0]+1)
+    indptr[:-1] = pbb
+    indptr[-1] = pbe[-1]
+    wfn = scipy.sparse.csr_matrix((data,indices,indptr),shape=wfn_shape)
+    return wfn.toarray().conj().T.copy()
