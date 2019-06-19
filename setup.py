@@ -1,4 +1,11 @@
 from setuptools import find_packages, setup
+from setuptools.extension import Extension
+from Cython.Build import cythonize
+
+extensions = [
+        Extension("pauxy.estimators.ueg_kernels",
+                  ["pauxy/estimators/ueg_kernels.pyx"])
+        ]
 
 setup(
     name='pauxy',
@@ -10,5 +17,6 @@ setup(
     description='Python Implementations of Auxilliary Field QMC algorithms',
     long_description=open('README.rst').read(),
     requires=['numpy (>=0.19.1)', 'pandas (>=0.20)',
-	      'scipy (>=1.13.3)', 'h5py (>=2.7.1)'],
+	          'scipy (>=1.13.3)', 'h5py (>=2.7.1)'],
+    ext_modules = cythonize(extensions)
 )
