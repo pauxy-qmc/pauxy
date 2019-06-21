@@ -37,12 +37,15 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                  mol.nelec, enuc, threshold=chol_cut,
                  sparse_zero=sparse_zero, orbs=orbs)
 
-def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None):
+def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
     mol = mf.mol
     ecore = mf.energy_nuc()
     hcore = mf.get_hcore()
-    s1e = mf.mol.intor('int1e_ovlp_sph')
-    oao = get_orthoAO(s1e)
+    if ortho_ao:
+        s1e = mf.mol.intor('int1e_ovlp_sph')
+        oao = get_orthoAO(s1e)
+    else:
+        oao = mf.mo_coeff
     h1e, eri = generate_integrals(mol, hcore, oao,
                                   chol_cut=chol_cut,
                                   verbose=verbose,
