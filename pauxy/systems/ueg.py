@@ -413,6 +413,15 @@ class UEG(object):
 
         return (rho_q, iA, iB)
 
+    def hijkl(self,i,j,k,l):
+        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
+        q1 = self.basis[k] - self.basis[i]
+        q2 = self.basis[j] - self.basis[l]
+        if numpy.dot(q1-q2,q1-q2) < 1e-12:
+            return 1.0/self.vol * self.vq(self.kfac*q1)
+        else:
+            return 0.0
+
 def unit_test():
     from scipy.sparse import csr_matrix
     # from openfermion.ops import FermionOperator

@@ -302,3 +302,6 @@ class Generic(object):
             print("# Approximate memory used %f GB"%mem)
             nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
             print("# Sparsity: %f"%(1-float(nnz)/nelem))
+
+    def hijkl(self, i, j, k, l):
+        return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
