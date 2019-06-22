@@ -1,4 +1,27 @@
 import numpy
+import scipy.linalg
+import itertools
+
+def simple_fci(system, dets=False):
+    """Very dumb FCI routine."""
+    orbs = numpy.arange(system.nbasis)
+    oa = [c for c in itertools.combinations(orbs, system.nup)]
+    ob = [c for c in itertools.combinations(orbs, system.ndown)]
+    oa, ob = zip(*itertools.product(oa,ob))
+    # convert to spin orbitals
+    dets = [[2*i for i in c] for c in oa]
+    dets = [alp+[2*i+1 for i in c] for (alp,c) in zip(dets,ob)]
+    dets = [numpy.sort(d) for d in dets]
+    ndets = len(dets)
+    H = numpy.zeros((ndets,ndets))
+    for i in range(ndets):
+        for j in range(i,ndets):
+            H[i,j] = get_hmatel(system, dets[i], dets[j])
+    if dets:
+        return scipy.linalg.eigh(H, lower=False), (dets,oa,ob)
+    else:
+        return scipy.linalg.eigh(H, lower=False)
+
 
 def get_hmatel(system, di, dj):
     i = None
