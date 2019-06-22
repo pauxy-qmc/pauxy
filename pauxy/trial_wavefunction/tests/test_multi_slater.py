@@ -5,7 +5,7 @@ import sys
 from pyscf import gto, ao2mo, scf, fci, tools
 from pauxy.estimators.mixed import variational_energy_multi_det, local_energy
 from pauxy.estimators.greens_function import gab
-from pauxy.estimators.misc import get_hmatel
+from pauxy.estimators.misc import get_hmatel, simple_fci
 from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
 from pauxy.utils.from_pyscf import integrals_from_scf
@@ -92,16 +92,11 @@ class TestMultiSlater(unittest.TestCase):
         system = Generic(nelec=mf.mol.nelec, h1e=h1e,
                          chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=0)
-        eri = ao2mo.kernel(mol, mf.mo_coeff, aosym=1)
-        system.oao = mf.mo_coeff
-        cisolver = fci.direct_spin1.FCI(mol)
-        e_fci, ci_fci = cisolver.kernel(h1e, eri, h1e.shape[1], mol.nelec,
-                                        ecore=mol.energy_nuc())
-        coeff, oa, ob = zip(*fci.addons.large_ci(ci_fci, mf.mo_coeff.shape[0],
-                                                 mol.nelec, tol=0,
-                                                 return_strs=False))
+        (ee, eev), (dets, oa, ob) = simple_fci(system, dets=True)
+        coeff = eev[:,0]
+        # Test rediagonalisation
         options = {'rediag': True}
         trial = MultiSlater(system, (coeff,oa,ob), coeff, verbose=False,
                             options=options)
         trial.calculate_energy(system)
-        self.assertAlmostEqual(trial.energy, e_fci)
+        self.assertAlmostEqual(trial.energy, -14.403655108067667)
