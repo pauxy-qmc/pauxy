@@ -8,6 +8,7 @@ except ImportError:
 import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
+from pauxy.estimators.misc import get_hmatel
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 try:
     from pauxy.estimators.ueg import local_energy_ueg
@@ -476,6 +477,30 @@ def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
             energies += weight * e
             denom += weight
     return tuple(energies/denom)
+
+def variational_energy_ortho_det(system, occs, coeffs):
+    """Compute variational energy for CI-like multi-determinant expansion.
+
+    Parameters
+    ----------
+    system : :class:`pauxy.system` object
+        System object.
+    occs : list of lists
+        list of determinants.
+    coeffs : :class:`numpy.ndarray`
+        Expansion coefficients.
+
+    Returns
+    -------
+    energy : tuple of float / complex
+        Total energies: (etot,e1b,e2b).
+    """
+    evar = 0.0
+    for i, (occi, ci) in enumerate(zip(occs, coeffs)):
+        for j, (occj, cj) in enumerate(zip(occs, coeffs)):
+            evar += ci.conj()*cj*get_hmatel(system, occi, occj)
+    return evar, 0.0, 0.0
+
 
 def variational_energy_single_det(system, psi):
     na = system.nup
