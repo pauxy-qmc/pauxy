@@ -58,7 +58,6 @@ class TestMultiSlater(unittest.TestCase):
                          chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=0)
         eri = ao2mo.kernel(mol, mf.mo_coeff, aosym=1)
-        tools.fcidump.from_scf(mf, 'fcidump')
         system.oao = mf.mo_coeff
         cisolver = fci.direct_spin1.FCI(mol)
         # H_fci = fci.direct_spin1.pspace(h1e, eri, nb, mol.nelec)[1]
@@ -70,9 +69,9 @@ class TestMultiSlater(unittest.TestCase):
                                                  mol.nelec, tol=0,
                                                  return_strs=False))
         # Unpack determinants into spin orbital basis.
-        oa = [[2*x for x in o.tolist()] for o in oa]
-        oa = [a+[2*x+1 for x in o.tolist()] for (a,o) in zip(oa,ob)]
-        dets = [numpy.sort(numpy.array(x)) for x in oa]
+        soa = [[2*x for x in o.tolist()] for o in oa]
+        sob = [a+[2*x+1 for x in o.tolist()] for (a,o) in zip(soa,ob)]
+        dets = [numpy.sort(numpy.array(x)) for x in sob]
         ndets = len(dets)
 
         H = numpy.zeros((ndets,ndets))
@@ -82,3 +81,27 @@ class TestMultiSlater(unittest.TestCase):
                 H[i,j] = hmatel
         e_direct, ev_direct = scipy.linalg.eigh(H,lower=False)
         self.assertAlmostEqual(e_direct[0], e_fci)
+
+    def test_phmsd(self):
+        mol = gto.M(atom=[('Be', 0, 0, 0)], basis='sto-3g', verbose=0)
+        mf = scf.RHF(mol)
+        ehf = mf.kernel()
+        h1e, chol, ecore, oao = integrals_from_scf(mf, verbose=0, chol_cut=1e-5,
+                                                   ortho_ao=False)
+        nb = h1e.shape[0]
+        system = Generic(nelec=mf.mol.nelec, h1e=h1e,
+                         chol=chol.reshape((-1,nb,nb)),
+                         ecore=ecore, verbose=0)
+        eri = ao2mo.kernel(mol, mf.mo_coeff, aosym=1)
+        system.oao = mf.mo_coeff
+        cisolver = fci.direct_spin1.FCI(mol)
+        e_fci, ci_fci = cisolver.kernel(h1e, eri, h1e.shape[1], mol.nelec,
+                                        ecore=mol.energy_nuc())
+        coeff, oa, ob = zip(*fci.addons.large_ci(ci_fci, mf.mo_coeff.shape[0],
+                                                 mol.nelec, tol=0,
+                                                 return_strs=False))
+        options = {'rediag': True}
+        trial = MultiSlater(system, (coeff,oa,ob), coeff, verbose=False,
+                            options=options)
+        trial.calculate_energy(system)
+        self.assertAlmostEqual(trial.energy, e_fci)
