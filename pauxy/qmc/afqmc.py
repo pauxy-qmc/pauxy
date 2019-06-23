@@ -101,7 +101,7 @@ class AFQMC(object):
                                    mf=mf, parallel=parallel, verbose=verbose)
         )
         if self.system.name == "Generic":
-            if self.trial.name != "multi_determinant":
+            if self.trial.name != "MultiSlater":
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
