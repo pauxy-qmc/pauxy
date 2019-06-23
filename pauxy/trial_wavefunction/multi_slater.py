@@ -10,16 +10,15 @@ from pauxy.utils.io import get_input_value
 
 class MultiSlater(object):
 
-    def __init__(self, system, wfn, coeffs, nbasis=None, options={},
+    def __init__(self, system, wfn, nbasis=None, options={},
                  init=None, parallel=False, verbose=False, orbs=None):
         self.verbose = verbose
         if verbose:
-            print ("# Parsing Hartree--Fock trial wavefunction input options.")
+            print ("# Parsing MultiSlater trial wavefunction input options.")
         init_time = time.time()
         self.name = "MultiSlater"
         # TODO : Fix for MSD.
         self.ortho_expansion = False
-        self.ndets = len(coeffs)
         rediag = get_input_value(options, 'recompute_ci',
                                  default=False, alias=['rediag'],
                                  verbose=verbose)
@@ -28,8 +27,9 @@ class MultiSlater(object):
             self.from_phmsd(system, wfn, orbs)
             self.ortho_expansion = True
         else:
-            self.psi = wfn
-            self.coeffs = coeffs
+            self.psi = wfn[1]
+            self.coeffs = wfn[0]
+        self.ndets = len(self.coeffs)
         if rediag:
             if self.verbose:
                 print("# Recomputing CI coefficients.")
@@ -67,8 +67,9 @@ class MultiSlater(object):
             print("# Time to evaluate local energy: %f s"%(time.time()-start))
 
     def from_phmsd(self, system, wfn, orbs):
-        self.psi = numpy.zeros((self.ndets,system.nbasis,system.ne),
-                               dtype=numpy.complex128)
+        ndets = len(wfn[0])
+        self.psi = numpy.zeros((ndets,system.nbasis,system.ne),
+                                dtype=numpy.complex128)
         if self.verbose:
             print("# Creating trial wavefunction from CI-like expansion.")
         if orbs is None:
