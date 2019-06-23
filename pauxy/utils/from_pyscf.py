@@ -360,4 +360,4 @@ def get_pyscf_wfn(system, mf):
     wfn = numpy.zeros((system.nbasis, na+nb), dtype=numpy.complex128)
     wfn[:,:na] = pa
     wfn[:,na:] = pb
-    return (wfn, numpy.array([1.0+0j]))
+    return (numpy.array([1.0+0j]), wfn)

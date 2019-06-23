@@ -5,6 +5,7 @@ from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.trial_wavefunction.multi_determinant import MultiDeterminant
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.utils.from_pyscf import get_pyscf_wfn
+from pauxy.utils.io import read_qmcpack_wfn_hdf
 
 def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=False):
     """Wrapper to select trial wavefunction class.
@@ -25,11 +26,22 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
     trial : class or None
         Trial wavfunction class.
     """
+    wfn_file = options.get('filename', None)
     if mf is not None:
-        wfn, coeffs = get_pyscf_wfn(system, mf)
-        trial = MultiSlater(system, wfn, coeffs,
-                            parallel=parallel, verbose=verbose)
+        if verbose:
+            print("# Creating wavefunction from pyscf mf object.")
+        wfn = get_pyscf_wfn(system, mf)
+        trial = MultiSlater(system, wfn, parallel=parallel, verbose=verbose)
+    elif wfn_file is not None:
+        if verbose:
+            print("# Reading wavefunction from {}.".format(wfn_file))
+        wfn, psi0 = read_qmcpack_wfn_hdf(wfn_file)
+        trial = MultiSlater(system, wfn, options=options,
+                            parallel=parallel, verbose=verbose,
+                            init=psi0)
     elif options['name'] == 'hartree_fock':
+        if verbose:
+            print("# Guessing RHF trial wavefunction.")
         na = system.nup
         nb = system.ndown
         wfn = numpy.zeros((system.nbasis,system.nup+system.ndown),
@@ -38,7 +50,7 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
         I = numpy.identity(system.nbasis, dtype=numpy.complex128)
         wfn[:,:na] = I[:,:na]
         wfn[:,na:] = I[:,:nb]
-        trial = MultiSlater(system, wfn, coeffs, options=options,
+        trial = MultiSlater(system, (coeffs,wfn), options=options,
                             parallel=parallel, verbose=verbose)
     elif options['name'] == 'free_electron':
         trial = FreeElectron(system, True, options, parallel, verbose)
