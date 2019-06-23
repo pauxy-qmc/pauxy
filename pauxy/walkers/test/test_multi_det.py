@@ -11,14 +11,14 @@ from pauxy.walkers.multi_det import MultiDetWalker
 class TestMultiDetWalker(unittest.TestCase):
 
     def test_nomsd_walker(self):
-        system = dotdict({'nup': 5, 'ndown': 5, 'nbasis': 10, 'nelec': (5,5)})
+        system = dotdict({'nup': 5, 'ndown': 5, 'nbasis': 10,
+                          'nelec': (5,5), 'ne': 10})
         numpy.random.seed(7)
         a = numpy.random.rand(3*system.nbasis*(system.nup+system.ndown))
         b = numpy.random.rand(3*system.nbasis*(system.nup+system.ndown))
         wfn = (a + 1j*b).reshape((3,system.nbasis,system.nup+system.ndown))
         coeffs = numpy.array([0.5+0j,0.3+0j,0.1+0j])
-        trial = MultiSlater(system,
-                            wfn, coeffs)
+        trial = MultiSlater(system, (coeffs, wfn))
         walker = MultiDetWalker({}, system, trial)
         def calc_ovlp(a,b):
             return numpy.linalg.det(numpy.dot(a.conj().T, b))
