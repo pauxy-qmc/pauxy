@@ -23,11 +23,14 @@ class MultiDetWalker(object):
     """
 
     def __init__(self, walker_opts, system, trial, index=0,
-                 weights='zeros'):
+                 weights='zeros', verbose=False):
+        if verbose:
+            print("# Setting up MultiDetWalker object.")
         self.weight = walker_opts.get('weight', 1)
         self.alive = 1
         self.phase = 1 + 0j
         self.nup = system.nup
+        self.E_L = 0.0
         self.phi = copy.deepcopy(trial.init)
         self.ndets = trial.psi.shape[0]
         dtype = numpy.complex128
@@ -41,7 +44,14 @@ class MultiDetWalker(object):
             self.weights = numpy.zeros(self.ndets, dtype=dtype)
         else:
             self.weights = numpy.ones(self.ndets, dtype=dtype)
-        self.inverse_overlap(trial)
+        self.ovlps = numpy.zeros(self.ndets, dtype=dtype)
+        # Compute initial overlap. Avoids issues with singular matrices for
+        # PHMSD.
+        self.ot = self.overlap_direct(trial)
+        self.hybrid_energy = 0.0
+        if verbose:
+            print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
+                  .format(self.ot.real))
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = numpy.zeros(shape=(self.ndets, 2, system.nbasis,
                                      system.nbasis), dtype=dtype)
@@ -49,9 +59,7 @@ class MultiDetWalker(object):
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=dtype)
-        self.ovlps = numpy.zeros(self.ndets, dtype=dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        self.ovlp = self.calc_ovlp(trial)
         self.greens_function(trial)
         self.nb = system.nbasis
         self.nup = system.nup
@@ -62,6 +70,18 @@ class MultiDetWalker(object):
         self.phi_init = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
         self.phi_bp = copy.deepcopy(trial.psi)
+
+    def overlap_direct(self, trial):
+        nup = self.nup
+        for (i, det) in enumerate(trial.psi):
+            Oup = numpy.dot(det[:,:nup].conj().T, self.phi[:,:nup])
+            Odn = numpy.dot(det[:,nup:].conj().T, self.phi[:,nup:])
+            self.ovlps[i] = scipy.linalg.det(Oup) * scipy.linalg.det(Odn)
+            if self.ovlps[i] > 1e-16:
+                self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
+                self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
+            self.weights[i] = trial.coeffs[i].conj() * self.ovlps[i]
+        return sum(self.weights)
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
@@ -78,7 +98,7 @@ class MultiDetWalker(object):
             Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
             self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
 
-    def calc_ovlp(self, trial):
+    def calc_otrial(self, trial):
         """Caculate overlap with trial wavefunction.
 
         Parameters
@@ -159,7 +179,17 @@ class MultiDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy_multi_det(system, self.Gi, self.weights, two_rdm)
+        return local_energy_multi_det(system, self.Gi,
+                                      self.weights, two_rdm=None)
+
+    def contract_one_body(self, ints, trial):
+        numer = 0.0
+        denom = 0.0
+        for i, Gi in enumerate(self.Gi):
+            ofac = trial.coeffs[i].conj()*self.ovlps[i]
+            numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
+            denom += ofac
+        return numer / denom
 
     def get_buffer(self):
         """Get walker buffer for MPI communication
