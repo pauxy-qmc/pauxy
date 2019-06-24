@@ -24,8 +24,6 @@ def simple_fci(system, dets=False):
 
 
 def get_hmatel(system, di, dj):
-    i = None
-    a = None
     from_orb = list(set(dj)-set(di))
     to_orb = list(set(di)-set(dj))
     nex = len(from_orb)
@@ -122,3 +120,29 @@ def map_orb(orb):
         s = 1
         ix = (orb-1) // 2
     return ix, s
+
+def get_one_body_matel(ints, di, dj):
+    from_orb = list(set(dj)-set(di))
+    to_orb = list(set(di)-set(dj))
+    nex = len(from_orb)
+    perm = get_perm(from_orb, to_orb, di, dj)
+    matel = 0.0
+    if nex == 0:
+        for i in range(len(di)):
+            ii, spin_ii = map_orb(di[i])
+            matel += ints[ii,ii]
+    elif nex == 1:
+        i, si = map_orb(from_orb[0])
+        a, sa = map_orb(to_orb[0])
+        assert si == sa
+        matel = ints[i,a]
+    else:
+        matel = 0.0
+    if perm:
+        return -matel
+    else:
+        return matel
+
+def slater_condon0_one_body(ints, occs):
+    matel = 0.0
+    return matel
