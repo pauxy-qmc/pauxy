@@ -5,7 +5,7 @@ from pauxy.estimators.mixed import (
         variational_energy, variational_energy_ortho_det
         )
 from pauxy.estimators.greens_function import gab, gab_mod, gab_mod_ovlp
-from pauxy.estimators.misc import get_hmatel
+from pauxy.estimators.ci import get_hmatel, get_one_body_matel
 from pauxy.utils.io import get_input_value
 
 class MultiSlater(object):
@@ -110,3 +110,24 @@ class MultiSlater(object):
                         S[i,j] = ovlp
             e, ev = scipy.linalg.eigh(H, S, lower=False)
         self.coeffs = ev[:,0]
+
+    def contract_one_body(self, ints):
+        numer = 0.0
+        denom = 0.0
+        for i in range(self.ndets):
+            for j in range(self.ndets):
+                cfac = self.coeffs[i].conj()*self.coeffs[j].conj()
+                if self.ortho_expansion:
+                    di = self.spin_occs[i]
+                    dj = self.spin_occs[j]
+                    tij = get_one_body_matel(ints,di,dj)
+                    numer += cfac * tij
+                    denom += cfac
+                else:
+                    ga, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
+                    gb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
+                    ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
+                    tij = numpy.dot(ints.ravel(), ga.ravel()+gb.ravel())
+                    numer += cfac * ovlp * tij
+                    numer += cfac * ovlp
+        return numer / denom
