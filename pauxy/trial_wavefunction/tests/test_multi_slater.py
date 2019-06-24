@@ -5,7 +5,7 @@ import sys
 from pyscf import gto, ao2mo, scf, fci, tools
 from pauxy.estimators.mixed import variational_energy_multi_det, local_energy
 from pauxy.estimators.greens_function import gab
-from pauxy.estimators.misc import get_hmatel, simple_fci
+from pauxy.estimators.ci import get_hmatel, simple_fci
 from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
 from pauxy.utils.from_pyscf import integrals_from_scf
@@ -34,15 +34,15 @@ class TestMultiSlater(unittest.TestCase):
     def test_nomsd(self):
         system = UEG({'nup': 7, 'ndown': 7, 'rs': 5, 'ecut': 4,
                       'thermal': True})
-        wfn, coeffs, psi0 = read_qmcpack_wfn_hdf('wfn.h5')
-        trial = MultiSlater(system, wfn, coeffs, init=psi0)
+        wfn, psi0 = read_qmcpack_wfn_hdf('wfn.h5')
+        trial = MultiSlater(system, wfn, init=psi0)
         trial.calculate_energy(system)
-        ndets = len(coeffs)
+        ndets = trial.ndets
         H = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
         S = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
-        variational_energy_multi_det(system, wfn, coeffs, H=H, S=S)
+        variational_energy_multi_det(system, trial.psi, trial.coeffs, H=H, S=S)
         e, ev = scipy.linalg.eigh(H,S)
-        evar = variational_energy_multi_det(system, wfn, ev[:,0])
+        evar = variational_energy_multi_det(system, trial.psi, ev[:,0])
         self.assertAlmostEqual(e[0],0.15400990069739182)
         self.assertAlmostEqual(e[0],evar[0])
 
@@ -100,3 +100,7 @@ class TestMultiSlater(unittest.TestCase):
                             options=options)
         trial.calculate_energy(system)
         self.assertAlmostEqual(trial.energy, -14.403655108067667)
+        # TODO : Move to simple read / write test.
+        # wfn, psi0 = read_qmcpack_wfn_hdf('wfn.phmsd.h5')
+        # trial = MultiSlater(system, wfn, init=psi0, options={'rediag': True})
+        # trial.calculate_energy(system)
