@@ -82,7 +82,7 @@ class Mixed(object):
                            'EKin', 'EPot', 'EHybrid', 'Overlap', 'time']
         self.nreg = len(self.header[1:])
         self.dtype = dtype
-        self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
+        self.G = numpy.zeros((2,system.nbasis,system.nbasis), dtype)
         dms_size = self.G.size
         self.eshift = 0
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
@@ -386,7 +386,7 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         else:
             return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det(system, Gi, weights):
+def local_energy_multi_det(system, Gi, weights, two_rdm=None):
     weight = 0
     energies = 0
     denom = 0
