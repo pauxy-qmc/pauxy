@@ -32,7 +32,14 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
-        self.mf_shift = self.construct_mean_field_shift(system, trial)
+        if trial.name == "MultiSlater":
+            optimised = False
+            self.mf_shift = (
+                    self.construct_mean_field_shift_multi_det(system, trial)
+                    )
+        else:
+            self.mf_shift = self.construct_mean_field_shift(system, trial)
+
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
@@ -46,12 +53,15 @@ class GenericContinuous(object):
             self.construct_force_bias = self.construct_force_bias_fast
             self.construct_VHS = self.construct_VHS_fast
         else:
-            self.construct_force_bias = self.construct_force_bias_slow
+            if trial.name == "MultiSlater":
+                self.construct_force_bias = self.construct_force_bias_multi_det
+            else:
+                self.construct_force_bias = self.construct_force_bias_slow
             self.construct_VHS = self.construct_VHS_slow
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
         if verbose:
-            print ("# Finished setting up Generic propagator.")
+            print("# Finished setting up Generic propagator.")
 
     def construct_mean_field_shift(self, system, trial):
         if system.sparse:
@@ -61,6 +71,11 @@ class GenericContinuous(object):
             mf_shift = 1j*numpy.einsum('lpq,spq->l',
                                        system.hs_pot,
                                        trial.G)
+        return mf_shift
+
+    def construct_mean_field_shift_multi_det(self, system, trial):
+        mf_shift = [trial.contract_one_body(Vpq) for Vpq in system.hs_pot]
+        mf_shift = 1j*numpy.array(mf_shift)
         return mf_shift
 
     def construct_one_body_propagator(self, system, dt):
@@ -125,6 +140,11 @@ class GenericContinuous(object):
         self.vbias = G[0].ravel() * system.rot_hs_pot[0]
         self.vbias += G[1].ravel() * system.rot_hs_pot[1]
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
+
+    def construct_force_bias_multi_det(self, system, walker, trial):
+        vbias = numpy.array([walker.contract_one_body(Vpq, trial)
+                             for Vpq in system.hs_pot])
+        return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_VHS_slow(self, system, shifted):
         return self.isqrt_dt * numpy.einsum('l,lpq->pq',
