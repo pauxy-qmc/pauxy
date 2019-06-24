@@ -43,14 +43,13 @@ class Walkers(object):
             rank = comm.rank
         if verbose:
             print ("# Setting up wavefunction object.")
-        if trial.name == 'multi_determinant':
+        if trial.name == 'MultiSlater':
             self.walker_type = 'MSD'
-            if trial.type == 'GHF':
-                self.walkers = [MultiGHFWalker(walker_opts, system, trial)
-                                for w in range(qmc.nwalkers)]
-            else:
-                self.walkers = [MultiDetWalker(walker_opts, system, trial)
-                                for w in range(qmc.nwalkers)]
+            self.walkers = [
+                    MultiDetWalker(walker_opts, system, trial,
+                                   verbose=(verbose and w == 0))
+                    for w in range(qmc.nwalkers)
+                    ]
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
