@@ -52,7 +52,8 @@ def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
                                   cas=cas)
     return h1e, eri, ecore, oao
 
-def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False, cas=None):
+def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False,
+                           cas=None, ortho_ao=True):
     (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose)
     h1e, eri = generate_integrals(mol, hcore, oao,
                                   chol_cut=chol_cut,
