@@ -389,7 +389,7 @@ def read_qmcpack_phmsd_hdf5(wgroup):
     coeffs = from_qmcpack_complex(wgroup['ci_coeffs'][:], (nci,))
     occs = wgroup['occs'][:].reshape((nci,na+nb))
     occa = occs[:,:na]
-    occb = occs[:,na:]-nmo
+    occb = occs[:,na:]
     wfn = (coeffs, occa, occb)
     psi0a = from_qmcpack_complex(wgroup['Psi0_alpha'][:], (nmo,na))
     if uhf:
@@ -400,7 +400,7 @@ def read_qmcpack_phmsd_hdf5(wgroup):
         psi0[:,na:] = psi0b.copy()
     else:
         psi0[:,na:] = psi0a.copy()
-    return wfn, psi0 
+    return wfn, psi0
 
 def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
     # User defined wavefunction.
@@ -523,9 +523,9 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     else:
         init = numpy.eye(norb, dtype=numpy.complex128)
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())
-        fh5['Psi0_beta'] = to_qmcpack_complex(init[:,occb[0]-norb].copy())
+        fh5['Psi0_beta'] = to_qmcpack_complex(init[:,occb[0]].copy())
     fh5['fullmo'] = numpy.array([0], dtype=numpy.int32)
-    fh5['type'] = numpy.string_(['occ'])
+    fh5['type'] = numpy.array(['occ'])
     occs = numpy.zeros((len(occa), na+nb), dtype=numpy.int32)
     occs[:,:na] = numpy.array(occa)
     occs[:,na:] = numpy.array(occb)
