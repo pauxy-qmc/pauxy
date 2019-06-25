@@ -119,6 +119,7 @@ class UEG(object):
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         self.orbs = None
+        self._opt = True
 
 
         nlimit = self.nup

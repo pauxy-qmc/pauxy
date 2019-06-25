@@ -508,4 +508,4 @@ def variational_energy_single_det(system, psi):
     gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
     return local_energy(system, numpy.array([ga,gb]),
                         Ghalf=numpy.array([ga_half,gb_half]),
-                        opt=True)
+                        opt=system._opt)

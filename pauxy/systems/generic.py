@@ -84,6 +84,7 @@ class Generic(object):
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
+        self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
         self.mu = inputs.get('mu', None)
         if verbose:
@@ -131,6 +132,7 @@ class Generic(object):
             print("# Time to construct Hubbard--Stratonovich potentials: "
                   "%f s"%(time.time()-start))
         if self.sparse:
+            print("# Using sparse linear algebra.")
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
