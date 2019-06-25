@@ -53,6 +53,7 @@ class Continuous(object):
             if verbose:
                 print("# Using phaseless approximation.")
             self.propagate_walker = self.propagate_walker_phaseless
+        self.verbose = verbose
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply exponential propagator of the HS transformation
@@ -116,9 +117,13 @@ class Continuous(object):
         for i in range(system.nfields):
             if numpy.absolute(xbar[i]) > 1.0:
                 if self.nfb_trig < 1:
-                    print("# Rescaling force bias is triggered: {} {}"
-                          .format(xbar[i], 1.0))
-                    print("# Warning will only be printed once.")
+                    if self.verbose:
+                        pass
+                        # TODO: Fix verbosity setting. We broadcast the qmc
+                        # object.
+                        # print("# Rescaling force bias is triggered: {} {}"
+                              # .format(xbar[i], 1.0))
+                        # print("# Warning will only be printed once.")
                 self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
 
