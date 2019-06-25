@@ -48,6 +48,8 @@ class MultiDetWalker(object):
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
         self.ot = self.overlap_direct(trial)
+        # TODO: fix name.
+        self.ovlp = self.ot
         self.hybrid_energy = 0.0
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
@@ -203,16 +205,17 @@ class MultiDetWalker(object):
             'phi': self.phi,
             'phi_old': self.phi_old,
             'phi_init': self.phi_init,
-            'phi_bp': self.phi_bp,
             'weight': self.weight,
             'phase': self.phase,
             'inv_ovlp': self.inv_ovlp,
             'G': self.G,
+            'Gi': self.Gi,
             'overlap': self.ot,
             'overlaps': self.ovlps,
             'fields': self.field_configs.configs,
             'cfacs': self.field_configs.cos_fac,
             'E_L': self.E_L,
+            'ehyb': self.hybrid_energy,
             'weight_fac': self.field_configs.weight_fac
         }
         return buff
@@ -231,11 +234,13 @@ class MultiDetWalker(object):
         self.phi_bp = numpy.copy(buff['phi_bp'])
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
         self.G = numpy.copy(buff['G'])
+        self.Gi = numpy.copy(buff['Gi'])
         self.weight = buff['weight']
         self.phase = buff['phase']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
         self.ovlps = numpy.copy(buff['overlaps'])
+        self.hybrid_energy = buff['ehyb'],
         self.field_configs.configs = numpy.copy(buff['fields'])
         self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
