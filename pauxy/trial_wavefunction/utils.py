@@ -1,4 +1,5 @@
 import numpy
+import sys
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.trial_wavefunction.uhf  import UHF
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
@@ -39,24 +40,28 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
         trial = MultiSlater(system, wfn, options=options,
                             parallel=parallel, verbose=verbose,
                             init=psi0)
-    elif options['name'] == 'hartree_fock':
+    elif options['name'] == 'MultiSlater':
         if verbose:
             print("# Guessing RHF trial wavefunction.")
         na = system.nup
         nb = system.ndown
-        wfn = numpy.zeros((system.nbasis,system.nup+system.ndown),
+        wfn = numpy.zeros((1,system.nbasis,system.nup+system.ndown),
                           dtype=numpy.complex128)
         coeffs = numpy.array([1.0+0j])
         I = numpy.identity(system.nbasis, dtype=numpy.complex128)
-        wfn[:,:na] = I[:,:na]
-        wfn[:,na:] = I[:,:nb]
+        wfn[0,:,:na] = I[:,:na]
+        wfn[0,:,na:] = I[:,:nb]
         trial = MultiSlater(system, (coeffs,wfn), options=options,
+                            parallel=parallel, verbose=verbose)
+    elif options['name'] == 'hartree_fock':
+        trial = HartreeFock(system, True, options,
                             parallel=parallel, verbose=verbose)
     elif options['name'] == 'free_electron':
         trial = FreeElectron(system, True, options, parallel, verbose)
     elif options['name'] == 'UHF':
         trial = UHF(system, True, options, parallel, verbose)
     else:
-        trial = None
+        trial = print("Unknown trial wavefunction type.")
+        sys.exit()
 
     return trial

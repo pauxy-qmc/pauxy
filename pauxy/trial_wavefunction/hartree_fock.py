@@ -38,8 +38,6 @@ class HartreeFock(object):
                     orbs_matrix = numpy.array([orbs_alpha, orbs_beta])
             except UnicodeDecodeError:
                 orbs_matrix = numpy.load(self.wfn_file)
-        elif system.orbs is not None:
-            orbs_matrix = system.orbs
         else:
             # Assuming we're in the MO basis.
             orbs_matrix = numpy.eye(system.nbasis)
@@ -91,6 +89,7 @@ class HartreeFock(object):
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
         self.initialisation_time = time.time() - init_time
+        self.init = self.psi
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 

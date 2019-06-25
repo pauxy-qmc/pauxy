@@ -18,7 +18,6 @@ class MultiSlater(object):
         init_time = time.time()
         self.name = "MultiSlater"
         # TODO : Fix for MSD.
-        self.ortho_expansion = False
         rediag = get_input_value(options, 'recompute_ci',
                                  default=False, alias=['rediag'],
                                  verbose=verbose)
@@ -29,6 +28,13 @@ class MultiSlater(object):
         else:
             self.psi = wfn[1]
             self.coeffs = wfn[0]
+            self.ortho_expansion = False
+        if self.verbose:
+            if self.ortho_expansion:
+                print("# Assuming orthogonal trial wavefunction expansion.")
+            else:
+                print("# Assuming non-orthogonal trial wavefunction expansion.")
+            print("# Trial wavefunction shape: {}".format(self.psi.shape))
         self.ndets = len(self.coeffs)
         if rediag:
             if self.verbose:
@@ -43,12 +49,13 @@ class MultiSlater(object):
                 self.init = self.psi.copy()
         self.error = False
         self.initialisation_time = time.time() - init_time
+        self._nalpha = system.nup
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
     def calculate_energy(self, system):
         if self.verbose:
-            print ("# Computing trial wavefunction energy.")
+            print("# Computing trial wavefunction energy.")
         start = time.time()
         # Cannot use usual energy evaluation routines if trial is orthogonal.
         if self.ortho_expansion:
@@ -114,6 +121,7 @@ class MultiSlater(object):
     def contract_one_body(self, ints):
         numer = 0.0
         denom = 0.0
+        na = self._nalpha
         for i in range(self.ndets):
             for j in range(self.ndets):
                 cfac = self.coeffs[i].conj()*self.coeffs[j].conj()
@@ -124,10 +132,12 @@ class MultiSlater(object):
                     numer += cfac * tij
                     denom += cfac
                 else:
+                    di = self.psi[i]
+                    dj = self.psi[j]
                     ga, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
                     gb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
                     ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                     tij = numpy.dot(ints.ravel(), ga.ravel()+gb.ravel())
                     numer += cfac * ovlp * tij
-                    numer += cfac * ovlp
+                    denom += cfac * ovlp
         return numer / denom
