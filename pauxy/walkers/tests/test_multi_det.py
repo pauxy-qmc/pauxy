@@ -53,12 +53,13 @@ class TestMultiDetWalker(unittest.TestCase):
             psib = I[:,occb]
             sa = numpy.dot(psia.conj().T, init[:,:system.nup])
             sb = numpy.dot(psib.conj().T, init[:,system.nup:])
-            ga = numpy.dot(init[:,:system.nup], numpy.dot(sa, psia.conj().T)).T
-            gb = numpy.dot(init[:,system.nup:], numpy.dot(sb, psib.conj().T)).T
-            ovlp *= c.conj()*numpy.linalg.det(sa)*numpy.linalg.det(sb)
-            ovlp_sum += ovlp
-            walk_ovlp = numpy.linalg.det(walker.inv_ovlp[0][idet])*numpy.linalg.det(walker.inv_ovlp[1][idet])
-            print(ovlp,walk_ovlp)
+            isa = numpy.linalg.inv(sa)
+            isb = numpy.linalg.inv(sb)
+            ga = numpy.dot(init[:,:system.nup], numpy.dot(isa, psia.conj().T)).T
+            gb = numpy.dot(init[:,system.nup:], numpy.dot(isb, psib.conj().T)).T
+            ovlp = numpy.linalg.det(sa)*numpy.linalg.det(sb)
+            ovlp_sum += c.conj()*ovlp
+            walk_ovlp = walker.ovlps[idet]
             self.assertAlmostEqual(ovlp, walk_ovlp)
             self.assertTrue(numpy.linalg.norm(ga-walker.Gi[idet,0]) < 1e-8)
             self.assertTrue(numpy.linalg.norm(gb-walker.Gi[idet,1]) < 1e-8)

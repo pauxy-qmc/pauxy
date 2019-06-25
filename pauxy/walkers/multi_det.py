@@ -79,7 +79,7 @@ class MultiDetWalker(object):
             Oup = numpy.dot(det[:,:nup].conj().T, self.phi[:,:nup])
             Odn = numpy.dot(det[:,nup:].conj().T, self.phi[:,nup:])
             self.ovlps[i] = scipy.linalg.det(Oup) * scipy.linalg.det(Odn)
-            if self.ovlps[i] > 1e-16:
+            if abs(self.ovlps[i]) > 1e-16:
                 self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
                 self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
             self.weights[i] = trial.coeffs[i].conj() * self.ovlps[i]
@@ -133,7 +133,7 @@ class MultiDetWalker(object):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
                                                   mode='economic')
         Rdown = numpy.zeros(Rup.shape)
-        if (ndown > 0):
+        if ndown > 0:
             (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
                                                         mode='economic')
         signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
