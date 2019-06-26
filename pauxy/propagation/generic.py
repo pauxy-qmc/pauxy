@@ -26,7 +26,7 @@ class GenericContinuous(object):
         If true print out more information during setup.
     """
 
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         optimised = options.get('optimised', True)
         # Derived Attributes
         self.dt = qmc.dt

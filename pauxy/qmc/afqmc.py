@@ -11,7 +11,7 @@ import h5py
 from pauxy.analysis import blocking
 from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
-from pauxy.qmc.utils import get_propagator_driver
+from pauxy.propagation.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
@@ -95,7 +95,8 @@ class AFQMC(object):
         self.qmc = QMCOpts(options.get('qmc', {}), self.system,
                            verbose=self.verbosity>1)
         self.seed = self.qmc.rng_seed
-        self.cplx = self.determine_dtype(options.get('propagator', {}), self.system)
+        self.cplx = self.determine_dtype(options.get('propagator', {}),
+                                         self.system)
         self.trial = (
             get_trial_wavefunction(self.system, options=options.get('trial', {}),
                                    mf=mf, parallel=parallel, verbose=verbose)
@@ -107,9 +108,10 @@ class AFQMC(object):
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
         self.trial.calculate_energy(self.system)
-        self.propagators = get_propagator_driver(options.get('propagator', {}), self.qmc,
-                                                 self.system, self.trial,
-                                                 verbose)
+        prop_opt = options.get('propagator', {})
+        self.propagators = get_propagator_driver(self.system, self.trial,
+                                                 self.qmc, options=prop_opt,
+                                                 verbose=verbose)
         self.tsetup = time.time() - self._init_time
         if not parallel:
             walker_opts = options.get('walkers', {})

@@ -2,13 +2,15 @@ import cmath
 import math
 import numpy
 import sys
-from pauxy.propagation.utils import get_continuous_propagator
 from pauxy.propagation.operations import kinetic_real
+from pauxy.propagation.hubbard import HubbardContinuous
+from pauxy.propagation.planewave import PlaneWave
+from pauxy.propagation.generic import GenericContinuous
 
 class Continuous(object):
     """Propagation with continuous HS transformation.
     """
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print("# Parsing propagator input options.")
         # Input options
@@ -29,8 +31,9 @@ class Continuous(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         # Fix this!
-        self.propagator = get_continuous_propagator(options, qmc, system,
-                                                    trial, verbose)
+        self.propagator = get_continuous_propagator(system, trial, qmc,
+                                                    options=options,
+                                                    verbose=verbose)
 
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
@@ -230,6 +233,42 @@ class Continuous(object):
         else:
             walker.ot = ot_new
             walker.weight = 0.0
+
+def get_continuous_propagator(system, trial, qmc, options={}, verbose=False):
+    """Wrapper to select propagator class.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.QMCOpts` class
+        Trial wavefunction input options.
+    system : class
+        System class.
+    trial : class
+        Trial wavefunction object.
+
+    Returns
+    -------
+    propagator : class or None
+        Propagator object.
+    """
+    if system.name == "UEG":
+        propagator = PlaneWave(system, trial, qmc,
+                               options=options,
+                               verbose=verbose)
+    elif system.name == "Hubbard":
+        propagator = HubbardContinuous(system, trial, qmc,
+                                       options=options,
+                                       verbose=verbose)
+    elif system.name == "Generic":
+        propagator = GenericContinuous(system, trial, qmc,
+                                       options=options,
+                                       verbose=verbose)
+    else:
+        propagator = None
+
+    return propagator
 
 
 def unit_test():

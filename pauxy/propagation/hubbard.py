@@ -26,7 +26,7 @@ class HirschSpin(object):
         If true print out more information during setup.
     """
 
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
 
         if verbose:
             print ("# Parsing discrete propagator input options.")

@@ -1,38 +1,14 @@
 """Routines for performing propagation of a walker"""
 
-from pauxy.propagation.hubbard import HirschSpin, HubbardContinuous
-from pauxy.propagation.planewave import PlaneWave
-from pauxy.propagation.generic import GenericContinuous
+from pauxy.propagation.continuous import Continuous
 
-def get_continuous_propagator(options, qmc, system, trial, verbose=False):
-    """Wrapper to select propagator class.
-
-    Parameters
-    ----------
-    options : dict
-        Propagator input options.
-    qmc : :class:`pauxy.qmc.QMCOpts` class
-        Trial wavefunction input options.
-    system : class
-        System class.
-    trial : class
-        Trial wavefunction object.
-
-    Returns
-    -------
-    propagator : class or None
-        Propagator object.
-    """
-    if system.name == "UEG":
-        propagator = PlaneWave(options, qmc, system, trial, verbose)
-    elif system.name == "Hubbard":
-        propagator = HubbardContinuous(options, qmc, system, trial, verbose)
-    elif system.name == "Generic":
-        propagator = GenericContinuous(options, qmc, system, trial, verbose)
+# TODO: Fix for discrete transformation.
+def get_propagator_driver(system, trial, qmc, options={}, verbose=False):
+    hs = options.get('hubbard_stratonovich', 'continuous')
+    if 'discrete' in hs:
+        return get_discrete_propagator(options, qmc, system, trial, verbose)
     else:
-        propagator = None
-
-    return propagator
+        return Continuous(system, trial, qmc, options=options, verbose=verbose)
 
 def get_discrete_propagator(options, qmc, system, trial, verbose=False):
     """Wrapper to select propagator class.
