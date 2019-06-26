@@ -71,7 +71,7 @@ class MultiDetWalker(object):
         # Historic wavefunction for ITCF.
         self.phi_init = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
-        self.phi_bp = copy.deepcopy(trial.psi)
+        # self.phi_bp = copy.deepcopy(trial.psi)
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -231,7 +231,6 @@ class MultiDetWalker(object):
         self.phi = numpy.copy(buff['phi'])
         self.phi_old = numpy.copy(buff['phi_old'])
         self.phi_init = numpy.copy(buff['phi_init'])
-        self.phi_bp = numpy.copy(buff['phi_bp'])
         self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
         self.G = numpy.copy(buff['G'])
         self.Gi = numpy.copy(buff['Gi'])
@@ -240,7 +239,7 @@ class MultiDetWalker(object):
         self.ot = buff['overlap']
         self.E_L = buff['E_L']
         self.ovlps = numpy.copy(buff['overlaps'])
-        self.hybrid_energy = buff['ehyb'],
+        self.hybrid_energy = buff['ehyb']
         self.field_configs.configs = numpy.copy(buff['fields'])
         self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
         self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
