@@ -36,7 +36,12 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
     elif wfn_file is not None:
         if verbose:
             print("# Reading wavefunction from {}.".format(wfn_file))
-        wfn, psi0 = read_qmcpack_wfn_hdf(wfn_file)
+        read, psi0 = read_qmcpack_wfn_hdf(wfn_file)
+        ndets = options.get('ndets', None)
+        if ndets is not None:
+            wfn = []
+            for x in read:
+                wfn.append(x[:ndets])
         trial = MultiSlater(system, wfn, options=options,
                             parallel=parallel, verbose=verbose,
                             init=psi0)
