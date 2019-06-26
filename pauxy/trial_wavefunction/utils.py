@@ -42,6 +42,8 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
             wfn = []
             for x in read:
                 wfn.append(x[:ndets])
+        else:
+            wfn = read
         trial = MultiSlater(system, wfn, options=options,
                             parallel=parallel, verbose=verbose,
                             init=psi0)
