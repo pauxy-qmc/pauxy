@@ -506,10 +506,12 @@ def variational_energy_ortho_det(system, occs, coeffs):
         Total energies: (etot,e1b,e2b).
     """
     evar = 0.0
+    denom = 0.0
     for i, (occi, ci) in enumerate(zip(occs, coeffs)):
+        denom += ci.conj()*ci
         for j, (occj, cj) in enumerate(zip(occs, coeffs)):
             evar += ci.conj()*cj*get_hmatel(system, occi, occj)
-    return evar, 0.0, 0.0
+    return evar/denom, 0.0, 0.0
 
 
 def variational_energy_single_det(system, psi):
