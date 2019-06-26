@@ -137,7 +137,8 @@ class MultiSlater(object):
                     dj = self.spin_occs[j]
                     tij = get_one_body_matel(ints,di,dj)
                     numer += cfac * tij
-                    denom += cfac
+                    if i == j:
+                        denom += self.coeffs[i].conj()*self.coeffs[i].conj()
                 else:
                     di = self.psi[i]
                     dj = self.psi[j]
