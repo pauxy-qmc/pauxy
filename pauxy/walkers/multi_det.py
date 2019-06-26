@@ -40,6 +40,7 @@ class MultiDetWalker(object):
                                      dtype=dtype),
                          numpy.zeros(shape=(self.ndets, system.ndown, system.ndown),
                                     dtype=dtype)]
+        # TODO: RENAME to something less like weight
         if weights == 'zeros':
             self.weights = numpy.zeros(self.ndets, dtype=dtype)
         else:
@@ -206,6 +207,7 @@ class MultiDetWalker(object):
             'phi_old': self.phi_old,
             'phi_init': self.phi_init,
             'weight': self.weight,
+            'weights': self.weights,
             'phase': self.phase,
             'inv_ovlp': self.inv_ovlp,
             'G': self.G,
@@ -235,6 +237,7 @@ class MultiDetWalker(object):
         self.G = numpy.copy(buff['G'])
         self.Gi = numpy.copy(buff['Gi'])
         self.weight = buff['weight']
+        self.weights = numpy.copy(buff['weights'])
         self.phase = buff['phase']
         self.ot = buff['overlap']
         self.E_L = buff['E_L']

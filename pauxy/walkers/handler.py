@@ -152,10 +152,6 @@ class Walkers(object):
         Parameters
         ----------
         comm : MPI communicator
-        iproc : int
-            Current processor index
-        nprocs : int
-            Total number of mpi processors
         """
         # Need make a copy to since the elements in psi are only references to
         # walker objects in memory. We don't want future changes in a given
@@ -177,7 +173,6 @@ class Walkers(object):
             total_weight = sum(global_weights)
             cprobs = numpy.cumsum(global_weights)
             ntarget = self.nw * comm.size
-
             r = numpy.random.random()
             comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
             iw = 0
@@ -192,42 +187,44 @@ class Walkers(object):
             total_weight = None
 
         comm.Bcast(parent_ix, root=0)
+        # Keep total weight saved for capping purposes.
         total_weight = comm.bcast(total_weight, root=0)
         self.set_total_weight(total_weight)
-        # Copy back new information
-        send = []
-        recv = []
-        for (i, w) in enumerate(parent_ix):
-            # processor index of killed walker
-            if w == 0:
-                recv.append([i//self.nw, i%self.nw])
-            elif w > 1:
-                for ns in range(0, w-1):
-                    send.append([i//self.nw, i%self.nw])
-        # Send / Receive walkers.
+        # where returns a tuple (array,), selecting first element.
+        kill = numpy.where(parent_ix == 0)[0]
+        clone = numpy.where(parent_ix > 1)[0]
         reqs = []
-        reqr = []
         walker_buffers = []
-        for i, (s,r) in enumerate(zip(send, recv)):
-            # don't want to access buffer during non-blocking send.
-            if (comm.rank == s[0]):
-                # Sending duplicated walker
-                walker_buffers.append(self.walkers[s[1]].get_buffer())
+        # First initiate non-blocking sends of walkers.
+        for i, (c, k) in enumerate(zip(clone, kill)):
+            # Sending from current processor?
+            if c // self.nw == comm.rank:
+                # Location of walker to clone in local list.
+                clone_pos = c % self.nw
+                # copying walker data to intermediate buffer to avoid issues
+                # with accessing walker data during send. Might not be
+                # necessary.
+                walker_buffers.append(self.walkers[clone_pos].__dict__)
+                dest_proc = k // self.nw
                 reqs.append(comm.isend(walker_buffers[-1],
-                            dest=r[0], tag=i))
-        for i, (s,r) in enumerate(zip(send, recv)):
-            if isinstance(comm, FakeComm):
-                # no mpi4py
-                walker_buffer = walker_buffers[i]
-                self.walkers[r[1]].set_buffer(walker_buffer)
-            else:
-                if (comm.rank == r[0]):
-                    walker_buffer = comm.recv(source=s[0], tag=i)
-                    self.walkers[r[1]].set_buffer(walker_buffer)
+                            dest=dest_proc, tag=i))
+        # Now receive walkers on processors where walkers are to be killed.
+        for i, (c, k) in enumerate(zip(clone, kill)):
+            # Receiving to current processor?
+            if k // self.nw == comm.rank:
+                # Processor we are receiving from.
+                source_proc = c // self.nw
+                # Location of walker to kill in local list of walkers.
+                kill_pos = k % self.nw
+                walker_buffer = comm.recv(source=source_proc, tag=i)
+                self.walkers[kill_pos].__dict__ = walker_buffer
+        # Complete non-blocking send.
         for rs in reqs:
             rs.wait()
+        # Necessary?
         comm.Barrier()
         # Reset walker weight.
+        # TODO: check this.
         for w in self.walkers:
             w.weight = 1.0
 
