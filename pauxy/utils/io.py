@@ -3,6 +3,7 @@ import h5py
 import json
 import numpy
 import scipy.sparse
+import sys
 from pauxy.utils.misc import serialise
 from pauxy.utils.linalg import (
         molecular_orbitals_rhf, molecular_orbitals_uhf,
@@ -76,11 +77,14 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     dump['Hamiltonian/hcore'] = hcore
     # dump['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
     # Number of non zero elements for two-body
+    assert len(h2.shape) == 3
+    h2 = h2.reshape((-1,nmo*nmo)).T.copy()
+    h2 = scipy.sparse.csr_matrix(h2)
     nnz = h2.nnz
     # number of cholesky vectors
     nchol_vecs = h2.shape[-1]
     dump['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
-    (h2_unpacked, idx) = to_qmcpack_index(scipy.sparse.csr_matrix(h2))
+    (h2_unpacked, idx) = to_qmcpack_index(h2)
     dump['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
     dump['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
     # Number of integral blocks used for chunked HDF5 storage.
@@ -433,7 +437,6 @@ def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
         try:
             wfn_group = fh5.create_group('Wavefunction/NOMSD')
         except ValueError:
-            print(" # Warning: Found existing wavefunction group. Removing.")
             del fh5['Wavefunction/NOMSD']
             wfn_group = fh5.create_group('Wavefunction/NOMSD')
         write_nomsd(wfn_group, wfn, uhf, nelec, init=init)
@@ -441,7 +444,7 @@ def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
         try:
             wfn_group = fh5.create_group('Wavefunction/PHMSD')
         except ValueError:
-            print(" # Warning: Found existing wavefunction group. Removing.")
+            # print(" # Warning: Found existing wavefunction group. Removing.")
             del fh5['Wavefunction/PHMSD']
             wfn_group = fh5.create_group('Wavefunction/PHMSD')
         write_phmsd(wfn_group, occa, occb, nelec, norb, init=init)
@@ -518,8 +521,8 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     # TODO: Update if we ever wanted "mixed" phmsd type wavefunctions.
     na, nb = nelec
     if init is not None:
-        fh5['Psi0_alpha'] = init[0]
-        fh5['Psi0_beta'] = init[1]
+        fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
+        fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
     else:
         init = numpy.eye(norb, dtype=numpy.complex128)
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())
