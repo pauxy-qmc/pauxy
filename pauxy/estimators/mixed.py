@@ -250,9 +250,10 @@ class Mixed(object):
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
         gs = self.global_estimates
-        gs[ns.eproj] = gs[ns.enumer]
-        gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
-        if self.thermal:
+        if comm.rank == 0:
+            gs[ns.eproj] = gs[ns.enumer]
+            gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
+        if self.thermal and comm.rank == 0:
             if not free_projection:
                 gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
         eshift = gs[ns.ehyb]
