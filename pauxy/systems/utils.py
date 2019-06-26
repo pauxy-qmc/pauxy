@@ -45,7 +45,7 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
     elif sys_opts['name'] == 'Hubbard':
         system = Hubbard(sys_opts, verbose)
     elif sys_opts['name'] == 'Generic':
-        system = Generic(sys_opts, verbose)
+        system = Generic(inputs=sys_opts, verbose=verbose)
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:
