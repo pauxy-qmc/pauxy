@@ -6,7 +6,10 @@ import scipy.linalg
 import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
-from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.utils.io import (
+        from_qmcpack_cholesky,
+        dump_qmcpack_cholesky
+        )
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
         local_energy_generic_cholesky, core_contribution_cholesky
@@ -102,7 +105,7 @@ class Generic(object):
                     print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol = False
         else:
-            h1e, self.chol_vecs, ecore = self.read_integrals()
+            h1e, self.chol_vecs, self.ecore = self.read_integrals()
         self.H1 = numpy.array([h1e,h1e])
         self.nbasis = h1e.shape[0]
         mem = self.chol_vecs.nbytes / (1024.0**3)
@@ -147,7 +150,7 @@ class Generic(object):
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
-        chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
+        chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
         return h1e, chol_vecs, ecore
 
     def construct_h1e_mod(self):
@@ -307,3 +310,8 @@ class Generic(object):
 
     def hijkl(self, i, j, k, l):
         return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
+
+    def write_integrals(self, filename='hamil.h5'):
+        dump_qmcpack_cholesky(self.H1, self.chol_vecs,
+                              self.nelec, self.nbasis,
+                              e0=self.ecore, filename=filename)
