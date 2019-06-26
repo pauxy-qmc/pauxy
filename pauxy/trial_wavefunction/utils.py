@@ -61,7 +61,7 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
     elif options['name'] == 'UHF':
         trial = UHF(system, True, options, parallel, verbose)
     else:
-        trial = print("Unknown trial wavefunction type.")
+        print("Unknown trial wavefunction type.")
         sys.exit()
 
     return trial
