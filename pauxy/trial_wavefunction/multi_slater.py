@@ -6,7 +6,10 @@ from pauxy.estimators.mixed import (
         )
 from pauxy.estimators.greens_function import gab, gab_mod, gab_mod_ovlp
 from pauxy.estimators.ci import get_hmatel, get_one_body_matel
-from pauxy.utils.io import get_input_value
+from pauxy.utils.io import (
+        get_input_value,
+        write_qmcpack_wfn
+        )
 
 class MultiSlater(object):
 
@@ -27,7 +30,7 @@ class MultiSlater(object):
             self.ortho_expansion = True
         else:
             self.psi = wfn[1]
-            self.coeffs = wfn[0]
+            self.coeffs = numpy.array(wfn[0], dtype=numpy.complex128)
             self.ortho_expansion = False
         if self.verbose:
             if self.ortho_expansion:
@@ -50,6 +53,8 @@ class MultiSlater(object):
         self.error = False
         self.initialisation_time = time.time() - init_time
         self._nalpha = system.nup
+        self._nelec = system.nelec
+        self._nbasis = system.nbasis
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
@@ -89,7 +94,9 @@ class MultiSlater(object):
         soa = [[2*x for x in w] for w in wfn[1]]
         spocc = [alp+[2*x+1 for x in w] for (alp,w) in zip(soa,wfn[2])]
         self.spin_occs = [numpy.sort(numpy.array(x)) for x in spocc]
-        self.coeffs = wfn[0]
+        self.occa = wfn[1]
+        self.occb = wfn[2]
+        self.coeffs = numpy.array(wfn[0], dtype=numpy.complex128)
         for idet, (occa, occb) in enumerate(zip(wfn[1], wfn[2])):
             self.psi[idet,:,:system.nup] = I[:,occa]
             self.psi[idet,:,system.nup:] = I[:,occb]
@@ -116,7 +123,7 @@ class MultiSlater(object):
                         H[i,j] = ovlp * local_energy(system, G, opt=False)[0]
                         S[i,j] = ovlp
             e, ev = scipy.linalg.eigh(H, S, lower=False)
-        self.coeffs = ev[:,0]
+        self.coeffs = numpy.array(ev[:,0], dtype=numpy.complex128)
 
     def contract_one_body(self, ints):
         numer = 0.0
@@ -141,3 +148,11 @@ class MultiSlater(object):
                     numer += cfac * ovlp * tij
                     denom += cfac * ovlp
         return numer / denom
+
+    def write_wavefunction(self, filename='wfn.h5', init=None, occs=False):
+        if occs:
+            wfn = (self.coeffs, self.occa, self.occb)
+        else:
+            wfn = (self.coeffs, self.psi)
+        write_qmcpack_wfn(filename, wfn, 'uhf', self._nelec, self._nbasis,
+                          init=init)
