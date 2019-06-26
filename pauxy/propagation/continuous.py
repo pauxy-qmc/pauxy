@@ -171,6 +171,14 @@ class Continuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
+    def apply_bound(self, ehyb, eshift):
+        if ehyb.real > eshift.real + self.ebound:
+            ehyb = eshift.real+self.ebound+1j*ehyb.imag
+            self.nhe_trig += 1
+        elif ehyb.real < eshift.real - self.ebound:
+            ehyb = eshift.real-self.ebound+1j*ehyb.imag
+            self.nhe_trig += 1
+
     def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
         Parameters
@@ -195,18 +203,9 @@ class Continuous(object):
         walker.inverse_overlap(trial)
         walker.greens_function(trial)
         ot_new = walker.calc_otrial(trial)
-        # Might want to cap this at some point
         ovlp_ratio = ot_new / walker.ot
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
-        trig = False
-        if hybrid_energy.real > eshift.real + self.ebound:
-            hybrid_energy = eshift.real+self.ebound+1j*hybrid_energy.imag
-            self.nhe_trig += 1
-            trig = True
-        elif hybrid_energy.real < eshift.real - self.ebound:
-            hybrid_energy = eshift.real-self.ebound+1j*hybrid_energy.imag
-            self.nhe_trig += 1
-            trig = True
+        self.apply_bound(hybrid_energy, eshift)
         walker.hybrid_energy = hybrid_energy
         importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift.real))
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
@@ -224,7 +223,10 @@ class Continuous(object):
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
-            walker.field_configs.update(xmxbar, wfac)
+            try:
+                walker.field_configs.update(xmxbar, wfac)
+            except AttributeError:
+                pass
         else:
             walker.ot = ot_new
             walker.weight = 0.0
