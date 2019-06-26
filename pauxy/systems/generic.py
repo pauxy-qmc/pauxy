@@ -135,7 +135,8 @@ class Generic(object):
             print("# Time to construct Hubbard--Stratonovich potentials: "
                   "%f s"%(time.time()-start))
         if self.sparse:
-            print("# Using sparse linear algebra.")
+            if verbose:
+                print("# Using sparse linear algebra.")
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
