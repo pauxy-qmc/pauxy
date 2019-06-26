@@ -247,34 +247,30 @@ class Mixed(object):
         """
         es = self.estimates
         ns = self.names
-        denom = es[ns.edenom]*nprocs / nmeasure
-        es[ns.eproj] = es[ns.enumer] / denom
-        if self.thermal:
-            if free_projection:
-                es[ns.nav] = es[ns.nav]
-            else:
-                es[ns.nav] = es[ns.nav] / denom
-        es[ns.ekin:ns.ovlp+1] /= denom
-        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
-        eshift = self.global_estimates[ns.ehyb]
+        gs = self.global_estimates
+        gs[ns.eproj] = gs[ns.enumer]
+        gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
+        if self.thermal:
+            if not free_projection:
+                gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
+        eshift = gs[ns.ehyb]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift
         if comm.rank == 0:
             if self.verbose:
-                print (format_fixed_width_floats([step]+
-                   list(self.global_estimates[:ns.time+1].real/nmeasure)))
-            self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
+                print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
+            self.output.push(gs[:ns.time+1])
             if self.calc_one_rdm:
                 start = self.nreg
                 end = self.nreg+self.G.size
-                rdm = self.global_estimates[start:end].reshape(self.G.shape)
-                self.one_rdm_output.push(rdm/denom/nmeasure)
+                rdm = gs[start:end].reshape(self.G.shape)
+                self.one_rdm_output.push(rdm/gs[ns.weight])
             if self.calc_two_rdm:
                 start = self.nreg + self.G.size
-                rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
-                self.two_rdm_output.push(rdm/denom/nmeasure)
+                rdm = gs[start:].reshape(self.two_rdm.shape)
+                self.two_rdm_output.push(rdm/gs[ns.weight])
         self.zero()
 
     def print_key(self, eol='', encode=False):
