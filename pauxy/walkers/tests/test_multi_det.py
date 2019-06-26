@@ -5,8 +5,15 @@ import unittest
 from pyscf import gto, ao2mo, scf
 from pauxy.systems.generic import Generic
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
+from pauxy.estimators.ci import simple_fci
+from pauxy.estimators.mixed import local_energy
 from pauxy.utils.from_pyscf import integrals_from_scf, integrals_from_chkfile
 from pauxy.utils.misc import dotdict
+from pauxy.utils.linalg import reortho
+from pauxy.utils.testing import (
+        get_random_generic,
+        get_random_wavefunction
+        )
 from pauxy.walkers.multi_det import MultiDetWalker
 
 class TestMultiDetWalker(unittest.TestCase):
@@ -64,3 +71,31 @@ class TestMultiDetWalker(unittest.TestCase):
             self.assertTrue(numpy.linalg.norm(ga-walker.Gi[idet,0]) < 1e-8)
             self.assertTrue(numpy.linalg.norm(gb-walker.Gi[idet,1]) < 1e-8)
         self.assertAlmostEqual(ovlp_sum, walker.ovlp)
+
+    def test_walker_energy(self):
+        numpy.random.seed(7)
+        system = get_random_generic(5,(2,2))
+        (e0, ev), (d,oa,ob) = simple_fci(system, dets=True)
+        na = system.nup
+        init = get_random_wavefunction((2,2), 5)
+        init[:,:na], R = reortho(init[:,:na])
+        init[:,na:], R = reortho(init[:,na:])
+        trial = MultiSlater(system, (ev[:,0],oa,ob), init=init)
+        trial.calculate_energy(system)
+        walker = MultiDetWalker({}, system, trial)
+        nume = 0
+        deno = 0
+        for i in range(trial.ndets):
+            psia = trial.psi[i,:,:na]
+            psib = trial.psi[i,:,na:]
+            oa = numpy.dot(psia.conj().T, init[:,:na])
+            ob = numpy.dot(psib.conj().T, init[:,na:])
+            isa = numpy.linalg.inv(oa)
+            isb = numpy.linalg.inv(ob)
+            ovlp = numpy.linalg.det(oa)*numpy.linalg.det(ob)
+            ga = numpy.dot(init[:,:system.nup], numpy.dot(isa, psia.conj().T)).T
+            gb = numpy.dot(init[:,system.nup:], numpy.dot(isb, psib.conj().T)).T
+            e = local_energy(system, numpy.array([ga,gb]), opt=False)[0]
+            nume += trial.coeffs[i].conj()*ovlp*e
+            deno += trial.coeffs[i].conj()*ovlp
+        print(nume/deno,nume,deno,e0[0])

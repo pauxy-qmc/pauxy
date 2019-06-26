@@ -9,8 +9,13 @@ from pauxy.estimators.ci import get_hmatel, simple_fci
 from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
 from pauxy.utils.from_pyscf import integrals_from_scf
-from pauxy.utils.io import read_qmcpack_wfn_hdf
+from pauxy.utils.io import (
+        read_qmcpack_wfn_hdf,
+        write_qmcpack_wfn,
+        dump_qmcpack_cholesky
+        )
 from pauxy.utils.misc import dotdict
+from pauxy.utils.testing import get_random_wavefunction
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 
@@ -86,20 +91,47 @@ class TestMultiSlater(unittest.TestCase):
         mol = gto.M(atom=[('Be', 0, 0, 0)], basis='sto-3g', verbose=0)
         mf = scf.RHF(mol)
         ehf = mf.kernel()
-        h1e, chol, ecore, oao = integrals_from_scf(mf, verbose=0, chol_cut=1e-5,
+        h1e, chol, ecore, oao = integrals_from_scf(mf, verbose=0, chol_cut=1e-8,
                                                    ortho_ao=False)
         nb = h1e.shape[0]
         system = Generic(nelec=mf.mol.nelec, h1e=h1e,
                          chol=chol.reshape((-1,nb,nb)),
                          ecore=ecore, verbose=0)
         (ee, eev), (dets, oa, ob) = simple_fci(system, dets=True)
-        coeff = eev[:,0]
+        coeff = numpy.array(eev[:,0], dtype=numpy.complex128)
         # Test rediagonalisation
         options = {'rediag': True}
-        trial = MultiSlater(system, (coeff,oa,ob), coeff, verbose=False,
+        wfn = (coeff,oa,ob)
+        trial = MultiSlater(system,  wfn, verbose=False,
                             options=options)
         trial.calculate_energy(system)
         self.assertAlmostEqual(trial.energy, -14.403655108067667)
+        numpy.random.seed(7)
+        init = get_random_wavefunction(system.nelec, system.nbasis)
+        na = system.nup
+        write_qmcpack_wfn('wfn.phmsd.h5', wfn, 'uhf', system.nelec,
+                          system.nbasis, init=[init[:,:na].copy(),
+                              init[:,na:].copy()])
+        write_qmcpack_wfn('wfn.nomsd.h5', (trial.coeffs, trial.psi), 'uhf', system.nelec,
+                          system.nbasis, init=[init[:,:na].copy(),
+                              init[:,na:].copy()])
+        system.write_integrals()
+        nume = 0
+        deno = 0
+        for i in range(trial.ndets):
+            psia = trial.psi[i,:,:na]
+            psib = trial.psi[i,:,na:]
+            oa = numpy.dot(psia.conj().T, init[:,:na])
+            ob = numpy.dot(psib.conj().T, init[:,na:])
+            isa = numpy.linalg.inv(oa)
+            isb = numpy.linalg.inv(ob)
+            ovlp = numpy.linalg.det(oa)*numpy.linalg.det(ob)
+            ga = numpy.dot(init[:,:system.nup], numpy.dot(isa, psia.conj().T)).T
+            gb = numpy.dot(init[:,system.nup:], numpy.dot(isb, psib.conj().T)).T
+            e = local_energy(system, numpy.array([ga,gb]), opt=False)[0]
+            nume += trial.coeffs[i].conj()*ovlp*e
+            deno += trial.coeffs[i].conj()*ovlp
+        print(nume/deno,nume,deno)
         # TODO : Move to simple read / write test.
         # wfn, psi0 = read_qmcpack_wfn_hdf('wfn.phmsd.h5')
         # trial = MultiSlater(system, wfn, init=psi0, options={'rediag': True})
