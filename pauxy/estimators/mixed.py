@@ -22,6 +22,7 @@ from pauxy.estimators.generic import (
     local_energy_generic_cholesky
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
+from pauxy.utils.misc import dotdict
 
 
 class Mixed(object):
@@ -74,12 +75,11 @@ class Mixed(object):
         self.calc_two_rdm = mixed.get('two_rdm', None)
         self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
+        self.header = ['Iteration', 'Weight', 'ENumer', 'EDenom', 'ETotal',
+                       'E1Body', 'E2Body', 'EHybrid', 'Overlap']
         if self.thermal:
-            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'Nav', 'time']
-        else:
-            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'EHybrid', 'Overlap', 'time']
+            self.header.append('Nav')
+        self.header.append('Time')
         self.nreg = len(self.header[1:])
         self.dtype = dtype
         self.G = numpy.zeros((2,system.nbasis,system.nbasis), dtype)
@@ -96,20 +96,22 @@ class Mixed(object):
         else:
             self.two_rdm = None
         self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
-        self.names = EstimatorEnum(self.thermal)
+        self.names = get_estimator_enum(self.thermal)
         self.estimates[self.names.time] = time.time()
         self.global_estimates = numpy.zeros(self.nreg+dms_size,
                                             dtype=dtype)
         self.key = {
-            'iteration': "Simulation iteration. iteration*dt = tau.",
+            'Iteration': "Simulation iteration. iteration*dt = tau.",
             'Weight': "Total walker weight.",
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
-            'E': "Projected energy estimator.",
-            'EKin': "Mixed kinetic energy estimator.",
-            'EPot': "Mixed potential energy estimator.",
+            'ETotal': "Projected energy estimator.",
+            'E1Body': "Mixed one-body energy estimator.",
+            'E2Body': "Mixed two-body energy estimator.",
+            'EHybrid': "Hybrid energy.",
+            'Overlap': "Walker average overlap.",
             'Nav': "Average number of electrons.",
-            'time': "Time per processor to complete one iteration.",
+            'Time': "Time per processor to complete one iteration.",
         }
         if root:
             energies = h5f.create_group('mixed_estimates')
@@ -160,7 +162,7 @@ class Mixed(object):
                 # For T > 0 w.ot = 1 always.
                 wfac = w.weight * w.ot * w.phase
                 self.estimates[self.names.enumer] += wfac * E
-                self.estimates[self.names.ekin:self.names.epot+1] += (
+                self.estimates[self.names.e1b:self.names.e2b+1] += (
                         wfac * numpy.array([T,V])
                 )
                 if self.thermal:
@@ -191,7 +193,7 @@ class Mixed(object):
                             nav += particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav / w.stack_length
                         self.estimates[self.names.enumer] += w.weight*E_sum.real/w.stack_length
-                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                        self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*numpy.array([T_sum,V_sum]).real/w.stack_length
                         )
                     else:
@@ -200,7 +202,7 @@ class Mixed(object):
                         nav = particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav
                         self.estimates[self.names.enumer] += w.weight*E.real
-                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                        self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*numpy.array([T,V]).real
                         )
                 else:
@@ -210,7 +212,7 @@ class Mixed(object):
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += w.weight*E.real
-                    self.estimates[self.names.ekin:self.names.epot+1] += (
+                    self.estimates[self.names.e1b:self.names.e2b+1] += (
                             w.weight*numpy.array([T,V]).real
                     )
                 self.estimates[self.names.weight] += w.weight
@@ -396,6 +398,18 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None):
         denom += w
     return tuple(energies/denom)
 
+def get_estimator_enum(thermal=False):
+    keys = ['weight', 'enumer', 'edenom',
+            'eproj', 'e1b', 'e2b', 'ehyb',
+            'ovlp']
+    if thermal:
+        keys.append('nav')
+    keys.append('time')
+    enum = {}
+    for v, k in enumerate(keys):
+        enum[k] = v
+    return dotdict(enum)
+
 class EstimatorEnum(object):
     """Enum structure for help with indexing Mixed estimators.
 
@@ -407,8 +421,8 @@ class EstimatorEnum(object):
         self.enumer = 1
         self.edenom = 2
         self.eproj = 3
-        self.ekin = 4
-        self.epot = 5
+        self.e1b = 4
+        self.e2b = 5
         self.ehyb = 6
         self.ovlp = 7
         if thermal:
