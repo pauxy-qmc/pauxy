@@ -22,8 +22,8 @@ def average_single(frame, delete=True):
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    delcol = ['E_num', 'E_num_error', 'E_denom',
-              'E_denom_error', 'Weight', 'Weight_error']
+    delcol = ['ENumer', 'ENumer_error', 'EDenom',
+              'EDenom_error', 'Weight', 'Weight_error']
     for d in delcol:
         if delete:
             columns.remove(d)
@@ -35,7 +35,7 @@ def average_ratio(numerator, denominator):
     re_den = denominator.real
     im_num = numerator.imag
     im_den = denominator.imag
-    # When doing FP we need to compute E = \bar{E_num} / \bar{E_denom}
+    # When doing FP we need to compute E = \bar{ENumer} / \bar{EDenom}
     # Only compute real part of the energy
     num_av = (re_num.mean()*re_den.mean()+im_num.mean()*im_den.mean())
     den_av = (re_den.mean()**2 + im_den.mean()**2)
@@ -57,11 +57,11 @@ def average_fp(frame):
     real = average_single(frame.apply(numpy.real), False)
     imag = average_single(frame.apply(numpy.imag), False)
     results = pd.DataFrame()
-    re_num = real.E_num
-    re_den = real.E_denom
-    im_num = imag.E_num
-    im_den = imag.E_denom
-    # When doing FP we need to compute E = \bar{E_num} / \bar{E_denom}
+    re_num = real.ENumer
+    re_den = real.EDenom
+    im_num = imag.ENumer
+    im_den = imag.EDenom
+    # When doing FP we need to compute E = \bar{ENumer} / \bar{EDenom}
     # Only compute real part of the energy
     results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
     # Doing error analysis properly is complicated. This is not correct.
@@ -69,7 +69,7 @@ def average_fp(frame):
     re_dene = real.E_denom_error
     # Ignoring the fact that the mean includes complex components.
     cov = frame.apply(numpy.real).cov()
-    cov_nd = cov['E_num']['E_denom']
+    cov_nd = cov['ENumer']['EDenom']
     nsmpl = len(frame)
     results['E_error'] = results.E * ((re_nume/re_num)**2 +
                                       (re_dene/re_den)**2 -
@@ -78,7 +78,7 @@ def average_fp(frame):
 
 
 def reblock_mixed(frame):
-    short = frame.drop(['time', 'E_denom', 'E_num', 'Weight'], axis=1)
+    short = frame.drop(['Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
     analysed = []
     (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
     reblocked = pd.DataFrame()
@@ -96,25 +96,25 @@ def reblock_mixed(frame):
 
 
 def reblock_free_projection(frame):
-    short = frame.drop(['time', 'Weight', 'E'], axis=1)
+    short = frame.drop(['Time', 'Weight', 'ETotal'], axis=1)
     analysed = []
     (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
     reblocked = pd.DataFrame()
-    denom = blocked_data.loc[:,'E_denom']
+    denom = blocked_data.loc[:,'EDenom']
     for c in short.columns:
-        if c != 'E_denom':
+        if c != 'EDenom':
             nume = blocked_data.loc[:,c]
-            cov = covariance.xs('E_denom', level=1)[c]
+            cov = covariance.xs('EDenom', level=1)[c]
             ratio = pyblock.error.ratio(nume, denom, cov, data_len)
             rb = pyblock.pd_utils.reblock_summary(ratio)
             try:
-                if c == 'E_num':
-                    c = 'E'
+                if c == 'ENumer':
+                    c = 'ETotal'
                 reblocked[c] = rb['mean'].values
                 reblocked[c+'_error'] = rb['standard error'].values
             except KeyError:
-                print ("Reblocking of {:4} failed. Insufficient "
-                        "statistics.".format(c))
+                print("Reblocking of {:4} failed. Insufficient "
+                      "statistics.".format(c))
     analysed.append(reblocked)
 
     if len(analysed) == 0:
@@ -130,8 +130,8 @@ def reblock_local_energy(filename, skip=0):
         return None
     else:
         try:
-            energy = results['E'].values[0]
-            error = results['E_error'].values[0]
+            energy = results['ETotal'].values[0]
+            error = results['ETotal_error'].values[0]
             return (energy, error)
         except KeyError:
             return None
@@ -182,21 +182,21 @@ def average_tau(frames):
     data_len = frames.size()
     means = frames.mean()
     err = numpy.sqrt(frames.var())
-    covs = frames.cov().loc[:,'E_num'].loc[:, 'E_denom']
-    energy = means['E_num'] / means['E_denom']
+    covs = frames.cov().loc[:,'ENumer'].loc[:, 'EDenom']
+    energy = means['ENumer'] / means['EDenom']
     sqrtn = numpy.sqrt(data_len)
-    energy_err = ((err['E_num']/means['E_num'])**2.0 +
-                  (err['E_denom']/means['E_denom'])**2.0 -
-                  2*covs/(means['E_num']*means['E_denom']))**0.5
+    energy_err = ((err['ENumer']/means['ENumer'])**2.0 +
+                  (err['EDenom']/means['EDenom'])**2.0 -
+                  2*covs/(means['ENumer']*means['EDenom']))**0.5
 
     energy_err = abs(energy/sqrtn) * energy_err
-    eproj = means['E']
-    eproj_err = err['E']/numpy.sqrt(data_len)
+    eproj = means['ETotal']
+    eproj_err = err['ETotal']/numpy.sqrt(data_len)
     weight = means['Weight']
     weight_error = err['Weight']
-    numerator = means['E_num']
-    numerator_error = err['E_num']
-    results = pd.DataFrame({'E': energy, 'E_error': energy_err,
+    numerator = means['ENumer']
+    numerator_error = err['ENumer']
+    results = pd.DataFrame({'ETotal': energy, 'ETotal_error': energy_err,
                             'Eproj': eproj,
                             'Eproj_error': eproj_err,
                             'weight': weight,
@@ -342,7 +342,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
     else:
         bp_av = None
     if multi_sim:
-        norm_data = pd.concat(norm_data).groupby('iteration')
+        norm_data = pd.concat(norm_data).groupby('Iteration')
         norm_av = average_tau(norm_data)
     else:
         norm_data = pd.concat(norm_data)

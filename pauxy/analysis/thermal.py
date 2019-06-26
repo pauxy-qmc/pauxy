@@ -16,8 +16,8 @@ def analyse_energy(files):
     analysed = []
     for (i, g) in full:
         if g['free_projection'].values[0]:
-            cols = ['E_num', 'Nav']
-            obs = ['E', 'Nav']
+            cols = ['ENumer', 'Nav']
+            obs = ['ETotal', 'Nav']
             averaged = pd.DataFrame(index=[0])
             for (c, o) in zip(cols, obs):
                 (value, error)  = average_ratio(g[c].values, g['E_denom'].values)
@@ -27,7 +27,7 @@ def analyse_energy(files):
                 averaged[k] = v
             analysed.append(averaged)
         else:
-            cols = ['E', 'EKin', 'EPot', 'Nav']
+            cols = ['ETotal', 'E1Body', 'E2Body', 'Nav']
             averaged = pd.DataFrame(index=[0])
             for c in cols:
                 mean = numpy.real(g[c].values).mean()
