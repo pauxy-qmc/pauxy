@@ -6,12 +6,14 @@ import scipy.linalg
 import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
-from pauxy.utils.io import from_qmcpack_cholesky
+from pauxy.utils.io import (
+        from_qmcpack_cholesky,
+        dump_qmcpack_cholesky
+        )
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
         local_energy_generic_cholesky, core_contribution_cholesky
 )
-from pauxy.estimators.mixed import local_energy_multi_det_full
 
 
 class Generic(object):
@@ -85,6 +87,7 @@ class Generic(object):
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
+        self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
         self.mu = inputs.get('mu', None)
         if verbose:
@@ -102,7 +105,7 @@ class Generic(object):
                     print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol = False
         else:
-            h1e, self.chol_vecs, ecore = self.read_integrals()
+            h1e, self.chol_vecs, self.ecore = self.read_integrals()
         self.H1 = numpy.array([h1e,h1e])
         self.nbasis = h1e.shape[0]
         mem = self.chol_vecs.nbytes / (1024.0**3)
@@ -132,6 +135,8 @@ class Generic(object):
             print("# Time to construct Hubbard--Stratonovich potentials: "
                   "%f s"%(time.time()-start))
         if self.sparse:
+            if verbose:
+                print("# Using sparse linear algebra.")
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
@@ -146,7 +151,7 @@ class Generic(object):
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
-        chol_vecs = schol_vecs.toarray().T.reshape((-1,self.nbasis,self.nbasis))
+        chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
         return h1e, chol_vecs, ecore
 
     def construct_h1e_mod(self):
@@ -303,3 +308,11 @@ class Generic(object):
             print("# Approximate memory used %f GB"%mem)
             nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
             print("# Sparsity: %f"%(1-float(nnz)/nelem))
+
+    def hijkl(self, i, j, k, l):
+        return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
+
+    def write_integrals(self, filename='hamil.h5'):
+        dump_qmcpack_cholesky(self.H1, self.chol_vecs,
+                              self.nelec, self.nbasis,
+                              e0=self.ecore, filename=filename)

@@ -119,6 +119,7 @@ class UEG(object):
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         self.orbs = None
+        self._opt = True
 
 
         nlimit = self.nup
@@ -412,6 +413,15 @@ class UEG(object):
         iB = - (rho_q - rho_qH)
 
         return (rho_q, iA, iB)
+
+    def hijkl(self,i,j,k,l):
+        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
+        q1 = self.basis[k] - self.basis[i]
+        q2 = self.basis[j] - self.basis[l]
+        if numpy.dot(q1-q2,q1-q2) < 1e-12:
+            return 1.0/self.vol * self.vq(self.kfac*q1)
+        else:
+            return 0.0
 
 def unit_test():
     from scipy.sparse import csr_matrix

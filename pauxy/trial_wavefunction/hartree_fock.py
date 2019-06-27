@@ -6,7 +6,8 @@ from pauxy.utils.io import read_qmcpack_wfn
 
 class HartreeFock(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False,
+                 orbs=None):
         self.verbose = verbose
         if verbose:
             print ("# Parsing Hartree--Fock trial wavefunction input options.")
@@ -15,6 +16,7 @@ class HartreeFock(object):
         self.type = "hartree_fock"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'hartree_fock')
+        self.ndets = 1
         self.trial_type = numpy.complex128
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
@@ -38,8 +40,8 @@ class HartreeFock(object):
                     orbs_matrix = numpy.array([orbs_alpha, orbs_beta])
             except UnicodeDecodeError:
                 orbs_matrix = numpy.load(self.wfn_file)
-        elif system.orbs is not None:
-            orbs_matrix = system.orbs
+        elif orbs is not None:
+            orbs_matrix = orbs
         else:
             # Assuming we're in the MO basis.
             orbs_matrix = numpy.eye(system.nbasis)
@@ -91,6 +93,7 @@ class HartreeFock(object):
         self.bp_wfn = trial.get('bp_wfn', None)
         self.error = False
         self.initialisation_time = time.time() - init_time
+        self.init = self.psi
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 

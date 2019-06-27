@@ -59,6 +59,7 @@ class Hubbard(object):
         self.ncore = 0
         (self.kpoints, self.kc, self.eks) = kpoints(self.t, self.nx, self.ny)
         self.pinning = inputs.get('pinning_fields', False)
+        self._opt = True
         if verbose:
             print("# Setting up one-body operator.")
         if self.pinning:

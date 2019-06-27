@@ -3,6 +3,7 @@ import h5py
 import json
 import numpy
 import scipy.sparse
+import sys
 from pauxy.utils.misc import serialise
 from pauxy.utils.linalg import (
         molecular_orbitals_rhf, molecular_orbitals_uhf,
@@ -76,11 +77,14 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     dump['Hamiltonian/hcore'] = hcore
     # dump['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
     # Number of non zero elements for two-body
+    assert len(h2.shape) == 3
+    h2 = h2.reshape((-1,nmo*nmo)).T.copy()
+    h2 = scipy.sparse.csr_matrix(h2)
     nnz = h2.nnz
     # number of cholesky vectors
     nchol_vecs = h2.shape[-1]
     dump['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
-    (h2_unpacked, idx) = to_qmcpack_index(scipy.sparse.csr_matrix(h2))
+    (h2_unpacked, idx) = to_qmcpack_index(h2)
     dump['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
     dump['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
     # Number of integral blocks used for chunked HDF5 storage.
@@ -94,6 +98,9 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     occups = [i for i in range(0, nalpha)]
     occups += [i+nmo for i in range(0, nbeta)]
     dump['Hamiltonian/occups'] = numpy.array(occups)
+
+def from_qmcpack_complex(data, shape):
+    return data.view(numpy.complex128).ravel().reshape(shape)
 
 def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
@@ -226,29 +233,29 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
 def qmcpack_wfn_namelist(nci, uhf, fullmo=True):
     return "&FCI\n UHF = %d\n NCI = %d \n %s TYPE = matrix\n/\n"%(uhf,nci,'FullMO\n' if fullmo else '')
 
-def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
-    UHF = len(wfn.shape) == 3
-    # Single determinant for the moment.
-    namelist = qmcpack_wfn_namelist(1, UHF)
-    with open(filename, 'w') as f:
-        f.write(namelist)
-        f.write('Coefficients: 1.0\n')
-        f.write('Determinant: 1\n')
-        nao = wfn.shape[-1]
-        if UHF:
-            nao = wfn[0].shape[-1]
-            write_qmcpack_wfn(f, wfn[0], nao)
-            nao = wfn[1].shape[-1]
-            write_qmcpack_wfn(f, wfn[1], nao)
-        else:
-            write_qmcpack_wfn(f, wfn, nao)
+# def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
+    # UHF = len(wfn.shape) == 3
+    # # Single determinant for the moment.
+    # namelist = qmcpack_wfn_namelist(1, UHF)
+    # with open(filename, 'w') as f:
+        # f.write(namelist)
+        # f.write('Coefficients: 1.0\n')
+        # f.write('Determinant: 1\n')
+        # nao = wfn.shape[-1]
+        # if UHF:
+            # nao = wfn[0].shape[-1]
+            # write_qmcpack_wfn(f, wfn[0], nao)
+            # nao = wfn[1].shape[-1]
+            # write_qmcpack_wfn(f, wfn[1], nao)
+        # else:
+            # write_qmcpack_wfn(f, wfn, nao)
 
-def write_qmcpack_wfn(out, mos, nao):
-    for i in range(0, nao):
-        for j in range(0, nao):
-            val = mos[i,j]
-            out.write('(%.16e,%.16e) '%(val.real, val.imag))
-        out.write('\n')
+# def write_qmcpack_wfn(out, mos, nao):
+    # for i in range(0, nao):
+        # for j in range(0, nao):
+            # val = mos[i,j]
+            # out.write('(%.16e,%.16e) '%(val.real, val.imag))
+        # out.write('\n')
 
 def read_qmcpack_wfn(filename, skip=9):
     with open(filename) as f:
@@ -327,3 +334,226 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
                 print("# Warning: {} not specified. Setting to default value"
                       " of {}.".format(key, default))
     return val
+
+def read_qmcpack_wfn_hdf(filename):
+    try:
+        with h5py.File(filename) as fh5:
+            wgroup = fh5['Wavefunction/NOMSD']
+            wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup)
+    except KeyError:
+        with h5py.File(filename) as fh5:
+            wgroup = fh5['Wavefunction/PHMSD']
+            wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
+    except KeyError:
+        print("Wavefunction not found.")
+        sys.exit()
+    return wfn, psi0
+
+def read_qmcpack_nomsd_hdf5(wgroup):
+    dims = wgroup['dims']
+    nmo = dims[0]
+    na = dims[1]
+    nb = dims[2]
+    walker_type = dims[3]
+    if walker_type == 2:
+        uhf = True
+    else:
+        uhf = False
+    nci = dims[4]
+    coeffs = from_qmcpack_complex(wgroup['ci_coeffs'][:], (nci,))
+    psi0a = from_qmcpack_complex(wgroup['Psi0_alpha'][:], (nmo,na))
+    if uhf:
+        psi0b = from_qmcpack_complex(wgroup['Psi0_beta'][:], (nmo,nb))
+    psi0 = numpy.zeros((nmo,na+nb),dtype=numpy.complex128)
+    psi0[:,:na] = psi0a.copy()
+    if uhf:
+        psi0[:,na:] = psi0b.copy()
+    else:
+        psi0[:,na:] = psi0a.copy()
+    wfn = numpy.zeros((nci,nmo,na+nb), dtype=numpy.complex128)
+    for idet in range(nci):
+        ix = 2*idet if uhf else idet
+        pa = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(idet)])
+        wfn[idet,:,:na] = pa
+        if uhf:
+            ix = 2*idet + 1
+            wfn[idet,:,na:] = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(ix)])
+        else:
+            wfn[idet,:,na:] = pa
+    return (coeffs,wfn), psi0
+
+def read_qmcpack_phmsd_hdf5(wgroup):
+    dims = wgroup['dims']
+    nmo = dims[0]
+    na = dims[1]
+    nb = dims[2]
+    walker_type = dims[3]
+    if walker_type == 2:
+        uhf = True
+    else:
+        uhf = False
+    nci = dims[4]
+    coeffs = from_qmcpack_complex(wgroup['ci_coeffs'][:], (nci,))
+    occs = wgroup['occs'][:].reshape((nci,na+nb))
+    occa = occs[:,:na]
+    occb = occs[:,na:]
+    wfn = (coeffs, occa, occb)
+    psi0a = from_qmcpack_complex(wgroup['Psi0_alpha'][:], (nmo,na))
+    if uhf:
+        psi0b = from_qmcpack_complex(wgroup['Psi0_beta'][:], (nmo,nb))
+    psi0 = numpy.zeros((nmo,na+nb),dtype=numpy.complex128)
+    psi0[:,:na] = psi0a.copy()
+    if uhf:
+        psi0[:,na:] = psi0b.copy()
+    else:
+        psi0[:,na:] = psi0a.copy()
+    return wfn, psi0
+
+def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
+    # User defined wavefunction.
+    # PHMSD is a list of tuple of (ci, occa, occb).
+    # NOMSD is a tuple of (list, numpy.ndarray).
+    if len(wfn) == 3:
+        coeffs, occa, occb = wfn
+        wfn_type = 'PHMSD'
+    elif len(wfn) == 2:
+        coeffs, wfn = wfn
+        wfn_type = 'NOMSD'
+    else:
+        print("Unknown wavefunction type passed.")
+        sys.exit()
+
+    fh5 = h5py.File(filename, 'a')
+    nalpha, nbeta = nelec
+    # TODO: FIX for GHF eventually.
+    if walker_type == 'ghf':
+        walker_type = 3
+    elif walker_type == 'uhf':
+        walker_type = 2
+        uhf = True
+    else:
+        walker_type = 1
+        uhf = False
+    if wfn_type == 'PHMSD':
+        walker_type = 2
+    if wfn_type == 'NOMSD':
+        try:
+            wfn_group = fh5.create_group('Wavefunction/NOMSD')
+        except ValueError:
+            del fh5['Wavefunction/NOMSD']
+            wfn_group = fh5.create_group('Wavefunction/NOMSD')
+        write_nomsd(wfn_group, wfn, uhf, nelec, init=init)
+    else:
+        try:
+            wfn_group = fh5.create_group('Wavefunction/PHMSD')
+        except ValueError:
+            # print(" # Warning: Found existing wavefunction group. Removing.")
+            del fh5['Wavefunction/PHMSD']
+            wfn_group = fh5.create_group('Wavefunction/PHMSD')
+        write_phmsd(wfn_group, occa, occb, nelec, norb, init=init)
+    wfn_group['ci_coeffs'] = to_qmcpack_complex(coeffs)
+    dims = [norb, nalpha, nbeta, walker_type, len(coeffs)]
+    wfn_group['dims'] = numpy.array(dims, dtype=numpy.int32)
+    fh5.close()
+
+def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None):
+    """Write NOMSD to HDF.
+
+    Parameters
+    ----------
+    fh5 : h5py group
+        Wavefunction group to write to file.
+    wfn : :class:`numpy.ndarray`
+        NOMSD trial wavefunctions.
+    uhf : bool
+        UHF style wavefunction.
+    nelec : tuple
+        Number of alpha and beta electrons.
+    thresh : float
+        Threshold for writing wavefunction elements.
+    """
+    nalpha, nbeta = nelec
+    wfn[abs(wfn) < thresh] = 0.0
+    if init is not None:
+        fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
+        fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
+    else:
+        fh5['Psi0_alpha'] = to_qmcpack_complex(wfn[0,:,:nalpha].copy())
+        if uhf:
+            fh5['Psi0_beta'] = to_qmcpack_complex(wfn[0,:,nalpha:].copy())
+    for idet, w in enumerate(wfn):
+        # QMCPACK stores this internally as a csr matrix, so first convert.
+        ix = 2*idet if uhf else idet
+        psia = scipy.sparse.csr_matrix(w[:,:nalpha].conj().T)
+        write_nomsd_single(fh5, psia, ix)
+        if uhf:
+            ix = 2*idet + 1
+            psib = scipy.sparse.csr_matrix(w[:,nalpha:].conj().T)
+            write_nomsd_single(fh5, psib, ix)
+
+def write_nomsd_single(fh5, psi, idet):
+    """Write single component of NOMSD to hdf.
+
+    Parameters
+    ----------
+    fh5 : h5py group
+        Wavefunction group to write to file.
+    psi : :class:`scipy.sparse.csr_matrix`
+        Sparse representation of trial wavefunction.
+    idet : int
+        Determinant number.
+    """
+    base = 'PsiT_{:d}/'.format(idet)
+    dims = [psi.shape[0], psi.shape[1], psi.nnz]
+    fh5[base+'dims'] = numpy.array(dims, dtype=numpy.int32)
+    fh5[base+'data_'] = to_qmcpack_complex(psi.data)
+    fh5[base+'jdata_'] = psi.indices
+    fh5[base+'pointers_begin_'] = psi.indptr[:-1]
+    fh5[base+'pointers_end_'] = psi.indptr[1:]
+
+def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
+    """Write NOMSD to HDF.
+
+    Parameters
+    ----------
+    fh5 : h5py group
+        Wavefunction group to write to file.
+    nelec : tuple
+        Number of alpha and beta electrons.
+    """
+    # TODO: Update if we ever wanted "mixed" phmsd type wavefunctions.
+    na, nb = nelec
+    if init is not None:
+        fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
+        fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
+    else:
+        init = numpy.eye(norb, dtype=numpy.complex128)
+        fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())
+        fh5['Psi0_beta'] = to_qmcpack_complex(init[:,occb[0]].copy())
+    fh5['fullmo'] = numpy.array([0], dtype=numpy.int32)
+    fh5['type'] = numpy.array(['occ'])
+    occs = numpy.zeros((len(occa), na+nb), dtype=numpy.int32)
+    occs[:,:na] = numpy.array(occa)
+    occs[:,na:] = numpy.array(occb)
+    # Reading 1D array currently in qmcpack.
+    fh5['occs'] = occs.ravel()
+
+def from_qmcpack_sparse(dset):
+    """Will read actually A^{H} but return A.
+    """
+    dims = dset['dims'][:]
+    wfn_shape = (dims[0],dims[1])
+    nnz = dims[2]
+    data = from_qmcpack_complex(dset['data_'][:],(nnz,))
+    indices = dset['jdata_'][:]
+    pbb = dset['pointers_begin_'][:]
+    pbe = dset['pointers_end_'][:]
+    indptr = numpy.zeros(dims[0]+1)
+    indptr[:-1] = pbb
+    indptr[-1] = pbe[-1]
+    wfn = scipy.sparse.csr_matrix((data,indices,indptr),shape=wfn_shape)
+    return wfn.toarray().conj().T.copy()
+
+def to_qmcpack_complex(array):
+    shape = array.shape
+    return array.view(numpy.float64).reshape(shape+(2,))

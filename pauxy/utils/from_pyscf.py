@@ -37,19 +37,23 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
                  mol.nelec, enuc, threshold=chol_cut,
                  sparse_zero=sparse_zero, orbs=orbs)
 
-def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None):
+def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
     mol = mf.mol
     ecore = mf.energy_nuc()
     hcore = mf.get_hcore()
-    s1e = mf.mol.intor('int1e_ovlp_sph')
-    oao = get_orthoAO(s1e)
+    if ortho_ao:
+        s1e = mf.mol.intor('int1e_ovlp_sph')
+        oao = get_orthoAO(s1e)
+    else:
+        oao = mf.mo_coeff
     h1e, eri = generate_integrals(mol, hcore, oao,
                                   chol_cut=chol_cut,
                                   verbose=verbose,
                                   cas=cas)
     return h1e, eri, ecore, oao
 
-def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False, cas=None):
+def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False,
+                           cas=None, ortho_ao=True):
     (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose)
     h1e, eri = generate_integrals(mol, hcore, oao,
                                   chol_cut=chol_cut,
@@ -354,7 +358,7 @@ def get_pyscf_wfn(system, mf):
     else:
         pa = numpy.dot(Xinv, C[:,:na])
         pb = pa.copy()
-    wfn = numpy.zeros((1,system.nbasis, na+nb), dtype=numpy.complex128)
-    wfn[0,:,:na] = pa
-    wfn[0,:,na:] = pb
-    return (wfn, numpy.array([1.0+0j]))
+    wfn = numpy.zeros((system.nbasis, na+nb), dtype=numpy.complex128)
+    wfn[:,:na] = pa
+    wfn[:,na:] = pb
+    return (numpy.array([1.0+0j]), wfn)

@@ -135,7 +135,7 @@ class SingleDetWalker(object):
         dup = scipy.linalg.det(self.inv_ovlp[0])
         ndown = self.ndown
         ddn = 1.0
-        if (ndown >0):
+        if ndown > 0:
             ddn = scipy.linalg.det(self.inv_ovlp[1])
         return 1.0 / (dup*ddn)
 

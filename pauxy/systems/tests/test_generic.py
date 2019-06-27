@@ -20,11 +20,11 @@ class TestGeneric(unittest.TestCase):
         mf = scf.RHF(atom)
         mf.chkfile = 'scf.chk'
         mf.kernel()
-        h1e, chol, ecore, oao, mol= integrals_from_chkfile('scf.chk', verbose=2, chol_cut=1e-5)
+        h1e, chol, ecore, oao, mol= integrals_from_chkfile('scf.chk', verbose=0, chol_cut=1e-5)
         nb = h1e.shape[0]
         system = Generic(nelec=mol.nelec, h1e=h1e,
                          chol=chol.reshape((-1,nb,nb)),
-                         ecore=ecore, verbose=2)
+                         ecore=ecore, verbose=0)
 
     def tearDown(self):
         cwd = os.getcwd()
@@ -34,3 +34,6 @@ class TestGeneric(unittest.TestCase):
                 os.remove(cwd+'/'+f)
             except OSError:
                 pass
+
+if __name__ == '__main__':
+    unittest.main()

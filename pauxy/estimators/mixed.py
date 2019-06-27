@@ -8,19 +8,21 @@ except ImportError:
 import scipy.linalg
 import time
 from pauxy.estimators.utils import H5EstimatorHelper
+from pauxy.estimators.ci import get_hmatel
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 try:
     from pauxy.estimators.ueg import local_energy_ueg
 except ImportError as e:
     print(e)
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
-from pauxy.estimators.greens_function import gab_mod_ovlp
+from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic,
     local_energy_generic_cholesky
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
+from pauxy.utils.misc import dotdict
 
 
 class Mixed(object):
@@ -73,15 +75,14 @@ class Mixed(object):
         self.calc_two_rdm = mixed.get('two_rdm', None)
         self.verbose = mixed.get('verbose', True)
         self.nmeasure = qmc.nsteps // qmc.nmeasure
+        self.header = ['Iteration', 'Weight', 'ENumer', 'EDenom', 'ETotal',
+                       'E1Body', 'E2Body', 'EHybrid', 'Overlap']
         if self.thermal:
-            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'Nav', 'time']
-        else:
-            self.header = ['iteration', 'Weight', 'E_num', 'E_denom', 'E',
-                           'EKin', 'EPot', 'EHybrid', 'Overlap', 'time']
+            self.header.append('Nav')
+        self.header.append('Time')
         self.nreg = len(self.header[1:])
         self.dtype = dtype
-        self.G = numpy.zeros(trial.G.shape, trial.G.dtype)
+        self.G = numpy.zeros((2,system.nbasis,system.nbasis), dtype)
         dms_size = self.G.size
         self.eshift = 0
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
@@ -95,20 +96,22 @@ class Mixed(object):
         else:
             self.two_rdm = None
         self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
-        self.names = EstimatorEnum(self.thermal)
+        self.names = get_estimator_enum(self.thermal)
         self.estimates[self.names.time] = time.time()
         self.global_estimates = numpy.zeros(self.nreg+dms_size,
                                             dtype=dtype)
         self.key = {
-            'iteration': "Simulation iteration. iteration*dt = tau.",
+            'Iteration': "Simulation iteration. iteration*dt = tau.",
             'Weight': "Total walker weight.",
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
-            'E': "Projected energy estimator.",
-            'EKin': "Mixed kinetic energy estimator.",
-            'EPot': "Mixed potential energy estimator.",
+            'ETotal': "Projected energy estimator.",
+            'E1Body': "Mixed one-body energy estimator.",
+            'E2Body': "Mixed two-body energy estimator.",
+            'EHybrid': "Hybrid energy.",
+            'Overlap': "Walker average overlap.",
             'Nav': "Average number of electrons.",
-            'time': "Time per processor to complete one iteration.",
+            'Time': "Time per processor to complete one iteration.",
         }
         if root:
             energies = h5f.create_group('mixed_estimates')
@@ -159,7 +162,7 @@ class Mixed(object):
                 # For T > 0 w.ot = 1 always.
                 wfac = w.weight * w.ot * w.phase
                 self.estimates[self.names.enumer] += wfac * E
-                self.estimates[self.names.ekin:self.names.epot+1] += (
+                self.estimates[self.names.e1b:self.names.e2b+1] += (
                         wfac * numpy.array([T,V])
                 )
                 if self.thermal:
@@ -190,7 +193,7 @@ class Mixed(object):
                             nav += particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav / w.stack_length
                         self.estimates[self.names.enumer] += w.weight*E_sum.real/w.stack_length
-                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                        self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*numpy.array([T_sum,V_sum]).real/w.stack_length
                         )
                     else:
@@ -199,7 +202,7 @@ class Mixed(object):
                         nav = particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav
                         self.estimates[self.names.enumer] += w.weight*E.real
-                        self.estimates[self.names.ekin:self.names.epot+1] += (
+                        self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*numpy.array([T,V]).real
                         )
                 else:
@@ -209,7 +212,7 @@ class Mixed(object):
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += w.weight*E.real
-                    self.estimates[self.names.ekin:self.names.epot+1] += (
+                    self.estimates[self.names.e1b:self.names.e2b+1] += (
                             w.weight*numpy.array([T,V]).real
                     )
                 self.estimates[self.names.weight] += w.weight
@@ -244,34 +247,31 @@ class Mixed(object):
         """
         es = self.estimates
         ns = self.names
-        denom = es[ns.edenom]*nprocs / nmeasure
-        es[ns.eproj] = es[ns.enumer] / denom
-        if self.thermal:
-            if free_projection:
-                es[ns.nav] = es[ns.nav]
-            else:
-                es[ns.nav] = es[ns.nav] / denom
-        es[ns.ekin:ns.ovlp+1] /= denom
-        es[ns.weight:ns.enumer] = es[ns.weight:ns.enumer]
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
-        eshift = self.global_estimates[ns.ehyb]
+        gs = self.global_estimates
+        if comm.rank == 0:
+            gs[ns.eproj] = gs[ns.enumer]
+            gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
+        if self.thermal and comm.rank == 0:
+            if not free_projection:
+                gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
+        eshift = gs[ns.ehyb]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift
         if comm.rank == 0:
             if self.verbose:
-                print (format_fixed_width_floats([step]+
-                   list(self.global_estimates[:ns.time+1].real/nmeasure)))
-            self.output.push(self.global_estimates[:ns.time+1]/nmeasure)
+                print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
+            self.output.push(gs[:ns.time+1])
             if self.calc_one_rdm:
                 start = self.nreg
                 end = self.nreg+self.G.size
-                rdm = self.global_estimates[start:end].reshape(self.G.shape)
-                self.one_rdm_output.push(rdm/denom/nmeasure)
+                rdm = gs[start:end].reshape(self.G.shape)
+                self.one_rdm_output.push(rdm/gs[ns.weight])
             if self.calc_two_rdm:
                 start = self.nreg + self.G.size
-                rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
-                self.two_rdm_output.push(rdm/denom/nmeasure)
+                rdm = gs[start:].reshape(self.two_rdm.shape)
+                self.two_rdm_output.push(rdm/gs[ns.weight])
         self.zero()
 
     def print_key(self, eol='', encode=False):
@@ -385,25 +385,7 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         else:
             return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det_full(system, A, B, coeffsA, coeffsB):
-    weight = 0
-    energies = 0
-    denom = 0
-    nup = system.nup
-    for ix, (Aix, cix) in enumerate(zip(A, coeffsA)):
-        for iy, (Biy, ciy) in enumerate(zip(B, coeffsB)):
-            # construct "local" green's functions for each component of A
-            Gup, inv_O_up = gab_mod_ovlp(Biy[:,:nup], Aix[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Biy[:,nup:], Aix[:,nup:])
-            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
-            weight = cix*(ciy.conj()) * ovlp
-            G = numpy.array([Gup, Gdn])
-            e = numpy.array(local_energy(system, G, opt=False))
-            energies += weight * e
-            denom += weight
-    return tuple(energies/denom)
-
-def local_energy_multi_det(system, Gi, weights):
+def local_energy_multi_det(system, Gi, weights, two_rdm=None):
     weight = 0
     energies = 0
     denom = 0
@@ -412,6 +394,18 @@ def local_energy_multi_det(system, Gi, weights):
         energies += w * numpy.array(local_energy(system, G, opt=False))
         denom += w
     return tuple(energies/denom)
+
+def get_estimator_enum(thermal=False):
+    keys = ['weight', 'enumer', 'edenom',
+            'eproj', 'e1b', 'e2b', 'ehyb',
+            'ovlp']
+    if thermal:
+        keys.append('nav')
+    keys.append('time')
+    enum = {}
+    for v, k in enumerate(keys):
+        enum[k] = v
+    return dotdict(enum)
 
 class EstimatorEnum(object):
     """Enum structure for help with indexing Mixed estimators.
@@ -424,8 +418,8 @@ class EstimatorEnum(object):
         self.enumer = 1
         self.edenom = 2
         self.eproj = 3
-        self.ekin = 4
-        self.epot = 5
+        self.e1b = 4
+        self.e2b = 5
         self.ehyb = 6
         self.ovlp = 7
         if thermal:
@@ -454,3 +448,77 @@ def eproj(estimates, enum):
     numerator = estimates[enum.enumer]
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
+
+def variational_energy(system, psi, coeffs):
+    if len(psi.shape) == 3:
+        return variational_energy_multi_det(system, psi, coeffs)
+    else:
+        return variational_energy_single_det(system, psi)
+
+def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
+    weight = 0
+    energies = 0
+    denom = 0
+    nup = system.nup
+    ndet = len(coeffs)
+    if H is not None and S is not None:
+        store = True
+    else:
+        store = False
+    for i, (Bi, ci) in enumerate(zip(psi, coeffs)):
+        for j, (Aj, cj) in enumerate(zip(psi, coeffs)):
+            # construct "local" green's functions for each component of A
+            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
+            weight = (ci.conj()*cj) * ovlp
+            G = numpy.array([Gup, Gdn])
+            e = numpy.array(local_energy(system, G, opt=False))
+            if (i == 0 and j == 1) or (i == 1 and j == 0):
+                Gup, inv_O_up = gab_mod_ovlp(Aj[:,:nup],Bi[:,:nup])
+                Gdn, inv_O_dn = gab_mod_ovlp(Aj[:,nup:], Bi[:,nup:])
+                G = numpy.array([Gup, Gdn])
+                e2 = numpy.array(local_energy(system, G, opt=False))
+
+            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            if store:
+                H[i,j] = ovlp*e[0]
+                S[i,j] = ovlp
+            energies += weight * e
+            denom += weight
+    return tuple(energies/denom)
+
+def variational_energy_ortho_det(system, occs, coeffs):
+    """Compute variational energy for CI-like multi-determinant expansion.
+
+    Parameters
+    ----------
+    system : :class:`pauxy.system` object
+        System object.
+    occs : list of lists
+        list of determinants.
+    coeffs : :class:`numpy.ndarray`
+        Expansion coefficients.
+
+    Returns
+    -------
+    energy : tuple of float / complex
+        Total energies: (etot,e1b,e2b).
+    """
+    evar = 0.0
+    denom = 0.0
+    for i, (occi, ci) in enumerate(zip(occs, coeffs)):
+        denom += ci.conj()*ci
+        for j, (occj, cj) in enumerate(zip(occs, coeffs)):
+            evar += ci.conj()*cj*get_hmatel(system, occi, occj)
+    return evar/denom, 0.0, 0.0
+
+
+def variational_energy_single_det(system, psi):
+    na = system.nup
+    ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
+    gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
+    return local_energy(system, numpy.array([ga,gb]),
+                        Ghalf=numpy.array([ga_half,gb_half]),
+                        opt=system._opt)

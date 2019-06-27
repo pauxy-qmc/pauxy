@@ -12,8 +12,9 @@ class TestGeneric(unittest.TestCase):
     def test_from_pyscf(self):
         atom = gto.M(atom='Ne 0 0 0', basis='cc-pvdz', verbose=0)
         mf = scf.RHF(atom)
-        mf.kernel()
+        ehf = mf.kernel()
         options = {
+                'get_sha1': False,
                 'qmc': {
                         'timestep': 0.01,
                         'num_steps': 10,
@@ -29,6 +30,7 @@ class TestGeneric(unittest.TestCase):
     def test_ueg(self):
         options = {
                 'verbosity': 0,
+                'get_sha1': False,
                 'qmc': {
                     'timestep': 0.01,
                     'num_steps': 10,
@@ -63,3 +65,6 @@ class TestGeneric(unittest.TestCase):
                 os.remove(cwd+'/'+f)
             except OSError:
                 pass
+
+if __name__ == '__main__':
+    unittest.main()

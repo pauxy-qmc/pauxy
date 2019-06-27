@@ -21,6 +21,7 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
     system : object
         System class.
     """
+    chkfile = sys_opts.get('pyscf_chk', None)
     if mf is not None:
         h1e, chol, ecore, oao = (
                 integrals_from_scf(mf, verbose=verbose, chol_cut=chol_cut)
@@ -28,22 +29,23 @@ def get_system(sys_opts=None, mf=None, verbose=0, chol_cut=1e-5):
         nb = h1e.shape[0]
         system = Generic(nelec=mf.mol.nelec, h1e=h1e,
                          chol=chol.reshape((-1,nb,nb)),
-                         ecore=ecore, verbose=verbose)
+                         ecore=ecore, verbose=verbose,
+                         inputs=sys_opts)
         system.oao = oao
-    elif sys_opts.get('pyscf_chk', None) is not None:
-        chkfile = sys_opts.get('pyscf_chk', None)
+    elif chkfile is not None:
         h1e, chol, ecore, oao, mol = (
                 integrals_from_chkfile(chkfile, verbose=verbose, chol_cut=chol_cut)
                 )
         nb = h1e.shape[0]
         system = Generic(nelec=mol.nelec, h1e=h1e,
                          chol=chol.reshape((-1,nb,nb)),
-                         ecore=ecore, verbose=verbose)
+                         ecore=ecore, verbose=verbose,
+                         inputs=sys_opts)
         system.oao = oao
     elif sys_opts['name'] == 'Hubbard':
         system = Hubbard(sys_opts, verbose)
     elif sys_opts['name'] == 'Generic':
-        system = Generic(sys_opts, verbose)
+        system = Generic(inputs=sys_opts, verbose=verbose)
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:

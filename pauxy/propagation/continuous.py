@@ -2,13 +2,15 @@ import cmath
 import math
 import numpy
 import sys
-from pauxy.propagation.utils import get_continuous_propagator
 from pauxy.propagation.operations import kinetic_real
+from pauxy.propagation.hubbard import HubbardContinuous
+from pauxy.propagation.planewave import PlaneWave
+from pauxy.propagation.generic import GenericContinuous
 
 class Continuous(object):
     """Propagation with continuous HS transformation.
     """
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print("# Parsing propagator input options.")
         # Input options
@@ -29,8 +31,9 @@ class Continuous(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         # Fix this!
-        self.propagator = get_continuous_propagator(options, qmc, system,
-                                                    trial, verbose)
+        self.propagator = get_continuous_propagator(system, trial, qmc,
+                                                    options=options,
+                                                    verbose=verbose)
 
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
@@ -53,6 +56,7 @@ class Continuous(object):
             if verbose:
                 print("# Using phaseless approximation.")
             self.propagate_walker = self.propagate_walker_phaseless
+        self.verbose = verbose
 
     def apply_exponential(self, phi, VHS, debug=False):
         """Apply exponential propagator of the HS transformation
@@ -115,9 +119,14 @@ class Continuous(object):
 
         for i in range(system.nfields):
             if numpy.absolute(xbar[i]) > 1.0:
-                if self.nfb_trig < 10:
-                    print ("# Rescaling force bias is triggered")
-                    print("# Warning will only be printed 10 times on root.")
+                if self.nfb_trig < 1:
+                    if self.verbose:
+                        pass
+                        # TODO: Fix verbosity setting. We broadcast the qmc
+                        # object.
+                        # print("# Rescaling force bias is triggered: {} {}"
+                              # .format(xbar[i], 1.0))
+                        # print("# Warning will only be printed once.")
                 self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
 
@@ -165,6 +174,14 @@ class Continuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
+    def apply_bound(self, ehyb, eshift):
+        if ehyb.real > eshift.real + self.ebound:
+            ehyb = eshift.real+self.ebound+1j*ehyb.imag
+            self.nhe_trig += 1
+        elif ehyb.real < eshift.real - self.ebound:
+            ehyb = eshift.real-self.ebound+1j*ehyb.imag
+            self.nhe_trig += 1
+
     def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
         Parameters
@@ -189,18 +206,9 @@ class Continuous(object):
         walker.inverse_overlap(trial)
         walker.greens_function(trial)
         ot_new = walker.calc_otrial(trial)
-        # Might want to cap this at some point
         ovlp_ratio = ot_new / walker.ot
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
-        trig = False
-        if hybrid_energy.real > eshift.real + self.ebound:
-            hybrid_energy = eshift.real+self.ebound+1j*hybrid_energy.imag
-            self.nhe_trig += 1
-            trig = True
-        elif hybrid_energy.real < eshift.real - self.ebound:
-            hybrid_energy = eshift.real-self.ebound+1j*hybrid_energy.imag
-            self.nhe_trig += 1
-            trig = True
+        self.apply_bound(hybrid_energy, eshift)
         walker.hybrid_energy = hybrid_energy
         importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift.real))
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
@@ -218,10 +226,49 @@ class Continuous(object):
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
-            walker.field_configs.update(xmxbar, wfac)
+            try:
+                walker.field_configs.update(xmxbar, wfac)
+            except AttributeError:
+                pass
         else:
             walker.ot = ot_new
             walker.weight = 0.0
+
+def get_continuous_propagator(system, trial, qmc, options={}, verbose=False):
+    """Wrapper to select propagator class.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.QMCOpts` class
+        Trial wavefunction input options.
+    system : class
+        System class.
+    trial : class
+        Trial wavefunction object.
+
+    Returns
+    -------
+    propagator : class or None
+        Propagator object.
+    """
+    if system.name == "UEG":
+        propagator = PlaneWave(system, trial, qmc,
+                               options=options,
+                               verbose=verbose)
+    elif system.name == "Hubbard":
+        propagator = HubbardContinuous(system, trial, qmc,
+                                       options=options,
+                                       verbose=verbose)
+    elif system.name == "Generic":
+        propagator = GenericContinuous(system, trial, qmc,
+                                       options=options,
+                                       verbose=verbose)
+    else:
+        propagator = None
+
+    return propagator
 
 
 def unit_test():

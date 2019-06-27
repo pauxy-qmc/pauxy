@@ -7,7 +7,10 @@ except ImportError:
     mpi_sum = None
 import scipy.linalg
 
-from pauxy.estimators.ueg_kernels  import  exchange_greens_function_per_qvec
+try:
+    from pauxy.estimators.ueg_kernels  import  exchange_greens_function_per_qvec
+except ImportError:
+    pass
 
 def exchange_greens_function(nq, kpq_i, kpq, pmq_i, pmq, Gprod, G):
     for iq in range(nq):

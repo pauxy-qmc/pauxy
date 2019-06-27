@@ -11,7 +11,7 @@ import h5py
 from pauxy.analysis import blocking
 from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
-from pauxy.qmc.utils import get_propagator_driver
+from pauxy.propagation.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
@@ -81,7 +81,11 @@ class AFQMC(object):
             verbose = verbose > 0
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
-        self.sha1 = get_git_revision_hash()
+        get_sha1 = options.get('get_sha1', True)
+        if get_sha1:
+            self.sha1 = get_git_revision_hash()
+        else:
+            self.sha1 = 'None'
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = True
@@ -95,21 +99,23 @@ class AFQMC(object):
         self.qmc = QMCOpts(options.get('qmc', {}), self.system,
                            verbose=self.verbosity>1)
         self.seed = self.qmc.rng_seed
-        self.cplx = self.determine_dtype(options.get('propagator', {}), self.system)
+        self.cplx = self.determine_dtype(options.get('propagator', {}),
+                                         self.system)
         self.trial = (
             get_trial_wavefunction(self.system, options=options.get('trial', {}),
                                    mf=mf, parallel=parallel, verbose=verbose)
         )
         if self.system.name == "Generic":
-            if self.trial.name != "multi_determinant":
+            if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
         self.trial.calculate_energy(self.system)
-        self.propagators = get_propagator_driver(options.get('propagator', {}), self.qmc,
-                                                 self.system, self.trial,
-                                                 verbose)
+        prop_opt = options.get('propagator', {})
+        self.propagators = get_propagator_driver(self.system, self.trial,
+                                                 self.qmc, options=prop_opt,
+                                                 verbose=verbose)
         self.tsetup = time.time() - self._init_time
         if not parallel:
             walker_opts = options.get('walkers', {})
