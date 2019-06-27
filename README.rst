@@ -55,7 +55,16 @@ In addition, if you want to run the test suite you'll need to get
 Running the Test Suite
 ----------------------
 
-First change to the test directory and run
+Pauxy contains unit tests and short deterministic longer tests of full calculations.
+To run the unit tests you can do:
+
+::
+
+    $ python -u -m unittest discover -v
+
+These tests are quick and should all pass.
+
+For the deterministic tests we use testcode.  First change to the test directory and run
 
 ::
 
