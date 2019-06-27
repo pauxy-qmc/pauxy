@@ -19,7 +19,7 @@ class TestContinuous(unittest.TestCase):
     def test_multi_det_generic(self):
         numpy.random.seed(7)
         system = get_test_mol()
-        system.write_integrals()
+        # system.write_integrals()
         (e0, ev), (d,oa,ob) = simple_fci(system, dets=True)
         qmc = dotdict({'dt': 0.005})
         init = get_random_wavefunction((2,2), 5)
@@ -35,14 +35,14 @@ class TestContinuous(unittest.TestCase):
         # trial_md.calculate_energy(sys_T)
         # print(trial_md.energy)
         # print(trial_md.contract_one_body(sys_T.H1[0]))
-        trial_md.write_wavefunction(filename='wfn.md.h5',
-                                    init=[init[:,:na].copy(),
-                                          init[:,:na].copy()],
-                                    occs=True)
+        # trial_md.write_wavefunction(filename='wfn.md.h5',
+                                    # init=[init[:,:na].copy(),
+                                          # init[:,:na].copy()],
+                                    # occs=True)
         trial_sd = MultiSlater(system, (ev[:1,0],oa[:1],ob[:1]), init=init)
-        trial_sd.write_wavefunction(filename='wfn.sd.h5',
-                                    init=[init[:,:na].copy(),
-                                          init[:,:na].copy()])
+        # trial_sd.write_wavefunction(filename='wfn.sd.h5',
+                                    # init=[init[:,:na].copy(),
+                                          # init[:,:na].copy()])
         trial_sd.calculate_energy(system)
         propg_md = Continuous(system, trial_md, qmc)
         propg_sd = Continuous(system, trial_sd, qmc)
