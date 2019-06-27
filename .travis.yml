@@ -33,7 +33,7 @@ script:
     - python -c "import pauxy.qmc"
     - $HOME/testcode/bin/testcode.py -vvv
     - cd $HOME/pauxy
-    - python -u -W ignore::DeprecationWarning -m unittest discover -v
+    - python -u -m unittest discover -v
 
 after_failure:
     - cat */*.err*
