@@ -53,3 +53,6 @@ class TestContinuous(unittest.TestCase):
         # print(walker_md.ot, walker_sd.ot,walker_md.weight,walker_sd.weight)
         # print(numpy.max(numpy.abs(propg_md.propagator.mf_shift)),
         # numpy.max(numpy.abs(propg_sd.propagator.mf_shift)))
+
+if __name__ == '__main__':
+    unittest.main()

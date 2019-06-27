@@ -53,3 +53,6 @@ class TestGenericPropagator(unittest.TestCase):
         walker = MultiDetWalker({}, system, trial)
         fb = prop.construct_force_bias(system, walker, trial)
         vhs = prop.construct_VHS(system, fb)
+
+if __name__ == '__main__':
+    unittest.main()

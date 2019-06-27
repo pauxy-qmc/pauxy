@@ -39,7 +39,9 @@ class TestMultiSlater(unittest.TestCase):
     def test_nomsd(self):
         system = UEG({'nup': 7, 'ndown': 7, 'rs': 5, 'ecut': 4,
                       'thermal': True})
-        wfn, psi0 = read_qmcpack_wfn_hdf('wfn.h5')
+        import os
+        path = os.path.dirname(os.path.abspath(__file__))
+        wfn, psi0 = read_qmcpack_wfn_hdf(path+'/wfn.h5')
         trial = MultiSlater(system, wfn, init=psi0)
         trial.calculate_energy(system)
         ndets = trial.ndets
@@ -109,13 +111,13 @@ class TestMultiSlater(unittest.TestCase):
         numpy.random.seed(7)
         init = get_random_wavefunction(system.nelec, system.nbasis)
         na = system.nup
-        write_qmcpack_wfn('wfn.phmsd.h5', wfn, 'uhf', system.nelec,
-                          system.nbasis, init=[init[:,:na].copy(),
-                              init[:,na:].copy()])
-        write_qmcpack_wfn('wfn.nomsd.h5', (trial.coeffs, trial.psi), 'uhf', system.nelec,
-                          system.nbasis, init=[init[:,:na].copy(),
-                              init[:,na:].copy()])
-        system.write_integrals()
+        # write_qmcpack_wfn('wfn.phmsd.h5', wfn, 'uhf', system.nelec,
+                          # system.nbasis, init=[init[:,:na].copy(),
+                              # init[:,na:].copy()])
+        # write_qmcpack_wfn('wfn.nomsd.h5', (trial.coeffs, trial.psi), 'uhf', system.nelec,
+                          # system.nbasis, init=[init[:,:na].copy(),
+                              # init[:,na:].copy()])
+        # system.write_integrals()
         nume = 0
         deno = 0
         for i in range(trial.ndets):
@@ -131,8 +133,11 @@ class TestMultiSlater(unittest.TestCase):
             e = local_energy(system, numpy.array([ga,gb]), opt=False)[0]
             nume += trial.coeffs[i].conj()*ovlp*e
             deno += trial.coeffs[i].conj()*ovlp
-        print(nume/deno,nume,deno)
+        # print(nume/deno,nume,deno)
         # TODO : Move to simple read / write test.
         # wfn, psi0 = read_qmcpack_wfn_hdf('wfn.phmsd.h5')
         # trial = MultiSlater(system, wfn, init=psi0, options={'rediag': True})
         # trial.calculate_energy(system)
+
+if __name__ == '__main__':
+    unittest.main()

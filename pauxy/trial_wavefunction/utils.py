@@ -31,8 +31,10 @@ def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=
     if mf is not None:
         if verbose:
             print("# Creating wavefunction from pyscf mf object.")
+        # TODO: Remove HartreeFock Trial
         wfn = get_pyscf_wfn(system, mf)
-        trial = MultiSlater(system, wfn, parallel=parallel, verbose=verbose)
+        trial = HartreeFock(system, True, options, parallel=parallel,
+                            verbose=verbose, orbs=wfn[1])
     elif wfn_file is not None:
         if verbose:
             print("# Reading wavefunction from {}.".format(wfn_file))

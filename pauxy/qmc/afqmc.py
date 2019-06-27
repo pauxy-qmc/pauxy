@@ -81,7 +81,11 @@ class AFQMC(object):
             verbose = verbose > 0
         # 1. Environment attributes
         self.uuid = str(uuid.uuid1())
-        self.sha1 = get_git_revision_hash()
+        get_sha1 = options.get('get_sha1', True)
+        if get_sha1:
+            self.sha1 = get_git_revision_hash()
+        else:
+            self.sha1 = 'None'
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = True
@@ -102,7 +106,7 @@ class AFQMC(object):
                                    mf=mf, parallel=parallel, verbose=verbose)
         )
         if self.system.name == "Generic":
-            if self.trial.name != "MultiSlater":
+            if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:

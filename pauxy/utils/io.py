@@ -344,6 +344,9 @@ def read_qmcpack_wfn_hdf(filename):
         with h5py.File(filename) as fh5:
             wgroup = fh5['Wavefunction/PHMSD']
             wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
+    except KeyError:
+        print("Wavefunction not found.")
+        sys.exit()
     return wfn, psi0
 
 def read_qmcpack_nomsd_hdf5(wgroup):
