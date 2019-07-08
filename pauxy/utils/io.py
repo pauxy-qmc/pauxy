@@ -77,9 +77,9 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5')
     dump['Hamiltonian/hcore'] = hcore
     # dump['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
     # Number of non zero elements for two-body
-    assert len(h2.shape) == 3
-    h2 = h2.reshape((-1,nmo*nmo)).T.copy()
-    h2 = scipy.sparse.csr_matrix(h2)
+    if len(h2.shape) == 3:
+        h2 = h2.reshape((-1,nmo*nmo)).T.copy()
+        h2 = scipy.sparse.csr_matrix(h2)
     nnz = h2.nnz
     # number of cholesky vectors
     nchol_vecs = h2.shape[-1]
