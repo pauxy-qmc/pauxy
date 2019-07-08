@@ -2,7 +2,7 @@ import numpy
 import scipy.linalg
 import time
 from pauxy.estimators.mixed import (
-        variational_energy, variational_energy_ortho_det
+        variational_energy, variational_energy_ortho_det, local_energy
         )
 from pauxy.estimators.greens_function import gab, gab_mod, gab_mod_ovlp
 from pauxy.estimators.ci import get_hmatel, get_one_body_matel
@@ -123,6 +123,10 @@ class MultiSlater(object):
                         H[i,j] = ovlp * local_energy(system, G, opt=False)[0]
                         S[i,j] = ovlp
             e, ev = scipy.linalg.eigh(H, S, lower=False)
+        if self.verbose > 1:
+            print("Old and New CI coefficients: ")
+            for co,cn in zip(self.coeffs,ev[:,0]):
+                print("{} {}".format(co, cn))
         self.coeffs = numpy.array(ev[:,0], dtype=numpy.complex128)
 
     def contract_one_body(self, ints):
