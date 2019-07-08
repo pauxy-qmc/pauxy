@@ -100,8 +100,6 @@ class UEG(object):
         self.ncore = 0
         self.nfv = 0
         self.mo_coeff = None
-        if verbose:
-            print("# Number of plane waves: %i"%self.nbasis)
         # Allowed momentum transfers (4*ecut)
         (eigs, qvecs, self.qnmax) = self.sp_energies(self.kfac, 4*self.ecut)
         # Omit Q = 0 term.
@@ -111,6 +109,9 @@ class UEG(object):
         # Can reduce by symmetry but be stupid for the moment.
         self.nchol = len(self.qvecs)
         self.nfields = 2*len(self.qvecs)
+        if verbose:
+            print("# Number of plane waves: %i"%self.nbasis)
+            print("# Number of Cholesky vectors: %i"%self.nchol)
         # For consistency with frozen core molecular code.
         self.orbs = None
         self.frozen_core = False
@@ -124,7 +125,7 @@ class UEG(object):
 
         nlimit = self.nup
 
-        if (self.thermal):
+        if self.thermal:
             nlimit = self.nbasis
 
         self.ikpq_i = []
@@ -219,7 +220,7 @@ class UEG(object):
 
         # Sort the arrays in terms of increasing energy.
         spval = numpy.array(spval)
-        ix = numpy.argsort(spval)
+        ix = numpy.argsort(spval, kind='mergesort')
         spval = spval[ix]
         kval = numpy.array(kval)[ix]
 
