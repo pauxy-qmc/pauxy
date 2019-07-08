@@ -265,7 +265,7 @@ def read_qmcpack_wfn(filename, skip=9):
     orbs = [complex(t[0], t[1]) for t in tuples]
     return numpy.array(orbs)
 
-def read_phfmol(filename, nmo):
+def read_phfmol(filename, nmo, na, nb):
     with open(filename) as f:
         content = f.read().split()
     start = False
@@ -277,7 +277,7 @@ def read_phfmol(filename, nmo):
                 ndets = int(content[i+1])
             except ValueError:
                 ndets = int(content[i+2])
-            dets = numpy.zeros((ndets,nmo,nmo), dtype=numpy.complex128)
+            dets = numpy.zeros((ndets,nmo,na+nb), dtype=numpy.complex128)
         # print(f,start,data)
         # print(len(data),f)
         if 'Coefficients' in f:
@@ -297,8 +297,8 @@ def read_phfmol(filename, nmo):
             v = ast.literal_eval(line)
             data.append(complex(v[0],v[1]))
         C = numpy.copy(numpy.array(data).reshape(nmo,nmo).T)
-        dets[idet] = C
-        dets[idet] = C
+        dets[idet,:,:na] = C[:,:na]
+        dets[idet,:,na:] = C[:,:nb]
         start = end + 2
     return numpy.array(coeffs), dets
 
