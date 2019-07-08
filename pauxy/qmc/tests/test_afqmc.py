@@ -52,7 +52,9 @@ class TestGeneric(unittest.TestCase):
         afqmc.run(comm=comm, verbose=0)
         afqmc.finalise(verbose=0)
         # ref = 6.828957055614434+0.22576828445100017j
-        ref = 6.821009376769289+0.13276828693227866j
+        # ref = 6.821009376769289+0.13276828693227866j
+        # FDM: Update reference following merge sort update.
+        ref = 6.562928368348016+0.07235261291158207j
         cur = afqmc.psi.walkers[0].phi.trace()
         self.assertAlmostEqual(cur.real, ref.real)
         self.assertAlmostEqual(cur.imag, ref.imag)

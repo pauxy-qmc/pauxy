@@ -20,7 +20,7 @@ class TestContinuous(unittest.TestCase):
         numpy.random.seed(7)
         system = get_test_mol()
         # system.write_integrals()
-        (e0, ev), (d,oa,ob) = simple_fci(system, dets=True)
+        (e0, ev), (d,oa,ob) = simple_fci(system, gen_dets=True)
         qmc = dotdict({'dt': 0.005})
         init = get_random_wavefunction((2,2), 5)
         na = system.nup
