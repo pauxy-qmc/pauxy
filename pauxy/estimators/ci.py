@@ -2,7 +2,7 @@ import numpy
 import scipy.linalg
 import itertools
 
-def simple_fci(system, dets=False):
+def simple_fci(system, gen_dets=False):
     """Very dumb FCI routine."""
     orbs = numpy.arange(system.nbasis)
     oa = [c for c in itertools.combinations(orbs, system.nup)]
@@ -17,8 +17,8 @@ def simple_fci(system, dets=False):
     for i in range(ndets):
         for j in range(i,ndets):
             H[i,j] = get_hmatel(system, dets[i], dets[j])
-    if dets:
-        return scipy.linalg.eigh(H, lower=False), (dets,oa,ob)
+    if gen_dets:
+        return scipy.linalg.eigh(H, lower=False), (dets,numpy.array(oa),numpy.array(ob))
     else:
         return scipy.linalg.eigh(H, lower=False)
 
@@ -26,6 +26,8 @@ def simple_fci(system, dets=False):
 def get_hmatel(system, di, dj):
     from_orb = list(set(dj)-set(di))
     to_orb = list(set(di)-set(dj))
+    from_orb.sort()
+    to_orb.sort()
     nex = len(from_orb)
     perm = get_perm(from_orb, to_orb, di, dj)
     if nex == 0:
@@ -56,10 +58,12 @@ def get_perm(from_orb, to_orb, di, dj):
     for o in from_orb:
         io = numpy.where(dj==o)[0]
         perm += len(dj) - io - 1 + nmove
+        nmove += 1
     nmove = 0
     for o in to_orb:
         io = numpy.where(di==o)[0]
         perm += len(di) - io - 1 + nmove
+        nmove += 1
     return perm % 2 == 1
 
 def slater_condon0(system, occs):
