@@ -233,29 +233,29 @@ def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
 def qmcpack_wfn_namelist(nci, uhf, fullmo=True):
     return "&FCI\n UHF = %d\n NCI = %d \n %s TYPE = matrix\n/\n"%(uhf,nci,'FullMO\n' if fullmo else '')
 
-# def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
-    # UHF = len(wfn.shape) == 3
-    # # Single determinant for the moment.
-    # namelist = qmcpack_wfn_namelist(1, UHF)
-    # with open(filename, 'w') as f:
-        # f.write(namelist)
-        # f.write('Coefficients: 1.0\n')
-        # f.write('Determinant: 1\n')
-        # nao = wfn.shape[-1]
-        # if UHF:
-            # nao = wfn[0].shape[-1]
-            # write_qmcpack_wfn(f, wfn[0], nao)
-            # nao = wfn[1].shape[-1]
-            # write_qmcpack_wfn(f, wfn[1], nao)
-        # else:
-            # write_qmcpack_wfn(f, wfn, nao)
+def dump_qmcpack_trial_wfn(wfn, nelec, filename='wfn.dat'):
+    UHF = len(wfn.shape) == 3
+    # Single determinant for the moment.
+    namelist = qmcpack_wfn_namelist(1, UHF)
+    with open(filename, 'w') as f:
+        f.write(namelist)
+        f.write('Coefficients: 1.0\n')
+        f.write('Determinant: 1\n')
+        nao = wfn.shape[-1]
+        if UHF:
+            nao = wfn[0].shape[-1]
+            write_qmcpack_wfn(f, wfn[0], nao)
+            nao = wfn[1].shape[-1]
+            write_qmcpack_wfn(f, wfn[1], nao)
+        else:
+            write_qmcpack_wfn(f, wfn, nao)
 
-# def write_qmcpack_wfn(out, mos, nao):
-    # for i in range(0, nao):
-        # for j in range(0, nao):
-            # val = mos[i,j]
-            # out.write('(%.16e,%.16e) '%(val.real, val.imag))
-        # out.write('\n')
+def write_qmcpack_wfn(out, mos, nao):
+    for i in range(0, nao):
+        for j in range(0, nao):
+            val = mos[i,j]
+            out.write('(%.16e,%.16e) '%(val.real, val.imag))
+        out.write('\n')
 
 def read_qmcpack_wfn(filename, skip=9):
     with open(filename) as f:
