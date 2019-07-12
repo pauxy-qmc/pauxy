@@ -88,12 +88,10 @@ class MultiSlater(object):
             if self.verbose:
                 print("# Assuming RHF reference.")
             I = numpy.eye(system.nbasis, dtype=numpy.complex128)
-        # Store determinants occupation strings in spin orbital indexing scheme.
-        # (alpha,beta,alpha,beta...) for convenience later during energy
-        # evaluation.
-        soa = [[2*x for x in w] for w in wfn[1]]
-        spocc = [alp+[2*x+1 for x in w] for (alp,w) in zip(soa,wfn[2])]
-        self.spin_occs = [numpy.sort(numpy.array(x)) for x in spocc]
+        # Store alpha electrons first followed by beta electrons.
+        nb = system.nbasis
+        dets = [list(a) + [i+nb for i in c] for (a,c) in zip(wfn[1],wfn[2])]
+        self.spin_occs = [numpy.sort(d) for d in dets]
         self.occa = wfn[1]
         self.occb = wfn[2]
         self.coeffs = numpy.array(wfn[0], dtype=numpy.complex128)
