@@ -204,7 +204,6 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     nchol_max = cmax * nao
     # This shape is more convenient for pauxy.
     chol_vecs = numpy.zeros((nchol_max, nao*nao))
-    eri = numpy.zeros((nao,nao,nao,nao))
     ndiag = 0
     dims = [0]
     nao_per_i = 0
@@ -245,11 +244,12 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     while abs(delta_max) > max_error:
         # Update cholesky vector
         start = time.time()
-        # M'_ii = \sum_x L_i^x L_i^x
+        # M'_ii = L_i^x L_i^x
         Mapprox += chol_vecs[nchol] * chol_vecs[nchol]
         # D_ii = M_ii - M'_ii
         delta = diag - Mapprox
         nu = numpy.argmax(numpy.abs(delta))
+        print(numpy.sort(numpy.abs(delta)))
         delta_max = numpy.abs(delta[nu])
         # Compute ERI chunk.
         # shls_slice computes shells of integrals as determined by the angular
@@ -282,6 +282,165 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
             print ("# iteration %5d: delta_max = %13.8e: time = %13.8e"%info)
 
     return chol_vecs[:nchol]
+
+def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
+                             verbose=False, cmax=10, CHUNK_SIZE=2.0):
+    """Modified cholesky decomposition from pyscf eris.
+
+    See, e.g. [Motta17]_
+
+    Only works for molecular systems.
+
+    Parameters
+    ----------
+    mol : :class:`pyscf.mol`
+        pyscf mol object.
+    orthoAO: :class:`numpy.ndarray`
+        Orthogonalising matrix for AOs. (e.g., mo_coeff).
+    delta : float
+        Accuracy desired.
+    verbose : bool
+        If true print out convergence progress.
+    cmax : int
+        nchol = cmax * M, where M is the number of basis functions.
+        Controls buffer size for cholesky vectors.
+
+    Returns
+    -------
+    chol_vecs : :class:`numpy.ndarray`
+        Matrix of cholesky vectors in AO basis.
+    """
+    nao = mol.nao_nr()
+    diag = numpy.zeros(nao*nao)
+    nchol_max = cmax * nao
+    mem = 16.0*nchol_max*nao*nao / 1024.0**3
+    chunk_size = min(int(CHUNK_SIZE*1024.0**3/(16*nao*nao)),nchol_max)
+    if verbose:
+        print("# Number of AOs: {}".format(nao))
+        print("# Max number of Cholesky vectors: {}".format(nchol_max))
+        print("# Max memory required for Cholesky tensor: {} GB".format(mem))
+        print("# Splitting calculation into chunks of size: {}".format(chunk_size))
+        print("# Generating diagonal.")
+    chol_vecs = numpy.zeros((chunk_size,nao*nao))
+    ndiag = 0
+    dims = [0]
+    nao_per_i = 0
+    start = time.time()
+    for i in range(0,mol.nbas):
+        l = mol.bas_angular(i)
+        nc = mol.bas_nctr(i)
+        nao_per_i += (2*l+1)*nc
+        dims.append(nao_per_i)
+    for i in range(0,mol.nbas):
+        shls = (i,i+1,0,mol.nbas,i,i+1,0,mol.nbas)
+        buf = mol.intor('int2e_sph', shls_slice=shls)
+        di, dk, dj, dl = buf.shape
+        diag[ndiag:ndiag+di*nao] = buf.reshape(di*nao,di*nao).diagonal()
+        ndiag += di * nao
+    nu = numpy.argmax(diag)
+    delta_max = diag[nu]
+    with h5py.File(erif, 'w') as fh5:
+        fh5['diagonal'] = diag
+    end = time.time()
+    if verbose:
+        print("# Time to generate diagonal {}.".format(end-start))
+        print("# Generating Cholesky decomposition of ERIs."%nchol_max)
+        print("# iteration %5d: delta_max = %f"%(0, delta_max))
+    j = nu // nao
+    l = nu % nao
+    sj = numpy.searchsorted(dims, j)
+    sl = numpy.searchsorted(dims, l)
+    if dims[sj] != j and j != 0:
+        sj -= 1
+    if dims[sl] != l and l != 0:
+        sl -= 1
+    Mapprox = numpy.zeros(nao*nao)
+    # ERI[:,jl]
+    eri_col = mol.intor('int2e_sph',
+                        shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+    cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+    # chol_vecs_full = numpy.zeros((nchol_max,nao*nao))
+    chol_vecs[0] = numpy.copy(eri_col[:,:,cj,cl].reshape(nao*nao)) / delta_max**0.5
+    # chol_vecs_full[0] = chol_vecs[0]
+
+    def compute_residual(chol, ichol, nchol, nu):
+        # Updated residual = \sum_x L_i^x L_nu^x
+        # R = numpy.dot(chol_vecs[:nchol+1,nu], chol_vecs[:nchol+1,:])
+        R = 0.0
+        with h5py.File(erif, 'r') as fh5:
+            for ic in range(0,ichol):
+                # Compute dot product from file.
+                L = fh5['chol_{}'.format(ic)][:]
+                R += numpy.dot(L[:,nu], L[:,:])
+        R += numpy.dot(chol[:nchol+1,nu], chol[:nchol+1,:])
+        return R
+
+    nchol = 0
+    ichunk = 0
+    while abs(delta_max) > max_error:
+        # Update cholesky vector
+        start = time.time()
+        # M'_ii = L_i^x L_i^x
+        Mapprox += chol_vecs[nchol%chunk_size] * chol_vecs[nchol%chunk_size]
+        # D_ii = M_ii - M'_ii
+        delta = diag - Mapprox
+        nu = numpy.argmax(numpy.abs(delta))
+        delta_max = numpy.abs(delta[nu])
+        # Compute ERI chunk.
+        # shls_slice computes shells of integrals as determined by the angular
+        # momentum of the basis function and the number of contraction
+        # coefficients. Need to search for AO index within this shell indexing
+        # scheme.
+        # AO index.
+        j = nu // nao
+        l = nu % nao
+        # Associated shell index.
+        sj = numpy.searchsorted(dims, j)
+        sl = numpy.searchsorted(dims, l)
+        if dims[sj] != j and j != 0:
+            sj -= 1
+        if dims[sl] != l and l != 0:
+            sl -= 1
+        # Compute ERI chunk.
+        eri_col = mol.intor('int2e_sph',
+                            shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+        # Select correct ERI chunk from shell.
+        cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+        Munu0 = eri_col[:,:,cj,cl].reshape(nao*nao)
+        # Updated residual = \sum_x L_i^x L_nu^x
+        startr = time.time()
+        R = compute_residual(chol_vecs, ichunk, nchol%chunk_size, nu)
+        endr = time.time()
+        if nchol > 0 and (nchol + 1) % chunk_size == 0:
+            startw = time.time()
+            delta = (L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs)
+            with h5py.File(erif, 'r+') as fh5:
+                fh5['chol_{}'.format(ichunk)] = chol_vecs
+            endw = time.time()
+            if verbose:
+                print("# Writing Cholesky chunk {} to file".format(ichunk))
+                print("# Time to write {}".format(endw-startw))
+            ichunk += 1
+            chol_vecs[:] = 0.0
+        chol_vecs[(nchol+1)%chunk_size] = (Munu0 - R) / (delta_max)**0.5
+        # chol_vecs_full[nchol+1] = (Munu0 - R) / (delta_max)**0.5
+        nchol += 1
+        if verbose:
+            step_time = time.time() - start
+            info = (nchol, delta_max, step_time, endr-startr)
+            print("# iteration %5d: delta_max = %13.8e: step time = %13.8e: res"
+                  " time = %13.8e "%info)
+
+    with h5py.File(erif, 'r+') as fh5:
+        fh5['chol_{}'.format(ichunk)] = chol_vecs
+        fh5['chol_full'] = chol_vecs_full[:nchol]
+        fh5['nchol'] = numpy.array([nchol])
+        fh5['ncol'] = numpy.array([nao*nao])
+        fh5['chunk_size'] = numpy.array([chunk_size])
+        fh5['num_chunks'] = numpy.array([ichunk+1])
+
+    return chol_vecs[:nchol]
+
 
 def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
                            max_ndets=1e5, norb=None,
