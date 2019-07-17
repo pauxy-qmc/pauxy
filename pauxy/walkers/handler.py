@@ -62,9 +62,15 @@ class Walkers(object):
             dtype = complex
         else:
             dtype = int
-        self.pop_control = self.comb
+        pcont_method = walker_opts.get('population_control', 'comb')
+        if pcont_method == 'comb':
+            self.pop_control = self.comb
+        elif pcont_method == 'pair_branch':
+            self.pop_control = self.pair_branch
         self.stack_size = walker_opts.get('stack_size', 1)
         walker_size = 3 + self.walkers[0].phi.size
+        self.min_weight = walker_opts.get('min_weight', 0.1)
+        self.max_weight = walker_opts.get('min_weight', 4.0)
         if self.write_freq > 0:
             self.write_restart = True
             self.dsets = []
@@ -227,6 +233,70 @@ class Walkers(object):
         # TODO: check this.
         for w in self.walkers:
             w.weight = 1.0
+
+    def pair_branch(self, comm):
+        walker_info = [[w.weight,1,comm.rank,comm.rank] for w in self.walkers]
+        glob_inf = comm.allgather(walker_info)
+        # Unpack lists
+        glob_inf = numpy.array([item for sub in glob_inf for item in sub])
+        # glob_inf.sort(key=lambda x: x[0])
+        sort = numpy.argsort(glob_inf[:,0])
+        isort = numpy.argsort(sort)
+        glob_inf = glob_inf[sort]
+        s = 0
+        e = len(glob_inf) - 1
+        tags = []
+        isend = 0
+        while s < e:
+            if glob_inf[s][0] < self.min_weight or glob_inf[e][0] > self.max_weight:
+                # sum of paired walker weights
+                wab = glob_inf[s][0] + glob_inf[e][0]
+                r = numpy.random.rand()
+                if r < glob_inf[e][0] / wab:
+                    # clone large weight walker
+                    glob_inf[e][0] = 0.5 * wab
+                    glob_inf[e][1] = 2
+                    # Processor we will send duplicated walker to
+                    glob_inf[e][3] = glob_inf[s][2]
+                    send = glob_inf[s][2]
+                    # Kill small weight walker
+                    glob_inf[s][0] = 0.0
+                    glob_inf[s][1] = 0
+                    glob_inf[s][3] = glob_inf[e][2]
+                else:
+                    # clone small weight walker
+                    glob_inf[s][0] = 0.5 * wab
+                    glob_inf[s][1] = 2
+                    # Processor we will send duplicated walker to
+                    glob_inf[s][3] = glob_inf[e][2]
+                    send = glob_inf[e][2]
+                    # Kill small weight walker
+                    glob_inf[e][0] = 0.0
+                    glob_inf[e][1] = 0
+                    glob_inf[e][3] = glob_inf[s][2]
+                tags.append([send])
+                s += 1
+                e -= 1
+            else:
+                break
+        glob_inf = glob_inf[isort]
+        reqs = []
+        nw = self.nwalkers
+        walker_buffers = []
+        for iw, walker in enumerate(glob_inf[comm.rank*nw:(comm.rank+1)*nw]):
+            if walker[1] > 1:
+                tag = comm.rank*len(walker_info) + walker[3]
+                walker_buffers.append(self.walkers[iw].__dict__)
+                reqs.append(comm.isend(walker_buffers[-1],
+                            dest=int(round(walker[3])), tag=tag))
+        for iw, walker in enumerate(glob_inf[comm.rank*nw:(comm.rank+1)*nw]):
+            if walker[1] == 0:
+                tag = walker[3]*len(walker_info) + comm.rank
+                buff = comm.recv(source=int(round(walker[3])), tag=tag)
+                self.walkers[iw].__dict__ = walker_buffer
+        for r in reqs:
+            r.wait()
+
 
     def recompute_greens_function(self, trial, time_slice=None):
         for w in self.walkers:
