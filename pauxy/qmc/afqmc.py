@@ -16,7 +16,7 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash
-from pauxy.utils.io import  to_json, serialise
+from pauxy.utils.io import  to_json, serialise, get_input_value
 from pauxy.walkers.handler import Walkers
 
 
@@ -75,32 +75,44 @@ class AFQMC(object):
         Walker handler. Stores the AFQMC wavefunction.
     """
 
-    def __init__(self, options=None, mf=None, parallel=False, verbose=False):
+    def __init__(self, comm, options=None, mf=None, parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
         # 1. Environment attributes
-        self.uuid = str(uuid.uuid1())
-        get_sha1 = options.get('get_sha1', True)
-        if get_sha1:
-            self.sha1 = get_git_revision_hash()
-        else:
-            self.sha1 = 'None'
+        if comm.rank == 0:
+            self.uuid = str(uuid.uuid1())
+            get_sha1 = options.get('get_sha1', True)
+            if get_sha1:
+                self.sha1 = get_git_revision_hash()
+            else:
+                self.sha1 = 'None'
         # Hack - this is modified later if running in parallel on
         # initialisation.
-        self.root = True
-        self.nprocs = 1
-        self.rank = 1
+        self.root = comm.rank == 0
+        self.rank = comm.rank
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
+        # if comm.rank == 0:
+            # system = get_system(sys_opts=options.get('model', {}),
+                                     # mf=mf, verbose=verbose)
+        # else:
+            # system = None
+        # self.system = comm.bcast(system, root=0)
         self.system = get_system(sys_opts=options.get('model', {}),
-                                 mf=mf, verbose=verbose)
-        self.qmc = QMCOpts(options.get('qmc', {}), self.system,
+                            mf=mf, verbose=verbose)
+        qmc_opt = get_input_value(options, 'qmc', default={},
+                                  alias=['qmc_options'],
+                                  verbose=self.verbosity>1)
+        self.qmc = QMCOpts(qmc_opt, self.system,
                            verbose=self.verbosity>1)
         self.seed = self.qmc.rng_seed
         self.cplx = self.determine_dtype(options.get('propagator', {}),
                                          self.system)
+        twf_opt = get_input_value(options, 'trial', default={},
+                                  alias=['trial_wavefunction'],
+                                  verbose=self.verbosity>1)
         self.trial = (
             get_trial_wavefunction(self.system, options=options.get('trial', {}),
                                    mf=mf, parallel=parallel, verbose=verbose)
@@ -117,21 +129,32 @@ class AFQMC(object):
                                                  self.qmc, options=prop_opt,
                                                  verbose=verbose)
         self.tsetup = time.time() - self._init_time
-        if not parallel:
-            walker_opts = options.get('walkers', {})
-            estimates = options.get('estimates', {})
-            estimates['stack_size'] = walker_opts.get('stack_size', 1)
-            self.estimators = (
-                Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
-                           self.trial, self.propagators.BT_BP, verbose)
-            )
-            self.qmc.ntot_walkers = self.qmc.nwalkers
-            self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc, verbose, comm=None)
-            self.psi.add_field_config(self.estimators.nprop_tot,
-                                      self.estimators.nbp,
-                                      self.system,
-                                      numpy.complex128)
+        walker_opts = options.get('walkers', {})
+        estimates = options.get('estimates', {})
+        estimates['stack_size'] = walker_opts.get('stack_size', 1)
+        self.estimators = (
+            Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
+                       self.trial, self.propagators.BT_BP, verbose)
+        )
+        # Reset number of walkers so they are evenly distributed across
+        # cores/ranks.
+        # Number of walkers per core/rank.
+        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
+        # Total number of walkers.
+        self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
+        if self.qmc.nwalkers == 0:
+            if afqmc.root:
+                print("# WARNING: Not enough walkers for selected core count."
+                      "There must be at least one walker per core set in the "
+                      "input file. Setting one walker per core.")
+            afqmc.qmc.nwalkers = 1
+        self.psi = Walkers(walker_opts, self.system, self.trial,
+                           self.qmc, verbose, comm=None)
+        self.psi.add_field_config(self.estimators.nprop_tot,
+                                  self.estimators.nbp,
+                                  self.system,
+                                  numpy.complex128)
+        if comm.rank == 0:
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string
@@ -161,7 +184,7 @@ class AFQMC(object):
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
         if verbose:
-            self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
+            self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
             if step % self.qmc.nstblz == 0:
@@ -192,7 +215,7 @@ class AFQMC(object):
             if step % self.qmc.nupdate_shift == 0:
                 eshift = self.estimators.estimators['mixed'].get_shift()
             if step % self.qmc.nmeasure == 0:
-                self.estimators.print_step(comm, self.nprocs, step,
+                self.estimators.print_step(comm, comm.size, step,
                                            self.qmc.nmeasure)
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)

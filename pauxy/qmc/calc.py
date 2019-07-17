@@ -32,18 +32,18 @@ def setup_calculation(input_options):
         options = read_input(input_options, comm, verbose=True)
     else:
         options = input_options
+    qmc_opts = get_input_value(options, 'qmc', default={},
+                               alias=['qmc_options'])
     set_rng_seed(options['qmc'], comm)
-    if comm.size > 1:
-        afqmc = setup_parallel(options, comm, verbose=True)
-    else:
-        afqmc = get_driver(options, comm)
+    afqmc = get_driver(options, comm)
     return (afqmc, comm)
 
 def get_driver(options, comm):
     beta = options.get('qmc').get('beta', None)
     verbosity = options.get('verbosity', 1)
     if beta is not None:
-        afqmc = ThermalAFQMC(options.get('model'),
+        afqmc = ThermalAFQMC(comm,
+                             options.get('model'),
                              options.get('qmc'),
                              options.get('estimates', {}),
                              options.get('trial', {}),
@@ -52,7 +52,7 @@ def get_driver(options, comm):
                              parallel=comm.size>1,
                              verbose=(verbosity and comm.rank==0))
     else:
-        afqmc = AFQMC(options=options,
+        afqmc = AFQMC(comm, options=options,
                       parallel=comm.size>1,
                       verbose=(verbosity and comm.rank==0))
     return afqmc
@@ -129,9 +129,12 @@ def setup_parallel(options, comm=None, verbose=False):
     """
     if comm.rank == 0:
         afqmc = get_driver(options, comm)
+        system = afqmc.system
         print("# Setup base driver.")
     else:
         afqmc = None
+        system = None
+    system = comm.bcast(system)
     afqmc = comm.bcast(afqmc, root=0)
     afqmc.init_time = time.time()
     if afqmc.trial.error:
