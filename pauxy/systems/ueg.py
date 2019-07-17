@@ -41,7 +41,7 @@ class UEG(object):
 
     def __init__(self, inputs, verbose=False):
         if verbose:
-            print ("# Parsing input options.")
+            print("# Parsing input options.")
         self.name = "UEG"
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
@@ -78,12 +78,12 @@ class UEG(object):
         self.ef = 0.5*self.kf**2
 
         if verbose:
-            print("# zeta: %d"%self.zeta)
-            print("# rho: %13.8e"%self.rho)
-            print("# L: %13.8e"%self.L)
-            print("# vol: %13.8e"%self.vol)
-            print("# kfac: %13.8e"%self.kfac)
-            print("# E_M: %13.8e"%self.ecore)
+            print("# Spin polarisation (zeta): %d"%self.zeta)
+            print("# Electron density (rho): %13.8e"%self.rho)
+            print("# Box Length (L): %13.8e"%self.L)
+            print("# Volume: %13.8e"%self.vol)
+            print("# k-space factor (2pi/L): %13.8e"%self.kfac)
+            print("# Madelung Energy: %13.8e"%self.ecore)
 
         # Single particle eigenvalues and corresponding kvectors
         (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
@@ -176,7 +176,7 @@ class UEG(object):
             print("# Approximate memory required for "
                   "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
             print("# Constructing two_body_potentials_incore finished")
-            print ("# Finished setting up UEG system object.")
+            print("# Finished setting up UEG system object.")
 
 
     def sp_energies(self, kfac, ecut):
