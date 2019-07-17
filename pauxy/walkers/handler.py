@@ -11,6 +11,7 @@ from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
 from pauxy.qmc.comm import FakeComm
+from pauxy.utils.io import get_input_value
 
 
 class Walkers(object):
@@ -62,11 +63,15 @@ class Walkers(object):
             dtype = complex
         else:
             dtype = int
-        pcont_method = walker_opts.get('population_control', 'comb')
+        pcont_method = get_input_value(walker_opts, 'population_control',
+                                       default='comb')
         if pcont_method == 'comb':
             self.pop_control = self.comb
         elif pcont_method == 'pair_branch':
             self.pop_control = self.pair_branch
+        if verbose:
+            print("# Using {} population control "
+                  "algorithm.".format(pcont_method))
         self.stack_size = walker_opts.get('stack_size', 1)
         walker_size = 3 + self.walkers[0].phi.size
         self.min_weight = walker_opts.get('min_weight', 0.1)
