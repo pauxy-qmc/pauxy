@@ -75,7 +75,7 @@ class Walkers(object):
         self.stack_size = walker_opts.get('stack_size', 1)
         walker_size = 3 + self.walkers[0].phi.size
         self.min_weight = walker_opts.get('min_weight', 0.1)
-        self.max_weight = walker_opts.get('min_weight', 4.0)
+        self.max_weight = walker_opts.get('min_weight', 2.0)
         if self.write_freq > 0:
             self.write_restart = True
             self.dsets = []
@@ -241,64 +241,69 @@ class Walkers(object):
 
     def pair_branch(self, comm):
         walker_info = [[w.weight,1,comm.rank,comm.rank] for w in self.walkers]
-        glob_inf = comm.allgather(walker_info)
-        # Unpack lists
-        glob_inf = numpy.array([item for sub in glob_inf for item in sub])
-        # glob_inf.sort(key=lambda x: x[0])
-        sort = numpy.argsort(glob_inf[:,0])
-        isort = numpy.argsort(sort)
-        glob_inf = glob_inf[sort]
-        s = 0
-        e = len(glob_inf) - 1
-        tags = []
-        isend = 0
-        while s < e:
-            if glob_inf[s][0] < self.min_weight or glob_inf[e][0] > self.max_weight:
-                # sum of paired walker weights
-                wab = glob_inf[s][0] + glob_inf[e][0]
-                r = numpy.random.rand()
-                if r < glob_inf[e][0] / wab:
-                    # clone large weight walker
-                    glob_inf[e][0] = 0.5 * wab
-                    glob_inf[e][1] = 2
-                    # Processor we will send duplicated walker to
-                    glob_inf[e][3] = glob_inf[s][2]
-                    send = glob_inf[s][2]
-                    # Kill small weight walker
-                    glob_inf[s][0] = 0.0
-                    glob_inf[s][1] = 0
-                    glob_inf[s][3] = glob_inf[e][2]
+        glob_inf = comm.gather(walker_info, root=0)
+        # Want same random number seed used on all processors
+        if comm.rank == 0:
+            # Unpack lists
+            glob_inf = numpy.array([item for sub in glob_inf for item in sub])
+            # glob_inf.sort(key=lambda x: x[0])
+            sort = numpy.argsort(glob_inf[:,0], kind='mergesort')
+            isort = numpy.argsort(sort, kind='mergesort')
+            glob_inf = glob_inf[sort]
+            s = 0
+            e = len(glob_inf) - 1
+            tags = []
+            isend = 0
+            while s < e:
+                if glob_inf[s][0] < self.min_weight or glob_inf[e][0] > self.max_weight:
+                    # sum of paired walker weights
+                    wab = glob_inf[s][0] + glob_inf[e][0]
+                    r = numpy.random.rand()
+                    if r < glob_inf[e][0] / wab:
+                        # clone large weight walker
+                        glob_inf[e][0] = 0.5 * wab
+                        glob_inf[e][1] = 2
+                        # Processor we will send duplicated walker to
+                        glob_inf[e][3] = glob_inf[s][2]
+                        send = glob_inf[s][2]
+                        # Kill small weight walker
+                        glob_inf[s][0] = 0.0
+                        glob_inf[s][1] = 0
+                        glob_inf[s][3] = glob_inf[e][2]
+                    else:
+                        # clone small weight walker
+                        glob_inf[s][0] = 0.5 * wab
+                        glob_inf[s][1] = 2
+                        # Processor we will send duplicated walker to
+                        glob_inf[s][3] = glob_inf[e][2]
+                        send = glob_inf[e][2]
+                        # Kill small weight walker
+                        glob_inf[e][0] = 0.0
+                        glob_inf[e][1] = 0
+                        glob_inf[e][3] = glob_inf[s][2]
+                    tags.append([send])
+                    s += 1
+                    e -= 1
                 else:
-                    # clone small weight walker
-                    glob_inf[s][0] = 0.5 * wab
-                    glob_inf[s][1] = 2
-                    # Processor we will send duplicated walker to
-                    glob_inf[s][3] = glob_inf[e][2]
-                    send = glob_inf[e][2]
-                    # Kill small weight walker
-                    glob_inf[e][0] = 0.0
-                    glob_inf[e][1] = 0
-                    glob_inf[e][3] = glob_inf[s][2]
-                tags.append([send])
-                s += 1
-                e -= 1
-            else:
-                break
-        glob_inf = glob_inf[isort]
-        reqs = []
-        nw = self.nwalkers
+                    break
+            nw = self.nwalkers
+            glob_inf = glob_inf[isort].reshape((comm.size,nw,4))
+        else:
+            data = None
+        data = comm.scatter(glob_inf, root=0)
         walker_buffers = []
-        for iw, walker in enumerate(glob_inf[comm.rank*nw:(comm.rank+1)*nw]):
+        reqs = []
+        for iw, walker in enumerate(data):
             if walker[1] > 1:
                 tag = comm.rank*len(walker_info) + walker[3]
                 walker_buffers.append(self.walkers[iw].__dict__)
                 reqs.append(comm.isend(walker_buffers[-1],
                             dest=int(round(walker[3])), tag=tag))
-        for iw, walker in enumerate(glob_inf[comm.rank*nw:(comm.rank+1)*nw]):
+        for iw, walker in enumerate(data):
             if walker[1] == 0:
                 tag = walker[3]*len(walker_info) + comm.rank
                 buff = comm.recv(source=int(round(walker[3])), tag=tag)
-                self.walkers[iw].__dict__ = walker_buffer
+                self.walkers[iw].__dict__ = buff
         for r in reqs:
             r.wait()
 
