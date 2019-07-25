@@ -133,3 +133,24 @@ def update_stack(stack_size, num_slices, verbose=False):
         print("# lower_bound is {}".format(lower_bound))
         print("# Adjusted stack size is {}".format(stack_size))
     return stack_size
+
+def print_section_header(string):
+    header = """
+    ################################################
+    #                                              #
+    #                                              #
+    #                                              #
+    """
+    box_len = len("################################################")
+    str_len = len(string)
+    start = box_len // 2 - str_len // 2 - 1
+    init = "#" + ' '*start
+    end = box_len - (box_len//2 + str_len // 2) - 1
+    fin = ' '*end + "#"
+    footer = """
+    #                                              #
+    #                                              #
+    #                                              #
+    ################################################
+    """
+    print(header + init + string + fin + footer)

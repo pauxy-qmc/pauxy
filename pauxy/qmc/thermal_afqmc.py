@@ -89,7 +89,7 @@ class ThermalAFQMC(object):
         Stores walkers which sample the partition function.
     """
 
-    def __init__(self, model, qmc_opts, estimates={},
+    def __init__(self, comm, model, qmc_opts, estimates={},
                  trial={}, propagator={}, walker_opts={}, parallel=False,
                  verbose=None):
         if (qmc_opts['beta'] == None):
@@ -99,14 +99,15 @@ class ThermalAFQMC(object):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
-        self.uuid = str(uuid.uuid1())
-        self.sha1 = get_git_revision_hash()
-        self.seed = qmc_opts['rng_seed']
+        if comm.rank == 0:
+            self.uuid = str(uuid.uuid1())
+            self.sha1 = get_git_revision_hash()
+            self.seed = qmc_opts['rng_seed']
         # Hack - this is modified later if running in parallel on
         # initialisation.
-        self.root = True
-        self.nprocs = 1
-        self.rank = 1
+        self.root = comm.rank == 0
+        self.nprocs = comm.size
+        self.rank = comm.rank
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
@@ -123,21 +124,33 @@ class ThermalAFQMC(object):
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
-            get_trial_density_matrices(trial, self.system, self.cplx, parallel, self.qmc.beta, self.qmc.dt, verbose)
+            get_trial_density_matrices(trial, self.system, self.cplx,
+                                       parallel, self.qmc.beta, self.qmc.dt,
+                                       verbose)
         )
 
         self.propagators = get_propagator(propagator, self.qmc, self.system,
                                           self.trial, verbose)
 
         self.tsetup = time.time() - self._init_time
-        if not parallel:
-            self.estimators = (
-                Estimators(estimates, self.root, self.qmc, self.system,
-                           self.trial, self.propagators.BT_BP, verbose)
-            )
-            self.qmc.ntot_walkers = self.qmc.nwalkers
-            self.psi = Walkers(walker_opts, self.system, self.trial,
-                               self.qmc, verbose)
+        self.estimators = (
+            Estimators(estimates, self.root, self.qmc, self.system,
+                       self.trial, self.propagators.BT_BP, verbose)
+        )
+        self.qmc.ntot_walkers = self.qmc.nwalkers
+        # Number of walkers per core/rank.
+        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.nprocs)
+        # Total number of walkers.
+        self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
+        if self.qmc.nwalkers == 0:
+            if afqmc.root:
+                print("# WARNING: Not enough walkers for selected core count."
+                      "There must be at least one walker per core set in the "
+                      "input file. Setting one walker per core.")
+            afqmc.qmc.nwalkers = 1
+        self.psi = Walkers(walker_opts, self.system, self.trial,
+                           self.qmc, verbose)
+        if comm.rank == 0:
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
