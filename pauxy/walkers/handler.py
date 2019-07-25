@@ -296,6 +296,7 @@ class Walkers(object):
         for iw, walker in enumerate(data):
             if walker[1] > 1:
                 tag = comm.rank*len(walker_info) + walker[3]
+                self.walkers[iw].weight = walker[0]
                 walker_buffers.append(self.walkers[iw].__dict__)
                 reqs.append(comm.isend(walker_buffers[-1],
                             dest=int(round(walker[3])), tag=tag))
