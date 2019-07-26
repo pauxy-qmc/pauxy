@@ -69,13 +69,14 @@ class Walkers(object):
             self.pop_control = self.comb
         elif pcont_method == 'pair_branch':
             self.pop_control = self.pair_branch
+        self.min_weight = walker_opts.get('min_weight', 0.1)
+        self.max_weight = walker_opts.get('min_weight', 2.0)
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(pcont_method))
         self.stack_size = walker_opts.get('stack_size', 1)
-        walker_size = 3 + self.walkers[0].phi.size
-        self.min_weight = walker_opts.get('min_weight', 0.1)
-        self.max_weight = walker_opts.get('min_weight', 2.0)
+        if not self.walker_type == "thermal":
+            walker_size = 3 + self.walkers[0].phi.size
         if self.write_freq > 0:
             self.write_restart = True
             self.dsets = []

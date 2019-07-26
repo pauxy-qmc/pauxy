@@ -53,6 +53,7 @@ class Hubbard(object):
         self.nx = inputs['nx']
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.symmetric = inputs.get('symmetric', False)
         self.nbasis = self.nx * self.ny
         self.nactive = self.nbasis
         self.nfv = 0
@@ -71,7 +72,6 @@ class Hubbard(object):
                              self.ny, self.ktwist)
         self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
-        self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
         self.mu = inputs.get('mu', None)
@@ -81,7 +81,7 @@ class Hubbard(object):
         self.nfields = self.nbasis
         self.name = "Hubbard"
         if verbose:
-            print ("# Finished setting up Hubbard system object.")
+            print("# Finished setting up Hubbard system object.")
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.

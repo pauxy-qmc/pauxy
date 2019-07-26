@@ -13,7 +13,7 @@ from pauxy.utils.misc import update_stack
 
 class OneBody(object):
 
-    def __init__(self, options, system, beta, dt, H1=None, verbose=False):
+    def __init__(self, comm, options, system, beta, dt, H1=None, verbose=False):
         self.name = 'thermal'
         if H1 is None:
             try:
@@ -61,11 +61,15 @@ class OneBody(object):
             print("# Number of stacks: {}".format(self.num_bins))
 
         if self.mu is None:
-            dtau = self.stack_size * dt
-            rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
-                               scipy.linalg.expm(-dtau*(self.H1[1]))])
-            self.mu = self.find_chemical_potential(system, rho,
-                                                   dtau, verbose)
+            if comm.rank == 0:
+                dtau = self.stack_size * dt
+                rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
+                                   scipy.linalg.expm(-dtau*(self.H1[1]))])
+                self.mu = self.find_chemical_potential(system, rho,
+                                                       dtau, verbose)
+            else:
+                mu = None
+            self.mu = comm.bcast(self.mu, root=0)
 
         if verbose:
             print("# Chemical potential: {: .10e}".format(self.mu))

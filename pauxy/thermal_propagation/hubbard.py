@@ -16,7 +16,8 @@ class ThermalDiscrete(object):
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+        if not system.symmetric:
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         dt = qmc.dt
         dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
@@ -84,8 +85,9 @@ class ThermalDiscrete(object):
             r = numpy.random.random()
             if norm > 0:
                 walker.weight = walker.weight * norm
-                if walker.weight > walker.total_weight * 0.10:
-                    walker.weight = walker.total_weight * 0.10
+                # print(walker.weight, norm, walker.total_weight)
+                # if walker.weight > walker.total_weight * 0.10:
+                    # walker.weight = walker.total_weight * 0.10
                 if r < phaseless_ratio[0] / norm:
                     xi = 0
                 else:

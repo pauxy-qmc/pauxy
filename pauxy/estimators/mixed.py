@@ -254,8 +254,8 @@ class Mixed(object):
             gs[ns.eproj] = gs[ns.enumer]
             gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
         if self.thermal and comm.rank == 0:
-            if not free_projection:
-                gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
+            if free_projection:
+                gs[ns.nav] = gs[ns.nav] * gs[ns.weight]
         eshift = gs[ns.ehyb]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift

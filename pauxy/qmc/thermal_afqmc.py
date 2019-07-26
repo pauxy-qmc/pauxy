@@ -92,8 +92,8 @@ class ThermalAFQMC(object):
     def __init__(self, comm, model, qmc_opts, estimates={},
                  trial={}, propagator={}, walker_opts={}, parallel=False,
                  verbose=None):
-        if (qmc_opts['beta'] == None):
-            print ("Shouldn't call ThermalAFQMC without specifying beta")
+        if qmc_opts['beta'] == None:
+            print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
         if verbose is not None:
@@ -112,7 +112,7 @@ class ThermalAFQMC(object):
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         model['thermal'] = True # Add thermal keyword to model
-        self.system = get_system(model, verbose)
+        self.system = get_system(sys_opts=model, verbose=verbose)
         scale_t = qmc_opts.get('scaled_temperature', True)
         if scale_t:
             convert_from_reduced_unit(self.system, qmc_opts, verbose)
@@ -124,7 +124,7 @@ class ThermalAFQMC(object):
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
-            get_trial_density_matrices(trial, self.system, self.cplx,
+            get_trial_density_matrices(comm, trial, self.system, self.cplx,
                                        parallel, self.qmc.beta, self.qmc.dt,
                                        verbose)
         )
@@ -139,7 +139,7 @@ class ThermalAFQMC(object):
         )
         self.qmc.ntot_walkers = self.qmc.nwalkers
         # Number of walkers per core/rank.
-        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.nprocs)
+        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
@@ -154,7 +154,6 @@ class ThermalAFQMC(object):
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
-            print(json_string)
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
@@ -189,8 +188,8 @@ class ThermalAFQMC(object):
                 for w in self.psi.walkers:
                     if abs(w.weight) > 1e-8:
                         self.propagators.propagate_walker(self.system, w, ts)
-                    if (w.weight > w.total_weight * 0.10) and ts > 0:
-                        w.weight = w.total_weight * 0.10
+                    # if (w.weight > w.total_weight * 0.10) and ts > 0:
+                        # w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:

@@ -34,7 +34,7 @@ def setup_calculation(input_options):
         options = input_options
     qmc_opts = get_input_value(options, 'qmc', default={},
                                alias=['qmc_options'])
-    set_rng_seed(options['qmc'], comm)
+    set_rng_seed(qmc_opts, comm)
     afqmc = get_driver(options, comm)
     return (afqmc, comm)
 

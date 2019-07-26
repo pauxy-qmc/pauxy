@@ -63,6 +63,14 @@ class ThermalWalker(object):
         self.Qr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
         self.Dr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
 
+        self.hybrid_energy = 0.0
+        if verbose:
+            eloc = self.local_energy(system)
+            P = one_rdm_from_G(self.G)
+            nav = particle_number(P)
+            print("# Initial walker energy: {} {} {}".format(*eloc))
+            print("# Initial walker electron number: {}".format(nav))
+
     def greens_function(self, trial, slice_ix=None, inplace=True):
         return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
                                              inplace=inplace)

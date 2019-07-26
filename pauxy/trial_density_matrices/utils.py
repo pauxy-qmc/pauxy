@@ -1,6 +1,6 @@
 from pauxy.trial_density_matrices.onebody import OneBody
 
-def get_trial_density_matrices(options, system, cplx, parallel, beta, dt, verbose=False):
+def get_trial_density_matrices(comm, options, system, cplx, parallel, beta, dt, verbose=False):
     """Wrapper to select trial wavefunction class.
 
     Parameters
@@ -20,9 +20,9 @@ def get_trial_density_matrices(options, system, cplx, parallel, beta, dt, verbos
         Trial wavfunction class.
     """
     if options['name'] == 'one_body_mod':
-        trial = OneBody(options, system, beta, dt, H1=system.h1e_mod, verbose=verbose)
+        trial = OneBody(comm, options, system, beta, dt, H1=system.h1e_mod, verbose=verbose)
     elif options['name'] == 'one_body':
-        trial = OneBody(options, system, beta, dt, verbose=verbose)
+        trial = OneBody(comm, options, system, beta, dt, verbose=verbose)
     else:
         trial = None
 
