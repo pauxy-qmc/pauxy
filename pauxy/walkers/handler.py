@@ -12,6 +12,7 @@ from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
 from pauxy.qmc.comm import FakeComm
 from pauxy.utils.io import get_input_value
+from pauxy.utils.misc import update_stack
 
 
 class Walkers(object):
@@ -52,9 +53,16 @@ class Walkers(object):
                     for w in range(qmc.nwalkers)
                     ]
         elif trial.name == 'thermal':
+            self.stack_size = walker_opts.get('stack_size', 1)
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
                             for w in range(qmc.nwalkers)]
+            if self.stack_size % qmc.nstblz != 0:
+                if verbose:
+                    print("# nstblz is not commensurate with stack size.")
+                    print("# Determining a better value.")
+                qmc.nstblz = update_stack(qmc.nstblz, self.stack_size,
+                                          name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
             self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
@@ -74,7 +82,6 @@ class Walkers(object):
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(pcont_method))
-        self.stack_size = walker_opts.get('stack_size', 1)
         if not self.walker_type == "thermal":
             walker_size = 3 + self.walkers[0].phi.size
         if self.write_freq > 0:
@@ -292,6 +299,9 @@ class Walkers(object):
         else:
             data = None
         data = comm.scatter(glob_inf, root=0)
+        # Keep total weight saved for capping purposes.
+        total_weight = comm.bcast(total_weight, root=0)
+        self.set_total_weight(total_weight)
         walker_buffers = []
         reqs = []
         for iw, walker in enumerate(data):
@@ -315,6 +325,7 @@ class Walkers(object):
             w.greens_function(trial, time_slice)
 
     def set_total_weight(self, total_weight):
+        w.old_total_weight = self.total_weight
         for w in self.walkers:
             w.total_weight = total_weight
 

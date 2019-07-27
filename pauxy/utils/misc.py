@@ -115,7 +115,7 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-def update_stack(stack_size, num_slices, verbose=False):
+def update_stack(stack_size, num_slices, name="stack", verbose=False):
     lower_bound = min(stack_size, num_slices)
     upper_bound = min(stack_size, num_slices)
 
@@ -129,9 +129,9 @@ def update_stack(stack_size, num_slices, verbose=False):
     else:
         stack_size = upper_bound
     if verbose:
-        print("# upper_bound is {}".format(upper_bound))
-        print("# lower_bound is {}".format(lower_bound))
-        print("# Adjusted stack size is {}".format(stack_size))
+        print("# Initial {} upper_bound is {}".format(name, upper_bound))
+        print("# Initial {} lower_bound is {}".format(name, lower_bound))
+        print("# Adjusted {} size is {}".format(name, stack_size))
     return stack_size
 
 def print_section_header(string):

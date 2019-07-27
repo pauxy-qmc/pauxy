@@ -26,8 +26,10 @@ class ThermalWalker(object):
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:
             self.diagonal_trial = True
+            print("# trial density matrix is diagonal.")
         else:
             self.diagonal_trial = False
+            print("# Trial density matrix is not diagonal.")
 
         if self.stack_size == None:
             self.stack_size = trial.stack_size
@@ -43,8 +45,6 @@ class ThermalWalker(object):
                       %(trial.cond**self.stack_size))
         self.stack_length = self.num_slices // self.stack_size
 
-        if verbose and self.diagonal_trial:
-            print("# Trial density matrix is diagonal.")
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,

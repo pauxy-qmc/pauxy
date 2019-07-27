@@ -44,13 +44,13 @@ class ThermalDiscrete(object):
         Returns
         -------
         self.BH1 : numpy array
-            Exp(-dt/2 H0)
+            Exp(-dt H0)
         """
         H1 = system.H1
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*system.mu*I),
-                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*system.mu*I)])
+        self.BH1 = numpy.array([scipy.linalg.expm(-dt*H1[0]+dt*system.mu*I),
+                                scipy.linalg.expm(-dt*H1[1]+dt*system.mu*I)])
 
     def update_greens_function_simple(self, walker, time_slice):
         walker.construct_greens_function_stable(time_slice)
@@ -77,14 +77,14 @@ class ThermalDiscrete(object):
         R2_dn = 1 + (1-walker.G[1,i,i])*self.delta[1,1]
         return 0.5 * numpy.array([R1_up*R1_dn, R2_up*R2_dn])
 
-    def propagate_walker_constrained(self, system, walker, time_slice):
+    def propagate_walker_constrained(self, system, walker, time_slice, eshift):
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
             r = numpy.random.random()
             if norm > 0:
-                walker.weight = walker.weight * norm
+                walker.weight = walker.weight * norm * numpy.exp(eshift)
                 # print(walker.weight, norm, walker.total_weight)
                 # if walker.weight > walker.total_weight * 0.10:
                     # walker.weight = walker.total_weight * 0.10
@@ -98,7 +98,6 @@ class ThermalDiscrete(object):
             else:
                 walker.weight = 0
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
-        B = numpy.einsum('kin,knj->kij', self.BH1, B)
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
@@ -106,7 +105,7 @@ class ThermalDiscrete(object):
             walker.greens_function(None, walker.stack.time_slice-1)
         self.propagate_greens_function(walker)
 
-    def propagate_walker_free(self, system, walker, time_slice):
+    def propagate_walker_free(self, system, walker, time_slice, eshift):
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
             norm = sum(numpy.abs(probs))
@@ -127,7 +126,6 @@ class ThermalDiscrete(object):
             else:
                 walker.weight = 0
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
-        B = numpy.einsum('kin,knj->kij', self.BH1, B)
         walker.stack.update(B)
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
