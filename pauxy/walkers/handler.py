@@ -33,7 +33,7 @@ class Walkers(object):
     """
 
     def __init__(self, walker_opts, system, trial, qmc, verbose=False,
-                comm=None):
+                 comm=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
         self.write_freq = walker_opts.get('write_freq', 0)
@@ -253,6 +253,7 @@ class Walkers(object):
         # Want same random number seed used on all processors
         if comm.rank == 0:
             # Unpack lists
+            total_weight = sum(w[0] for w in walker_info)
             glob_inf = numpy.array([item for sub in glob_inf for item in sub])
             # glob_inf.sort(key=lambda x: x[0])
             sort = numpy.argsort(glob_inf[:,0], kind='mergesort')
@@ -298,6 +299,7 @@ class Walkers(object):
             glob_inf = glob_inf[isort].reshape((comm.size,nw,4))
         else:
             data = None
+            total_weight = 0
         data = comm.scatter(glob_inf, root=0)
         # Keep total weight saved for capping purposes.
         total_weight = comm.bcast(total_weight, root=0)
@@ -325,9 +327,9 @@ class Walkers(object):
             w.greens_function(trial, time_slice)
 
     def set_total_weight(self, total_weight):
-        w.old_total_weight = self.total_weight
         for w in self.walkers:
             w.total_weight = total_weight
+            w.old_total_weight = w.total_weight
 
     def reset(self, trial):
         for w in self.walkers:
