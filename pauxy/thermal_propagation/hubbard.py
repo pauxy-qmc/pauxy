@@ -87,6 +87,10 @@ class ThermalDiscrete(object):
         R2_dn = 1 + (1-walker.G[1,i,i])*self.delta[1,1]
         return 0.5 * numpy.array([R1_up*R1_dn, R2_up*R2_dn])
 
+    def estimate_eshift(self, walker):
+        oratio =  self.calculate_overlap_ratio(walker, 0)
+        return sum(oratio)
+
     def propagate_walker_constrained(self, system, walker, time_slice, eshift):
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
