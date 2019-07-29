@@ -66,6 +66,8 @@ class Estimators(object):
                     index = index + 1
                     self.h5f_name = 'estimates.%s.h5' % index
             self.h5f = h5py.File(self.h5f_name, 'w')
+            if verbose:
+                print("# Writing estimator data to {}.".format(self.h5f_name))
         else:
             self.h5f = None
         # Sub-members:
