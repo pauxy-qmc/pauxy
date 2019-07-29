@@ -26,10 +26,12 @@ class ThermalWalker(object):
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:
             self.diagonal_trial = True
-            print("# trial density matrix is diagonal.")
+            if verbose:
+                print("# Trial density matrix is diagonal.")
         else:
             self.diagonal_trial = False
-            print("# Trial density matrix is not diagonal.")
+            if verbose:
+                print("# Trial density matrix is not diagonal.")
 
         if self.stack_size == None:
             self.stack_size = trial.stack_size
@@ -137,13 +139,13 @@ class ThermalWalker(object):
             # in stable way. Iteratively construct SVD decompositions starting
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, V1) = scipy.linalg.qr(B[spin], pivoting = False, check_finite = False)
+            (U1, V1) = scipy.linalg.qr(B[spin], pivoting=False, check_finite=False)
 
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 T1 = numpy.dot(B[spin], U1)
-                (U1, V) = scipy.linalg.qr(T1, pivoting = False, check_finite = False)
+                (U1, V) = scipy.linalg.qr(T1, pivoting=False, check_finite=False)
                 V1 = numpy.dot(V, V1)
 
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
@@ -151,7 +153,7 @@ class ThermalWalker(object):
             V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
 
             T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
-            (U2, V2) = scipy.linalg.qr(T3, pivoting = False, check_finite = False)
+            (U2, V2) = scipy.linalg.qr(T3, pivoting=False, check_finite=False)
 
             U3 = numpy.dot(U1, U2)
             V3 = numpy.dot(V2, V1)
@@ -409,7 +411,7 @@ class ThermalWalker(object):
             T1inv = scipy.linalg.inv(T1, check_finite = False)
             # C = (Db Q^{-1}T^{-1}+Ds)
             C = numpy.dot(numpy.einsum('ii,ij->ij',Db, Q1.conj().T), T1inv) + Ds
-            Cinv = scipy.linalg.inv(C, check_finite = False)
+            Cinv = scipy.linalg.inv(C, check_finite=False)
 
             # Then G = T^{-1} C^{-1} Db Q^{-1}
             # Q is unitary.
