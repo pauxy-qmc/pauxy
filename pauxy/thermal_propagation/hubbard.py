@@ -99,7 +99,6 @@ class ThermalDiscrete(object):
             r = numpy.random.random()
             if norm > 0:
                 walker.weight = walker.weight * norm * numpy.exp(eshift)
-                # print(walker.weight, norm, walker.total_weight)
                 # if walker.weight > walker.total_weight * 0.10:
                     # walker.weight = walker.total_weight * 0.10
                 if r < phaseless_ratio[0] / norm:
