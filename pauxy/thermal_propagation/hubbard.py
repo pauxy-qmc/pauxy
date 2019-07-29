@@ -18,12 +18,21 @@ class ThermalDiscrete(object):
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         if not system.symmetric:
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+        # Account for potential shift in chemical potential
+        self.dmu = trial.mu - system.mu
+        self.auxf *= numpy.exp(-qmc.dt*(self.dmu))
+        if abs(self.dmu) > 1e-16:
+            self._mu = trial.mu
+            if verbose:
+                print("# Chemical potential shift (mu_T-mu): {}".format(self.dmu))
+        else:
+            self._mu = system.mu
         self.delta = self.auxf - 1
         dt = qmc.dt
         dmat_up = scipy.linalg.expm(-dt*(system.H1[0]))
         dmat_down = scipy.linalg.expm(-dt*(system.H1[1]))
         dmat = numpy.array([dmat_up,dmat_down])
-        self.construct_one_body_propagator(system, dt)
+        self.construct_one_body_propagator(system, self._mu, dt)
         self.BT_BP = None
         self.BT = trial.dmat
         self.BT_inv = trial.dmat_inv
@@ -33,7 +42,7 @@ class ThermalDiscrete(object):
         else:
             self.propagate_walker = self.propagate_walker_constrained
 
-    def construct_one_body_propagator(self, system, dt):
+    def construct_one_body_propagator(self, system, mu, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
         Parameters
         ----------
@@ -49,8 +58,9 @@ class ThermalDiscrete(object):
         H1 = system.H1
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
-        self.BH1 = numpy.array([scipy.linalg.expm(-dt*H1[0]+dt*system.mu*I),
-                                scipy.linalg.expm(-dt*H1[1]+dt*system.mu*I)])
+        sign = -1 if system._alt_convention else 1
+        self.BH1 = numpy.array([scipy.linalg.expm(-dt*H1[0]+sign*dt*mu*I),
+                                scipy.linalg.expm(-dt*H1[1]+sign*dt*mu*I)])
 
     def update_greens_function_simple(self, walker, time_slice):
         walker.construct_greens_function_stable(time_slice)
