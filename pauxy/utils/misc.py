@@ -1,6 +1,7 @@
 '''Various useful routines maybe not appropriate elsewhere'''
 
 import numpy
+import os
 import scipy.sparse
 import sys
 import subprocess
@@ -20,7 +21,17 @@ def get_git_revision_hash():
     """
 
     try:
-        src = [s for s in sys.path if 'pauxy' in s][0]
+        srcs = [s for s in sys.path if 'pauxy' in s]
+        if len(srcs) > 1:
+            for s in srcs:
+                if 'setup.py' in os.listdir(s):
+                    src = s
+                    break
+                else:
+                    src = srcs[0]
+        else:
+            src = srcs[0]
+
 
         sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                        cwd=src).strip()
