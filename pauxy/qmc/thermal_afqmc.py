@@ -10,6 +10,7 @@ import copy
 import h5py
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
+from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.utils import get_trial_density_matrices
@@ -102,7 +103,6 @@ class ThermalAFQMC(object):
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
             self.sha1 = get_git_revision_hash()
-            self.seed = qmc_opts['rng_seed']
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0
@@ -117,7 +117,8 @@ class ThermalAFQMC(object):
         if scale_t:
             convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
-        self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
+        self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
+        self.qmc.ntime_slices = int(round(self.qmc.beta/self.qmc.dt))
         # Overide whatever's in the input file due to structure of FT algorithm.
         self.qmc.nmeasure = 1
         if verbose:
