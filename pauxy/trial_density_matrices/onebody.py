@@ -72,10 +72,12 @@ class OneBody(object):
             self.mu = comm.bcast(self.mu, root=0)
 
         if verbose:
-            print("# Chemical potential: {: .10e}".format(self.mu))
+            print("# Chemical potential in trial density matrix: {: .10e}".format(self.mu))
 
         if system.mu is None:
             system.mu = self.mu
+        if system._alt_convention:
+            self.compute_rho = self.compute_rho_alt
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),
@@ -140,3 +142,6 @@ class OneBody(object):
     def compute_rho(self, rho, mu, beta):
         return numpy.einsum('ijk,k->ijk', rho,
                             numpy.exp(beta*mu*numpy.ones(rho.shape[-1])))
+    def compute_rho_alt(self, rho, mu, beta, sign=1):
+        return numpy.einsum('ijk,k->ijk', rho,
+                            numpy.exp(-beta*mu*numpy.ones(rho.shape[-1])))
