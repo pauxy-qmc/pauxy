@@ -60,6 +60,10 @@ class OneBody(object):
         if verbose:
             print("# Number of stacks: {}".format(self.num_bins))
 
+        if system._alt_convention:
+            if verbose:
+                print("# Using alternate sign convention for chemical potential.")
+            self.compute_rho = self.compute_rho_alt
         if self.mu is None:
             if comm.rank == 0:
                 dtau = self.stack_size * dt
@@ -76,8 +80,6 @@ class OneBody(object):
 
         if system.mu is None:
             system.mu = self.mu
-        if system._alt_convention:
-            self.compute_rho = self.compute_rho_alt
 
         self.dmat = self.compute_rho(self.dmat, self.mu, dt)
         self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),
