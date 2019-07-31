@@ -151,6 +151,9 @@ class ThermalAFQMC(object):
             afqmc.qmc.nwalkers = 1
         self.psi = Walkers(walker_opts, self.system, self.trial,
                            self.qmc, verbose)
+        # stabilization frequency might be updated due to wrong user input
+        if self.qmc.nstblz != self.propagators.nstblz:
+            self.propagators.nstblz = self.qmc.nstblz
         if comm.rank == 0:
             json_string = to_json(self)
             self.estimators.json_string = json_string
