@@ -531,7 +531,7 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())
         fh5['Psi0_beta'] = to_qmcpack_complex(init[:,occb[0]].copy())
     fh5['fullmo'] = numpy.array([0], dtype=numpy.int32)
-    fh5['type'] = numpy.array(['occ'])
+    fh5['type'] = 0
     occs = numpy.zeros((len(occa), na+nb), dtype=numpy.int32)
     occs[:,:na] = numpy.array(occa)
     occs[:,na:] = norb + numpy.array(occb)
