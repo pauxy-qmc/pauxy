@@ -222,9 +222,9 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     nu = numpy.argmax(diag)
     delta_max = diag[nu]
     if verbose:
-        print ("# Generating Cholesky decomposition of ERIs."%nchol_max)
-        print ("# max number of cholesky vectors = %d"%nchol_max)
-        print ("# iteration %5d: delta_max = %f"%(0, delta_max))
+        print("# Generating Cholesky decomposition of ERIs."%nchol_max)
+        print("# max number of cholesky vectors = %d"%nchol_max)
+        print("# iteration %5d: delta_max = %f"%(0, delta_max))
     j = nu // nao
     l = nu % nao
     sj = numpy.searchsorted(dims, j)
@@ -249,7 +249,6 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
         # D_ii = M_ii - M'_ii
         delta = diag - Mapprox
         nu = numpy.argmax(numpy.abs(delta))
-        print(numpy.sort(numpy.abs(delta)))
         delta_max = numpy.abs(delta[nu])
         # Compute ERI chunk.
         # shls_slice computes shells of integrals as determined by the angular
@@ -475,8 +474,8 @@ def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
     max_det = numpy.searchsorted(cweight, weight_cutoff)
     ci_coeffs = ci_coeffs[ix_sort]
     if verbose:
-        print ("Number of dets in CAS space: %d"%len(occlists)**2)
-        print ("Number of dets in CI expansion: %d"%max_det)
+        print("Number of dets in CAS space: %d"%len(occlists)**2)
+        print("Number of dets in CI expansion: %d"%max_det)
 
     output = open(filename, 'w')
     namelist = "&FCI\n UHF = 0\n NCI = %d\n TYPE = occ\n&END" % max_det

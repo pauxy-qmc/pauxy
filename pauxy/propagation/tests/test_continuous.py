@@ -1,5 +1,6 @@
 import copy
 import numpy
+import os
 import unittest
 from pauxy.estimators.ci import simple_fci
 from pauxy.propagation.continuous import Continuous
@@ -19,7 +20,7 @@ class TestContinuous(unittest.TestCase):
     def test_multi_det_generic(self):
         numpy.random.seed(7)
         system = get_test_mol()
-        # system.write_integrals()
+        system.write_integrals()
         (e0, ev), (d,oa,ob) = simple_fci(system, gen_dets=True)
         qmc = dotdict({'dt': 0.005})
         init = get_random_wavefunction((2,2), 5)
@@ -30,19 +31,19 @@ class TestContinuous(unittest.TestCase):
                                init=init, options=options)
         trial_md.calculate_energy(system)
         # TODO: Move this test to trial wavefunction
-        # sys_T = copy.deepcopy(system)
-        # sys_T.chol_vecs[:,:,:] = 0.0
-        # trial_md.calculate_energy(sys_T)
+        sys_T = copy.deepcopy(system)
+        sys_T.chol_vecs[:,:,:] = 0.0
+        trial_md.calculate_energy(sys_T)
         # print(trial_md.energy)
         # print(trial_md.contract_one_body(sys_T.H1[0]))
-        # trial_md.write_wavefunction(filename='wfn.md.h5',
-                                    # init=[init[:,:na].copy(),
-                                          # init[:,:na].copy()],
-                                    # occs=True)
+        trial_md.write_wavefunction(filename='wfn.md.h5',
+                                    init=[init[:,:na].copy(),
+                                          init[:,:na].copy()],
+                                    occs=True)
         trial_sd = MultiSlater(system, (ev[:1,0],oa[:1],ob[:1]), init=init)
-        # trial_sd.write_wavefunction(filename='wfn.sd.h5',
-                                    # init=[init[:,:na].copy(),
-                                          # init[:,:na].copy()])
+        trial_sd.write_wavefunction(filename='wfn.sd.h5',
+                                    init=[init[:,:na].copy(),
+                                          init[:,:na].copy()])
         trial_sd.calculate_energy(system)
         propg_md = Continuous(system, trial_md, qmc)
         propg_sd = Continuous(system, trial_sd, qmc)
@@ -53,6 +54,16 @@ class TestContinuous(unittest.TestCase):
         # print(walker_md.ot, walker_sd.ot,walker_md.weight,walker_sd.weight)
         # print(numpy.max(numpy.abs(propg_md.propagator.mf_shift)),
         # numpy.max(numpy.abs(propg_sd.propagator.mf_shift)))
+
+    def tearDown(self):
+        cwd = os.getcwd()
+        files = ['wfn.md.h5', 'wfn.sd.h5']
+        for f in files:
+            try:
+                os.remove(cwd+'/'+f)
+            except OSError:
+                pass
+
 
 if __name__ == '__main__':
     unittest.main()
