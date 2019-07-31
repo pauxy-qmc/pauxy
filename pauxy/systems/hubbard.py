@@ -90,6 +90,8 @@ class Hubbard(object):
         self.name = "Hubbard"
         if verbose:
             print("# Finished setting up Hubbard system object.")
+        # "Volume" to define density.
+        self.vol = self.nx * self.ny
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.

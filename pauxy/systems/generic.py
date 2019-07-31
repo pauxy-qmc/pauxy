@@ -116,6 +116,8 @@ class Generic(object):
         self.nchol = self.chol_vecs.shape[0]
         self.construct_h1e_mod()
         self.ktwist = numpy.array([None])
+        # For consistency
+        self.vol = 1.0
         start = time.time()
         if self.cplx_chol:
             self.nfields = 2 * self.nchol

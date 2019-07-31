@@ -208,3 +208,8 @@ def get_metadata(filename):
     with h5py.File(filename, 'r') as fh5:
         metadata = json.loads(fh5['metadata'][:][0])
     return metadata
+
+def get_sys_param(filename, param):
+    with h5py.File(filename, 'r') as fh5:
+        metadata = json.loads(fh5['metadata'][:][0])
+    return metadata['system'][param]
