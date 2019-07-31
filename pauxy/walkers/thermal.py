@@ -46,6 +46,8 @@ class ThermalWalker(object):
                 print("# Be careful. cond(BT)**stack_size: %10.3e."
                       %(trial.cond**self.stack_size))
         self.stack_length = self.num_slices // self.stack_size
+        if verbose:
+            print("# Walker stack size: {}".format(self.stack_size))
 
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
