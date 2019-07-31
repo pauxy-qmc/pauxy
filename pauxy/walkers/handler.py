@@ -44,7 +44,7 @@ class Walkers(object):
         else:
             rank = comm.rank
         if verbose:
-            print ("# Setting up wavefunction object.")
+            print("# Setting up wavefunction object.")
         if trial.name == 'MultiSlater':
             self.walker_type = 'MSD'
             self.walkers = [
@@ -53,16 +53,24 @@ class Walkers(object):
                     for w in range(qmc.nwalkers)
                     ]
         elif trial.name == 'thermal':
-            self.stack_size = walker_opts.get('stack_size', 1)
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
                             for w in range(qmc.nwalkers)]
-            if self.stack_size % qmc.nstblz != 0:
-                if verbose:
-                    print("# nstblz is not commensurate with stack size.")
-                    print("# Determining a better value.")
-                qmc.nstblz = update_stack(qmc.nstblz, self.stack_size,
-                                          name="nstblz", verbose=verbose)
+            stack_size = self.walkers[0].stack_size
+            if system.name == "Hubbard":
+                if stack_size % qmc.nstblz != 0 or qmc.nstblz < stack_size:
+                    if verbose:
+                        print("# Stabilisation frequency is not commensurate "
+                              "with stack size.")
+                        print("# Determining a better value.")
+                    if qmc.nstblz < stack_size:
+                        qmc.nstblz = stack_size
+                        if verbose:
+                            print("# Updated stabilization frequency: "
+                                  " {}".format(qmc.nstblz))
+                    else:
+                        qmc.nstblz = update_stack(qmc.nstblz, self.stack_size,
+                                                  name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
             self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
@@ -78,7 +86,7 @@ class Walkers(object):
         elif pcont_method == 'pair_branch':
             self.pop_control = self.pair_branch
         self.min_weight = walker_opts.get('min_weight', 0.1)
-        self.max_weight = walker_opts.get('min_weight', 2.0)
+        self.max_weight = walker_opts.get('max_weight', 2.0)
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(pcont_method))
