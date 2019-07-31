@@ -10,6 +10,7 @@ import copy
 import h5py
 from pauxy.estimators.handler import Estimators
 from pauxy.qmc.options import QMCOpts
+from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.utils import get_trial_density_matrices
@@ -92,8 +93,8 @@ class ThermalAFQMC(object):
     def __init__(self, comm, model, qmc_opts, estimates={},
                  trial={}, propagator={}, walker_opts={}, parallel=False,
                  verbose=None):
-        if (qmc_opts['beta'] == None):
-            print ("Shouldn't call ThermalAFQMC without specifying beta")
+        if qmc_opts['beta'] == None:
+            print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
         if verbose is not None:
@@ -102,7 +103,6 @@ class ThermalAFQMC(object):
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
             self.sha1 = get_git_revision_hash()
-            self.seed = qmc_opts['rng_seed']
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0
@@ -112,19 +112,20 @@ class ThermalAFQMC(object):
         self.run_time = time.asctime(),
         # 2. Calculation objects.
         model['thermal'] = True # Add thermal keyword to model
-        self.system = get_system(model, verbose)
+        self.system = get_system(sys_opts=model, verbose=verbose)
         scale_t = qmc_opts.get('scaled_temperature', True)
         if scale_t:
             convert_from_reduced_unit(self.system, qmc_opts, verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
-        self.qmc.ntime_slices = int(self.qmc.beta/self.qmc.dt)
+        self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
+        self.qmc.ntime_slices = int(round(self.qmc.beta/self.qmc.dt))
         # Overide whatever's in the input file due to structure of FT algorithm.
         self.qmc.nmeasure = 1
         if verbose:
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = self.determine_dtype(propagator, self.system)
         self.trial = (
-            get_trial_density_matrices(trial, self.system, self.cplx,
+            get_trial_density_matrices(comm, trial, self.system, self.cplx,
                                        parallel, self.qmc.beta, self.qmc.dt,
                                        verbose)
         )
@@ -139,7 +140,7 @@ class ThermalAFQMC(object):
         )
         self.qmc.ntot_walkers = self.qmc.nwalkers
         # Number of walkers per core/rank.
-        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.nprocs)
+        self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
@@ -150,11 +151,13 @@ class ThermalAFQMC(object):
             afqmc.qmc.nwalkers = 1
         self.psi = Walkers(walker_opts, self.system, self.trial,
                            self.qmc, verbose)
+        # stabilization frequency might be updated due to wrong user input
+        if self.qmc.nstblz != self.propagators.nstblz:
+            self.propagators.nstblz = self.qmc.nstblz
         if comm.rank == 0:
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
-            print(json_string)
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
@@ -179,6 +182,12 @@ class ThermalAFQMC(object):
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
+        if comm.rank == 0:
+            eshift = self.propagators.estimate_eshift(self.psi.walkers[0])
+        else:
+            eshift = 0
+        eshift0 = comm.bcast(eshift, root=0)
+        eshift = eshift0
 
         for step in range(1, self.qmc.nsteps + 1):
             start_path = time.time()
@@ -187,14 +196,19 @@ class ThermalAFQMC(object):
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
                 for w in self.psi.walkers:
-                    if abs(w.weight) > 1e-8:
-                        self.propagators.propagate_walker(self.system, w, ts)
-                    if (w.weight > w.total_weight * 0.10) and ts > 0:
-                        w.weight = w.total_weight * 0.10
+                    # if abs(w.weight) > 1e-8:
+                    self.propagators.propagate_walker(self.system, w,
+                                                      ts, eshift)
+                    # if (w.weight > w.total_weight * 0.10) and ts > 0:
+                        # w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:
                     self.psi.pop_control(comm)
+                if ts % 1 == 0:
+                    wnew = self.psi.walkers[0].total_weight
+                    wold = self.psi.walkers[0].old_total_weight
+                    eshift = -self.qmc.dt*numpy.log(wnew/wold)
                 self.tpopc += time.time() - start
             self.tpath += time.time() - start_path
             start = time.time()
@@ -205,6 +219,7 @@ class ThermalAFQMC(object):
             self.estimators.print_step(comm, self.nprocs, step, 1,
                                        self.propagators.free_projection)
             self.psi.reset(self.trial)
+            eshift = eshift0
 
     def finalise(self, verbose):
         """Tidy up.

@@ -1,6 +1,8 @@
+import matplotlib.pyplot as pl
 import numpy
 import pandas as pd
 import scipy.stats
+import scipy.optimize
 from pauxy.analysis.extraction import extract_hdf5_data_sets, set_info
 from pauxy.analysis.blocking import average_ratio
 
@@ -38,3 +40,45 @@ def analyse_energy(files):
                 averaged[k] = v
             analysed.append(averaged)
     return (pd.concat(analysed).reset_index(drop=True))
+
+def nav_mu(mu, coeffs):
+    return numpy.polyval(coeffs, mu)
+
+def find_chem_pot(data, target, vol, order=3, plot=False):
+    print("# System volume: {}.".format(vol))
+    print("# Target number of electrons: {}.".format(vol*target))
+    nav = data.Nav.values / vol
+    nav_error = data.Nav_error.values / vol
+    # Half filling special case where error bar is zero.
+    zeros = numpy.where(nav_error==0)[0]
+    nav_error[zeros] = 1e-8
+    mus = data.mu.values
+    delta = nav - target
+    fit = numpy.polyfit(mus, delta, order, w=1.0/nav_error)
+    a = min(mus)
+    b = max(mus)
+    try:
+        mu, r = scipy.optimize.brentq(nav_mu, a, b, args=fit, full_output=True)
+    except ValueError:
+        mu = None
+        print("Root not found in interval.")
+
+    if plot:
+        beta = data.beta[0]
+        pl.errorbar(mus, delta, yerr=nav_error, fmt='o',
+                    label=r'$\beta = {}$'.format(beta), color='C0')
+        xs = numpy.linspace(a,b,101)
+        ys = nav_mu(xs, fit)
+        pl.plot(xs,ys,':', color='C0')
+        if mu is not None and r.converged:
+            pl.axvline(mu, linestyle=':', label=r'$\mu^* = {}$'.format(mu),
+                       color='C3')
+        pl.xlabel(r"$\mu$")
+        pl.ylabel(r"$n-n_{\mathrm{av}}$")
+        pl.legend(numpoints=1)
+        pl.show()
+    if mu is not None:
+        if r.converged:
+            return mu
+        else:
+            return None

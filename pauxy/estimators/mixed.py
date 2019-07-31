@@ -68,7 +68,6 @@ class Mixed(object):
     """
 
     def __init__(self, mixed, system, root, h5f, qmc, trial, dtype):
-        self.thermal = mixed.get('thermal', False)
         self.average_gf = mixed.get('average_gf', False)
         self.eval_energy = mixed.get('evaluate_energy', True)
         self.calc_one_rdm = mixed.get('one_rdm', False)
@@ -77,7 +76,8 @@ class Mixed(object):
         self.nmeasure = qmc.nsteps // qmc.nmeasure
         self.header = ['Iteration', 'Weight', 'ENumer', 'EDenom', 'ETotal',
                        'E1Body', 'E2Body', 'EHybrid', 'Overlap']
-        if self.thermal:
+        if qmc.beta is not None:
+            self.thermal = True
             self.header.append('Nav')
         self.header.append('Time')
         self.nreg = len(self.header[1:])
@@ -254,8 +254,8 @@ class Mixed(object):
             gs[ns.eproj] = gs[ns.enumer]
             gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
         if self.thermal and comm.rank == 0:
-            if not free_projection:
-                gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
+            if free_projection:
+                gs[ns.nav] = gs[ns.nav] * gs[ns.weight]
         eshift = gs[ns.ehyb]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift

@@ -1,6 +1,7 @@
 '''Various useful routines maybe not appropriate elsewhere'''
 
 import numpy
+import os
 import scipy.sparse
 import sys
 import subprocess
@@ -20,7 +21,17 @@ def get_git_revision_hash():
     """
 
     try:
-        src = [s for s in sys.path if 'pauxy' in s][0]
+        srcs = [s for s in sys.path if 'pauxy' in s]
+        if len(srcs) > 1:
+            for s in srcs:
+                if 'setup.py' in os.listdir(s):
+                    src = s
+                    break
+                else:
+                    src = srcs[0]
+        else:
+            src = srcs[0]
+
 
         sha1 = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                        cwd=src).strip()
@@ -115,7 +126,7 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-def update_stack(stack_size, num_slices, verbose=False):
+def update_stack(stack_size, num_slices, name="stack", verbose=False):
     lower_bound = min(stack_size, num_slices)
     upper_bound = min(stack_size, num_slices)
 
@@ -129,9 +140,9 @@ def update_stack(stack_size, num_slices, verbose=False):
     else:
         stack_size = upper_bound
     if verbose:
-        print("# upper_bound is {}".format(upper_bound))
-        print("# lower_bound is {}".format(lower_bound))
-        print("# Adjusted stack size is {}".format(stack_size))
+        print("# Initial {} upper_bound is {}".format(name, upper_bound))
+        print("# Initial {} lower_bound is {}".format(name, lower_bound))
+        print("# Adjusted {} size is {}".format(name, stack_size))
     return stack_size
 
 def print_section_header(string):

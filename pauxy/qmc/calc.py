@@ -34,17 +34,19 @@ def setup_calculation(input_options):
         options = input_options
     qmc_opts = get_input_value(options, 'qmc', default={},
                                alias=['qmc_options'])
-    set_rng_seed(options['qmc'], comm)
+    set_rng_seed(qmc_opts, comm)
     afqmc = get_driver(options, comm)
     return (afqmc, comm)
 
 def get_driver(options, comm):
-    beta = options.get('qmc').get('beta', None)
+    qmc_opts = get_input_value(options, 'qmc', default={},
+                               alias=['qmc_options'])
+    beta = get_input_value(qmc_opts, 'beta', default=None)
     verbosity = options.get('verbosity', 1)
     if beta is not None:
         afqmc = ThermalAFQMC(comm,
                              options.get('model'),
-                             options.get('qmc'),
+                             qmc_opts,
                              options.get('estimates', {}),
                              options.get('trial', {}),
                              options.get('propagator', {}),

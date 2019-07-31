@@ -17,6 +17,8 @@ def local_energy_hubbard(system, G, Ghalf=None):
     """
     ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
     # Todo: Stupid
+    if system.symmetric:
+        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
     pe = sum(system.U * G[0][i][i] * G[1][i][i]
              for i in range(0, system.nbasis))
 

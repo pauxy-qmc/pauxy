@@ -45,14 +45,23 @@ class Hubbard(object):
     def __init__(self, inputs, verbose=False):
         if verbose:
             print ("# Parsing input options.")
-        self.nup = inputs['nup']
-        self.ndown = inputs['ndown']
-        self.ne = self.nup + self.ndown
+        self.nup = inputs.get('nup')
+        self.ndown = inputs.get('ndown')
         self.t = inputs.get('t', 1.0)
         self.U = inputs['U']
         self.nx = inputs['nx']
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.symmetric = inputs.get('symmetric', False)
+        if self.symmetric:
+            # An unusual convention for the sign of the chemical potential is
+            # used in Phys. Rev. B 99, 045108 (2018)
+            # Symmetric uses the symmetric form of the hubbard model and will
+            # also change the sign of the chemical potential in the density
+            # matrix.
+            self._alt_convention = True
+        else:
+            self._alt_convention = False
         self.nbasis = self.nx * self.ny
         self.nactive = self.nbasis
         self.nfv = 0
@@ -71,7 +80,6 @@ class Hubbard(object):
                              self.ny, self.ktwist)
         self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
-        self.super = _super_matrix(self.U, self.nbasis)
         self.P = transform_matrix(self.nbasis, self.kpoints,
                                   self.kc, self.nx, self.ny)
         self.mu = inputs.get('mu', None)
@@ -81,7 +89,9 @@ class Hubbard(object):
         self.nfields = self.nbasis
         self.name = "Hubbard"
         if verbose:
-            print ("# Finished setting up Hubbard system object.")
+            print("# Finished setting up Hubbard system object.")
+        # "Volume" to define density.
+        self.vol = self.nx * self.ny
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.

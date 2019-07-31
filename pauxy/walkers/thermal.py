@@ -26,8 +26,12 @@ class ThermalWalker(object):
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:
             self.diagonal_trial = True
+            if verbose:
+                print("# Trial density matrix is diagonal.")
         else:
             self.diagonal_trial = False
+            if verbose:
+                print("# Trial density matrix is not diagonal.")
 
         if self.stack_size == None:
             self.stack_size = trial.stack_size
@@ -42,9 +46,9 @@ class ThermalWalker(object):
                 print("# Be careful. cond(BT)**stack_size: %10.3e."
                       %(trial.cond**self.stack_size))
         self.stack_length = self.num_slices // self.stack_size
+        if verbose:
+            print("# Walker stack size: {}".format(self.stack_size))
 
-        if verbose and self.diagonal_trial:
-            print("# Trial density matrix is diagonal.")
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
@@ -62,6 +66,14 @@ class ThermalWalker(object):
         self.Tr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
         self.Qr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
         self.Dr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
+
+        self.hybrid_energy = 0.0
+        if verbose:
+            eloc = self.local_energy(system)
+            P = one_rdm_from_G(self.G)
+            nav = particle_number(P)
+            print("# Initial walker energy: {} {} {}".format(*eloc))
+            print("# Initial walker electron number: {}".format(nav))
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
         return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
@@ -129,13 +141,13 @@ class ThermalWalker(object):
             # in stable way. Iteratively construct SVD decompositions starting
             # from the rightmost (product of) propagator(s).
             B = self.stack.get((bin_ix+1)%self.stack.nbins)
-            (U1, V1) = scipy.linalg.qr(B[spin], pivoting = False, check_finite = False)
+            (U1, V1) = scipy.linalg.qr(B[spin], pivoting=False, check_finite=False)
 
             for i in range(2, self.stack.nbins+1):
                 ix = (bin_ix + i) % self.stack.nbins
                 B = self.stack.get(ix)
                 T1 = numpy.dot(B[spin], U1)
-                (U1, V) = scipy.linalg.qr(T1, pivoting = False, check_finite = False)
+                (U1, V) = scipy.linalg.qr(T1, pivoting=False, check_finite=False)
                 V1 = numpy.dot(V, V1)
 
             # Final SVD decomposition to construct G(l) = [I + A(l)]^{-1}.
@@ -143,7 +155,7 @@ class ThermalWalker(object):
             V1inv = scipy.linalg.solve_triangular(V1, numpy.identity(V1.shape[0]))
 
             T3 = numpy.dot(U1.conj().T, V1inv) + numpy.identity(V1.shape[0])
-            (U2, V2) = scipy.linalg.qr(T3, pivoting = False, check_finite = False)
+            (U2, V2) = scipy.linalg.qr(T3, pivoting=False, check_finite=False)
 
             U3 = numpy.dot(U1, U2)
             V3 = numpy.dot(V2, V1)
@@ -401,7 +413,7 @@ class ThermalWalker(object):
             T1inv = scipy.linalg.inv(T1, check_finite = False)
             # C = (Db Q^{-1}T^{-1}+Ds)
             C = numpy.dot(numpy.einsum('ii,ij->ij',Db, Q1.conj().T), T1inv) + Ds
-            Cinv = scipy.linalg.inv(C, check_finite = False)
+            Cinv = scipy.linalg.inv(C, check_finite=False)
 
             # Then G = T^{-1} C^{-1} Db Q^{-1}
             # Q is unitary.

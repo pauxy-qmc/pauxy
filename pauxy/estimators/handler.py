@@ -58,14 +58,17 @@ class Estimators(object):
         if root:
             index = estimates.get('index', 0)
             self.h5f_name = estimates.get('filename', None)
+            self.basename = estimates.get('basename', 'estimates')
             if self.h5f_name is None:
                 overwrite = estimates.get('overwrite', True)
-                self.h5f_name = 'estimates.%s.h5' % index
+                self.h5f_name = self.basename + '.%s.h5' % index
                 while os.path.isfile(self.h5f_name) and not overwrite:
                     index = int(self.h5f_name.split('.')[1])
                     index = index + 1
-                    self.h5f_name = 'estimates.%s.h5' % index
+                    self.h5f_name = self.basename + '.%s.h5' % index
             self.h5f = h5py.File(self.h5f_name, 'w')
+            if verbose:
+                print("# Writing estimator data to {}.".format(self.h5f_name))
         else:
             self.h5f = None
         # Sub-members:
