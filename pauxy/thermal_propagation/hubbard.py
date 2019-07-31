@@ -19,13 +19,13 @@ class ThermalDiscrete(object):
         if not system.symmetric:
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         # Account for potential shift in chemical potential
-        sign = -1 if system._alt_convention else 1
-        self.dmu = sign*(trial.mu - system.mu)
+        sign = 1 if system._alt_convention else -1
+        self.dmu = sign*(system.mu - trial.mu)
         self.auxf *= numpy.exp(-qmc.dt*(self.dmu))
         if abs(self.dmu) > 1e-16:
             self._mu = trial.mu
             if verbose:
-                print("# Chemical potential shift (mu_T-mu): {}".format(self.dmu))
+                print("# Chemical potential shift (mu_T-mu): {}".format(-sign*self.dmu))
         else:
             self._mu = system.mu
         self.delta = self.auxf - 1
@@ -59,7 +59,7 @@ class ThermalDiscrete(object):
         H1 = system.H1
         I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
         # No spin dependence for the moment.
-        sign = -1 if system._alt_convention else 1
+        sign = 1 if system._alt_convention else -1
         self.BH1 = numpy.array([scipy.linalg.expm(-dt*(H1[0]+sign*mu*I)),
                                 scipy.linalg.expm(-dt*(H1[1]+sign*mu*I))])
 
