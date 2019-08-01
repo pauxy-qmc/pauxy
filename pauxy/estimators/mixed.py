@@ -79,6 +79,8 @@ class Mixed(object):
         if qmc.beta is not None:
             self.thermal = True
             self.header.append('Nav')
+        else:
+            self.thermal = False
         self.header.append('Time')
         self.nreg = len(self.header[1:])
         self.dtype = dtype
