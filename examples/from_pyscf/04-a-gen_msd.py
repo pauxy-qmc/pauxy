@@ -17,9 +17,9 @@ h1e, chol, ecore, oao = integrals_from_scf(mf, verbose=0,
 mc = mcscf.CASSCF(mf, 5, 4)
 e_tot, e_cas, fcivec, mo, mo_energy = mc.kernel()
 coeff, oa, ob = zip(*fci.addons.large_ci(fcivec, mo.shape[0], (2,2),
-                                         tol=0, return_strs=False))
+                                         tol=1e-5, return_strs=False))
 oa = [numpy.array([x for x in o.tolist()]) for o in oa]
-ob = [numpy.array([x + 5 for x in o.tolist()]) for o in ob]
+ob = [numpy.array([x for x in o.tolist()]) for o in ob]
 coeff = numpy.array(coeff,dtype=numpy.complex128)
 write_qmcpack_wfn('wfn.h5', (coeff,oa,ob), 'uhf', (2,2), 5)
 with h5py.File(mf.chkfile) as fh5:

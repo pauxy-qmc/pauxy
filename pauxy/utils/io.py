@@ -396,7 +396,7 @@ def read_qmcpack_phmsd_hdf5(wgroup):
     coeffs = from_qmcpack_complex(wgroup['ci_coeffs'][:], (nci,))
     occs = wgroup['occs'][:].reshape((nci,na+nb))
     occa = occs[:,:na]
-    occb = occs[:,na:]
+    occb = occs[:,na:]-nmo
     wfn = (coeffs, occa, occb)
     psi0a = from_qmcpack_complex(wgroup['Psi0_alpha'][:], (nmo,na))
     if uhf:
