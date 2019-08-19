@@ -15,24 +15,8 @@ from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.utils import get_trial_density_matrices
 from pauxy.utils.misc import get_git_revision_hash
-from pauxy.utils.io import to_json
+from pauxy.utils.io import to_json, get_input_value
 from pauxy.walkers.handler import Walkers
-
-def convert_from_reduced_unit(system, qmc_opts, verbose=False):
-    if system.name == 'UEG':
-        TF = system.ef# Fermi temeprature
-        if verbose:
-            print("# Fermi Temperature = %10.5f"%TF)
-            print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
-            print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
-        dt = qmc_opts['dt'] # original dt
-        beta = qmc_opts['beta'] # original dt
-        qmc_opts['beta_reduced'] = beta
-        qmc_opts['dt'] = dt / TF # converting to Hartree ^ -1
-        qmc_opts['beta'] = beta / TF # converting to Hartree ^ -1
-        if verbose:
-            print("# beta in Hartree^-1 = %10.5f"%qmc_opts['beta'])
-            print("# dt in Hartree^-1 = %10.5f"%qmc_opts['dt'])
 
 class ThermalAFQMC(object):
     """AFQMC driver.
@@ -86,14 +70,19 @@ class ThermalAFQMC(object):
         Container for system specific propagation routines.
     estimators : :class:`pauxy.estimators.Estimators` object
         Estimator handler.
-    psi : :class:`pauxy.walkers.Walkers` object
+    walk : :class:`pauxy.walkers.Walkers` object
         Stores walkers which sample the partition function.
     """
 
-    def __init__(self, comm, model, qmc_opts, estimates={},
-                 trial={}, propagator={}, walker_opts={}, parallel=False,
-                 verbose=None):
-        if qmc_opts['beta'] == None:
+    def __init__(self, comm, options=None, system=None,
+                 trial=None, parallel=False, verbose=None):
+        if verbose is not None:
+            self.verbosity = verbose
+            verbose = verbose > 0
+        qmc_opts = get_input_value(options, 'qmc', default={},
+                                   alias=['qmc_options'],
+                                   verbose=self.verbosity>1)
+        if qmc_opts.get('beta') is None:
             print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
@@ -111,11 +100,12 @@ class ThermalAFQMC(object):
         self._init_time = time.time()
         self.run_time = time.asctime(),
         # 2. Calculation objects.
-        model['thermal'] = True # Add thermal keyword to model
-        self.system = get_system(sys_opts=model, verbose=verbose)
-        scale_t = qmc_opts.get('scaled_temperature', True)
-        if scale_t:
-            convert_from_reduced_unit(self.system, qmc_opts, verbose)
+        sys_opts = options.get('system')
+        if system is not None:
+            self.system = system
+        else:
+            sys_opts['thermal'] = True # Add thermal keyword to model
+            self.system = get_system(sys_opts=sys_opts, verbose=verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
         self.qmc.ntime_slices = int(round(self.qmc.beta/self.qmc.dt))
@@ -123,19 +113,30 @@ class ThermalAFQMC(object):
         self.qmc.nmeasure = 1
         if verbose:
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
-        self.cplx = self.determine_dtype(propagator, self.system)
-        self.trial = (
-            get_trial_density_matrices(comm, trial, self.system, self.cplx,
-                                       parallel, self.qmc.beta, self.qmc.dt,
-                                       verbose)
-        )
+        self.cplx = True
+        if trial is not None:
+            self.trial = trial
+        else:
+            trial_opts = get_input_value(options, 'trial', default={},
+                                         alias=['trial_density'],
+                                         verbose=self.verbosity>1)
+            self.trial = (
+                    get_trial_density_matrices(comm, trial_opts, self.system, self.cplx,
+                                               parallel, self.qmc.beta, self.qmc.dt,
+                                               verbose)
+            )
 
-        self.propagators = get_propagator(propagator, self.qmc, self.system,
+        prop_opts = get_input_value(options, 'propagator', default={},
+                                    verbose=self.verbosity>1)
+        self.propagators = get_propagator(prop_opts, self.qmc, self.system,
                                           self.trial, verbose)
 
         self.tsetup = time.time() - self._init_time
+        est_opts = get_input_value(options, 'estimators', default={},
+                                   alias=['estimates'],
+                                   verbose=self.verbosity>1)
         self.estimators = (
-            Estimators(estimates, self.root, self.qmc, self.system,
+            Estimators(est_opts, self.root, self.qmc, self.system,
                        self.trial, self.propagators.BT_BP, verbose)
         )
         self.qmc.ntot_walkers = self.qmc.nwalkers
@@ -149,7 +150,10 @@ class ThermalAFQMC(object):
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
             afqmc.qmc.nwalkers = 1
-        self.psi = Walkers(walker_opts, self.system, self.trial,
+        wlk_opts = get_input_value(options, 'walkers', default={},
+                                   alias=['walker'],
+                                   verbose=self.verbosity>1)
+        self.walk = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose)
         # stabilization frequency might be updated due to wrong user input
         if self.qmc.nstblz != self.propagators.nstblz:
@@ -161,29 +165,29 @@ class ThermalAFQMC(object):
             self.estimators.estimators['mixed'].print_key()
             self.estimators.estimators['mixed'].print_header()
 
-    def run(self, psi=None, comm=None, verbose=None):
+    def run(self, walk=None, comm=None, verbose=None):
         """Perform AFQMC simulation on state object using open-ended random walk.
 
         Parameters
         ----------
         state : :class:`pauxy.state.State` object
             Model and qmc parameters.
-        psi : :class:`pauxy.walker.Walkers` object
+        walk: :class:`pauxy.walker.Walkers` object
             Initial wavefunction / distribution of walkers.
         comm : MPI communicator
         """
-        if psi is not None:
-            self.psi = psi
+        if walk is not None:
+            self.walk = walk
         self.setup_timers()
-        (E_T, ke, pe) = self.psi.walkers[0].local_energy(self.system)
+        (E_T, ke, pe) = self.walk.walkers[0].local_energy(self.system)
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
-                                                   self.trial, self.psi, 0,
+                                                   self.trial, self.walk, 0,
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
         if comm.rank == 0:
-            eshift = self.propagators.estimate_eshift(self.psi.walkers[0])
+            eshift = self.propagators.estimate_eshift(self.walk.walkers[0])
         else:
             eshift = 0
         eshift0 = comm.bcast(eshift, root=0)
@@ -195,7 +199,7 @@ class ThermalAFQMC(object):
                 if self.verbosity >= 2 and comm.rank == 0:
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
-                for w in self.psi.walkers:
+                for w in self.walk.walkers:
                     # if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(self.system, w,
                                                       ts, eshift)
@@ -204,21 +208,21 @@ class ThermalAFQMC(object):
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:
-                    self.psi.pop_control(comm)
+                    self.walk.pop_control(comm)
                 if ts % 1 == 0:
-                    wnew = self.psi.walkers[0].total_weight
-                    wold = self.psi.walkers[0].old_total_weight
+                    wnew = self.walk.walkers[0].total_weight
+                    wold = self.walk.walkers[0].old_total_weight
                     eshift = -self.qmc.dt*numpy.log(wnew/wold)
                 self.tpopc += time.time() - start
             self.tpath += time.time() - start_path
             start = time.time()
             self.estimators.update(self.system, self.qmc,
-                                   self.trial, self.psi, step,
+                                   self.trial, self.walk, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
             self.estimators.print_step(comm, self.nprocs, step, 1,
                                        self.propagators.free_projection)
-            self.psi.reset(self.trial)
+            self.walk.reset(self.trial)
             eshift = eshift0
 
     def finalise(self, verbose):
