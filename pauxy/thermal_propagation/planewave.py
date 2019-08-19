@@ -58,10 +58,12 @@ class PlaneWave(object):
         self.mean_local_energy = 0
 
         if self.free_projection:
-            print("# Using free projection")
+            if verbose:
+                print("# Using free projection")
             self.propagate_walker = self.propagate_walker_free
         else:
-            print("# Using phaseless approximation")
+            if verbose:
+                print("# Using phaseless approximation")
             self.propagate_walker = self.propagate_walker_phaseless
 
         if verbose:
@@ -295,7 +297,10 @@ class PlaneWave(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def propagate_walker_free(self, system, walker, trial, force_bias=False):
+    def estimate_eshift(self, walker):
+        return 0.0
+
+    def propagate_walker_free(self, system, walker, trial, eshift, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -366,7 +371,7 @@ class PlaneWave(object):
             walker.weight = 0.0
 
 
-    def propagate_walker_phaseless(self, system, walker, trial):
+    def propagate_walker_phaseless(self, system, walker, trial, eshift):
         # """Phaseless propagator
         # Parameters
         # ----------
