@@ -24,7 +24,12 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     propagator : class or None
         Propagator object.
     """
-    hs_type = options.get('hubbard_stratonovich', 'discrete')
+    if system.name == "Hubbard":
+        hs_type = options.get('hubbard_stratonovich', 'discrete')
+    elif system.name == "UEG":
+        hs_type = options.get('hubbard_stratonovich', 'plane_wave')
+    elif system.name == "Generic":
+        hs_type = options.get('hubbard_stratonovich', 'continuous')
     if hs_type == 'discrete':
         propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
     elif hs_type == "plane_wave":
