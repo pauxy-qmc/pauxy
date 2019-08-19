@@ -5,6 +5,8 @@ from pyscf import gto, ao2mo, scf
 from pauxy.qmc.calc import setup_calculation
 from pauxy.qmc.afqmc import AFQMC
 from pauxy.systems.generic import Generic
+from pauxy.systems.ueg import UEG
+from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.utils.from_pyscf import integrals_from_scf
 
 class TestGeneric(unittest.TestCase):
@@ -64,6 +66,29 @@ class TestGeneric(unittest.TestCase):
             # self.assertAlmostEqual(cur.imag, ref.imag)
         except NameError:
             pass
+
+    def test_constructor(self):
+        options = {
+                'verbosity': 0,
+                'qmc': {
+                    'timestep': 0.01,
+                    'num_steps': 10,
+                    'num_blocks': 10,
+                    'rng_seed': 8,
+                },
+            }
+        model = {
+            'name': "UEG",
+            'rs': 2.44,
+            'ecut': 4,
+            'nup': 7,
+            'ndown': 7,
+            }
+        system = UEG(model)
+        trial = HartreeFock(system, True, {})
+        comm = MPI.COMM_WORLD
+        afqmc = AFQMC(comm=comm, options=options, system=system, trial=trial)
+        self.assertAlmostEqual(afqmc.trial.energy.real, 1.7796083856572522)
 
     def tearDown(self):
         cwd = os.getcwd()
