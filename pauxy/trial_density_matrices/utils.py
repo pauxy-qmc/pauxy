@@ -21,9 +21,9 @@ def get_trial_density_matrices(comm, options, system, cplx, parallel, beta, dt, 
     """
     trial_type = options.get('name', 'one_body')
     if trial_type == 'one_body_mod':
-        trial = OneBody(comm, options, system, beta, dt, H1=system.h1e_mod, verbose=verbose)
+        trial = OneBody(comm, system, beta, dt, options=options, H1=system.h1e_mod, verbose=verbose)
     elif trial_type == 'one_body':
-        trial = OneBody(comm, options, system, beta, dt, verbose=verbose)
+        trial = OneBody(comm, system, beta, dt, options=options, verbose=verbose)
     else:
         trial = None
 
