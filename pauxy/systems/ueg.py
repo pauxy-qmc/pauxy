@@ -56,6 +56,7 @@ class UEG(object):
             print("# rs: %10.5f"%self.rs)
 
         self.thermal = inputs.get('thermal', False)
+        self._alt_convention = inputs.get('alt_convention', False)
 
         # total # of electrons
         self.ne = self.nup + self.ndown

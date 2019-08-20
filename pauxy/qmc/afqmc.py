@@ -75,7 +75,8 @@ class AFQMC(object):
         Walker handler. Stores the AFQMC wavefunction.
     """
 
-    def __init__(self, comm, options=None, mf=None, parallel=False, verbose=False):
+    def __init__(self, comm, options=None, system=None, trial=None,
+                 mf=None, parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
@@ -100,8 +101,11 @@ class AFQMC(object):
         # else:
             # system = None
         # self.system = comm.bcast(system, root=0)
-        self.system = get_system(sys_opts=options.get('model', {}),
-                            mf=mf, verbose=verbose)
+        if system is not None:
+            self.system = system
+        else:
+            self.system = get_system(sys_opts=options.get('model', {}),
+                                     mf=mf, verbose=verbose)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -113,10 +117,13 @@ class AFQMC(object):
         twf_opt = get_input_value(options, 'trial', default={},
                                   alias=['trial_wavefunction'],
                                   verbose=self.verbosity>1)
-        self.trial = (
-            get_trial_wavefunction(self.system, options=options.get('trial', {}),
-                                   mf=mf, parallel=parallel, verbose=verbose)
-        )
+        if trial is not None:
+            self.trial = trial
+        else:
+            self.trial = (
+                get_trial_wavefunction(self.system, options=options.get('trial', {}),
+                                       mf=mf, parallel=parallel, verbose=verbose)
+            )
         if self.system.name == "Generic":
             if self.trial.ndets == 1:
                 if self.system.cplx_chol:

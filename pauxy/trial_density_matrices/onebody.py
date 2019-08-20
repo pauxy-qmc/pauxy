@@ -6,6 +6,7 @@ from pauxy.estimators.thermal import (
         greens_function, particle_number, one_rdm, one_rdm_from_G,
         one_rdm_stable
         )
+from pauxy.estimators.mixed import local_energy
 from pauxy.utils.io import (
         format_fixed_width_strings, format_fixed_width_floats
         )
@@ -13,7 +14,7 @@ from pauxy.utils.misc import update_stack
 
 class OneBody(object):
 
-    def __init__(self, comm, options, system, beta, dt, H1=None, verbose=False):
+    def __init__(self, comm, system, beta, dt, options={}, nav=None, H1=None, verbose=False):
         self.name = 'thermal'
         if H1 is None:
             try:
@@ -34,7 +35,10 @@ class OneBody(object):
         if verbose:
             print("# condition number of BT: {: 10e}".format(cond))
 
-        self.nav = system.nup + system.ndown
+        if nav is not None:
+            self.nav = nav
+        else:
+            self.nav = system.nup + system.ndown
         self.max_it = options.get('max_it', 1000)
         self.deps = options.get('threshold', 1e-6)
         self.mu = options.get('mu', None)
@@ -52,9 +56,10 @@ class OneBody(object):
         # condition number of the product does not exceed 1e3.
         self.stack_size = min(self.num_slices, int(3.0/numpy.log10(self.cond)))
         if verbose:
-            print("# Initial stack size: {}".format(self.stack_size))
+            print("# Initial stack size: {} {} ".format(self.stack_size,
+                  self.num_slices))
         # adjust stack size
-        self.stack_size = update_stack(self.stack_size,self.num_slices, verbose)
+        self.stack_size = update_stack(self.stack_size, self.num_slices, verbose)
         self.num_bins = int(beta/(self.stack_size*dt))
 
         if verbose:
@@ -65,15 +70,19 @@ class OneBody(object):
                 print("# Using alternate sign convention for chemical potential.")
             self.compute_rho = self.compute_rho_alt
         if self.mu is None:
+            dtau = self.stack_size * dt
+            self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
+                                    scipy.linalg.expm(-dtau*(self.H1[1]))])
             if comm.rank == 0:
-                dtau = self.stack_size * dt
-                rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
-                                   scipy.linalg.expm(-dtau*(self.H1[1]))])
-                self.mu = self.find_chemical_potential(system, rho,
+                self.mu = self.find_chemical_potential(system, self.rho,
                                                        dtau, verbose)
             else:
                 mu = None
             self.mu = comm.bcast(self.mu, root=0)
+        else:
+            dtau = self.stack_size * dt
+            self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
+                                    scipy.linalg.expm(-dtau*(self.H1[1]))])
 
         if verbose:
             print("# Chemical potential in trial density matrix: {: .10e}".format(self.mu))
@@ -147,3 +156,15 @@ class OneBody(object):
     def compute_rho_alt(self, rho, mu, beta, sign=1):
         return numpy.einsum('ijk,k->ijk', rho,
                             numpy.exp(-beta*mu*numpy.ones(rho.shape[-1])))
+
+    def calculate_energy(self, system, beta):
+        rho = self.compute_rho(self.rho, self.mu, beta)
+        G = numpy.array([greens_function(rho[0]), greens_function(rho[0])])
+        P = one_rdm_from_G(G)
+        return local_energy(system, P, opt=False)
+
+    def calculate_nav(self, system, beta):
+        rho = self.compute_rho(self.rho, self.mu, beta)
+        G = numpy.array([greens_function(rho[0]), greens_function(rho[0])])
+        P = one_rdm_from_G(G)
+        return particle_number(P)

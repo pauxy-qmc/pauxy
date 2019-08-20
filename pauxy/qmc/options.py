@@ -2,6 +2,22 @@ import copy
 import numpy
 from pauxy.utils.io import get_input_value
 
+def convert_from_reduced_unit(system, qmc_opts, verbose=False):
+    if system.name == 'UEG':
+        TF = system.ef # Fermi temeprature
+        if verbose:
+            print("# Fermi Temperature = %10.5f"%TF)
+            print("# beta in reduced unit = %10.5f"%qmc_opts['beta'])
+            print("# dt in reduced unit = %10.5f"%qmc_opts['dt'])
+        dt = qmc_opts['dt'] # original dt
+        beta = qmc_opts['beta'] # original dt
+        scaled_dt = dt / TF # converting to Hartree ^ -1
+        scaled_beta = beta / TF # converting to Hartree ^ -1
+        if verbose:
+            print("# beta in Hartree^-1 = %10.5f"%scaled_beta)
+            print("# dt in Hartree^-1 = %10.5f"%scaled_dt)
+        return scaled_dt, scaled_beta
+
 
 class QMCOpts(object):
     r"""Input options and certain constants / parameters derived from them.
@@ -96,6 +112,10 @@ class QMCOpts(object):
                                             verbose=verbose)
         self.beta = get_input_value(inputs, 'beta', default=None,
                                     verbose=verbose)
+        scale_t = get_input_value(inputs, 'scaled_temperature', default=False,
+                                  alias=['reduced_temperature'], verbose=verbose)
+        if scale_t:
+            self.dt, self.beta = convert_from_reduced_unit(system, inputs, verbose)
         self.beta_reduced = get_input_value(inputs, 'beta_reduced',
                                             default=None,
                                             verbose=verbose)
