@@ -93,7 +93,7 @@ def main(args):
             pl.plot((data.E_num/data.E_denom).real)
             pl.show()
         else:
-            pl.plot(data.E.real)
+            pl.plot(data[options.obs].real)
             pl.show()
     else:
         print ('Unknown observable')

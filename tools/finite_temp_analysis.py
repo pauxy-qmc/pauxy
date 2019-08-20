@@ -84,7 +84,7 @@ def main(args):
         else:
             print("# Failed to find chemical potential.")
 
-    print(data.to_string())
+    print(data.to_string(index=False))
 
 if __name__ == '__main__':
 
