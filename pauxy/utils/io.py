@@ -337,11 +337,11 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
 
 def read_qmcpack_wfn_hdf(filename):
     try:
-        with h5py.File(filename) as fh5:
+        with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/NOMSD']
             wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup)
     except KeyError:
-        with h5py.File(filename) as fh5:
+        with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/PHMSD']
             wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
     except KeyError:
