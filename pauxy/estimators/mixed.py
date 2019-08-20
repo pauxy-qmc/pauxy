@@ -250,6 +250,7 @@ class Mixed(object):
         es = self.estimates
         ns = self.names
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
+        es[:ns.time] /= nmeasure
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
         gs = self.global_estimates
         if comm.rank == 0:
