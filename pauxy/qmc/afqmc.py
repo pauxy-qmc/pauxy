@@ -141,11 +141,15 @@ class AFQMC(object):
                                                  self.qmc, options=prop_opt,
                                                  verbose=verbose)
         self.tsetup = time.time() - self._init_time
-        walker_opts = options.get('walkers', {})
-        estimates = options.get('estimates', {})
-        estimates['stack_size'] = walker_opts.get('stack_size', 1)
+        wlk_opts = get_input_value(options, 'walkers', default={},
+                                   alias=['walker', 'walker_opts'],
+                                   verbose=self.verbosity>1)
+        est_opts = get_input_value(options, 'estimators', default={},
+                                   alias=['estimates','estimator'],
+                                   verbose=self.verbosity>1)
+        est_opts['stack_size'] = wlk_opts.get('stack_size', 1)
         self.estimators = (
-            Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
+            Estimators(est_ops, self.root, self.qmc, self.system,
                        self.trial, self.propagators.BT_BP, verbose)
         )
         # Reset number of walkers so they are evenly distributed across
@@ -160,7 +164,7 @@ class AFQMC(object):
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
             afqmc.qmc.nwalkers = 1
-        self.psi = Walkers(walker_opts, self.system, self.trial,
+        self.psi = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose, comm=None)
         self.psi.add_field_config(self.estimators.nprop_tot,
                                   self.estimators.nbp,
