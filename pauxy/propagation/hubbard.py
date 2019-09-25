@@ -271,12 +271,12 @@ class HubbardContinuous(object):
         model = system.__class__.__name__
         self.dt = qmc.dt
         # optimal mean-field shift for the hubbard model
-        self.mf_shift = construct_mean_field_shift(system, trial)
-        self.iu_fac = 1j * (system.U**0.5)
-        self.ut_fac = self.dt*system.U
-        # self.sqrt_dt = qmc.dt**0.5
-        # self.isqrt_dt = 1j * self.sqrt_dt
-        # self.mf_core = - system.nbasis * self.mf_shift**2.0
+        self.iu_fac = 1j * system.U**0.5
+        self.mf_shift = self.construct_mean_field_shift(system, trial)
+        # self.ut_fac = self.dt*system.U
+        self.sqrt_dt = qmc.dt**0.5
+        self.isqrt_dt = 1j * self.sqrt_dt
+        self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
         # if self.ffts:
             # self.kinetic = kinetic_kspace
         # else:
@@ -285,24 +285,27 @@ class HubbardContinuous(object):
             print("# Finished propagator input options.")
 
     def construct_one_body_propagator(self, system, dt):
-        vi1b = self.iu_fac * numpy.diag(1-2*self.mf_shift)
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*system.T[0]-0.5*v1b),
-                                scipy.linalg.expm(-0.5*dt*system.T[1]-0.5*v1b)])
-
+        # \sum_gamma v_MF^{gamma} v^{\gamma}
+        vi1b = self.iu_fac * numpy.diag(self.mf_shift)
+        H1 = system.h1e_mod - numpy.array([vi1b,vi1b])
+        # H1 = system.H1 - numpy.array([vi1b,vi1b])
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
+                                scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def construct_mean_field_shift(self, system, trial):
         #  i sqrt{U} < n_{iup} + n_{idn} >_MF
-        return 1j * self.iu_fac * (trial.G[0] + trial.G[1])
+        return  self.iu_fac * (numpy.diag(trial.G[0]) + numpy.diag(trial.G[1]))
 
     def construct_force_bias(self, system, walker, trial):
         #  i sqrt{U} < n_{iup} + n_{idn} > - mf_shift
-        vbias = self.iu_fac * (walker.G[0] + walker.G[1]) - self.mf_fac
-        return - self.sqrt_dt * vbias
+        vbias = self.iu_fac*(numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        return - self.sqrt_dt * (vbias - self.mf_shift)
 
     def construct_VHS(self, system, shifted):
         # B_V(x-\bar{x}) = e^{i\sqrt{dt}*(x-\bar{x})\hat{v}_i}
         # v_i = n_{iu} + n_{id}
         return numpy.diag(self.isqrt_dt*shifted)
+        # return numpy.zeros((system.nbasis,system.nbasis))
 
     # def two_body(self, walker, system, trial):
         # r"""Continuous Hubbard-Statonovich transformation for Hubbard model.

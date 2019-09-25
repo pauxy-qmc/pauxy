@@ -149,7 +149,7 @@ class AFQMC(object):
                                    verbose=self.verbosity>1)
         est_opts['stack_size'] = wlk_opts.get('stack_size', 1)
         self.estimators = (
-            Estimators(est_ops, self.root, self.qmc, self.system,
+            Estimators(est_opts, self.root, self.qmc, self.system,
                        self.trial, self.propagators.BT_BP, verbose)
         )
         # Reset number of walkers so they are evenly distributed across
