@@ -120,17 +120,22 @@ class AFQMC(object):
         if trial is not None:
             self.trial = trial
         else:
-            self.trial = (
-                get_trial_wavefunction(self.system, options=options.get('trial', {}),
-                                       mf=mf, parallel=parallel, verbose=verbose)
-            )
+            if comm.rank == 0:
+                self.trial = (
+                    get_trial_wavefunction(self.system, options=options.get('trial', {}),
+                                           mf=mf, parallel=parallel, verbose=verbose)
+                )
+            else:
+                self.trial = None
+            self.trial = comm.bcast(self.trial, root=0)
         if self.system.name == "Generic":
             if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
-        self.trial.calculate_energy(self.system)
+        if comm.rank == 0:
+            self.trial.calculate_energy(self.system)
         prop_opt = options.get('propagator', {})
         self.propagators = get_propagator_driver(self.system, self.trial,
                                                  self.qmc, options=prop_opt,

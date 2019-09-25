@@ -151,7 +151,7 @@ class ThermalAFQMC(object):
                       "input file. Setting one walker per core.")
             afqmc.qmc.nwalkers = 1
         wlk_opts = get_input_value(options, 'walkers', default={},
-                                   alias=['walker'],
+                                   alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
         self.walk = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose)
@@ -199,12 +199,25 @@ class ThermalAFQMC(object):
                 if self.verbosity >= 2 and comm.rank == 0:
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
+                eloc = 0.0
+                weight = 0.0
                 for w in self.walk.walkers:
                     # if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(self.system, w,
                                                       ts, eshift)
                     # if (w.weight > w.total_weight * 0.10) and ts > 0:
                         # w.weight = w.total_weight * 0.10
+                    # w.greens_function(self.trial, slice_ix=self.qmc.ntime_slices)
+                    # eloc += w.weight*w.local_energy(self.system)[0]
+                    # weight += w.weight
+                # eloc_sum = 0
+                # weight_sum = 0
+                # from mpi4py import MPI
+                # eloc_sum = comm.reduce(eloc, MPI.SUM, 0)
+                # weight_sum = comm.reduce(weight, MPI.SUM, 0)
+                # if comm.rank == 0:
+                    # print(" # ts : {} {} {} {}".format(ts, eloc_sum.real, weight_sum,
+                          # (eloc_sum/weight_sum).real))
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:

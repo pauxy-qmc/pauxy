@@ -22,7 +22,7 @@ def analyse_energy(files):
             obs = ['ETotal', 'Nav']
             averaged = pd.DataFrame(index=[0])
             for (c, o) in zip(cols, obs):
-                (value, error)  = average_ratio(g[c].values, g['E_denom'].values)
+                (value, error)  = average_ratio(g[c].values, g['EDenom'].values)
                 averaged[o] = [value]
                 averaged[o+'_error'] = [error]
             for (k, v) in zip(full.keys, i):

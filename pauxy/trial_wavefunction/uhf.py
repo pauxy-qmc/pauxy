@@ -44,7 +44,7 @@ class UHF(object):
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+    def __init__(self, system, cplx, trial, parallel=False, verbose=0):
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -65,6 +65,7 @@ class UHF(object):
         self.alpha = trial.get('alpha', 0.5)
         # For interface compatability
         self.coeffs = 1.0
+        self.type = 'UHF'
         self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
             self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
@@ -79,9 +80,10 @@ class UHF(object):
         self.etrial = local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
+        self.init = self.psi
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit,
-                     nit_max, alpha, deps=1e-8, verbose=False):
+                     nit_max, alpha, deps=1e-8, verbose=0):
         emin = 0
         uold = system.U
         system.U = ueff
@@ -104,7 +106,7 @@ class UHF(object):
                 Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
                 Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
                 enew = local_energy(system, numpy.array([Gup, Gdown]))[0].real
-                if verbose:
+                if verbose > 1:
                     print("# %d %f %f" % (it, enew, eold))
                 sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
                                           nidown_old, it, deps, verbose)
@@ -127,8 +129,9 @@ class UHF(object):
                     niup = mixup
                     nidown = mixdown
                     eold = enew
-            print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
-                  " energy found is: {: 8f}".format(attempt, it, eold))
+            if verbose > 1:
+                print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
+                      " energy found is: {: 8f}".format(attempt, it, eold))
 
         system.U = uold
         print("# Minimum energy found: {: 8f}".format(min(minima)))
@@ -165,15 +168,15 @@ class UHF(object):
         return numpy.diag(wfn.dot((wfn.conj()).T))
 
     def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
-                        it, deps=1e-8, verbose=False):
+                        it, deps=1e-8, verbose=0):
         '''Check if system parameters are converged'''
 
         depsn = deps**0.5
         ediff = abs(enew-eold)
         nup_diff = sum(abs(niup-niup_old))/len(niup)
         ndown_diff = sum(abs(nidown-nidown_old))/len(nidown)
-        if verbose:
-            print ("# de: %.10e dniu: %.10e dnid: %.10e"%(ediff, nup_diff, ndown_diff))
+        if verbose > 1:
+            print("# de: %.10e dniu: %.10e dnid: %.10e"%(ediff, nup_diff, ndown_diff))
 
         return (ediff < deps) and (nup_diff < depsn) and (ndown_diff < depsn)
 
