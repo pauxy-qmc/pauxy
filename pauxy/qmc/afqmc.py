@@ -122,7 +122,7 @@ class AFQMC(object):
         else:
             if comm.rank == 0:
                 self.trial = (
-                    get_trial_wavefunction(self.system, options=options.get('trial', {}),
+                    get_trial_wavefunction(self.system, options=twf_opt,
                                            mf=mf, parallel=parallel, verbose=verbose)
                 )
             else:
