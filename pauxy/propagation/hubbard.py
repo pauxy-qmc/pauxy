@@ -302,9 +302,10 @@ class HubbardContinuous(object):
         return - self.sqrt_dt * (vbias - self.mf_shift)
 
     def construct_VHS(self, system, shifted):
-        # B_V(x-\bar{x}) = e^{i\sqrt{dt}*(x-\bar{x})\hat{v}_i}
+        # Note factor of i included in v_i
+        # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
         # v_i = n_{iu} + n_{id}
-        return numpy.diag(self.isqrt_dt*shifted)
+        return numpy.diag(self.sqrt_dt*self.iu_fac*shifted)
         # return numpy.zeros((system.nbasis,system.nbasis))
 
     # def two_body(self, walker, system, trial):
