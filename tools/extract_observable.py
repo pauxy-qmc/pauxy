@@ -90,7 +90,7 @@ def main(args):
         (md, data) = extract_hdf5_simple(options.filename[0])
         fp = md['propagators']['free_projection']
         if fp:
-            pl.plot((data.E_num/data.E_denom).real)
+            pl.plot((data.ENumer/data.EDenom).real)
             pl.show()
         else:
             pl.plot(data[options.obs].real)

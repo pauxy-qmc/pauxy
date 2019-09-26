@@ -104,7 +104,10 @@ class ThermalAFQMC(object):
         if system is not None:
             self.system = system
         else:
-            sys_opts['thermal'] = True # Add thermal keyword to model
+            sys_opts = get_input_value(options, 'system', default={},
+                                       alias=['model'],
+                                       verbose=self.verbosity>1)
+            sys_opts['thermal'] = True
             self.system = get_system(sys_opts=sys_opts, verbose=verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
@@ -120,11 +123,16 @@ class ThermalAFQMC(object):
             trial_opts = get_input_value(options, 'trial', default={},
                                          alias=['trial_density'],
                                          verbose=self.verbosity>1)
-            self.trial = (
-                    get_trial_density_matrices(comm, trial_opts, self.system, self.cplx,
-                                               parallel, self.qmc.beta, self.qmc.dt,
-                                               verbose)
-            )
+            if comm.rank == 0:
+                self.trial = (
+                        get_trial_density_matrices(comm, trial_opts, self.system, self.cplx,
+                                                   parallel, self.qmc.beta, self.qmc.dt,
+                                                   verbose)
+                )
+            else:
+                self.trial = None
+            comm.barrier()
+            self.trial = comm.bcast(self.trial, root=0)
 
         prop_opts = get_input_value(options, 'propagator', default={},
                                     verbose=self.verbosity>1)

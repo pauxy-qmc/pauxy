@@ -44,13 +44,7 @@ def get_driver(options, comm):
     beta = get_input_value(qmc_opts, 'beta', default=None)
     verbosity = options.get('verbosity', 1)
     if beta is not None:
-        afqmc = ThermalAFQMC(comm,
-                             options.get('model'),
-                             qmc_opts,
-                             options.get('estimates', {}),
-                             options.get('trial', {}),
-                             options.get('propagator', {}),
-                             options.get('walkers', {}),
+        afqmc = ThermalAFQMC(comm, options=options,
                              parallel=comm.size>1,
                              verbose=(verbosity and comm.rank==0))
     else:
