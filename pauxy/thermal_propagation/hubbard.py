@@ -3,6 +3,7 @@ import copy
 import numpy
 import math
 import scipy.linalg
+from pauxy.estimators.thermal import one_rdm_from_G
 
 class ThermalDiscrete(object):
 
@@ -175,12 +176,16 @@ class HubbardContinuous(object):
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
         model = system.__class__.__name__
         self.dt = qmc.dt
-        # optimal mean-field shift for the hubbard model
         self.iu_fac = 1j * system.U**0.5
-        self.mf_shift = self.construct_mean_field_shift(system, trial)
-        # self.ut_fac = self.dt*system.U
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j * self.sqrt_dt
+        # optimal mean-field shift for the hubbard model
+        P = one_rdm_from_G(trial.G)
+        # Mean field shifts (2,nchol_vec).
+        self.mf_shift = self.construct_mean_field_shift(system, P)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
         self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
         # if self.ffts:
             # self.kinetic = kinetic_kspace
@@ -192,8 +197,8 @@ class HubbardContinuous(object):
     def construct_one_body_propagator(self, system, dt):
         # \sum_gamma v_MF^{gamma} v^{\gamma}
         vi1b = self.iu_fac * numpy.diag(self.mf_shift)
-        I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
-        muN = 0.5*dt*self.mu*I
+        I = numpy.identity(system.H1[0].shape[0], dtype=system.H1.dtype)
+        muN = 0.5*dt*system.mu*I
         sign = 1 if system._alt_convention else -1
         H1 = system.h1e_mod - numpy.array([vi1b,vi1b]) + sign*numpy.array([muN,muN])
         # H1 = system.H1 - numpy.array([vi1b,vi1b])

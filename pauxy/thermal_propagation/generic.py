@@ -58,16 +58,16 @@ class GenericContinuous(object):
         self.isqrt_dt = 1j*self.sqrt_dt
         self.nfb_trig = 0
 
+        P = one_rdm_from_G(trial.G)
         # Mean field shifts (2,nchol_vec).
-        # P = one_rdm_from_G(trial.G)
-        # self.mf_shift = self.construct_mean_field_shift(system, trial)
+        self.mf_shift = self.propagator.construct_mean_field_shift(system, P)
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
 
+
         # Mean field shifted one-body propagator
         self.mu = system.mu
-        # self.construct_one_body_propagator(system, qmc.dt)
 
         self.BT = trial.dmat
         self.BTinv = trial.dmat_inv

@@ -36,17 +36,7 @@ class Continuous(object):
 
         # Input options
         self.hs_type = 'continuous'
-        self.free_projection = options.get('free_projection', False)
-        if verbose:
-            print("# Using phaseless approximation: %r"%(not self.free_projection))
         self.exp_nmax = options.get('expansion_order', 6)
-        self.force_bias = options.get('force_bias', True)
-        if self.free_projection:
-            if verbose:
-                print("# Setting force_bias to False with free projection.")
-            self.force_bias = False
-        else:
-            print("# Setting force bias to %r."%self.force_bias)
 
         optimised = options.get('optimised', True)
         # Derived Attributes
@@ -58,28 +48,34 @@ class Continuous(object):
         self.propagator = get_continuous_propagator(system, trial, qmc,
                                                     options=options,
                                                     verbose=verbose)
-        P = one_rdm_from_G(trial.G)
-        # Mean field shifts (2,nchol_vec).
-        self.mf_shift = self.propagator.construct_mean_field_shift(system, P)
-        if verbose:
-            print("# Absolute value of maximum component of mean field shift: "
-                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
-
         # Mean field shifted one-body propagator
         self.mu = system.mu
         self.propagator.construct_one_body_propagator(system, qmc.dt)
 
+        self.BH1 = self.propagator.BH1
         self.BT = trial.dmat
         self.BTinv = trial.dmat_inv
+        self.BT_BP = None
 
-        # Constant core contribution modified by mean field shift.
-        mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
-        self.mf_const_fac = cmath.exp(-self.dt*mf_core)
-        self.BT_BP = self.BH1
+        self.mf_const_fac = cmath.exp(-self.dt*self.propagator.mf_core)
         self.nstblz = qmc.nstblz
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
+        self.free_projection = options.get('free_projection', False)
+        self.force_bias = options.get('force_bias', True)
+        if self.free_projection:
+            if verbose:
+                print("# Using free projection.")
+                print("# Setting force_bias to False with free projection.")
+            self.force_bias = False
+            self.propagate_walker = self.propagate_walker_free
+        else:
+            if verbose:
+                print("# Using phaseless approximation.")
+            if self.force_bias:
+                print("# Setting force bias to %r."%self.force_bias)
+            self.propagate_walker = self.propagate_walker_phaseless
         if verbose:
             print ("# Finished setting up propagator.")
 
@@ -99,27 +95,30 @@ class Continuous(object):
         xi = numpy.random.normal(0.0, 1.0, system.nfields)
         if self.force_bias:
             P = one_rdm_from_G(walker.G)
-            xbar = self.propagator.construct_force_bias(system, P)
+            xbar = self.propagator.construct_force_bias(system, P, trial)
         else:
             xbar = numpy.zeros(xi.shape, dtype=numpy.complex128)
 
         for i in range(system.nfields):
             if numpy.absolute(xbar[i]) > 1.0:
-                if self.nfb_trig < 10:
-                    print("# Rescaling force bias is triggered")
-                    print("# Warning will only be printed 10 times on root.")
+                # if self.nfb_trig < 10:
+                    # print("# Rescaling force bias is triggered")
+                    # print("# Warning will only be printed 10 times on root.")
                 self.nfb_trig += 1
                 xbar[i] /= numpy.absolute(xbar[i])
         # Constant factor arising from shifting the propability distribution.
         cfb = xi.dot(xbar) - 0.5*xbar.dot(xbar)
         xshifted = xi - xbar
         # Constant factor arising from force bias and mean field shift
-        cmf = -self.sqrt_dt * xshifted.dot(self.mf_shift)
+        cmf = -self.sqrt_dt * xshifted.dot(self.propagator.mf_shift)
 
         # Operator terms contributing to propagator.
-        VHS = self.construct_VHS(system, xshifted)
+        VHS = self.propagator.construct_VHS(system, xshifted)
 
         return (cmf, cfb, xshifted, VHS)
+
+    def estimate_eshift(self, walker):
+        return 0.0
 
     def exponentiate(self, VHS, debug=False):
         """Apply exponential propagator of the HS transformation
@@ -153,7 +152,7 @@ class Continuous(object):
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
 
-    def propagate_walker_free(self, system, walker, trial):
+    def propagate_walker_free(self, system, walker, trial, eshift=0):
         r"""Free projection for continuous HS transformation.
 
         .. Warning::
@@ -198,7 +197,7 @@ class Continuous(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_phaseless(self, system, walker, trial):
+    def propagate_walker_phaseless(self, system, walker, trial, eshift=0):
         r"""Propagate walker using phaseless approximation.
 
         Uses importance sampling and the hybrid method.
