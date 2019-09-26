@@ -198,7 +198,7 @@ class HubbardContinuous(object):
         # \sum_gamma v_MF^{gamma} v^{\gamma}
         vi1b = self.iu_fac * numpy.diag(self.mf_shift)
         I = numpy.identity(system.H1[0].shape[0], dtype=system.H1.dtype)
-        muN = 0.5*dt*system.mu*I
+        muN = system.mu*I
         sign = 1 if system._alt_convention else -1
         H1 = system.h1e_mod - numpy.array([vi1b,vi1b]) + sign*numpy.array([muN,muN])
         # H1 = system.H1 - numpy.array([vi1b,vi1b])

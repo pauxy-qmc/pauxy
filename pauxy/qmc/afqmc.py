@@ -111,7 +111,7 @@ class AFQMC(object):
                                   verbose=self.verbosity>1)
         self.qmc = QMCOpts(qmc_opt, self.system,
                            verbose=self.verbosity>1)
-        self.seed = self.qmc.rng_seed
+        self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
         self.cplx = self.determine_dtype(options.get('propagator', {}),
                                          self.system)
         twf_opt = get_input_value(options, 'trial', default={},

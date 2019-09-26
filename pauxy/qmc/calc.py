@@ -32,9 +32,6 @@ def setup_calculation(input_options):
         options = read_input(input_options, comm, verbose=True)
     else:
         options = input_options
-    qmc_opts = get_input_value(options, 'qmc', default={},
-                               alias=['qmc_options'])
-    set_rng_seed(qmc_opts, comm)
     afqmc = get_driver(options, comm)
     return (afqmc, comm)
 
@@ -87,10 +84,7 @@ def read_input(input_file, comm, verbose=False):
     return options
 
 
-def set_rng_seed(qmc_opts, comm):
-    seed = get_input_value(qmc_opts, 'rng_seed',
-                           default=None,
-                           alias=['random_seed', 'seed'])
+def set_rng_seed(seed, comm):
     if seed is None:
         # only set "random" part of seed on parent processor so we can reproduce
         # results in when running in parallel.
@@ -104,6 +98,7 @@ def set_rng_seed(qmc_opts, comm):
         seed = seed[0]
     seed = seed + comm.rank
     numpy.random.seed(seed)
+    return seed
 
 
 def setup_parallel(options, comm=None, verbose=False):

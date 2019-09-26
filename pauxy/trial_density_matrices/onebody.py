@@ -74,11 +74,11 @@ class OneBody(object):
             self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
                                     scipy.linalg.expm(-dtau*(self.H1[1]))])
             if comm.rank == 0:
-                self.mu = self.find_chemical_potential(system, self.rho,
+                mu = self.find_chemical_potential(system, self.rho,
                                                        dtau, verbose)
             else:
                 mu = None
-            self.mu = comm.bcast(self.mu, root=0)
+            self.mu = comm.bcast(mu, root=0)
         else:
             dtau = self.stack_size * dt
             self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),

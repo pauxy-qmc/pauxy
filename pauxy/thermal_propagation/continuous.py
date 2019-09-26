@@ -73,8 +73,8 @@ class Continuous(object):
         else:
             if verbose:
                 print("# Using phaseless approximation.")
-            if self.force_bias:
-                print("# Setting force bias to %r."%self.force_bias)
+                if self.force_bias:
+                    print("# Setting force bias to %r."%self.force_bias)
             self.propagate_walker = self.propagate_walker_phaseless
         if verbose:
             print ("# Finished setting up propagator.")

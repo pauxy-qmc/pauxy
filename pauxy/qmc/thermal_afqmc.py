@@ -123,16 +123,10 @@ class ThermalAFQMC(object):
             trial_opts = get_input_value(options, 'trial', default={},
                                          alias=['trial_density'],
                                          verbose=self.verbosity>1)
-            if comm.rank == 0:
-                self.trial = (
-                        get_trial_density_matrices(comm, trial_opts, self.system, self.cplx,
-                                                   parallel, self.qmc.beta, self.qmc.dt,
-                                                   verbose)
-                )
-            else:
-                self.trial = None
-            comm.barrier()
-            self.trial = comm.bcast(self.trial, root=0)
+            self.trial = get_trial_density_matrices(comm, trial_opts,
+                                                    self.system, self.cplx,
+                                                    self.qmc.beta,
+                                                    self.qmc.dt, verbose)
 
         prop_opts = get_input_value(options, 'propagator', default={},
                                     verbose=self.verbosity>1)
