@@ -108,6 +108,7 @@ class Generic(object):
             h1e, self.chol_vecs, self.ecore = self.read_integrals()
         self.H1 = numpy.array([h1e,h1e])
         self.nbasis = h1e.shape[0]
+        self._alt_convention = False
         mem = self.chol_vecs.nbytes / (1024.0**3)
         if verbose:
             print("# Number of orbitals: %d"%self.nbasis)

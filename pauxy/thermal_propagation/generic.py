@@ -27,7 +27,7 @@ class GenericContinuous(object):
         If true print out more information during setup.
     """
 
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print ("# Parsing continuous propagator input options.")
 
@@ -60,7 +60,7 @@ class GenericContinuous(object):
 
         P = one_rdm_from_G(trial.G)
         # Mean field shifts (2,nchol_vec).
-        self.mf_shift = self.propagator.construct_mean_field_shift(system, P)
+        self.mf_shift = self.construct_mean_field_shift(system, P)
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
@@ -73,20 +73,13 @@ class GenericContinuous(object):
         self.BTinv = trial.dmat_inv
 
         # Constant core contribution modified by mean field shift.
-        mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
-        self.mf_const_fac = cmath.exp(-self.dt*mf_core)
-        self.BT_BP = self.BH1
+        self.mf_core = system.ecore + 0.5*numpy.dot(self.mf_shift, self.mf_shift)
         self.nstblz = qmc.nstblz
 
-        self.chol_vecs = system.chol_vecs
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-        if self.free_projection:
-            self.propagate_walker = self.propagate_walker_free
-        else:
-            self.propagate_walker = self.propagate_walker_phaseless
         if verbose:
-            print ("# Finished setting up propagator.")
+            print("# Finished setting up propagator.")
 
 
     def construct_mean_field_shift(self, system, P):
@@ -117,15 +110,14 @@ class GenericContinuous(object):
             shift = 1j*numpy.einsum('l,lpq->pq',
                                     self.mf_shift,
                                     system.hs_pot)
-        H1 = system.h1e_mod - numpy.array([shift,shift])
-        H1 = system.h1e_mod - numpy.array([shift,shift])
+        I = numpy.identity(system.nbasis, dtype=system.H1.dtype)
+        muN = self.mu * I
+        H1 = system.h1e_mod - numpy.array([shift+muN,shift+muN])
 
-        I = numpy.identity(H1[0].shape[0], dtype=H1.dtype)
-        # No spin dependence for the moment.
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]+0.5*dt*self.mu*I),
-                                scipy.linalg.expm(-0.5*dt*H1[1]+0.5*dt*self.mu*I)])
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
+                                scipy.linalg.expm(-0.5*dt*H1[1])])
 
-    def construct_force_bias_slow(self, system, P):
+    def construct_force_bias_slow(self, system, P, trial):
         """Compute optimal force bias.
 
         Uses explicit expression.
@@ -144,7 +136,7 @@ class GenericContinuous(object):
         vbias += numpy.einsum('lpq,pq->l', system.hs_pot, P[1])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
-    def construct_force_bias_fast(self, system, P):
+    def construct_force_bias_fast(self, system, P, trial):
         """Compute optimal force bias.
 
         Uses explicit expression.

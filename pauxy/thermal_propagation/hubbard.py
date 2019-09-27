@@ -200,8 +200,7 @@ class HubbardContinuous(object):
         I = numpy.identity(system.H1[0].shape[0], dtype=system.H1.dtype)
         muN = system.mu*I
         sign = 1 if system._alt_convention else -1
-        H1 = system.h1e_mod - numpy.array([vi1b,vi1b]) + sign*numpy.array([muN,muN])
-        # H1 = system.H1 - numpy.array([vi1b,vi1b])
+        H1 = system.h1e_mod - numpy.array([vi1b-sign*muN,vi1b-sign*muN])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 

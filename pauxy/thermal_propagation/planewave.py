@@ -15,7 +15,7 @@ from pauxy.walkers.single_det import SingleDetWalker
 class PlaneWave(object):
     """PlaneWave class
     """
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing plane wave propagator input options.")

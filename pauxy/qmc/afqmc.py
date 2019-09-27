@@ -13,6 +13,7 @@ from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
+from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash
@@ -93,7 +94,7 @@ class AFQMC(object):
         self.root = comm.rank == 0
         self.rank = comm.rank
         self._init_time = time.time()
-        self.run_time = time.asctime(),
+        self.run_time = time.asctime()
         # 2. Calculation objects.
         # if comm.rank == 0:
             # system = get_system(sys_opts=options.get('model', {}),
