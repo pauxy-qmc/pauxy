@@ -1,4 +1,5 @@
 from pauxy.trial_density_matrices.onebody import OneBody
+from pauxy.trial_density_matrices.mean_field import MeanField
 
 def get_trial_density_matrices(comm, options, system, cplx, beta, dt, verbose=False):
     """Wrapper to select trial wavefunction class.
@@ -24,6 +25,9 @@ def get_trial_density_matrices(comm, options, system, cplx, beta, dt, verbose=Fa
     elif trial_type == 'one_body':
         trial = OneBody(comm, system, beta, dt, options=options,
                         verbose=verbose)
+    elif trial_type == 'thermal_hartree_fock':
+        trial = MeanField(comm, system, beta, dt, options=options,
+                          verbose=verbose)
     else:
         trial = None
 
