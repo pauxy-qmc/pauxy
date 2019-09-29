@@ -183,6 +183,7 @@ def set_info(frame, md):
         if mu is not None:
             frame['mu'] = system.get('mu')
         frame['mu_T'] = trial.get('mu')
+        frame['Nav_T'] = trial.get('nav')
     else:
         frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
@@ -195,13 +196,15 @@ def set_info(frame, md):
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
     elif system['name'] == "Generic":
-        frame['integrals'] = system.get('integral_file')
-        frame['nfv'] = system.get('nfv')
+        ints = system.get('integral_file')
+        if ints is not None:
+            frame['integrals'] = ints
+        chol = system.get('threshold')
+        if chol is not None:
+            frame['cholesky_treshold'] = chol
         frame['nup'] = system.get('nup')
         frame['ndown'] = system.get('ndown')
-        frame['ncore'] = system.get('ncore')
         frame['nbasis'] = system.get('nbasis', 0)
-        frame['cholesky_treshold'] = system.get('threshold')
     return list(frame.columns[ncols:])
 
 def get_metadata(filename):
