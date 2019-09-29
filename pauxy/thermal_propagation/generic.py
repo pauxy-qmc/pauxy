@@ -43,7 +43,8 @@ class GenericContinuous(object):
                 print("# Setting force_bias to False with free projection.")
             self.force_bias = False
         else:
-            print("# Setting force bias to %r."%self.force_bias)
+            if verbose:
+                print("# Setting force bias to %r."%self.force_bias)
 
         optimised = options.get('optimised', True)
         if optimised:
