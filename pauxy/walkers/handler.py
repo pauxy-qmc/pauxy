@@ -79,17 +79,13 @@ class Walkers(object):
             dtype = complex
         else:
             dtype = int
-        pcont_method = get_input_value(walker_opts, 'population_control',
-                                       default='comb')
-        if pcont_method == 'comb':
-            self.pop_control = self.comb
-        elif pcont_method == 'pair_branch':
-            self.pop_control = self.pair_branch
+        self.pcont_method = get_input_value(walker_opts, 'population_control',
+                                            default='comb')
         self.min_weight = walker_opts.get('min_weight', 0.1)
         self.max_weight = walker_opts.get('max_weight', 2.0)
         if verbose:
             print("# Using {} population control "
-                  "algorithm.".format(pcont_method))
+                  "algorithm.".format(self.pcont_method))
         if not self.walker_type == "thermal":
             walker_size = 3 + self.walkers[0].phi.size
         if self.write_freq > 0:
@@ -106,11 +102,9 @@ class Walkers(object):
             if verbose:
                 print("# Reading walkers from %s file series."%self.read_file)
             self.read_walkers(comm)
-        self.calculate_nwalkers()
+        self.target_weight = qmc.ntot_walkers
+        self.nw = qmc.nwalkers
         self.set_total_weight(qmc.ntot_walkers)
-
-    def calculate_nwalkers(self):
-        self.nw = sum(w.alive for w in self.walkers)
 
     def orthogonalise(self, trial, free_projection):
         """Orthogonalise all walkers.
@@ -171,7 +165,24 @@ class Walkers(object):
         for (i,w) in enumerate(self.walkers):
             numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
-    def comb(self, comm):
+    def pop_control(self, comm):
+        weights = numpy.array([abs(w.weight) for w in self.walkers])
+        if comm.rank == 0:
+            global_weights = numpy.empty(len(weights)*comm.size)
+        else:
+            global_weights = numpy.empty(len(weights)*comm.size)
+        comm.Allgather(weights, global_weights)
+        total_weight = sum(global_weights)
+        scale = total_weight / self.target_weight
+        # Todo: Just standardise information we want to send between routines.
+        for w in self.walkers:
+            w.weight = w.weight / scale
+        if self.pcont_method == "comb":
+            self.comb(comm, global_weights)
+        elif self.pcont_method == "pair_branch":
+            self.pair_branch(comm)
+
+    def comb(self, comm, weights):
         """Apply the comb method of population control / branching.
 
         See Booth & Gubernatis PRE 80, 046704 (2009).
@@ -184,24 +195,16 @@ class Walkers(object):
         # walker objects in memory. We don't want future changes in a given
         # element of psi having unintended consequences.
         # todo : add phase to walker for free projection
-        weights = numpy.array([abs(w.weight) for w in self.walkers])
-        global_weights = None
-        if self.ntot_walkers == 1:
-            self.walkers[0].weight = 1
-            return
         if comm.rank == 0:
-            global_weights = numpy.empty(len(weights)*comm.size)
-            parent_ix = numpy.zeros(len(global_weights), dtype='i')
+            parent_ix = numpy.zeros(len(weights), dtype='i')
         else:
-            global_weights = numpy.empty(len(weights)*comm.size)
-            parent_ix = numpy.empty(len(global_weights), dtype='i')
-        comm.Gather(weights, global_weights, root=0)
+            parent_ix = numpy.empty(len(weights), dtype='i')
         if comm.rank == 0:
-            total_weight = sum(global_weights)
-            cprobs = numpy.cumsum(global_weights)
-            ntarget = self.nw * comm.size
+            total_weight = sum(weights)
+            cprobs = numpy.cumsum(weights)
             r = numpy.random.random()
-            comb = [(i+r) * (total_weight/(ntarget)) for i in range(ntarget)]
+            comb = [(i+r) * (total_weight/self.target_weight) for i in
+                    range(self.target_weight)]
             iw = 0
             ic = 0
             while ic < len(comb):
@@ -210,14 +213,20 @@ class Walkers(object):
                     ic += 1
                 else:
                     iw += 1
+            data = {'ix': parent_ix, 'weight': total_weight}
         else:
-            total_weight = None
+            data = None
 
-        comm.Bcast(parent_ix, root=0)
+        data = comm.bcast(data, root=0)
+        parent_ix = data['ix']
+        total_weight = data['weight']
+        # Reset walker weight.
+        # TODO: check this.
+        for w in self.walkers:
+            w.weight = total_weight / self.target_weight
         # Keep total weight saved for capping purposes.
-        total_weight = comm.bcast(total_weight, root=0)
-        self.set_total_weight(total_weight)
         # where returns a tuple (array,), selecting first element.
+        self.set_total_weight(total_weight)
         kill = numpy.where(parent_ix == 0)[0]
         clone = numpy.where(parent_ix > 1)[0]
         reqs = []
@@ -250,10 +259,6 @@ class Walkers(object):
             rs.wait()
         # Necessary?
         comm.Barrier()
-        # Reset walker weight.
-        # TODO: check this.
-        for w in self.walkers:
-            w.weight = 1.0
 
     def pair_branch(self, comm):
         walker_info = [[w.weight,1,comm.rank,comm.rank] for w in self.walkers]
@@ -262,6 +267,7 @@ class Walkers(object):
         if comm.rank == 0:
             # Unpack lists
             total_weight = sum(w[0] for w in walker_info)
+            # Rescale weights.
             glob_inf = numpy.array([item for sub in glob_inf for item in sub])
             # glob_inf.sort(key=lambda x: x[0])
             sort = numpy.argsort(glob_inf[:,0], kind='mergesort')
