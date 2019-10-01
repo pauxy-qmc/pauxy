@@ -104,7 +104,7 @@ class Mixed(object):
                                             dtype=dtype)
         self.key = {
             'Iteration': "Simulation iteration. iteration*dt = tau.",
-            'Weight': "Total walker weight.",
+            'Weight': "Total walker weight before rescaling.",
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
             'ETotal': "Projected energy estimator.",
@@ -217,7 +217,7 @@ class Mixed(object):
                     self.estimates[self.names.e1b:self.names.e2b+1] += (
                             w.weight*numpy.array([T,V]).real
                     )
-                self.estimates[self.names.weight] += w.weight
+                self.estimates[self.names.weight] += w.unscaled_weight
                 self.estimates[self.names.edenom] += w.weight
                 self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy

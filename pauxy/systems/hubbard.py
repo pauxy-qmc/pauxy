@@ -44,7 +44,7 @@ class Hubbard(object):
 
     def __init__(self, inputs, verbose=False):
         if verbose:
-            print ("# Parsing input options.")
+            print("# Parsing input options.")
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
         self.t = inputs.get('t', 1.0)

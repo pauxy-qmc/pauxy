@@ -9,7 +9,7 @@ from pauxy.systems.ueg import UEG
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.utils.from_pyscf import integrals_from_scf
 
-class TestGeneric(unittest.TestCase):
+class TestDriver(unittest.TestCase):
 
     def test_from_pyscf(self):
         atom = gto.M(atom='Ne 0 0 0', basis='cc-pvdz', verbose=0)
@@ -70,6 +70,7 @@ class TestGeneric(unittest.TestCase):
     def test_constructor(self):
         options = {
                 'verbosity': 0,
+                'get_sha1': False,
                 'qmc': {
                     'timestep': 0.01,
                     'num_steps': 10,

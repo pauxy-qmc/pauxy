@@ -12,6 +12,7 @@ class ThermalWalker(object):
 
     def __init__(self, walker_opts, system, trial, verbose=False):
         self.weight = walker_opts.get('weight', 1.0)
+        self.unscaled_weight = self.weight
         self.phase = 1.0 + 0.0j
         self.alive = True
         self.num_slices = trial.num_slices

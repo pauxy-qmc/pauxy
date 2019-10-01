@@ -2,8 +2,9 @@
 '''Exctact element of green's function'''
 
 import argparse
-import os
 import sys
+import numpy
+import os
 import pandas as pd
 import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
@@ -89,11 +90,19 @@ def main(args):
     elif options.plot:
         (md, data) = extract_hdf5_simple(options.filename[0])
         fp = md['propagators']['free_projection']
+        dt = md['qmc']['dt']
+        mc = md['qmc']['nmeasure']
+        data = data[abs(data.Weight) > 0.0]
+        tau = numpy.arange(0,len(data)) * mc * dt
         if fp:
-            pl.plot((data.ENumer/data.EDenom).real)
+            pl.plot(tau, (data.ENumer/data.EDenom).real)
+            pl.xlabel(r"$\tau$ (au)")
+            pl.ylabel(r"Energy (au)")
             pl.show()
         else:
-            pl.plot(data[options.obs].real)
+            pl.plot(tau, data[options.obs].real)
+            pl.xlabel(r"$\tau$ (au)")
+            pl.ylabel(r"{} (au)".format(options.obs))
             pl.show()
     else:
         print ('Unknown observable')

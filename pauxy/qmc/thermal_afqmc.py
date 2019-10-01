@@ -204,22 +204,10 @@ class ThermalAFQMC(object):
                 eloc = 0.0
                 weight = 0.0
                 for w in self.walk.walkers:
-                    # if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(self.system, w,
                                                       ts, eshift)
-                    # if (w.weight > w.total_weight * 0.10) and ts > 0:
-                        # w.weight = w.total_weight * 0.10
-                    # w.greens_function(self.trial, slice_ix=self.qmc.ntime_slices)
-                    # eloc += w.weight*w.local_energy(self.system)[0]
-                    # weight += w.weight
-                # eloc_sum = 0
-                # weight_sum = 0
-                # from mpi4py import MPI
-                # eloc_sum = comm.reduce(eloc, MPI.SUM, 0)
-                # weight_sum = comm.reduce(weight, MPI.SUM, 0)
-                # if comm.rank == 0:
-                    # print(" # ts : {} {} {} {}".format(ts, eloc_sum.real, weight_sum,
-                          # (eloc_sum/weight_sum).real))
+                    if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
+                        w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:

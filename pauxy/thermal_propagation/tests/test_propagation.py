@@ -11,24 +11,21 @@ class TestThermalHubbard(unittest.TestCase):
 
     def test_hubbard(self):
         options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 1.0, 'nup': 7, 'ndown': 7}
-        system = Hubbard(options, verbose=True)
+        system = Hubbard(options, verbose=False)
         comm = MPI.COMM_WORLD
         beta = 2.0
         dt = 0.05
         nslice = int(round(beta/dt))
-        try:
-            trial = OneBody(comm, {}, system, beta, dt)
-        except TypeError:
-            trial = OneBody({}, system, beta, dt)
+        trial = OneBody(comm, system, beta, dt)
         numpy.random.seed(7)
         qmc = dotdict({'dt': dt, 'nstblz': 10})
-        prop = ThermalDiscrete({}, qmc, system, trial, verbose=True)
-        walker1 = ThermalWalker({'stack_size': 1}, system, trial, verbose=True)
+        prop = ThermalDiscrete({}, qmc, system, trial, verbose=False)
+        walker1 = ThermalWalker({'stack_size': 1}, system, trial, verbose=False)
         for ts in range(0,nslice):
             prop.propagate_walker(system, walker1, ts, 0)
             walker1.weight /= 1.0e6
         numpy.random.seed(7)
-        walker2 = ThermalWalker({'stack_size': 10}, system, trial, verbose=True)
+        walker2 = ThermalWalker({'stack_size': 10}, system, trial, verbose=False)
         energies = []
         for ts in range(0,nslice):
             prop.propagate_walker(system, walker2, ts, 0)
@@ -45,22 +42,17 @@ class TestThermalHubbard(unittest.TestCase):
 
     def test_propagate_walker(self):
         options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 1.0, 'nup': 7, 'ndown': 7}
-        system = Hubbard(options, verbose=True)
+        system = Hubbard(options, verbose=False)
         comm = MPI.COMM_WORLD
         beta = 2.0
         dt = 0.05
         nslice = int(round(beta/dt))
-        try:
-            # trial = OneBody(comm, {'mu': 1.0}, system, beta, dt)
-            trial = OneBody(comm, {}, system, beta, dt)
-        except TypeError:
-            # trial = OneBody({'mu': 1.0}, system, beta, dt)
-            trial = OneBody({}, system, beta, dt)
+        trial = OneBody(comm, system, beta, dt)
         numpy.random.seed(7)
         qmc = dotdict({'dt': dt, 'nstblz': 1})
-        prop = ThermalDiscrete({}, qmc, system, trial, verbose=True)
-        walker1 = ThermalWalker({'stack_size': 1}, system, trial, verbose=True)
-        walker2 = ThermalWalker({'stack_size': 1}, system, trial, verbose=True)
+        prop = ThermalDiscrete({}, qmc, system, trial, verbose=False)
+        walker1 = ThermalWalker({'stack_size': 1}, system, trial, verbose=False)
+        walker2 = ThermalWalker({'stack_size': 1}, system, trial, verbose=False)
         rands = numpy.random.random(system.nbasis)
         I = numpy.eye(system.nbasis)
         BV = numpy.zeros((2,system.nbasis))

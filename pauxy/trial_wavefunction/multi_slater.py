@@ -55,6 +55,9 @@ class MultiSlater(object):
         self._nalpha = system.nup
         self._nelec = system.nelec
         self._nbasis = system.nbasis
+        write_wfn = options.get('write_wavefunction', False)
+        if write_wfn:
+            self.write_wavefunction()
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
