@@ -209,11 +209,13 @@ class Continuous(object):
         ovlp_ratio = ot_new / walker.ot
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
         self.apply_bound(hybrid_energy, eshift)
-        walker.hybrid_energy = hybrid_energy
-        importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift.real))
+        importance_function = (
+                self.mf_const_fac *
+                cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift.real))
+        )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
         (magn, phase) = cmath.polar(importance_function)
-        # print(ovlp_ratio,hybrid_energy,importance_function,magn,phase)
+        walker.hybrid_energy = hybrid_energy
 
         if not math.isinf(magn):
             # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)
