@@ -173,23 +173,19 @@ class Walkers(object):
             global_weights = numpy.empty(len(weights)*comm.size)
         comm.Allgather(weights, global_weights)
         total_weight = sum(global_weights)
+        # Rescale weights to combat exponential decay/growth.
         scale = total_weight / self.target_weight
         # Todo: Just standardise information we want to send between routines.
-        tot = 0
-        print(scale, total_weight, self.target_weight, weights, comm.size)
         for w in self.walkers:
             w.unscaled_weight = w.weight
             w.weight = w.weight / scale
-            tot += w.unscaled_weight
-        # print(tot)
-
-        # if self.pcont_method == "comb":
-            # self.comb(comm, global_weights)
-        # elif self.pcont_method == "pair_branch":
-            # self.pair_branch(comm)
-        # else:
-            # if comm.rank == 0:
-                # print("Unknown population control method.")
+        if self.pcont_method == "comb":
+            self.comb(comm, global_weights)
+        elif self.pcont_method == "pair_branch":
+            self.pair_branch(comm)
+        else:
+            if comm.rank == 0:
+                print("Unknown population control method.")
 
     def comb(self, comm, weights):
         """Apply the comb method of population control / branching.
