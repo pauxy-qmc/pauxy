@@ -28,8 +28,10 @@ class PlaneWave(object):
             self.construct_force_bias = self.construct_force_bias_incore
             self.construct_VHS = self.construct_VHS_incore
         else:
-            self.construct_force_bias = self.construct_force_bias_slow
-            self.construct_VHS = self.construct_VHS_slow
+            print("# Slow routines not available. Please Implement.")
+            sys.exit()
+            # self.construct_force_bias = self.construct_force_bias_slow
+            # self.construct_VHS = self.construct_VHS_slow
         # Input options
         if verbose:
             print ("# Finished setting up plane wave propagator.")
