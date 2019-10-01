@@ -58,6 +58,8 @@ class ThermalWalker(object):
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
+        self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
+                   scipy.linalg.det(self.G[1], check_finite=False)]
         self.ot = 1.0
 
         # temporary storage for stacks...
