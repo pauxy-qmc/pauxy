@@ -65,6 +65,7 @@ def extract_hdf5(filename):
         estimates = metadata.get('estimators').get('estimators')
         basic = fh5['mixed_estimates/energies'][:]
         headers = fh5['mixed_estimates/headers'][:]
+        headers = [s.decode("utf-8") for s in headers]
         basic = pd.DataFrame(basic)
         basic.columns = headers
         if estimates is not None:
