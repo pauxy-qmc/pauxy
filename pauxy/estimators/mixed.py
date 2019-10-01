@@ -104,7 +104,7 @@ class Mixed(object):
                                             dtype=dtype)
         self.key = {
             'Iteration': "Simulation iteration. iteration*dt = tau.",
-            'Weight': "Total walker weight.",
+            'Weight': "Total walker weight before rescaling.",
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
             'ETotal': "Projected energy estimator.",
