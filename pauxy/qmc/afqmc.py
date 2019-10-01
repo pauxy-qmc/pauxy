@@ -215,9 +215,8 @@ class AFQMC(object):
                     self.propagators.propagate_walker(w, self.system,
                                                       self.trial, eshift)
                 # Constant factors
-                # w.weight = w.weight * exp(self.qmc.dt * E_T.real)
-                # if (w.weight > w.total_weight * 0.10) and step > 1:
-                    # w.weight = w.total_weight * 0.10
+                if (abs(w.weight) > w.total_weight * 0.10) and step > 1:
+                    w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
             if step % self.qmc.npop_control == 0:
                 start = time.time()
