@@ -175,12 +175,21 @@ class Walkers(object):
         total_weight = sum(global_weights)
         scale = total_weight / self.target_weight
         # Todo: Just standardise information we want to send between routines.
+        tot = 0
+        print(scale, total_weight, self.target_weight, weights, comm.size)
         for w in self.walkers:
+            w.unscaled_weight = w.weight
             w.weight = w.weight / scale
-        if self.pcont_method == "comb":
-            self.comb(comm, global_weights)
-        elif self.pcont_method == "pair_branch":
-            self.pair_branch(comm)
+            tot += w.unscaled_weight
+        # print(tot)
+
+        # if self.pcont_method == "comb":
+            # self.comb(comm, global_weights)
+        # elif self.pcont_method == "pair_branch":
+            # self.pair_branch(comm)
+        # else:
+            # if comm.rank == 0:
+                # print("Unknown population control method.")
 
     def comb(self, comm, weights):
         """Apply the comb method of population control / branching.
@@ -220,10 +229,6 @@ class Walkers(object):
         data = comm.bcast(data, root=0)
         parent_ix = data['ix']
         total_weight = data['weight']
-        # Reset walker weight.
-        # TODO: check this.
-        for w in self.walkers:
-            w.weight = total_weight / self.target_weight
         # Keep total weight saved for capping purposes.
         # where returns a tuple (array,), selecting first element.
         self.set_total_weight(total_weight)
@@ -259,6 +264,10 @@ class Walkers(object):
             rs.wait()
         # Necessary?
         comm.Barrier()
+        # Reset walker weight.
+        # TODO: check this.
+        for w in self.walkers:
+            w.weight = 1.0
 
     def pair_branch(self, comm):
         walker_info = [[w.weight,1,comm.rank,comm.rank] for w in self.walkers]

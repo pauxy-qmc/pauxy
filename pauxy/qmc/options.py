@@ -102,14 +102,11 @@ class QMCOpts(object):
                                             default=1,
                                             alias=['npop_control'],
                                             verbose=verbose)
-        self.nupdate_shift = get_input_value(inputs, 'update_shift_freq',
-                                             default=10,
-                                             alias=['nupdate_shift'],
-                                             verbose=verbose)
-        self.nequilibrate = get_input_value(inputs, 'num_equilibrate_steps',
-                                            default=int(1.0/self.dt),
-                                            alias=['nequilibrate'],
-                                            verbose=verbose)
+        self.eqlb_time = get_input_value(inputs, 'equilibration_time',
+                                         default=2.0,
+                                         alias=['tau_eqlb'],
+                                         verbose=verbose)
+        self.neqlb = int(self.eqlb_time/self.dt)
         self.beta = get_input_value(inputs, 'beta', default=None,
                                     verbose=verbose)
         scale_t = get_input_value(inputs, 'scaled_temperature', default=False,

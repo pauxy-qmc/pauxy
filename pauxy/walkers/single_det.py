@@ -23,6 +23,7 @@ class SingleDetWalker(object):
 
     def __init__(self, walker_opts, system, trial, index=0):
         self.weight = walker_opts.get('weight', 1)
+        self.unscaled_weight = self.weight
         self.phase = 1 + 0j
         self.alive = 1
         self.phi = trial.init.copy()
