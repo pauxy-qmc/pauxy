@@ -5,6 +5,7 @@ import scipy.sparse
 import pauxy.utils
 import math
 import time
+from pauxy.utils.io import dump_qmcpack_cholesky
 
 
 class UEG(object):
@@ -173,6 +174,9 @@ class UEG(object):
         if verbose:
             print("# Constructing two-body potentials incore.")
         (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
+        write_ints = inputs.get('write_integrals', None)
+        if write_ints is not None:
+            self.write_integrals()
         if verbose:
             print("# Approximate memory required for "
                   "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
@@ -415,6 +419,11 @@ class UEG(object):
         iB = - (rho_q - rho_qH)
 
         return (rho_q, iA, iB)
+
+    def write_integrals(self, filename='hamil.h5'):
+        dump_qmcpack_cholesky(self.H1, 2*scipy.sparse.csr_matrix(self.chol_vecs),
+                              self.nelec, self.nbasis,
+                              e0=0.0, filename=filename)
 
     def hijkl(self,i,j,k,l):
         """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
