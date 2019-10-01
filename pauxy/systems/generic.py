@@ -145,6 +145,9 @@ class Generic(object):
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
+        write_ints = inputs.get('write_integrals', None)
+        if write_ints is not None:
+            self.write_integrals()
         if verbose:
             print("# Finished setting up Generic system object.")
 
