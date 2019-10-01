@@ -130,7 +130,7 @@ class AFQMC(object):
                 self.trial = None
             self.trial = comm.bcast(self.trial, root=0)
         if self.system.name == "Generic":
-            if self.trial.ndets == 1:
+            if self.trial.name != "MultiSlater":
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
@@ -229,15 +229,15 @@ class AFQMC(object):
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
-            if step < self.qmc.neqlb:
-                eshift = self.estimators.estimators['mixed'].get_shift()
-            else:
-                eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
             if step % self.qmc.nmeasure == 0:
                 self.estimators.print_step(comm, comm.size, step,
                                            self.qmc.nmeasure)
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
+            if step < self.qmc.neqlb:
+                eshift = self.estimators.estimators['mixed'].get_shift()
+            else:
+                eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
 
     def finalise(self, verbose=False):
         """Tidy up.
@@ -251,9 +251,6 @@ class AFQMC(object):
             if self.estimators.back_propagation:
                 self.estimators.h5f.close()
             if verbose:
-                energy = self.get_energy(skip=int(0.1*self.qmc.nsteps))
-                if energy is not None:
-                    print("# Mixed estimate for total energy: %f +/- %f"%energy)
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %
                       (time.time() - self._init_time))
