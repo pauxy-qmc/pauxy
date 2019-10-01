@@ -1,6 +1,7 @@
 """Routines for performing propagation of a walker"""
 
 from pauxy.thermal_propagation.continuous import Continuous
+from pauxy.thermal_propagation.planewave import PlaneWave
 from pauxy.thermal_propagation.hubbard import ThermalDiscrete
 
 
@@ -30,6 +31,10 @@ def get_propagator(options, qmc, system, trial, verbose=False):
         else:
             propagator = Continuous(options, qmc, system, trial, verbose)
     else:
-        propagator = Continuous(options, qmc, system, trial, verbose)
+        if system.name == "UEG":
+            propagator = PlaneWave(system, trial, qmc,
+                                   options=options, verbose=verbose)
+        else:
+            propagator = Continuous(options, qmc, system, trial, verbose)
 
     return propagator
