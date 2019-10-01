@@ -13,6 +13,7 @@ from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
+from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash
@@ -93,7 +94,7 @@ class AFQMC(object):
         self.root = comm.rank == 0
         self.rank = comm.rank
         self._init_time = time.time()
-        self.run_time = time.asctime(),
+        self.run_time = time.asctime()
         # 2. Calculation objects.
         # if comm.rank == 0:
             # system = get_system(sys_opts=options.get('model', {}),
@@ -111,7 +112,7 @@ class AFQMC(object):
                                   verbose=self.verbosity>1)
         self.qmc = QMCOpts(qmc_opt, self.system,
                            verbose=self.verbosity>1)
-        self.seed = self.qmc.rng_seed
+        self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
         self.cplx = self.determine_dtype(options.get('propagator', {}),
                                          self.system)
         twf_opt = get_input_value(options, 'trial', default={},
@@ -120,27 +121,36 @@ class AFQMC(object):
         if trial is not None:
             self.trial = trial
         else:
-            self.trial = (
-                get_trial_wavefunction(self.system, options=options.get('trial', {}),
-                                       mf=mf, parallel=parallel, verbose=verbose)
-            )
+            if comm.rank == 0:
+                self.trial = (
+                    get_trial_wavefunction(self.system, options=twf_opt,
+                                           mf=mf, parallel=parallel, verbose=verbose)
+                )
+            else:
+                self.trial = None
+            self.trial = comm.bcast(self.trial, root=0)
         if self.system.name == "Generic":
             if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
                     self.system.construct_integral_tensors_real(self.trial)
-        self.trial.calculate_energy(self.system)
+        if comm.rank == 0:
+            self.trial.calculate_energy(self.system)
         prop_opt = options.get('propagator', {})
         self.propagators = get_propagator_driver(self.system, self.trial,
                                                  self.qmc, options=prop_opt,
                                                  verbose=verbose)
         self.tsetup = time.time() - self._init_time
-        walker_opts = options.get('walkers', {})
-        estimates = options.get('estimates', {})
-        estimates['stack_size'] = walker_opts.get('stack_size', 1)
+        wlk_opts = get_input_value(options, 'walkers', default={},
+                                   alias=['walker', 'walker_opts'],
+                                   verbose=self.verbosity>1)
+        est_opts = get_input_value(options, 'estimators', default={},
+                                   alias=['estimates','estimator'],
+                                   verbose=self.verbosity>1)
+        est_opts['stack_size'] = wlk_opts.get('stack_size', 1)
         self.estimators = (
-            Estimators(options.get('estimates', {}), self.root, self.qmc, self.system,
+            Estimators(est_opts, self.root, self.qmc, self.system,
                        self.trial, self.propagators.BT_BP, verbose)
         )
         # Reset number of walkers so they are evenly distributed across
@@ -150,12 +160,12 @@ class AFQMC(object):
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         if self.qmc.nwalkers == 0:
-            if afqmc.root:
+            if comm.rank == 0:
                 print("# WARNING: Not enough walkers for selected core count."
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
             afqmc.qmc.nwalkers = 1
-        self.psi = Walkers(walker_opts, self.system, self.trial,
+        self.psi = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose, comm=None)
         self.psi.add_field_config(self.estimators.nprop_tot,
                                   self.estimators.nbp,

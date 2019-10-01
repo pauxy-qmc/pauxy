@@ -8,7 +8,8 @@ from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.utils.from_pyscf import get_pyscf_wfn
 from pauxy.utils.io import read_qmcpack_wfn_hdf
 
-def get_trial_wavefunction(system, options={}, mf=None, parallel=False, verbose=False):
+def get_trial_wavefunction(system, options={}, mf=None,
+                           parallel=False, verbose=0):
     """Wrapper to select trial wavefunction class.
 
     Parameters

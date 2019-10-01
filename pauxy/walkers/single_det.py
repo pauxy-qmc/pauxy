@@ -57,14 +57,14 @@ class SingleDetWalker(object):
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
         self.stack_size = walker_opts.get('stack_size', 1)
-        if system.name == "Generic":
-            self.stack = PropagatorStack(self.stack_size, num_propg,
-                                         system.nbasis, trial.psi.dtype,
-                                         BT=None, BTinv=None,
-                                         diagonal=False)
-        else:
-            self.stack = FieldConfig(system.nfields, num_propg,
-                                     num_propg, trial.psi.dtype)
+        # if system.name == "Generic":
+            # self.stack = PropagatorStack(self.stack_size, num_propg,
+                                         # system.nbasis, trial.psi.dtype,
+                                         # BT=None, BTinv=None,
+                                         # diagonal=False)
+        # else:
+            # self.stack = FieldConfig(system.nfields, num_propg,
+                                     # num_propg, trial.psi.dtype)
         try:
             excite = trial.excite_ia
         except AttributeError:

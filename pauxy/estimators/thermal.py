@@ -191,3 +191,13 @@ def one_rdm_stable(BT, num_slices):
         G.append(numpy.dot(numpy.dot(T1inv, Cinv),
                  numpy.einsum('ii,ij->ij', Db, Q1.conj().T)))
     return one_rdm_from_G(numpy.array(G))
+
+def entropy(beta, mu, H):
+    muN = mu * numpy.eye(H.shape[-1], dtype=H.dtype)
+    rho = numpy.array([scipy.linalg.expm(-beta*(H[0]-muN)),
+                       scipy.linalg.expm(-beta*(H[1]-muN))])
+    W = rho[0] + rho[1]
+    W = W / W.trace()
+    logW = scipy.linalg.logm(W)
+    S = -numpy.trace(numpy.dot(W,logW))
+    return S

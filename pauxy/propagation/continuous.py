@@ -213,6 +213,7 @@ class Continuous(object):
         importance_function = self.mf_const_fac * cmath.exp(-self.dt*(hybrid_energy-eshift.real))
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
         (magn, phase) = cmath.polar(importance_function)
+        # print(ovlp_ratio,hybrid_energy,importance_function,magn,phase)
 
         if not math.isinf(magn):
             # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)

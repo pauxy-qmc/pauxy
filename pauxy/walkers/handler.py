@@ -69,7 +69,7 @@ class Walkers(object):
                             print("# Updated stabilization frequency: "
                                   " {}".format(qmc.nstblz))
                     else:
-                        qmc.nstblz = update_stack(qmc.nstblz, self.stack_size,
+                        qmc.nstblz = update_stack(qmc.nstblz, stack_size,
                                                   name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'

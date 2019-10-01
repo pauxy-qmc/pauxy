@@ -15,10 +15,11 @@ class ThermalWalker(object):
         self.phase = 1.0 + 0.0j
         self.alive = True
         self.num_slices = trial.num_slices
-        if system.name == "UEG" or system.name == "Generic":
-            dtype = numpy.complex128
-        else:
-            dtype = numpy.float64
+        dtype = numpy.complex128
+        # if system.name == "UEG" or system.name == "Generic" or system.name == ":
+            # dtype = numpy.complex128
+        # else:
+            # dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
         self.total_weight = 0
@@ -57,6 +58,8 @@ class ThermalWalker(object):
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
+        self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
+                   scipy.linalg.det(self.G[1], check_finite=False)]
         self.ot = 1.0
 
         # temporary storage for stacks...

@@ -104,7 +104,10 @@ class ThermalAFQMC(object):
         if system is not None:
             self.system = system
         else:
-            sys_opts['thermal'] = True # Add thermal keyword to model
+            sys_opts = get_input_value(options, 'system', default={},
+                                       alias=['model'],
+                                       verbose=self.verbosity>1)
+            sys_opts['thermal'] = True
             self.system = get_system(sys_opts=sys_opts, verbose=verbose)
         self.qmc = QMCOpts(qmc_opts, self.system, verbose)
         self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
@@ -120,11 +123,10 @@ class ThermalAFQMC(object):
             trial_opts = get_input_value(options, 'trial', default={},
                                          alias=['trial_density'],
                                          verbose=self.verbosity>1)
-            self.trial = (
-                    get_trial_density_matrices(comm, trial_opts, self.system, self.cplx,
-                                               parallel, self.qmc.beta, self.qmc.dt,
-                                               verbose)
-            )
+            self.trial = get_trial_density_matrices(comm, trial_opts,
+                                                    self.system, self.cplx,
+                                                    self.qmc.beta,
+                                                    self.qmc.dt, verbose)
 
         prop_opts = get_input_value(options, 'propagator', default={},
                                     verbose=self.verbosity>1)
@@ -145,13 +147,13 @@ class ThermalAFQMC(object):
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
-            if afqmc.root:
+            if comm.rank == 0:
                 print("# WARNING: Not enough walkers for selected core count."
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
             afqmc.qmc.nwalkers = 1
         wlk_opts = get_input_value(options, 'walkers', default={},
-                                   alias=['walker'],
+                                   alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
         self.walk = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose)
@@ -199,12 +201,25 @@ class ThermalAFQMC(object):
                 if self.verbosity >= 2 and comm.rank == 0:
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
+                eloc = 0.0
+                weight = 0.0
                 for w in self.walk.walkers:
                     # if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(self.system, w,
                                                       ts, eshift)
                     # if (w.weight > w.total_weight * 0.10) and ts > 0:
                         # w.weight = w.total_weight * 0.10
+                    # w.greens_function(self.trial, slice_ix=self.qmc.ntime_slices)
+                    # eloc += w.weight*w.local_energy(self.system)[0]
+                    # weight += w.weight
+                # eloc_sum = 0
+                # weight_sum = 0
+                # from mpi4py import MPI
+                # eloc_sum = comm.reduce(eloc, MPI.SUM, 0)
+                # weight_sum = comm.reduce(weight, MPI.SUM, 0)
+                # if comm.rank == 0:
+                    # print(" # ts : {} {} {} {}".format(ts, eloc_sum.real, weight_sum,
+                          # (eloc_sum/weight_sum).real))
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:

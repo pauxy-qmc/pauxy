@@ -92,6 +92,7 @@ class Hubbard(object):
             print("# Finished setting up Hubbard system object.")
         # "Volume" to define density.
         self.vol = self.nx * self.ny
+        self.construct_h1e_mod()
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.
@@ -134,6 +135,16 @@ class Hubbard(object):
             print(header)
         else:
             return header
+
+    def construct_h1e_mod(self):
+        # Subtract one-body bit following reordering of 2-body operators.
+        # Eqn (17) of [Motta17]_
+        if not self.symmetric:
+            v0 = 0.5 * self.U * numpy.eye(self.nbasis)
+            self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
+        else:
+            self.h1e_mod = self.H1
+
 
 
 def transform_matrix(nbasis, kpoints, kc, nx, ny):

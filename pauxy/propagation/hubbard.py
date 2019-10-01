@@ -43,6 +43,7 @@ class HirschSpin(object):
             self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
+        self.ffts = options.get('ffts', False)
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
@@ -65,7 +66,7 @@ class HirschSpin(object):
         else:
             self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
             self.update_greens_function = self.update_greens_function_uhf
-            if qmc.ffts:
+            if self.ffts:
                 self.kinetic = kinetic_kspace
             else:
                 self.kinetic = kinetic_real
@@ -181,7 +182,7 @@ class HirschSpin(object):
                 walker.weight = 0
                 return
 
-    def propagate_walker_constrained(self, walker, system, trial):
+    def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
 
         The discrete transformation allows us to split the application of the
@@ -258,149 +259,166 @@ class HubbardContinuous(object):
         If true print out more information during setup.
     """
 
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print ("# Parsing continuous propagator input options.")
         self.hs_type = 'hubbard_continuous'
         self.free_projection = options.get('free_projection', False)
-        self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
-                                scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
-        self.BT_BP = self.bt2
+        self.ffts = options.get('ffts', False)
         self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
         model = system.__class__.__name__
         self.dt = qmc.dt
         # optimal mean-field shift for the hubbard model
-        self.mf_shift = (system.nup+system.ndown) / float(system.nbasis)
-        self.iut_fac = 1j*numpy.sqrt((system.U*self.dt))
-        self.ut_fac = self.dt*system.U
-        # Include factor of M! bad name
-        self.mf_nsq = system.nbasis * self.mf_shift**2.0
-        self.ebound = (2.0/self.dt)**0.5
-        self.mean_local_energy = 0
-        if self.free_projection:
-            self.propagate_walker = self.propagate_walker_free_continuous
-        else:
-            self.propagate_walker = self.propagate_walker_constrained_continuous
-        if qmc.ffts:
-            self.kinetic = kinetic_kspace
-        else:
-            self.kinetic = kinetic_real
+        self.iu_fac = 1j * system.U**0.5
+        self.mf_shift = self.construct_mean_field_shift(system, trial)
+        # self.ut_fac = self.dt*system.U
+        self.sqrt_dt = qmc.dt**0.5
+        self.isqrt_dt = 1j * self.sqrt_dt
+        self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
+        # if self.ffts:
+            # self.kinetic = kinetic_kspace
+        # else:
+            # self.kinetic = kinetic_real
         if verbose:
-            print ("# Finished propagator input options.")
+            print("# Finished propagator input options.")
 
-    def two_body(self, walker, system, trial):
-        r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
+    def construct_one_body_propagator(self, system, dt):
+        # \sum_gamma v_MF^{gamma} v^{\gamma}
+        vi1b = self.iu_fac * numpy.diag(self.mf_shift)
+        H1 = system.h1e_mod - numpy.array([vi1b,vi1b])
+        # H1 = system.H1 - numpy.array([vi1b,vi1b])
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
+                                scipy.linalg.expm(-0.5*dt*H1[1])])
 
-        Only requires M auxiliary fields.
+    def construct_mean_field_shift(self, system, trial):
+        #  i sqrt{U} < n_{iup} + n_{idn} >_MF
+        return  self.iu_fac * (numpy.diag(trial.G[0]) + numpy.diag(trial.G[1]))
 
-        Parameters
-        ----------
-        walker : :class:`pauxy.walker.Walker`
-            walker object to be updated. on output we have acted on
-            :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
-            updates inplace.
-        state : :class:`pauxy.state.State`
-            Simulation state.
-        """
+    def construct_force_bias(self, system, walker, trial):
+        #  i sqrt{U} < n_{iup} + n_{idn} > - mf_shift
+        vbias = self.iu_fac*(numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        return - self.sqrt_dt * (vbias - self.mf_shift)
 
-        mf = self.mf_shift
-        ifac = self.iut_fac
-        ufac = self.ut_fac
-        nsq = self.mf_nsq
-        # Normally distrubted auxiliary fields.
-        xi = numpy.random.normal(0.0, 1.0, system.nbasis)
-        # Optimal field shift for real local energy approximation.
-        shift = numpy.diag(walker.G[0])+numpy.diag(walker.G[1]) - mf
-        xi_opt = -ifac*shift
-        sxf = sum(xi-xi_opt)
-        # Propagator for potential term with mean field and auxilary field shift.
-        c_xf = cmath.exp(0.5*ufac*nsq-ifac*mf*sxf)
-        EXP_VHS = numpy.exp(0.5*ufac*(1-2.0*mf)+ifac*(xi-xi_opt))
-        nup = system.nup
-        walker.phi[:,:nup] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,:nup])
-        walker.phi[:,nup:] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,nup:])
-        return c_xf
+    def construct_VHS(self, system, shifted):
+        # Note factor of i included in v_i
+        # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
+        # v_i = n_{iu} + n_{id}
+        return numpy.diag(self.sqrt_dt*self.iu_fac*shifted)
+        # return numpy.zeros((system.nbasis,system.nbasis))
 
-    def propagate_walker_free_continuous(self, walker, system, trial):
-        r"""Free projection for continuous HS transformation.
+    # def two_body(self, walker, system, trial):
+        # r"""Continuous Hubbard-Statonovich transformation for Hubbard model.
 
-        TODO: update if ever adapted to other model types.
+        # Only requires M auxiliary fields.
 
-        Parameters
-        ----------
-        walker : :class:`pauxy.walker` object
-            Walker object to be updated. On output we have acted on phi by
-            B_V(x) and updated the weight appropriately. Updates inplace.
-        system : :class:`pauxy.system.System`
-            System object.
-        trial : :class:`pauxy.trial_wavefunctioin.Trial`
-            Trial wavefunction object.
-        """
-        nup = system.nup
-        # 1. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.bt2)
-        # Normally distributed random numbers.
-        xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
-        sxf = sum(xfields)
-        # Constant, field dependent term emerging when subtracting mean-field.
-        sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
-        c_xf = cmath.exp(sc)
-        # Potential propagator.
-        s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
-        bv = numpy.diag(numpy.exp(s))
-        # 2. Apply potential projector.
-        walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
-        walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
-        # 3. Apply kinetic projector.
-        kinetic_real(walker.phi, system, self.bt2)
-        walker.inverse_overlap(trial.psi)
-        walker.ot = walker.calc_otrial(trial.psi)
-        walker.greens_function(trial)
-        # Constant terms are included in the walker's weight.
-        (magn, dtheta) = cmath.polar(c_xf)
-        walker.weight *= magn
-        walker.phase *= cmath.exp(1j*dtheta)
+        # Parameters
+        # ----------
+        # walker : :class:`pauxy.walker.Walker`
+            # walker object to be updated. on output we have acted on
+            # :math:`|\phi_i\rangle` by :math:`b_v` and updated the weight appropriately.
+            # updates inplace.
+        # state : :class:`pauxy.state.State`
+            # Simulation state.
+        # """
 
-    def propagate_walker_constrained_continuous(self, walker, system, trial):
-        r"""Wrapper function for propagation using continuous transformation.
+        # mf = self.mf_shift
+        # ifac = self.iut_fac
+        # ufac = self.ut_fac
+        # nsq = self.mf_nsq
+        # # Normally distrubted auxiliary fields.
+        # xi = numpy.random.normal(0.0, 1.0, system.nbasis)
+        # # Optimal field shift for real local energy approximation.
+        # shift = numpy.diag(walker.G[0])+numpy.diag(walker.G[1]) - mf
+        # xi_opt = -ifac*shift
+        # sxf = sum(xi-xi_opt)
+        # # Propagator for potential term with mean field and auxilary field shift.
+        # c_xf = cmath.exp(0.5*ufac*nsq-ifac*mf*sxf)
+        # EXP_VHS = numpy.exp(0.5*ufac*(1-2.0*mf)+ifac*(xi-xi_opt))
+        # nup = system.nup
+        # walker.phi[:,:nup] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,:nup])
+        # walker.phi[:,nup:] = numpy.einsum('i,ij->ij', EXP_VHS, walker.phi[:,nup:])
+        # return c_xf
 
-        This applied the phaseless, local energy approximation and uses importance
-        sampling.
+    # def propagate_walker_free_continuous(self, walker, system, trial):
+        # r"""Free projection for continuous HS transformation.
 
-        Parameters
-        ----------
-        walker : :class:`pauxy.walker` object
-            Walker object to be updated. On output we have acted on phi by
-            B_V(x) and updated the weight appropriately. Updates inplace.
-        system : :class:`pauxy.system.System`
-            System object.
-        trial : :class:`pauxy.trial_wavefunction.Trial`
-            Trial wavefunction object.
-        """
+        # TODO: update if ever adapted to other model types.
 
-        # 1. Apply kinetic projector.
-        self.kinetic(walker.phi, system, self.bt2)
-        # 2. Apply potential projector.
-        cxf = self.two_body(walker, system, trial)
-        # 3. Apply kinetic projector.
-        self.kinetic(walker.phi, system, self.bt2)
+        # Parameters
+        # ----------
+        # walker : :class:`pauxy.walker` object
+            # Walker object to be updated. On output we have acted on phi by
+            # B_V(x) and updated the weight appropriately. Updates inplace.
+        # system : :class:`pauxy.system.System`
+            # System object.
+        # trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            # Trial wavefunction object.
+        # """
+        # nup = system.nup
+        # # 1. Apply kinetic projector.
+        # kinetic_real(walker.phi, system, self.bt2)
+        # # Normally distributed random numbers.
+        # xfields =  numpy.random.normal(0.0, 1.0, system.nbasis)
+        # sxf = sum(xfields)
+        # # Constant, field dependent term emerging when subtracting mean-field.
+        # sc = 0.5*self.ut_fac*self.mf_nsq-self.iut_fac*self.mf_shift*sxf
+        # c_xf = cmath.exp(sc)
+        # # Potential propagator.
+        # s = self.iut_fac*xfields + 0.5*self.ut_fac*(1-2*self.mf_shift)
+        # bv = numpy.diag(numpy.exp(s))
+        # # 2. Apply potential projector.
+        # walker.phi[:,:nup] = bv.dot(walker.phi[:,:nup])
+        # walker.phi[:,nup:] = bv.dot(walker.phi[:,nup:])
+        # # 3. Apply kinetic projector.
+        # kinetic_real(walker.phi, system, self.bt2)
+        # walker.inverse_overlap(trial.psi)
+        # walker.ot = walker.calc_otrial(trial.psi)
+        # walker.greens_function(trial)
+        # # Constant terms are included in the walker's weight.
+        # (magn, dtheta) = cmath.polar(c_xf)
+        # walker.weight *= magn
+        # walker.phase *= cmath.exp(1j*dtheta)
 
-        # Now apply phaseless, real local energy approximation
-        walker.inverse_overlap(trial.psi)
-        walker.greens_function(trial)
-        E_L = walker.local_energy(system)[0].real
-        # Check for large population fluctuations
-        E_L = local_energy_bound(E_L, self.mean_local_energy,
-                                 self.ebound)
-        ot_new = walker.calc_otrial(trial.psi)
-        # Walker's phase.
-        dtheta = cmath.phase(cxf*ot_new/walker.ot)
-        walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
-                                       * max(0, math.cos(dtheta)))
-        walker.E_L = E_L
-        walker.ot = ot_new
+    # def propagate_walker_constrained_continuous(self, walker, system, trial):
+        # r"""Wrapper function for propagation using continuous transformation.
+
+        # This applied the phaseless, local energy approximation and uses importance
+        # sampling.
+
+        # Parameters
+        # ----------
+        # walker : :class:`pauxy.walker` object
+            # Walker object to be updated. On output we have acted on phi by
+            # B_V(x) and updated the weight appropriately. Updates inplace.
+        # system : :class:`pauxy.system.System`
+            # System object.
+        # trial : :class:`pauxy.trial_wavefunction.Trial`
+            # Trial wavefunction object.
+        # """
+
+        # # 1. Apply kinetic projector.
+        # self.kinetic(walker.phi, system, self.bt2)
+        # # 2. Apply potential projector.
+        # cxf = self.two_body(walker, system, trial)
+        # # 3. Apply kinetic projector.
+        # self.kinetic(walker.phi, system, self.bt2)
+
+        # # Now apply phaseless, real local energy approximation
+        # walker.inverse_overlap(trial.psi)
+        # walker.greens_function(trial)
+        # E_L = walker.local_energy(system)[0].real
+        # # Check for large population fluctuations
+        # E_L = local_energy_bound(E_L, self.mean_local_energy,
+                                 # self.ebound)
+        # ot_new = walker.calc_otrial(trial.psi)
+        # # Walker's phase.
+        # dtheta = cmath.phase(cxf*ot_new/walker.ot)
+        # walker.weight = (walker.weight * math.exp(-0.5*self.dt*(walker.E_L+E_L))
+                                       # * max(0, math.cos(dtheta)))
+        # walker.E_L = E_L
+        # walker.ot = ot_new
 
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):

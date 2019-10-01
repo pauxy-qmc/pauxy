@@ -1,8 +1,8 @@
 """Routines for performing propagation of a walker"""
 
-from pauxy.thermal_propagation.generic import GenericContinuous
-from pauxy.thermal_propagation.hubbard import ThermalDiscrete
+from pauxy.thermal_propagation.continuous import Continuous
 from pauxy.thermal_propagation.planewave import PlaneWave
+from pauxy.thermal_propagation.hubbard import ThermalDiscrete
 
 
 def get_propagator(options, qmc, system, trial, verbose=False):
@@ -26,17 +26,15 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     """
     if system.name == "Hubbard":
         hs_type = options.get('hubbard_stratonovich', 'discrete')
-    elif system.name == "UEG":
-        hs_type = options.get('hubbard_stratonovich', 'plane_wave')
-    elif system.name == "Generic":
-        hs_type = options.get('hubbard_stratonovich', 'continuous')
-    if hs_type == 'discrete':
-        propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
-    elif hs_type == "plane_wave":
-        propagator = PlaneWave(options, qmc, system, trial, verbose)
-    elif hs_type == "continuous":
-        propagator = GenericContinuous(options, qmc, system, trial, verbose)
+        if hs_type == "discrete":
+            propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
+        else:
+            propagator = Continuous(options, qmc, system, trial, verbose)
     else:
-        propagator = None
+        if system.name == "UEG":
+            propagator = PlaneWave(system, trial, qmc,
+                                   options=options, verbose=verbose)
+        else:
+            propagator = Continuous(options, qmc, system, trial, verbose)
 
     return propagator
