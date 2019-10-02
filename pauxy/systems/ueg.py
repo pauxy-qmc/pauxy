@@ -429,97 +429,19 @@ class UEG(object):
         """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
         q1 = self.basis[k] - self.basis[i]
         q2 = self.basis[j] - self.basis[l]
-        if numpy.dot(q1-q2,q1-q2) < 1e-12:
+        if numpy.dot(q1,q1) > 1e-12 and numpy.dot(q1-q2,q1-q2) < 1e-12:
             return 1.0/self.vol * self.vq(self.kfac*q1)
         else:
             return 0.0
 
 def unit_test():
-    from scipy.sparse import csr_matrix
-    # from openfermion.ops import FermionOperator
-    # from openfermion.transforms import get_sparse_operator
-    from scipy.linalg import eigvalsh
-    from scipy.sparse.linalg import eigsh
-    from numpy import linalg as LA
 
     inputs = {'nup':2,
-    'ndown':2,
-    'rs':1.0,
-    'thermal':True,
-    'ecut':21}
+              'ndown':2,
+              'rs':1.0,
+              'thermal':True,
+              'ecut':3}
     system = UEG(inputs, True)
-
-    # n_spatial = system.nbasis
-    # n_qubits = system.nbasis * 2
-    # n_electrons = system.nup + system.ndown
-
-    # vacuum = csr_matrix((2 ** n_qubits, 1))
-    # vacuum[0, 0] = 1
-
-    # cre_op = FermionOperator()
-    # coeff = 1.0
-
-    # site_list = [0 for i in range (n_qubits)]
-    # for i in range(n_qubits-n_electrons, n_qubits):
-    #     site_list[i] = 1
-    # term_list = []
-    # for i, index in enumerate(reversed(site_list)):
-    #     if index:
-    #         term_list.insert(0, (i, 1))
-    # term_tuple = tuple(term_list)
-    # cre_op += coeff * FermionOperator(term_tuple)
-
-    # cre_op_mat = get_sparse_operator(cre_op, n_qubits)
-    # psi0 = cre_op_mat.dot(vacuum)
-
-    # Hamiltonian = FermionOperator()
-    # for p in range(n_spatial):
-    #     pa = 2*p
-    #     pb = 2*p+1
-    #     tpp = system.H1[0][p,p]
-    #     Hamiltonian += FermionOperator(((pa, 1),(pa, 0)), tpp)
-    #     Hamiltonian += FermionOperator(((pb, 1),(pb, 0)), tpp)
-
-    # nq = numpy.shape(system.qvecs)[0]
-
-    # for iq in range(nq):
-    #     vq = (1.0/(2.0*system.vol))*system.vqvec[iq]
-    #     for (idxkpq,k) in zip(system.ikpq_kpq[iq],system.ikpq_i[iq]):
-    #         for (idxpmq,p) in zip(system.ipmq_pmq[iq],system.ipmq_i[iq]):
-    #             idxkpqa = (idxkpq*2)
-    #             idxkpqb = (idxkpq*2+1)
-    #             idxpmqa = (idxpmq*2)
-    #             idxpmqb = (idxpmq*2+1)
-    #             pa =      (p*2)
-    #             pb =      (p*2+1)
-    #             ka =      (k*2)
-    #             kb =      (k*2+1)
-    #             Hamiltonian += 0.5*FermionOperator(((idxkpqa,1),(idxpmqa,1),(pa, 0),(ka, 0)), vq)
-    #             Hamiltonian += 0.5*FermionOperator(((idxkpqb,1),(idxpmqb,1),(pb, 0),(kb, 0)), vq)
-    #             Hamiltonian += 0.5*FermionOperator(((idxkpqa,1),(idxpmqb,1),(pa, 0),(kb, 0)), vq)
-    #             Hamiltonian += 0.5*FermionOperator(((idxkpqb,1),(idxpmqa,1),(pb, 0),(ka, 0)), vq)
-
-    # hammat = get_sparse_operator(Hamiltonian, n_qubits)
-    # Hpsi0 = hammat.dot(psi0)
-    # E0 = psi0.H.dot(Hpsi0)
-    # print(E0[0,0]) #((5.7804249284991878+0j), (6.0292135933516064+0j), (-0.24878866485241879+0j))
-
-    # Number = FermionOperator()
-    # for p in range(n_spatial):
-    #     pa = 2*p
-    #     pb = 2*p+1
-    #     Number += FermionOperator(((pa, 1),(pa, 0)), 1.0)
-    #     Number += FermionOperator(((pb, 1),(pb, 0)), 1.0)
-
-    # evalues, evectors = eigsh(hammat, k=6, which='SA')
-    # print(evalues)
-    # number = get_sparse_operator(Number, n_qubits)
-
-    # print(hammat.shape)
-    # Nevec = number.dot(evectors)
-    # enumbers = numpy.einsum("ij,ij->j",Nevec,numpy.conj(evectors))
-    # print(enumbers)
-
 
 if __name__=="__main__":
     unit_test()
