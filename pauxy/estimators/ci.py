@@ -2,7 +2,7 @@ import numpy
 import scipy.linalg
 import itertools
 
-def simple_fci(system, gen_dets=False, occs=None, hamil=True):
+def simple_fci(system, gen_dets=False, occs=None, hamil=False):
     """Very dumb FCI routine."""
     orbs = numpy.arange(system.nbasis)
     if occs is None:
