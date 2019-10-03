@@ -1,8 +1,7 @@
+import itertools
 import numpy
 from pauxy.utils.misc import dotdict
 from pauxy.utils.linalg import modified_cholesky
-from pauxy.systems.generic import Generic
-from pauxy.trial_wavefunction.multi_slater import MultiSlater
 
 def generate_hamiltonian(nmo, nelec, cplx=False, sym=8):
     h1e = numpy.random.random((nmo,nmo))
@@ -34,10 +33,9 @@ def get_random_nomsd(system, ndet=10):
     b = numpy.random.rand(ndet*system.nbasis*(system.nup+system.ndown))
     wfn = (a + 1j*b).reshape((ndet,system.nbasis,system.nup+system.ndown))
     coeffs = numpy.random.rand(ndet)+1j*numpy.random.rand(ndet)
-    trial = MultiSlater(system, (coeffs, wfn))
-    return trial
+    return (coeffs,wfn)
 
-def get_random_phmsd(system, ndet=10, init=None):
+def get_random_phmsd(system, ndet=10, init=False):
     orbs = numpy.arange(system.nbasis)
     oa = [c for c in itertools.combinations(orbs, system.nup)]
     ob = [c for c in itertools.combinations(orbs, system.ndown)]
@@ -46,12 +44,11 @@ def get_random_phmsd(system, ndet=10, init=None):
     ob = ob[:ndet]
     coeffs = numpy.random.rand(ndet)+1j*numpy.random.rand(ndet)
     wfn = (coeffs,oa,ob)
-    if init is not None:
+    if init:
         a = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
         b = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
-        init = (a + 1j*b).reshape((system.nbasis,system.nup+system.ndown))
-    trial = MultiSlater(system, wfn, init=init)
-    return trial
+        init_wfn = (a + 1j*b).reshape((system.nbasis,system.nup+system.ndown))
+    return wfn, init_wfn
 
 def get_random_wavefunction(nelec, nbasis):
     na = nelec[0]
