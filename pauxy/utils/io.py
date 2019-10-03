@@ -104,14 +104,10 @@ def from_qmcpack_complex(data, shape):
 
 def from_qmcpack_cholesky(filename):
     with h5py.File(filename, 'r') as fh5:
-        real_ints = False
-        try:
-            enuc = fh5['Hamiltonian/Energies'][:].view(numpy.complex128).ravel()[0]
-        except ValueError:
-            enuc = fh5['Hamiltonian/Energies'][:][0]
-            real_ints = True
+        enuc = fh5['Hamiltonian/Energies'][:][0]
         dims = fh5['Hamiltonian/dims'][:]
         nmo = dims[3]
+        real_ints = False
         try:
             hcore = fh5['Hamiltonian/hcore'][:]
             hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
