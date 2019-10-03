@@ -1,0 +1,28 @@
+before_script:
+  - apt-get update -qy
+  - apt-get install -y openmpi-bin libopenmpi-dev
+
+stages:
+  - test
+
+test python3.7:
+  image: python:3.7
+  script:
+  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pandas
+  - python setup.py build_ext
+  - python -u -m unittest discover -v
+
+test python2.7:
+  image: python:2.7
+  script:
+  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pandas
+  - python setup.py build_ext
+  - python -u -m unittest discover -v
+
+test nopyscf:
+  image: python:3.7
+  script:
+  - pip install numpy scipy h5py mpi4py matplotlib cython pandas
+  - python setup.py build_ext
+  - python -m pytest
+
