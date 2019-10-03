@@ -29,7 +29,7 @@ def test_from_chkfile():
     nb = h1e.shape[0]
 
 @pytest.mark.skipif(no_pyscf, reason="pyscf not found.")
-def tearDown(self):
+def teardown_module(self):
     cwd = os.getcwd()
     files = ['scf.chk']
     for f in files:
