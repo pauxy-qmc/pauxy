@@ -1,13 +1,11 @@
 import pytest
 from mpi4py import MPI
 import os
-from pyscf import gto, ao2mo, scf
 from pauxy.qmc.calc import setup_calculation
 from pauxy.qmc.afqmc import AFQMC
 from pauxy.systems.generic import Generic
 from pauxy.systems.ueg import UEG
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
-from pauxy.utils.from_pyscf import integrals_from_scf
 
 def test_ueg():
     options = {
