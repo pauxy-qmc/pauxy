@@ -8,21 +8,21 @@ stages:
 test python3.7:
   image: python:3.7
   script:
-  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pandas
+  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pytest
   - python setup.py build_ext
-  - python -u -m unittest discover -v
+  - python -m pytest
 
 test python2.7:
   image: python:2.7
   script:
-  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pandas
+  - pip install numpy scipy pyscf h5py mpi4py matplotlib cython pytest
   - python setup.py build_ext
-  - python -u -m unittest discover -v
+  - python -m pytest
 
 test nopyscf:
   image: python:3.7
   script:
-  - pip install numpy scipy h5py mpi4py matplotlib cython pandas
+  - pip install numpy scipy h5py mpi4py matplotlib cython pytest
   - python setup.py build_ext
   - python -m pytest
 
