@@ -180,6 +180,7 @@ class Walkers(object):
             w.unscaled_weight = w.weight
             w.weight = w.weight / scale
         if self.pcont_method == "comb":
+            global_weights = global_weights / scale
             self.comb(comm, global_weights)
         elif self.pcont_method == "pair_branch":
             self.pair_branch(comm)
