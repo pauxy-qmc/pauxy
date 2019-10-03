@@ -79,7 +79,7 @@ class AFQMC(object):
     """
 
     def __init__(self, comm, options=None, system=None, trial=None,
-                 mf=None, parallel=False, verbose=False):
+                 parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
@@ -108,7 +108,7 @@ class AFQMC(object):
             self.system = system
         else:
             self.system = get_system(sys_opts=options.get('model', {}),
-                                     mf=mf, verbose=verbose)
+                                     verbose=verbose)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -126,7 +126,7 @@ class AFQMC(object):
             if comm.rank == 0:
                 self.trial = (
                     get_trial_wavefunction(self.system, options=twf_opt,
-                                           mf=mf, parallel=parallel, verbose=verbose)
+                                           parallel=parallel, verbose=verbose)
                 )
             else:
                 self.trial = None
