@@ -23,7 +23,7 @@ def greens_function_unstable(A):
     return numpy.array([scipy.linalg.inv(I+A[0]), scipy.linalg.inv(I+A[1])])
 
 def greens_function(A):
-    """Construct Greens function from density matrix.
+    r"""Construct Greens function from density matrix.
 
     .. math::
         G_{ij} = \langle c_{i} c_j^{\dagger} \rangle \\
@@ -87,7 +87,7 @@ def inverse_greens_function_qr(A):
 
 
 def one_rdm(A):
-    """Compute one-particle reduced density matrix
+    r"""Compute one-particle reduced density matrix
 
     .. math::
         rho_{ij} = \langle c_{i}^{\dagger} c_{j} \rangle \\
@@ -107,7 +107,7 @@ def one_rdm(A):
     return numpy.array([I-G[0].T, I-G[1].T])
 
 def one_rdm_from_G(G):
-    """Compute one-particle reduced density matrix from Green's function.
+    r"""Compute one-particle reduced density matrix from Green's function.
 
     .. math::
         rho_{ij} = \langle c_{i}^{\dagger} c_{j} \rangle \\
