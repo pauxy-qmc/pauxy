@@ -190,7 +190,6 @@ def unit_test():
     # diff = P[0] - P[1]
     # print("fro = {}".format(numpy.linalg.norm(diff,ord='fro')))
 
-    # from pyscf import lib
     # solver = lib.diis.DIIS()
 
     dt = 0.1

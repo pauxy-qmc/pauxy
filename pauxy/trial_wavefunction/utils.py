@@ -5,7 +5,6 @@ from pauxy.trial_wavefunction.uhf  import UHF
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.trial_wavefunction.multi_determinant import MultiDeterminant
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
-from pauxy.utils.from_pyscf import get_pyscf_wfn
 from pauxy.utils.io import read_qmcpack_wfn_hdf
 
 def get_trial_wavefunction(system, options={}, mf=None,
@@ -28,15 +27,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
     trial : class or None
         Trial wavfunction class.
     """
-    wfn_file = options.get('filename', None)
-    if mf is not None:
-        if verbose:
-            print("# Creating wavefunction from pyscf mf object.")
-        # TODO: Remove HartreeFock Trial
-        wfn = get_pyscf_wfn(system, mf)
-        trial = HartreeFock(system, True, options, parallel=parallel,
-                            verbose=verbose, orbs=wfn[1])
-    elif wfn_file is not None:
+    if wfn_file is not None:
         if verbose:
             print("# Reading wavefunction from {}.".format(wfn_file))
         read, psi0 = read_qmcpack_wfn_hdf(wfn_file)
