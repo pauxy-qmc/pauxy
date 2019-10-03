@@ -5,9 +5,9 @@ import pytest
 from pauxy.systems.generic import Generic
 from pauxy.utils.testing import generate_hamiltonian
 
-numpy.random.seed(7)
 
 def test_real():
+    numpy.random.seed(7)
     nmo = 17
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
@@ -18,6 +18,7 @@ def test_real():
 
 
 def test_complex():
+    numpy.random.seed(7)
     nmo = 17
     nelec = (5,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
@@ -27,6 +28,7 @@ def test_complex():
     assert sys.nbasis == 17
 
 def test_write():
+    numpy.random.seed(7)
     nmo = 13
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
@@ -34,6 +36,7 @@ def test_write():
     sys.write_integrals()
 
 def test_read():
+    numpy.random.seed(7)
     nmo = 13
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
