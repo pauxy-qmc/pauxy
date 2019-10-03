@@ -1,39 +1,55 @@
 import os
 import unittest
-from pyscf import gto, ao2mo, scf
+import numpy
+import pytest
 from pauxy.systems.generic import Generic
-from pauxy.utils.from_pyscf import integrals_from_scf, integrals_from_chkfile
+from pauxy.utils.testing import generate_hamiltonian
 
-class TestGeneric(unittest.TestCase):
+numpy.random.seed(7)
 
-    def test_from_pyscf(self):
-        atom = gto.M(atom='Ne 0 0 0', basis='sto-3g', verbose=0)
-        mf = scf.RHF(atom)
-        mf.kernel()
-        h1e, chol, ecore, oao = integrals_from_scf(mf, verbose=0, chol_cut=1e-5)
-        nb = h1e.shape[0]
-        system = Generic(nelec=mf.mol.nelec, h1e=h1e,
-                         chol=chol.reshape((-1,nb,nb)),
-                         ecore=ecore, verbose=0)
-    def test_from_chkfile(self):
-        atom = gto.M(atom='Ne 0 0 0', basis='sto-3g', verbose=0)
-        mf = scf.RHF(atom)
-        mf.chkfile = 'scf.chk'
-        mf.kernel()
-        h1e, chol, ecore, oao, mol = integrals_from_chkfile('scf.chk', verbose=0, chol_cut=1e-5)
-        nb = h1e.shape[0]
-        system = Generic(nelec=mol.nelec, h1e=h1e,
-                         chol=chol.reshape((-1,nb,nb)),
-                         ecore=ecore, verbose=0)
+def test_real():
+    nmo = 17
+    nelec = (4,3)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    assert sys.nup == 4
+    assert sys.ndown == 3
+    assert numpy.trace(h1e) == pytest.approx(9.38462274882365)
 
-    def tearDown(self):
-        cwd = os.getcwd()
-        files = ['scf.chk']
-        for f in files:
-            try:
-                os.remove(cwd+'/'+f)
-            except OSError:
-                pass
 
-if __name__ == '__main__':
-    unittest.main()
+def test_complex():
+    nmo = 17
+    nelec = (5,3)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    assert sys.nup == 5
+    assert sys.ndown == 3
+    assert sys.nbasis == 17
+
+def test_write():
+    nmo = 13
+    nelec = (4,3)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys.write_integrals()
+
+def test_read():
+    nmo = 13
+    nelec = (4,3)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
+    from pauxy.utils.io import dump_qmcpack_cholesky
+    dump_qmcpack_cholesky([h1e,h1e], chol, nelec, nmo, e0=enuc, filename='hamil.h5')
+    options = {'nup': nelec[0], 'ndown': nelec[1], 'integrals': 'hamil.h5'}
+    sys = Generic(inputs=options)
+    eri = sys.chol_vecs
+    assert numpy.linalg.norm(chol-eri) == pytest.approx(0.0)
+
+
+def teardown_module():
+    cwd = os.getcwd()
+    files = ['hamil.h5']
+    for f in files:
+        try:
+            os.remove(cwd+'/'+f)
+        except OSError:
+            pass
