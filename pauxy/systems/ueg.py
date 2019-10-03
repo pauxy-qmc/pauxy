@@ -426,7 +426,21 @@ class UEG(object):
                               e0=0.0, filename=filename)
 
     def hijkl(self,i,j,k,l):
-        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
+        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
+
+        Checks for momentum conservation k_i + k_j = k_k + k_k, or
+        k_k - k_i = k_j - k_l.
+
+        Parameters
+        ----------
+        i, j, k, l : int
+            Orbital indices for integral (ik|jl) = <ij|kl>.
+
+        Returns
+        -------
+        integral : float
+            (ik|jl)
+        """
         q1 = self.basis[k] - self.basis[i]
         q2 = self.basis[j] - self.basis[l]
         if numpy.dot(q1,q1) > 1e-12 and numpy.dot(q1-q2,q1-q2) < 1e-12:
