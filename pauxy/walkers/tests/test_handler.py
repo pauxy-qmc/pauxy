@@ -6,7 +6,7 @@ comm = MPI.COMM_WORLD
 numpy.random.seed(7)
 skip = comm.size == 1
 
-@pytest.mark.skipif(can_run, reason="Test should be run on multiple cores.")
+@pytest.mark.skipif(skip, reason="Test should be run on multiple cores.")
 def test_pair_branch():
     if comm.rank == 0:
         weights = [0.001, 1.0148, 4.348]
