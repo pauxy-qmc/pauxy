@@ -5,7 +5,7 @@ from pauxy.trial_wavefunction.uhf  import UHF
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.trial_wavefunction.multi_determinant import MultiDeterminant
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
-from pauxy.utils.io import read_qmcpack_wfn_hdf
+from pauxy.utils.io import read_qmcpack_wfn_hdf, get_input_value
 
 def get_trial_wavefunction(system, options={}, mf=None,
                            parallel=False, verbose=0):
@@ -27,6 +27,8 @@ def get_trial_wavefunction(system, options={}, mf=None,
     trial : class or None
         Trial wavfunction class.
     """
+    wfn_file = get_input_value(options, 'filename', default=None,
+                               alias=['wavefunction_file'], verbose=verbose)
     if wfn_file is not None:
         if verbose:
             print("# Reading wavefunction from {}.".format(wfn_file))
