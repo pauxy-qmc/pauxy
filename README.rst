@@ -46,9 +46,10 @@ Requirements
 * numpy (>= 0.19.1)
 * scipy (>= 1.13.3)
 * h5py (>= 2.7.1)
-* matplotlib (optional)
-* mpi4py (optional)
+* mpi4py (>= )
+* cython
 
+To run the uni
 In addition, if you want to run the test suite you'll need to get
 `testcode <https://github.com/jsspencer/testcode>`_.
 
@@ -60,7 +61,7 @@ To run the unit tests you can do:
 
 ::
 
-    $ python -u -m unittest discover -v
+    $ python -u -m pytest -v
 
 These tests are quick and should all pass.
 
