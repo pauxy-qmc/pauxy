@@ -8,8 +8,6 @@ import uuid
 from math import exp
 import copy
 import h5py
-from pauxy.analysis import blocking
-from pauxy.analysis import extraction
 from pauxy.estimators.handler import Estimators
 from pauxy.propagation.utils import get_propagator_driver
 from pauxy.qmc.options import QMCOpts
@@ -19,6 +17,10 @@ from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash
 from pauxy.utils.io import  to_json, serialise, get_input_value
 from pauxy.walkers.handler import Walkers
+try:
+    from pauxy.analysis import blocking
+except ImportError:
+    pass
 
 
 class AFQMC(object):
