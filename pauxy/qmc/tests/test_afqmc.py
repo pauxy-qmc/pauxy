@@ -32,6 +32,15 @@ def test_ueg():
     # FDM: Fix cython issue.
     afqmc = AFQMC(comm=comm, options=options)
     afqmc.run(comm=comm, verbose=0)
+    afqmc.estimators.estimators['mixed'].update(afqmc.system, afqmc.qmc,
+                                                afqmc.trial, afqmc.psi, 0)
+    enum = afqmc.estimators.estimators['mixed'].names
+    numer = afqmc.estimators.estimators['mixed'].estimates[enum.enumer]
+    assert numer == pytest.approx(210.6272953292560)
+    denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
+    assert denom == pytest.approx(120)
+    weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
+    assert weight == pytest.approx(118.243099094879)
     afqmc.finalise(verbose=0)
     ehy = afqmc.psi.walkers[0].hybrid_energy
     assert ehy.real == pytest.approx(1.1153859035083666)
