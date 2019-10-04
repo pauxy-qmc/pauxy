@@ -49,7 +49,7 @@ def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
                     # Update if measuring two_rdm proper.
                     w = weights[skip:nzero,None,None,None]
                 # return (rdm[skip:nzero], w)
-                if (len(rdmtot) == 0):
+                if len(rdmtot) == 0:
                     rdmtot = rdm[skip:nzero]
                     wtot = w
                 else:
