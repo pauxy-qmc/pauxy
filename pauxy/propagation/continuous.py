@@ -211,7 +211,7 @@ class Continuous(object):
         self.apply_bound(hybrid_energy, eshift)
         importance_function = (
                 self.mf_const_fac *
-                cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift.real))
+                cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift))
         )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
         (magn, phase) = cmath.polar(importance_function)
