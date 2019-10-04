@@ -63,9 +63,6 @@ class SingleDetWalker(object):
                                          # system.nbasis, trial.psi.dtype,
                                          # BT=None, BTinv=None,
                                          # diagonal=False)
-        # else:
-            # self.stack = FieldConfig(system.nfields, num_propg,
-                                     # num_propg, trial.psi.dtype)
         try:
             excite = trial.excite_ia
         except AttributeError:
