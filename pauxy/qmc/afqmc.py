@@ -160,13 +160,13 @@ class AFQMC(object):
         # Number of walkers per core/rank.
         self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
         # Total number of walkers.
-        self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         if self.qmc.nwalkers == 0:
             if comm.rank == 0:
                 print("# WARNING: Not enough walkers for selected core count."
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
-            afqmc.qmc.nwalkers = 1
+            self.qmc.nwalkers = 1
+        self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         self.psi = Walkers(wlk_opts, self.system, self.trial,
                            self.qmc, verbose, comm=None)
         self.psi.add_field_config(self.estimators.nprop_tot,
