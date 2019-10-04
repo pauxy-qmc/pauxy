@@ -255,7 +255,7 @@ class Mixed(object):
         gs = self.global_estimates
         if comm.rank == 0:
             gs[ns.eproj] = gs[ns.enumer]
-            gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.weight]
+            gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.edenom]
         if self.thermal and comm.rank == 0:
             if free_projection:
                 gs[ns.nav] = gs[ns.nav] * gs[ns.weight]
