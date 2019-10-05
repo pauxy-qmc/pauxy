@@ -2,7 +2,10 @@ import numpy
 from mpi4py import MPI
 import os
 import pytest
-from pauxy.analysis.extraction import extract_mixed_estimates
+from pauxy.analysis.extraction import (
+        extract_mixed_estimates,
+        extract_rdm
+        )
 from pauxy.qmc.calc import setup_calculation
 from pauxy.qmc.afqmc import AFQMC
 from pauxy.systems.generic import Generic
@@ -184,6 +187,50 @@ def test_generic():
     assert numer.real == pytest.approx(3.8763193646854273)
     data = extract_mixed_estimates('estimates.0.h5')
     assert numpy.mean(data.ETotal.values.real) == pytest.approx(1.5485077038208)
+
+def test_generic_single_det():
+    nmo = 11
+    nelec = (3,3)
+    options = {
+            'verbosity': 0,
+            'qmc': {
+                'timestep': 0.005,
+                'print_freq': 10,
+                'num_steps': 100,
+                'rng_seed': 8,
+            },
+            'trial': {
+                'name': 'hartree_fock'
+            },
+            "estimator": {
+                "back_propagated": {
+                    "tau_bp": 0.025,
+                    "one_rdm": True
+                    }
+                }
+        }
+    numpy.random.seed(7)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
+    sys_opts = {'sparse': True}
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc, inputs=sys_opts)
+    comm = MPI.COMM_WORLD
+    afqmc = AFQMC(comm=comm, system=sys, options=options)
+    afqmc.run(comm=comm, verbose=0)
+    afqmc.finalise(verbose=0)
+    afqmc.estimators.estimators['mixed'].update(afqmc.system, afqmc.qmc,
+                                                afqmc.trial, afqmc.psi, 0)
+    enum = afqmc.estimators.estimators['mixed'].names
+    numer = afqmc.estimators.estimators['mixed'].estimates[enum.enumer]
+    denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
+    weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
+    assert numer.real == pytest.approx(3.8763193646854273)
+    data = extract_mixed_estimates('estimates.0.h5')
+    assert numpy.mean(data.ETotal.values.real) == pytest.approx(1.5485077038208)
+    rdm, weight = extract_rdm(['estimates.0.h5'], 0)
+    rdm = rdm / weight
+    assert rdm[0,0].trace() == pytest.approx(nelec[0])
+    assert rdm[0,1].trace() == pytest.approx(nelec[1])
+    assert rdm[0,0,1,3].real == pytest.approx(-0.005288057158196201)
 
 def teardown_module(self):
     cwd = os.getcwd()
