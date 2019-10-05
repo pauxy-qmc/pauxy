@@ -16,7 +16,7 @@ def extract_hdf5_data_sets(files):
 
 def extract_mixed_estimates(filename, skip=0):
     with h5py.File(filename, 'r') as fh5:
-        metadata = json.loads(data['metadata'][:][0])
+        metadata = json.loads(fh5['metadata'][:][0])
         basic = fh5['mixed_estimates/energies'][:]
         headers = fh5['mixed_estimates/headers'][:]
         basic = pd.DataFrame(basic)
