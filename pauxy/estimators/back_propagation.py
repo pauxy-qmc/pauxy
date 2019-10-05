@@ -166,9 +166,7 @@ class BackPropagation(object):
             else:
                 weight = wnm.weight
             self.estimates[0] += weight
-            self.estimates[1:self.nreg] += (
-                    self.estimates[1:self.nreg] + weight*energies
-                    )
+            self.estimates[1:self.nreg] += weight*energies
             start = self.nreg
             end = self.nreg + self.G.size
             self.estimates[start:end] += weight*self.G.flatten().real
