@@ -181,6 +181,7 @@ class Continuous(object):
         elif ehyb.real < eshift.real - self.ebound:
             ehyb = eshift.real-self.ebound+1j*ehyb.imag
             self.nhe_trig += 1
+        return ehyb
 
     def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
@@ -208,7 +209,7 @@ class Continuous(object):
         ot_new = walker.calc_otrial(trial)
         ovlp_ratio = ot_new / walker.ot
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
-        self.apply_bound(hybrid_energy, eshift)
+        hybrid_energy = self.apply_bound(hybrid_energy, eshift)
         importance_function = (
                 self.mf_const_fac *
                 cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift))
