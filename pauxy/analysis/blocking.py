@@ -125,7 +125,7 @@ def reblock_free_projection(frame):
 
 def reblock_local_energy(filename, skip=0):
     data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
-    results = reblock_mixed(data.apply(numpy.real))
+    results = reblock_mixed(data.apply(numpy.real)[skip:])
     if results is None:
         return None
     else:
