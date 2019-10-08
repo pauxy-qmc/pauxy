@@ -175,6 +175,7 @@ class Walkers(object):
         total_weight = sum(global_weights)
         # Rescale weights to combat exponential decay/growth.
         scale = total_weight / self.target_weight
+        self.set_total_weight(total_weight)
         # Todo: Just standardise information we want to send between routines.
         for w in self.walkers:
             w.unscaled_weight = w.weight
@@ -219,16 +220,14 @@ class Walkers(object):
                     ic += 1
                 else:
                     iw += 1
-            data = {'ix': parent_ix, 'weight': total_weight}
+            data = {'ix': parent_ix}
         else:
             data = None
 
         data = comm.bcast(data, root=0)
         parent_ix = data['ix']
-        total_weight = data['weight']
         # Keep total weight saved for capping purposes.
         # where returns a tuple (array,), selecting first element.
-        self.set_total_weight(total_weight)
         kill = numpy.where(parent_ix == 0)[0]
         clone = numpy.where(parent_ix > 1)[0]
         reqs = []
@@ -271,11 +270,9 @@ class Walkers(object):
         glob_inf = comm.gather(walker_info, root=0)
         # Want same random number seed used on all processors
         if comm.rank == 0:
-            # Unpack lists
-            total_weight = sum(w[0] for w in walker_info)
             # Rescale weights.
             glob_inf = numpy.array([item for sub in glob_inf for item in sub])
-            # glob_inf.sort(key=lambda x: x[0])
+            total_weight = sum(w[0] for w in glob_inf)
             sort = numpy.argsort(glob_inf[:,0], kind='mergesort')
             isort = numpy.argsort(sort, kind='mergesort')
             glob_inf = glob_inf[sort]
@@ -322,8 +319,6 @@ class Walkers(object):
             total_weight = 0
         data = comm.scatter(glob_inf, root=0)
         # Keep total weight saved for capping purposes.
-        total_weight = comm.bcast(total_weight, root=0)
-        self.set_total_weight(total_weight)
         walker_buffers = []
         reqs = []
         for iw, walker in enumerate(data):

@@ -211,7 +211,7 @@ class Continuous(object):
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
         hybrid_energy = self.apply_bound(hybrid_energy, eshift)
         importance_function = (
-                self.mf_const_fac *
+                # self.mf_const_fac * No need to include constant factor.
                 cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift))
         )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
