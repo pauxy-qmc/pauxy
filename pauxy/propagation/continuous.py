@@ -140,12 +140,8 @@ class Continuous(object):
         # Operator terms contributing to propagator.
         VHS = self.propagator.construct_VHS(system, xshifted)
 
-        # Apply propagator
-        self.apply_exponential(walker.phi[:,:system.nup], VHS)
-        if system.ndown > 0:
-            self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (cmf, cfb, xshifted)
+        return (cmf, cfb, xshifted, VHS)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         """Free projection propagator
@@ -196,11 +192,15 @@ class Continuous(object):
         Returns
         -------
         """
-        # 1. Apply one_body propagator.
+        # 1. Construct two-body propagator.
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, trial)
+        # 2. Update Slater matrix
+        # 2.a Apply one-body
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
-        # 3. Apply one_body propagator.
+        # 2.b Apply two-body
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        if system.ndown > 0:
+            self.apply_exponential(walker.phi[:,system.nup:], VHS)
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
         # Now apply hybrid phaseless approximation
