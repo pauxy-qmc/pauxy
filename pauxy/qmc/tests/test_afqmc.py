@@ -71,7 +71,7 @@ def test_ueg():
     denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
     assert denom == pytest.approx(120)
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
-    assert weight == pytest.approx(118.243099094879)
+    assert weight == pytest.approx(117.758085974906)
     ehy = afqmc.psi.walkers[0].hybrid_energy
     assert ehy.real == pytest.approx(1.1153859035083666)
     assert ehy.imag == pytest.approx(0.17265962035671692)
@@ -150,9 +150,9 @@ def test_hubbard_complex():
     numer = afqmc.estimators.estimators['mixed'].estimates[enum.enumer]
     denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
-    assert numer == pytest.approx(-152.91937839611)
+    assert numer == pytest.approx(-153.0507706621441)
     data = extract_mixed_estimates('estimates.0.h5')
-    assert numpy.mean(data.ETotal.values.real) == pytest.approx(-15.14323385684513)
+    assert numpy.mean(data.ETotal.values.real) == pytest.approx(-15.116359546914257)
 
 def test_generic():
     nmo = 11
