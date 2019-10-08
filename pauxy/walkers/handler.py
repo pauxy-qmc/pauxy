@@ -82,7 +82,7 @@ class Walkers(object):
         self.pcont_method = get_input_value(walker_opts, 'population_control',
                                             default='comb')
         self.min_weight = walker_opts.get('min_weight', 0.1)
-        self.max_weight = walker_opts.get('max_weight', 2.0)
+        self.max_weight = walker_opts.get('max_weight', 4.0)
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(self.pcont_method))
