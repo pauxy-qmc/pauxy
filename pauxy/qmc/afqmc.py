@@ -216,7 +216,6 @@ class AFQMC(object):
                 if abs(w.weight) > 1e-8:
                     self.propagators.propagate_walker(w, self.system,
                                                       self.trial, eshift)
-                # Constant factors
                 if (abs(w.weight) > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
