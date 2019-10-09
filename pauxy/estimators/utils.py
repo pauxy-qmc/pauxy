@@ -42,6 +42,8 @@ class H5EstimatorHelper(object):
         dset = self.base + '/' + name + '/' + padded
         with h5py.File(self.filename, 'a') as fh5:
             fh5[dset] = data
+
+    def increment(self):
         self.index = self.index + 1
 
     def reset(self):
