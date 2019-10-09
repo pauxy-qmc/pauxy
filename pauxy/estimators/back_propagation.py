@@ -246,6 +246,7 @@ class BackPropagation(object):
 
     def setup_output(self, filename):
         est_name = 'back_propagated'
-        with h5py.File(filename, 'a') as fh5:
-            fh5[est_name+'/headers'] = self.header
+        if self.eval_energy:
+            with h5py.File(filename, 'a') as fh5:
+                fh5[est_name+'/headers'] = numpy.array(self.header).astype('S')
         self.output = H5EstimatorHelper(filename, est_name)

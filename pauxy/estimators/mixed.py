@@ -330,7 +330,7 @@ class Mixed(object):
 
     def setup_output(self, filename):
         with h5py.File(filename, 'a') as fh5:
-            fh5['basic/headers'] = numpy.array(self.header[1:])
+            fh5['basic/headers'] = numpy.array(self.header[1:]).astype('S')
         self.output = H5EstimatorHelper(filename, 'basic')
 
 # Energy evaluation routines.
