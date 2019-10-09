@@ -176,23 +176,24 @@ def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
 
 def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
                  verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
+    nmo = hcore.shape[-1]
     if verbose:
-        print (" # Constructing trial wavefunctiom in ortho AO basis.")
+        print(" # Constructing trial wavefunctiom in ortho AO basis.")
     if len(hcore.shape) == 3:
         if verbose:
-            print (" # Writing UHF trial wavefunction.")
+            print(" # Writing UHF trial wavefunction.")
         if orbs is None:
             (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
         else:
             orbs = orbs
     else:
         if verbose:
-            print (" # Writing RHF trial wavefunction.")
+            print(" # Writing RHF trial wavefunction.")
         if orbs is None:
             (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
         else:
             orbs = orbs
-    dump_qmcpack_trial_wfn(orbs, nelec, wfn_file)
+    write_qmcpack_wfn(filename, (numpy.array([1.0+0j]), orbs), 'uhf', nelec, nmo)
     nbasis = hcore.shape[-1]
     if verbose:
         print (" # Performing modified Cholesky decomposition on ERI tensor.")

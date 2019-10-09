@@ -4,7 +4,6 @@ import numpy
 import h5py
 import sys
 from pauxy.utils.from_pyscf import dump_pauxy
-from pauxy.utils.from_pyscf import dump_pauxy
 
 def parse_args(args):
     """Parse command-line arguments.
@@ -28,7 +27,7 @@ def parse_args(args):
     parser.add_argument('-q', '--qmcpack', dest='qmcpack', action='store_true',
                         default=False, help='Output to qmcpack format.')
     parser.add_argument('-w', '--wavefile', dest='wfn', type=str,
-                        default='wfn.dat', help='Output file name for qmcpack trial.')
+                        default='wfn.h5', help='Output file name for qmcpack trial.')
     parser.add_argument('-c', '--cholesky', dest='cholesky', type=float,
                         default=1e-5, help='Cholesky convergence threshold.')
     parser.add_argument('-d', '--direct-cholesky', action='store_true',

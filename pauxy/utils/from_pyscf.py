@@ -3,39 +3,107 @@ import h5py
 import numpy
 import time
 import scipy.linalg
-from pauxy.utils.io import dump_native, dump_qmcpack
-from pauxy.utils.linalg import get_orthoAO
 from pauxy.utils.misc import dotdict
+from pauxy.utils.io import (
+        dump_qmcpack_cholesky,
+        write_qmcpack_wfn
+        )
 from pauxy.estimators.greens_function import gab
 from pauxy.estimators.generic import (
         local_energy_generic_cholesky, core_contribution_cholesky
     )
-from pyscf.lib.chkfile import load_mol
+from pyscf import lib
 from pyscf import ao2mo, scf, fci
 from pyscf.pbc import scf as pbcscf
 from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
 
-def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='fcidump.h5',
-               verbose=True, qmcpack=False, wfn_file='wfn.dat',
-               chol_cut=1e-5, sparse_zero=1e-16, pbc=False, cholesky=False,
-               cas=None):
-    if chkfile is not None:
-        (hcore, fock, oao, enuc, mol, orbs, mf) = (
-                                      from_pyscf_chkfile(chkfile, verbose, pbc)
-                                      )
-    else:
-        (hcore, fock, oao, enuc) = from_pyscf_scf(mf)
-        mol = mf.mol
+def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
+               verbose=True, qmcpack=False, wfn_file='afqmc.h5',
+               chol_cut=1e-5, sparse_zero=1e-16, cholesky=False,
+               cas=None, ortho_ao=True):
+    scf_data = load_from_pyscf_chkfile(chkfile)
+    hcore, chol_vecs, nelec, enuc = generate_hamiltonian(scf_data,
+                                                         verbose=verbose,
+                                                         chol_cut=chol_cut,
+                                                         cas=cas,
+                                                         ortho_ao=ortho_ao)
+    write_wfn_mol(scf_data, ortho_ao, wfn_file)
+    nbasis = hcore.shape[-1]
+    msq = nbasis * nbasis
+    # Why did I transpose everything?
+    # QMCPACK expects [M^2, N_chol]
+    # Internally store [N_chol, M^2]
+    chol_vecs = chol_vecs.T
+    chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
+    mem = 64*chol_vecs.nnz/(1024.0**3)
     if verbose:
-        print(" # Transforming hcore and eri to ortho AO basis.")
-    nbasis = h1e.shape[-1]
-    h1e, eri = generate_integrals(mol, hcore, oao, chol_cut=chol_cut,
-                                  verbose=verbose, cas=cas)
-    dump_qmcpack(outfile, wfn_file, h1e, eri, orthoAO, fock,
-                 mol.nelec, enuc, threshold=chol_cut,
-                 sparse_zero=sparse_zero, orbs=orbs)
+        print(" # Total number of non-zero elements in sparse cholesky ERI"
+               " tensor: %d"%chol_vecs.nnz)
+        nelem = chol_vecs.shape[0]*chol_vecs.shape[1]
+        print(" # Sparsity of ERI Cholesky tensor: "
+               "%f"%(1-float(chol_vecs.nnz)/nelem))
+        print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
+    dump_qmcpack_cholesky([hcore,hcore], chol_vecs, nelec, nbasis, enuc,
+                          filename=outfile)
+
+def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
+                  init=None, verbose=False):
+    """Generate QMCPACK trial wavefunction.
+
+    Parameters
+    ----------
+    scf_data : dict
+        Dictionary containing scf data extracted from pyscf checkpoint file.
+    ortho_ao : bool
+        Whether we are working in orthogonalised AO basis or not.
+    filename : string
+        HDF5 file path to store wavefunction to.
+    wfn : tuple
+        User defined wavefunction. Not fully supported. Default None.
+
+    Returns
+    -------
+    wfn : :class:`numpy.ndarray`
+        Wavefunction as numpy array. Format depends on wavefunction.
+    """
+    ghf = False
+    mol = scf_data['mol']
+    nelec = mol.nelec
+    nalpha, nbeta = nelec
+    C = scf_data['mo_coeff']
+    X = scf_data['X']
+    uhf = scf_data['isUHF']
+    # For RHF only nalpha entries will be filled.
+    if uhf:
+        norb = C[0].shape[0]
+    else:
+        norb = C.shape[0]
+    if wfn is None:
+        wfn = numpy.zeros((1,norb,nalpha+nbeta), dtype=numpy.complex128)
+        wfn_type = 'NOMSD'
+        coeffs = numpy.array([1.0+0j])
+        if ortho_ao:
+            Xinv = scipy.linalg.inv(X)
+            if uhf:
+                # We are assuming C matrix is energy ordered.
+                wfn[0,:,:nalpha] = numpy.dot(Xinv, C[0])[:,:nalpha]
+                wfn[0,:,nalpha:] = numpy.dot(Xinv, C[1])[:,:nbeta]
+            else:
+                wfn[0,:,:nalpha] = numpy.dot(Xinv, C)[:,:nalpha]
+                wfn[0,:,nalpha:] = numpy.dot(Xinv, C)[:,:nalpha]
+        else:
+            # Assuming we are working in MO basis, only works for RHF, ROHF trials.
+            I = numpy.identity(C.shape[-1], dtype=numpy.float64)
+            wfn[0,:,:nalpha] = I[:,:nalpha]
+            wfn[0,:,nalpha:] = I[:,:nalpha]
+            if uhf:
+                print(" # Warning: UHF trial wavefunction can only be used of "
+                      "working in ortho AO basis.")
+    write_qmcpack_wfn(filename, (numpy.array([1.0+0j]),wfn), 'uhf',
+                      nelec, norb)
+    return nelec
 
 def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
     mol = mf.mol
@@ -54,35 +122,61 @@ def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
 
 def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False,
                            cas=None, ortho_ao=True):
-    (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = from_pyscf_chkfile(chkfile, verbose)
+    (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = load_from_pyscf_chkfile(chkfile, verbose)
     h1e, eri = generate_integrals(mol, hcore, oao,
                                   chol_cut=chol_cut,
                                   verbose=verbose,
                                   cas=cas)
     return h1e, eri, ecore, oao, mol
 
-def generate_integrals(mol, hcore, oao, chol_cut=1e-5, verbose=0, cas=None):
-    eri = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
+def generate_hamiltonian(scf_data, chol_cut=1e-5, verbose=False, cas=None,
+                         ortho_ao=False, nelec=None):
+    # Unpack SCF data.
+    # 1. core (1-body) Hamiltonian.
+    hcore = scf_data['hcore']
+    # 2. Rotation matrix to orthogonalised basis.
+    if ortho_ao:
+        X = scf_data['X']
+    else:
+        if scf_data['isUHF']:
+            print(" # UHF integrals are not allowed. Use ortho AO option (-a/--ao).")
+            sys.exit()
+        X = scf_data['mo_coeff']
+    C = scf_data['mo_coeff']
+    # 3. Pyscf mol object.
+    mol = scf_data['mol']
+    # Step 1. Rotate core Hamiltonian to orthogonal basis.
     if verbose:
-        print("# Orthogonalising Cholesky vectors.")
+        print(" # Transforming hcore and eri to ortho AO basis.")
+    h1e = numpy.dot(X.T, numpy.dot(hcore, X))
+    nbasis = h1e.shape[-1]
+    # Step 2. Genrate Cholesky decomposed ERIs in non-orthogonal AO basis.
+    if verbose:
+        print (" # Performing modified Cholesky decomposition on ERI tensor.")
+    chol_vecs = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
+    if verbose:
+        print (" # Orthogonalising Cholesky vectors.")
     start = time.time()
-    h1e = numpy.dot(oao.conj().T, numpy.dot(hcore, oao))
-    ao2mo_chol(eri, oao)
+    # Step 2.a Orthogonalise Cholesky vectors.
+    ao2mo_chol(chol_vecs, X)
     if verbose:
-        print("# Time to orthogonalise: %f"%(time.time() - start))
+        print (" # Time to orthogonalise: %f"%(time.time() - start))
+    enuc = mol.energy_nuc()
+    # Step 3. (Optionally) freeze core / virtuals.
+    nelec = mol.nelec
     if cas is not None:
         nfzc = (sum(mol.nelec)-cas[0])//2
         ncas = cas[1]
         nfzv = nbasis - ncas - nfzc
-        h1e, eri, enuc = freeze_core(h1e, eri, enuc, nfzc, ncas, verbose)
+        h1e, chol_vecs, enuc = freeze_core(h1e, chol_vecs, enuc, nfzc, ncas,
+                                           verbose)
         h1e = h1e[0]
         nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
         mol.nelec = nelec
-        if len(orbs.shape) == 3:
-            orbs = orbs[:,nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-        else:
-            orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-    return h1e, eri
+        orbs = numpy.identity(h1e.shape[-1])
+        orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
+        scf_data['mo_coeff'] = C[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
+    return h1e, chol_vecs, nelec, enuc
 
 def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
     # 1. Construct one-body hamiltonian
@@ -115,14 +209,9 @@ def ao2mo_chol(eri, C):
         half = numpy.dot(cv.reshape(nb,nb), C)
         eri[i] = numpy.dot(C.T, half).ravel()
 
-def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
-    if pbc:
-        mol = chkfile.load_cell(scfdump)
-        mf = pbcscf.KRHF(mol)
-    else:
-        mol = load_mol(scfdump)
-        mf = scf.RHF(mol)
-    with h5py.File(scfdump, 'r') as fh5:
+def load_from_pyscf_chkfile(chkfile, base='scf'):
+    mol = lib.chkfile.load_mol(chkfile)
+    with h5py.File(chkfile, 'r') as fh5:
         try:
             hcore = fh5['/scf/hcore'][:]
         except KeyError:
@@ -131,31 +220,17 @@ def from_pyscf_chkfile(scfdump, verbose=True, pbc=False):
             if len(mol._ecpbas) > 0:
                 hcore += mol.intor_symmetric('ECPScalar')
         try:
-            fock = fh5['/scf/fock'][:]
+            X = fh5['/scf/orthoAORot'][:]
         except KeyError:
-            fock = None
-        try:
-            oao = fh5['/scf/orthoAORot'][:]
-        except:
-            s1e = mf.mol.intor('int1e_ovlp_sph')
-            oao = get_orthoAO(s1e)
-        try:
-            orbs = fh5['/scf/orbs'][:]
-        except KeyError:
-            orbs = None
-        try:
-            coeffs = fh5['/scf/coeffs'][:]
-        except KeyError:
-            coeffs = numpy.array([1])
-        try:
-            enuc = fh5['/scf/enuc'][()]
-        except KeyError:
-            enuc = mf.energy_nuc()
-    if verbose:
-        print("# Generating PAUXY input from %s."%chkfile)
-        print("# (nalpha, nbeta): (%d, %d)"%mol.nelec)
-        print("# nbasis: %d"%hcore.shape[-1])
-    return (hcore, fock, oao, enuc, mol, orbs, mf, coeffs)
+            s1e = mol.intor('int1e_ovlp_sph')
+            X = get_ortho_ao_mol(s1e)
+    mo_occ = numpy.array(lib.chkfile.load(chkfile, base+'/mo_occ'))
+    mo_coeff = numpy.array(lib.chkfile.load(chkfile, base+'/mo_coeff'))
+    uhf = len(mo_coeff.shape) == 3
+    scf_data = {'mol': mol, 'mo_occ': mo_occ, 'hcore': hcore,
+                'X': X, 'mo_coeff': mo_coeff,
+                'isUHF': uhf}
+    return scf_data
 
 def from_pyscf_scf(mf, verbose=True):
     hcore = mf.get_hcore()
@@ -520,3 +595,24 @@ def get_pyscf_wfn(system, mf):
     wfn[:,:na] = pa
     wfn[:,na:] = pb
     return (numpy.array([1.0+0j]), wfn)
+
+def get_ortho_ao_mol(S, LINDEP_CUTOFF=0):
+    """Generate canonical orthogonalization transformation matrix.
+
+    Parameters
+    ----------
+    S : :class:`numpy.ndarray`
+        Overlap matrix.
+    LINDEP_CUTOFF : float
+        Linear dependency cutoff. Basis functions whose eigenvalues lie below
+        this value are removed from the basis set. Should be set in accordance
+        with value in pyscf (pyscf.scf.addons.remove_linear_dep_).
+
+    Returns
+    -------
+    X : :class:`numpy.array`
+        Transformation matrix.
+    """
+    sdiag, Us = numpy.linalg.eigh(S)
+    X = Us[:,sdiag>LINDEP_CUTOFF] / numpy.sqrt(sdiag[sdiag>LINDEP_CUTOFF])
+    return X
