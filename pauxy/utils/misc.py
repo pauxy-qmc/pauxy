@@ -181,9 +181,24 @@ def merge_dicts(a, b, path=None):
             a[key] = b[key]
     return a
 
-def get_from_dict(d, v):
+def get_from_dict(d, k):
+    """Get value from nested dictionary.
+
+    Taken from:
+        https://stackoverflow.com/questions/28225552/is-there-a-recursive-version-of-the-dict-get-built-in
+
+    Parameters
+    ----------
+    d : dict
+    k : list
+        List specifying key to extract.
+
+    Returns
+    -------
+    value : Return type or None.
+    """
     try:
-        return reduce(dict.get, v, d)
+        return reduce(dict.get, k, d)
     except TypeError:
         # Value not found.
         return None
