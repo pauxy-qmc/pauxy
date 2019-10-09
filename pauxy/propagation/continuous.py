@@ -203,7 +203,7 @@ class Continuous(object):
             self.apply_exponential(walker.phi[:,system.nup:], VHS)
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
-        # Now apply hybrid phaseless approximation
+        # Now apply phaseless approximation
         walker.inverse_overlap(trial)
         walker.greens_function(trial)
         ot_new = walker.calc_otrial(trial)
