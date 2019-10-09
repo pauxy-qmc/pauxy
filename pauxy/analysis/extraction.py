@@ -22,13 +22,7 @@ def extract_data(filename, group, estimator, raw=False):
             return df
 
 def extract_mixed_estimates(filename, skip=0):
-    with h5py.File(filename, 'r') as fh5:
-        metadata = json.loads(fh5['metadata'][:][0])
-        basic = fh5['mixed_estimates/energies'][:]
-        headers = fh5['mixed_estimates/headers'][:]
-        basic = pd.DataFrame(basic)
-        basic.columns = headers
-    return metadata, basic[skip:nzero]
+    return extract_data(filename, 'basic', 'energies')[skip:]
 
 def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm'):
     rdmtot = []
