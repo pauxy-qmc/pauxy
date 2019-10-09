@@ -6,6 +6,7 @@ import scipy.sparse
 import sys
 import subprocess
 import types
+from functools import  reduce
 
 
 def get_git_revision_hash():
@@ -179,3 +180,10 @@ def merge_dicts(a, b, path=None):
         else:
             a[key] = b[key]
     return a
+
+def get_from_dict(d, v):
+    try:
+        return reduce(dict.get, v, d)
+    except TypeError:
+        # Value not found.
+        return None
