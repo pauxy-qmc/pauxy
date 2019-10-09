@@ -255,6 +255,7 @@ class Mixed(object):
                 start = self.nreg + self.G.size
                 rdm = gs[start:].reshape(self.two_rdm.shape)
                 self.output.push(rdm/gs[ns.weight], 'two_rdm')
+            self.output.increment()
         self.zero()
 
     def print_key(self, eol='', encode=False):
@@ -329,7 +330,7 @@ class Mixed(object):
 
     def setup_output(self, filename):
         with h5py.File(filename, 'a') as fh5:
-            fh5['mixed/headers'] = numpy.array(self.header[1:])
+            fh5['basic/headers'] = numpy.array(self.header[1:])
         self.output = H5EstimatorHelper(filename, 'basic')
 
 # Energy evaluation routines.
