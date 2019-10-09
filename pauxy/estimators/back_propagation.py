@@ -64,7 +64,7 @@ class BackPropagation(object):
         self.calc_one_rdm = bp.get('one_rdm', True)
         self.calc_two_rdm = bp.get('two_rdm', None)
         self.nreg = len(self.header)
-        self.eval_energy = bp.get('evaluate_energy', True)
+        self.eval_energy = bp.get('evaluate_energy', False)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
@@ -85,11 +85,9 @@ class BackPropagation(object):
         self.global_estimates = numpy.zeros(self.nreg+1+dms_size,
                                             dtype=dtype)
         self.key = {
-            'iteration': "Simulation iteration when back-propagation "
-                         "measurement occured.",
-            'E_var': "BP estimate for internal energy.",
-            'T': "BP estimate for kinetic energy.",
-            'V': "BP estimate for potential energy."
+            'ETotal': "BP estimate for total energy.",
+            'E1B': "BP estimate for one-body energy.",
+            'E2B': "BP estimate for two-body energy."
         }
         if root:
             self.setup_output(filename)
@@ -220,10 +218,15 @@ class BackPropagation(object):
         if step != 0 and step % self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
             if comm.rank == 0:
-                self.output.push(self.global_estimates[:self.nreg],
-                                 'energies')
-                self.output.push(self.global_estimates[self.nreg],
-                                 'denom')
+                weight = self.global_estimates[self.nreg]
+                self.output.push(numpy.array([weight]), 'denominator')
+                if self.eval_energy:
+                    if free_projection:
+                        self.output.push(self.global_estimates[:self.nreg],
+                                         'energies')
+                    else:
+                        self.output.push(self.global_estimates[:self.nreg]/weight,
+                                         'energies')
                 if self.calc_one_rdm:
                     start = self.nreg + 1
                     end = self.nreg + 1 + self.G.size
@@ -233,6 +236,7 @@ class BackPropagation(object):
                     start = self.nreg + 1 + self.G.size
                     rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
                     self.output.push(rdm, 'two_rdm')
+                self.output.increment()
             self.zero()
 
     def zero(self):
