@@ -72,6 +72,13 @@ def gab_mod(A, B):
     G = numpy.dot(A.conj(), GHalf)
     return (G, GHalf)
 
+def gab_spin(A, B, na, nb):
+    GA, GAH = gab_mod(A[:,:na],B[:,:na])
+    if nb > 0:
+        GB, GBH = gab_mod(A[:,na:],B[:,na:])
+    return numpy.array([GA, GB]), [GAH, GBH]
+
+
 def gab_mod_ovlp(A, B):
     r"""One-particle Green's function.
 
