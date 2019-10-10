@@ -10,6 +10,7 @@ import scipy.linalg
 try:
     from pauxy.estimators.ueg_kernels  import  exchange_greens_function_per_qvec
 except ImportError:
+    print("exchange_greens_function_per_qvec doesn't exist")
     pass
 
 def exchange_greens_function(nq, kpq_i, kpq, pmq_i, pmq, Gprod, G):
