@@ -554,3 +554,36 @@ def from_qmcpack_sparse(dset):
 def to_qmcpack_complex(array):
     shape = array.shape
     return array.view(numpy.float64).reshape(shape+(2,))
+
+def write_input(filename, hamil, wfn, options={}):
+    with h5py.File(wfn, 'r') as fh5:
+        try:
+            dims = fh5['Wavefunction/NOMSD/dims'][:]
+        except KeyError:
+            dims = fh5['Wavefunction/PHMSD/dims'][:]
+        except:
+            print("Unknown wavefunction file format.")
+    nmo = int(dims[0])
+    na = int(dims[1])
+    nb = int(dims[2])
+    basic = {
+        'system': {
+            'name': 'Generic',
+            'nup': na,
+            'ndown': nb,
+            'integrals': hamil
+            },
+        'qmc': {
+            'dt': 0.005,
+            'nsteps': 5000,
+            'nmeasure': 10,
+            'nwalkers': 30,
+            'pop_control': 1
+            },
+        'trial': {
+            'filename': wfn
+            }
+        }
+    full = {**basic, **options}
+    with open(filename, 'w') as f:
+        f.write(json.dumps(full, indent=4))
