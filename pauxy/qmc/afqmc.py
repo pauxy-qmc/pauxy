@@ -107,8 +107,11 @@ class AFQMC(object):
         if system is not None:
             self.system = system
         else:
-            self.system = get_system(sys_opts=options.get('model', {}),
-                                     verbose=verbose)
+            sys_opts = get_input_value(options, 'model',
+                                       default={},
+                                       alias=['system'],
+                                       verbose=self.verbosity>1)
+            self.system = get_system(sys_opts, verbose=verbose)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
