@@ -9,7 +9,12 @@ import numpy
 import pandas as pd
 import pyblock
 import scipy.stats
-import pauxy.analysis.extraction
+from pauxy.analysis.extraction import (
+        extract_mixed_estimates,
+        extract_data,
+        get_metadata, set_info
+        )
+from pauxy.utils.misc import get_from_dict
 
 
 def average_single(frame, delete=True):
@@ -77,20 +82,24 @@ def average_fp(frame):
     return results
 
 
-def reblock_mixed(frame):
-    short = frame.drop(['Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
+def reblock_mixed(groupby, columns):
     analysed = []
-    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
-    reblocked = pd.DataFrame()
-    for c in short.columns:
-        try:
-            rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
-            reblocked[c] = rb['mean'].values
-            reblocked[c+'_error'] = rb['standard error'].values
-        except KeyError:
-            print("Reblocking of {:4} failed. Insufficient "
-                  "statistics.".format(c))
-    analysed.append(reblocked)
+    for group, frame in groupby:
+        short = frame.reset_index().drop(columns+['index', 'Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
+        (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        reblocked = pd.DataFrame()
+        for c in short.columns:
+            try:
+                rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
+                reblocked[c] = rb['mean'].values
+                reblocked[c+'_error'] = rb['standard error'].values
+            except KeyError:
+                print("Reblocking of {:4} failed. Insufficient "
+                      "statistics.".format(c))
+        for i, v in enumerate(group):
+            reblocked[columns[i]] = v
+        analysed.append(reblocked)
+
 
     return pd.concat(analysed)
 
@@ -125,7 +134,7 @@ def reblock_free_projection(frame):
 
 def reblock_local_energy(filename, skip=0):
     data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
-    results = reblock_mixed(data.apply(numpy.real))
+    results = reblock_mixed(data.apply(numpy.real)[skip:])
     if results is None:
         return None
     else:
@@ -208,7 +217,7 @@ def average_tau(frames):
 
 
 def analyse_back_propagation(frames):
-    frames[['E', 'E1b', 'E2b']] = frames[['E','E1b','E2b']].div(frames.Weight, axis=0)
+    frames[['E', 'E1b', 'E2b']] = frames[['E','E1b','E2b']]
     frames = frames.apply(numpy.real)
     frames = frames.groupby(['nbp','dt'])
     data_len = frames.size()
@@ -217,7 +226,7 @@ def analyse_back_propagation(frames):
     # default to 1 for scipy but it's different elsewhere, so let's be careful.
     errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
     full = pd.merge(means, errs, on=['nbp','dt'], suffixes=('','_error'))
-    columns = sorted(full.columns.values[2:])
+    columns = full.columns.values[2:]
     columns = numpy.insert(columns, 0, 'nbp')
     columns = numpy.insert(columns, 1, 'dt')
     return full[columns]
@@ -254,115 +263,44 @@ def analyse_simple(files, start_time):
     return pd.concat(norm_data)
 
 
-def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
-    data = pauxy.analysis.extraction.extract_hdf5_data_sets(files)
-    bp_data = []
-    bp_rdms = []
-    norm_data = []
-    itcf_data = []
-    itcfk_data = []
+def analyse_back_prop(files, start_time):
+    full = []
+    for f in files:
+        md = get_metadata(f)
+        step = get_from_dict(md, ['qmc', 'nmeasure'])
+        dt = get_from_dict(md, ['qmc', 'dt'])
+        tbp = get_from_dict(md, ['estimators', 'estimators', 'back_prop', 'tau_bp'])
+        start = min(1, int(start_time/tbp) + 1)
+        data = extract_data(f, 'back_propagated', 'energies')[start:]
+        av = data.mean().to_frame().T
+        err = (data.std() / len(data)**0.5).to_frame().T
+        res = pd.merge(av,err,left_index=True,right_index=True,suffixes=('','_error'))
+        columns = set_info(res, md)
+        full.append(res)
+    return pd.concat(full).sort_values('tau_bp')
+
+def analyse_estimates(files, start_time, multi_sim=False):
     mds = []
-    nsim = 0
-    for g in data:
-        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
-        dt = m.get('qmc').get('dt')
-        step = m.get('qmc').get('nmeasure')
-        ndets = m.get('trial').get('ndets')
-        write_rs = m.get('psi').get('write_restart')
-        read_rs = m.get('psi').get('read_file') is not None
-        free_projection = m.get('propagators').get('free_projection', False)
-        nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
+    basic = []
+    for f in files:
+        md = get_metadata(f)
+        read_rs = get_from_dict(md, ['psi', 'read_rs'])
+        step = get_from_dict(md, ['qmc', 'nmeasure'])
+        dt = get_from_dict(md, ['qmc', 'dt'])
         start = int(start_time/(step*dt)) + 1
         if read_rs:
             start = 0
-        norm_data.append(norm[start:nzero].apply(numpy.real))
-        if mixed_rdm is not None:
-            mrdm, mrdm_err = average_rdm(mixed_rdm[start:nzero])
-            if cfunc:
-                (m_hole, m_hole_err, m_spin, m_spin_err, m_gf) = average_correlation(mixed_rdm[start:nzero])
-        if bp is not None:
-            nbp = m.get('estimators').get('estimators').get('back_prop').get('nmax')
-            bp['dt'] = dt
-            bp['nbp'] = nbp
-            weights = bp['Weight'].values.real
-            nzero = numpy.nonzero(bp['E'].values)[0][-1]
-            skip = max(1, int(start*step/nbp))
-            bp_data.append(bp[skip:nzero:2])
-            if bp_rdm is not None:
-                if len(bp_rdm.shape) == 3:
-                    # GHF format
-                    w = weights[skip:nzero,None,None]
-                else:
-                    # UHF format
-                    w = weights[skip:nzero,None,None,None]
-                bp_rdm = bp_rdm[skip:nzero] / w
-                rdm, rdm_err = average_rdm(bp_rdm[skip:nzero])
-                bp_rdms.append(numpy.array([rdm,rdm_err]))
-                if cfunc:
-                    (bp_hole, bp_hole_err, bp_spin, bp_spin_err, bp_gf) = average_correlation(bp_rdm[skip:nzero])
-                # free projection / weight restoration..
-        if itcf is not None:
-            itcf_tmax = m.get('estimators').get('estimators').get('itcf').get('tmax')
-            nits = int(itcf_tmax/(step*dt)) + 1
-            skip = max([1, int(start/nits)])
-            nzero = numpy.nonzero(itcf)[0][-1]
-            itcf_data.append(itcf[skip:nzero])
-        if itcfk is not None:
-            itcfk_data.append(itcfk[skip:nzero])
-        mds.append(json.dumps(m))
-
+        data = extract_mixed_estimates(f, start)
+        columns = set_info(data, md)
+        basic.append(data)
+        mds.append(md)
+    basic = pd.concat(basic).groupby(columns)
+    basic_av = reblock_mixed(basic, columns)
     base = files[0].split('/')[-1]
     outfile = 'analysed_' + base
-    store = h5py.File(outfile, 'w')
-    store.create_dataset('metadata', data=numpy.array(mds, dtype=object),
-                         dtype=h5py.special_dtype(vlen=str))
-    if itcf is not None:
-        itcf_data = numpy.reshape(itcf_data, (len(itcf_data),)+itcf_data[0].shape)
-        (itcf_av, itcf_err) = analyse_itcf(itcf_data)
-        store.create_dataset('real_itcf', data=itcf_av)
-        store.create_dataset('real_itcf_err', data=itcf_err)
-    if itcfk is not None:
-        itcfk_data = numpy.reshape(itcfk_data, (len(itcf_data),)+itcf_data[0].shape)
-        (itcfk_av, itcfk_err) = analyse_itcf(itcfk_data)
-        store.create_dataset('kspace_itcf', data=itcfk_av)
-        store.create_dataset('kspace_itcf_err', data=itcfk_err)
-    if bp is not None:
-        bp_data = pd.concat(bp_data)
-        bp_av = analyse_back_propagation(bp_data)
-        bp_group = store.create_group('back_propagated')
-        bp_group.create_dataset('estimates', data=bp_av.as_matrix())
-        bp_group.create_dataset('headers', data=bp_av.columns.values,
-                dtype=h5py.special_dtype(vlen=str))
-        if bp_rdm is not None:
-            bp_group.create_dataset('rdm', data=numpy.array(bp_rdms))
-            if cfunc:
-                bp_group.create_dataset('correlation',
-                                        data=numpy.array([bp_hole, bp_hole_err,
-                                                          bp_spin, bp_spin_err]))
-    else:
-        bp_av = None
-    if multi_sim:
-        norm_data = pd.concat(norm_data).groupby('Iteration')
-        norm_av = average_tau(norm_data)
-    else:
-        norm_data = pd.concat(norm_data)
-        if free_projection:
-            norm_av = reblock_free_projection(norm_data)
-        else:
-            norm_av = reblock_mixed(norm_data)
-    basic = store.create_group('mixed')
-    basic.create_dataset('estimates', data=norm_av.as_matrix().astype(float))
-    basic.create_dataset('headers', data=norm_av.columns.values,
-            dtype=h5py.special_dtype(vlen=str))
-    if mixed_rdm is not None:
-        basic.create_dataset('rdm',
-                             data=numpy.array([mrdm, mrdm_err]))
-        if cfunc:
-            basic.create_dataset('correlation',
-                                 data=numpy.array([m_hole, m_hole_err, m_spin,
-                                                   m_spin_err]))
-    store.close()
-
     fmt = lambda x: "{:13.8f}".format(x)
-    print(norm_av.to_string(float_format=fmt))
-    return (bp_av, norm_av)
+    print(basic_av.to_string(index=False, float_format=fmt))
+    with h5py.File(outfile, 'w') as fh5:
+        fh5['metadata'] = numpy.array(mds).astype('S')
+        fh5['basic/estimates'] = basic_av.values.astype(float)
+        fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')

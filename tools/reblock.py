@@ -69,9 +69,7 @@ def main(args):
         files = glob.glob(options.filenames[0])
     else:
         files = options.filenames
-    (bp_av, norm) = analyse_estimates(files, start_time=options.start_time,
-                                      multi_sim=options.multi_sim,
-                                      cfunc=options.cfunc)
+    analyse_estimates(files, start_time=options.start_time,
+                      multi_sim=options.multi_sim)
 if __name__ == '__main__':
-
     main(sys.argv[1:])

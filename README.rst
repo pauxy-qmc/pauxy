@@ -37,7 +37,13 @@ Clone the repository
 
     $ git clone https://github.com/fdmalone/pauxy.git
 
-and set the PYTHONPATH appropriately.
+and run
+
+::
+
+    $ python setup.py build_ext
+
+You will also need to set your PYTHONPATH appropriately.
 
 Requirements
 ------------
@@ -46,37 +52,24 @@ Requirements
 * numpy (>= 0.19.1)
 * scipy (>= 1.13.3)
 * h5py (>= 2.7.1)
-* matplotlib (optional)
-* mpi4py (optional)
+* mpi4py (>= 3.0.1)
+* cython (>= 0.29.2)
 
-In addition, if you want to run the test suite you'll need to get
-`testcode <https://github.com/jsspencer/testcode>`_.
+To run the tests you will need pytest and pandas.  To perform error analysis you will also
+need `testcode <https://github.com/jsspencer/pyblock>`
+
 
 Running the Test Suite
 ----------------------
 
 Pauxy contains unit tests and short deterministic longer tests of full calculations.
-To run the unit tests you can do:
+To the tests you can do:
 
 ::
 
-    $ python -u -m unittest discover -v
+    $ python -u -m pytest -v
 
-These tests are quick and should all pass.
-
-For the deterministic tests we use testcode.  First change to the test directory and run
-
-::
-
-    $ ~/path/to/testcode/bin/testcode.py
-
-If python3 is not your default python interpreter then run
-
-::
-
-    $ ~/path/to/testcode/bin/testcode.py -p 1 --user-option pauxy launch_parallel python3
-
-Currently only serial tests exist.
+These tests should all pass.
 
 .. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
     :target: https://travis-ci.org/fdmalone/pauxy

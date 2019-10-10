@@ -109,7 +109,7 @@ def overlap(A,B):
     return S
 
 
-def modified_cholesky(M, kappa, verbose=False, cmax=10):
+def modified_cholesky(M, tol=1e-6, verbose=True, cmax=20):
     """Modified cholesky decomposition of matrix.
 
     See, e.g. [Motta17]_
@@ -118,7 +118,7 @@ def modified_cholesky(M, kappa, verbose=False, cmax=10):
     ----------
     M : :class:`numpy.ndarray`
         Positive semi-definite, symmetric matrix.
-    kappa : float
+    tol : float
         Accuracy desired.
     verbose : bool
         If true print out convergence progress.
@@ -142,7 +142,7 @@ def modified_cholesky(M, kappa, verbose=False, cmax=10):
     chol_vecs = numpy.zeros((nchol_max, M.shape[0]), dtype=M.dtype)
     nchol = 0
     chol_vecs[0] = numpy.copy(M[:,nu])/delta_max**0.5
-    while abs(delta_max) > kappa:
+    while abs(delta_max) > tol:
         # Update cholesky vector
         start = time.time()
         Mapprox += chol_vecs[nchol]*chol_vecs[nchol].conj()

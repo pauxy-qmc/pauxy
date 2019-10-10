@@ -119,7 +119,7 @@ class GenericContinuous(object):
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def construct_force_bias_slow(self, system, P, trial):
-        """Compute optimal force bias.
+        r"""Compute optimal force bias.
 
         Uses explicit expression.
 
@@ -138,7 +138,7 @@ class GenericContinuous(object):
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_force_bias_fast(self, system, P, trial):
-        """Compute optimal force bias.
+        r"""Compute optimal force bias.
 
         Uses explicit expression.
 

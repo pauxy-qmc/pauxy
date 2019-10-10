@@ -421,8 +421,7 @@ class PlaneWave(object):
             walker.greens_function(None, slice_ix=tix, inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=False),
-              scipy.linalg.det(G[1], check_finite=False)]
+        M0 = walker.M0
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
                 scipy.linalg.det(walker.G[1], check_finite=False)]
         # Could save M0 rather than recompute.
@@ -440,6 +439,7 @@ class PlaneWave(object):
                 dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
+                walker.M0 = Mnew
             else:
                 walker.weight = 0.0
         except ZeroDivisionError:

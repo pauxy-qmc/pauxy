@@ -25,6 +25,7 @@ def propagate_single(psi, system, B):
         psi[M:,nup:] = B[M:,M:].dot(psi[M:,nup:])
 
 
+# TODO: Rename this
 def kinetic_real(phi, system, bt2):
     r"""Propagate by the kinetic term by direct matrix multiplication.
 

@@ -3,17 +3,16 @@ import numpy
 import pandas as pd
 import scipy.stats
 import scipy.optimize
-from pauxy.analysis.extraction import extract_hdf5_data_sets, set_info
+from pauxy.analysis.extraction import extract_data, set_info, get_metadata
 from pauxy.analysis.blocking import average_ratio
 
 def analyse_energy(files):
-    data = extract_hdf5_data_sets(files)
     sims = []
-    for (i, g) in enumerate(data):
-        (m, norm, bp, itcf, itcfk, mixed_rdm, bp_rdm) = g
-        keys = set_info(norm, m)
-        nzero = numpy.nonzero(norm['Weight'].values)[0][-1]
-        sims.append(norm[1:nzero+1])
+    for f in files:
+        data = extract_data(f, 'basic', 'energies')
+        md = get_metadata(f)
+        keys = set_info(data, md)
+        sims.append(data[1:])
     full = pd.concat(sims).groupby(keys)
     analysed = []
     for (i, g) in full:

@@ -13,3 +13,4 @@ def set_rng_seed(seed, comm):
         seed = seed[0]
     seed = seed + comm.rank
     numpy.random.seed(seed)
+    return seed
