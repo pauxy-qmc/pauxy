@@ -239,7 +239,7 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
                 # psi_bp[iw].reortho(trial)
     # return psi_bp
 
-def back_propagate_generic(phi, stack, system, nstblz, BT2, dt, store=False):
+def back_propagate_generic(phi, configs, system, nstblz, BT2, dt, store=False):
     r"""Perform back propagation for RHF/UHF style wavefunction.
 
     For use with generic system hamiltonian.
@@ -266,7 +266,8 @@ def back_propagate_generic(phi, stack, system, nstblz, BT2, dt, store=False):
     """
     nup = system.nup
     psi_store = []
-    for (i, B) in enumerate(stack.stack[::-1]):
+    for (i, c) in enumerate(configs.get_block()[0][::-1]):
+        B = construct_propagator_matrix_generic(system, BT2, c, dt, True)
         phi[:,:nup] = numpy.dot(B[0].conj().T, phi[:,:nup])
         phi[:,nup:] = numpy.dot(B[1].conj().T, phi[:,nup:])
         if i != 0 and i % nstblz == 0:

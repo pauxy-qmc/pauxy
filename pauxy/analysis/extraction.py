@@ -15,13 +15,13 @@ def extract_hdf5_data_sets(files):
     return data
 
 def extract_mixed_estimates(filename, skip=0):
-    data = h5py.File(filename, 'r')
-    metadata = json.loads(data['metadata'][:][0])
-    basic = data['mixed_estimates/energies'][:]
-    headers = data['mixed_estimates/headers'][:]
-    basic = pd.DataFrame(basic)
-    basic.columns = headers
-    nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
+    with h5py.File(filename, 'r') as fh5:
+        metadata = json.loads(fh5['metadata'][:][0])
+        basic = fh5['mixed_estimates/energies'][:]
+        headers = fh5['mixed_estimates/headers'][:]
+        basic = pd.DataFrame(basic)
+        basic.columns = headers
+        nzero = numpy.nonzero(basic['Weight'].values)[0][-1]
     return (basic[skip:nzero])
 
 def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
@@ -49,7 +49,7 @@ def extract_rdm(files, skip, est_type='back_propagated', rdm_type='one_rdm'):
                     # Update if measuring two_rdm proper.
                     w = weights[skip:nzero,None,None,None]
                 # return (rdm[skip:nzero], w)
-                if (len(rdmtot) == 0):
+                if len(rdmtot) == 0:
                     rdmtot = rdm[skip:nzero]
                     wtot = w
                 else:
@@ -65,7 +65,10 @@ def extract_hdf5(filename):
         estimates = metadata.get('estimators').get('estimators')
         basic = fh5['mixed_estimates/energies'][:]
         headers = fh5['mixed_estimates/headers'][:]
-        headers = [s.decode("utf-8") for s in headers]
+        try:
+            headers = [s.decode("utf-8") for s in headers]
+        except AttributeError:
+            pass
         basic = pd.DataFrame(basic)
         basic.columns = headers
         if estimates is not None:

@@ -140,12 +140,8 @@ class Continuous(object):
         # Operator terms contributing to propagator.
         VHS = self.propagator.construct_VHS(system, xshifted)
 
-        # Apply propagator
-        self.apply_exponential(walker.phi[:,:system.nup], VHS)
-        if system.ndown > 0:
-            self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
-        return (cmf, cfb, xshifted)
+        return (cmf, cfb, xshifted, VHS)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         """Free projection propagator
@@ -181,6 +177,7 @@ class Continuous(object):
         elif ehyb.real < eshift.real - self.ebound:
             ehyb = eshift.real-self.ebound+1j*ehyb.imag
             self.nhe_trig += 1
+        return ehyb
 
     def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
@@ -195,23 +192,27 @@ class Continuous(object):
         Returns
         -------
         """
-        # 1. Apply one_body propagator.
+        # 1. Construct two-body propagator.
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, trial)
+        # 2. Update Slater matrix
+        # 2.a Apply one-body
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        # 2. Apply two_body propagator.
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
-        # 3. Apply one_body propagator.
+        # 2.b Apply two-body
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        if system.ndown > 0:
+            self.apply_exponential(walker.phi[:,system.nup:], VHS)
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
-        # Now apply hybrid phaseless approximation
+        # Now apply phaseless approximation
         walker.inverse_overlap(trial)
         walker.greens_function(trial)
         ot_new = walker.calc_otrial(trial)
         ovlp_ratio = ot_new / walker.ot
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
-        self.apply_bound(hybrid_energy, eshift)
+        hybrid_energy = self.apply_bound(hybrid_energy, eshift)
         importance_function = (
-                self.mf_const_fac *
-                cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift.real))
+                # self.mf_const_fac * No need to include constant factor.
+                cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift))
         )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
         (magn, phase) = cmath.polar(importance_function)

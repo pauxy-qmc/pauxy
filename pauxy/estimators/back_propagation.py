@@ -146,10 +146,10 @@ class BackPropagation(object):
         for i, wnm in enumerate(psi.walkers):
             phi_bp = trial.psi.copy()
             # TODO: Fix for ITCF.
-            self.back_propagate(phi_bp, wnm.stack, system,
+            self.back_propagate(phi_bp, wnm.field_configs, system,
                                 self.nstblz, self.BT2, self.dt)
-            self.G[0] = gab(phi_bp[:,:nup], wnm.phi_old[:,:nup])
-            self.G[1] = gab(phi_bp[:,nup:], wnm.phi_old[:,nup:])
+            self.G[0] = gab(phi_bp[:,:nup], wnm.phi_old[:,:nup]).T
+            self.G[1] = gab(phi_bp[:,nup:], wnm.phi_old[:,nup:]).T
             if self.eval_energy:
                 eloc = local_energy(system, self.G, opt=False,
                                     two_rdm=self.two_rdm)
@@ -157,7 +157,7 @@ class BackPropagation(object):
             else:
                 energies = numpy.zeros(3)
             if self.restore_weights is not None:
-                wfac = wnm.stack.get_wfac()
+                wfac = wnm.field_configs.get_wfac()
                 if self.restore_weights == "full":
                     wfac = wfac[0]/wfac[1]
                 else:
@@ -166,9 +166,7 @@ class BackPropagation(object):
             else:
                 weight = wnm.weight
             self.estimates[0] += weight
-            self.estimates[1:self.nreg] += (
-                    self.estimates[1:self.nreg] + weight*energies
-                    )
+            self.estimates[1:self.nreg] += weight*energies
             start = self.nreg
             end = self.nreg + self.G.size
             self.estimates[start:end] += weight*self.G.flatten().real
@@ -176,7 +174,7 @@ class BackPropagation(object):
                 start = end
                 end = end + self.two_rdm.size
                 self.estimates[start:end] += weight*self.two_rdm.flatten().real
-            wnm.stack.reset()
+            wnm.field_configs.reset()
         psi.copy_historic_wfn()
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):

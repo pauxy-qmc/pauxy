@@ -426,14 +426,25 @@ class UEG(object):
                               e0=0.0, filename=filename)
 
     def hijkl(self,i,j,k,l):
-        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2"""
+        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
+
+        Checks for momentum conservation k_i + k_j = k_k + k_k, or
+        k_k - k_i = k_j - k_l.
+
+        Parameters
+        ----------
+        i, j, k, l : int
+            Orbital indices for integral (ik|jl) = <ij|kl>.
+
+        Returns
+        -------
+        integral : float
+            (ik|jl)
+        """
         q1 = self.basis[k] - self.basis[i]
         q2 = self.basis[j] - self.basis[l]
-        if numpy.dot(q1-q2,q1-q2) < 1e-12:
-            if (numpy.dot(q1, q1) > 1e-12):
-                return 1.0/self.vol * self.vq(self.kfac*q1)
-            else:
-                return 0.0
+        if numpy.dot(q1,q1) > 1e-12 and numpy.dot(q1-q2,q1-q2) < 1e-12:
+            return 1.0/self.vol * self.vq(self.kfac*q1)
         else:
             return 0.0
 
@@ -527,6 +538,5 @@ def unit_test():
 
     # (e0, ev), (d,oa,ob) = pauxyci.simple_fci(system, gen_dets=True)
     # print(e0[0])
-
 if __name__=="__main__":
     unit_test()

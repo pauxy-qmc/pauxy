@@ -125,7 +125,7 @@ def reblock_free_projection(frame):
 
 def reblock_local_energy(filename, skip=0):
     data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
-    results = reblock_mixed(data.apply(numpy.real))
+    results = reblock_mixed(data.apply(numpy.real)[skip:])
     if results is None:
         return None
     else:
@@ -217,7 +217,7 @@ def analyse_back_propagation(frames):
     # default to 1 for scipy but it's different elsewhere, so let's be careful.
     errs = frames.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).reset_index()
     full = pd.merge(means, errs, on=['nbp','dt'], suffixes=('','_error'))
-    columns = sorted(full.columns.values[2:])
+    columns = full.columns.values[2:]
     columns = numpy.insert(columns, 0, 'nbp')
     columns = numpy.insert(columns, 1, 'dt')
     return full[columns]
@@ -330,7 +330,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         bp_data = pd.concat(bp_data)
         bp_av = analyse_back_propagation(bp_data)
         bp_group = store.create_group('back_propagated')
-        bp_group.create_dataset('estimates', data=bp_av.as_matrix())
+        bp_group.create_dataset('estimates', data=bp_av.values)
         bp_group.create_dataset('headers', data=bp_av.columns.values,
                 dtype=h5py.special_dtype(vlen=str))
         if bp_rdm is not None:
@@ -351,7 +351,7 @@ def analyse_estimates(files, start_time=0, multi_sim=False, cfunc=False):
         else:
             norm_av = reblock_mixed(norm_data)
     basic = store.create_group('mixed')
-    basic.create_dataset('estimates', data=norm_av.as_matrix().astype(float))
+    basic.create_dataset('estimates', data=norm_av.values.astype(float))
     basic.create_dataset('headers', data=norm_av.columns.values,
             dtype=h5py.special_dtype(vlen=str))
     if mixed_rdm is not None:

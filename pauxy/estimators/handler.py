@@ -12,6 +12,7 @@ import warnings
 from pauxy.estimators.back_propagation import BackPropagation
 from pauxy.estimators.mixed import Mixed
 from pauxy.estimators.itcf import ITCF
+from pauxy.utils.io import get_input_value
 
 
 class Estimators(object):
@@ -78,7 +79,9 @@ class Estimators(object):
         dtype = complex
         self.estimators['mixed'] = Mixed(mixed, system, root, self.h5f,
                                          qmc, trial, dtype)
-        bp = estimates.get('back_propagated', None)
+        bp = get_input_value(estimates, 'back_propagation', default=None,
+                              alias=['back_propagated'],
+                              verbose=verbose)
         self.back_propagation = bp is not None
         if self.back_propagation:
             self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
