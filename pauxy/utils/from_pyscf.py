@@ -51,7 +51,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
         print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
     dump_qmcpack_cholesky([hcore,hcore], chol, nelec, nbasis, enuc,
                           filename=outfile)
-    write_wfn_mol(scf_data, ortho_ao, wfn_file)
+    write_wfn_mol(scf_data, ortho_ao, wfn_file, mode='a')
 
 def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
                   init=None, verbose=False):

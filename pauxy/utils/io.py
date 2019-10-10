@@ -2,9 +2,10 @@ import ast
 import h5py
 import json
 import numpy
+import os
 import scipy.sparse
 import sys
-from pauxy.utils.misc import serialise
+from pauxy.utils.misc import serialise, merge_dicts
 from pauxy.utils.linalg import (
         molecular_orbitals_rhf, molecular_orbitals_uhf,
         modified_cholesky
@@ -69,35 +70,36 @@ def to_qmcpack_index(matrix, offset=0):
             # print (row, len(data[indptr[row]:indptr[row+1]]))
     return (unpacked, numpy.array(idx).flatten())
 
-def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0, filename='hamiltonian.h5'):
-    dump = h5py.File(filename, 'w')
-    dump['Hamiltonian/Energies'] = numpy.array([e0.real, e0.imag])
-    hcore = h1[0].astype(numpy.complex128).view(numpy.float64)
-    hcore = hcore.reshape(h1[0].shape+(2,))
-    dump['Hamiltonian/hcore'] = hcore
-    # dump['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
-    # Number of non zero elements for two-body
-    if len(h2.shape) == 3:
-        h2 = h2.reshape((-1,nmo*nmo)).T.copy()
-        h2 = scipy.sparse.csr_matrix(h2)
-    nnz = h2.nnz
-    # number of cholesky vectors
-    nchol_vecs = h2.shape[-1]
-    dump['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
-    (h2_unpacked, idx) = to_qmcpack_index(h2)
-    dump['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
-    dump['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
-    # Number of integral blocks used for chunked HDF5 storage.
-    # Currently hardcoded for simplicity.
-    nint_block = 1
-    (nalpha, nbeta) = nelec
-    # unused parameter as far as I can tell.
-    unused = 0
-    dump['Hamiltonian/dims'] = numpy.array([unused, nnz, nint_block, nmo,
-                                            nalpha, nbeta, unused, nchol_vecs])
-    occups = [i for i in range(0, nalpha)]
-    occups += [i+nmo for i in range(0, nbeta)]
-    dump['Hamiltonian/occups'] = numpy.array(occups)
+def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0,
+                          filename='hamil.h5', mode='w'):
+    with h5py.File(filename, mode) as fh5:
+        fh5['Hamiltonian/Energies'] = numpy.array([e0.real, e0.imag])
+        hcore = h1[0].astype(numpy.complex128).view(numpy.float64)
+        hcore = hcore.reshape(h1[0].shape+(2,))
+        fh5['Hamiltonian/hcore'] = hcore
+        # fh5['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
+        # Number of non zero elements for two-body
+        if len(h2.shape) == 3:
+            h2 = h2.reshape((-1,nmo*nmo)).T.copy()
+            h2 = scipy.sparse.csr_matrix(h2)
+        nnz = h2.nnz
+        # number of cholesky vectors
+        nchol_vecs = h2.shape[-1]
+        fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
+        (h2_unpacked, idx) = to_qmcpack_index(h2)
+        fh5['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
+        fh5['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
+        # Number of integral blocks used for chunked HDF5 storage.
+        # Currently hardcoded for simplicity.
+        nint_block = 1
+        (nalpha, nbeta) = nelec
+        # unused parameter as far as I can tell.
+        unused = 0
+        fh5['Hamiltonian/dims'] = numpy.array([unused, nnz, nint_block, nmo,
+                                                nalpha, nbeta, unused, nchol_vecs])
+        occups = [i for i in range(0, nalpha)]
+        occups += [i+nmo for i in range(0, nbeta)]
+        fh5['Hamiltonian/occups'] = numpy.array(occups)
 
 def from_qmcpack_complex(data, shape):
     return data.view(numpy.complex128).ravel().reshape(shape)
@@ -406,7 +408,8 @@ def read_qmcpack_phmsd_hdf5(wgroup):
         psi0[:,na:] = psi0a.copy()
     return wfn, psi0
 
-def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
+def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb,
+                      init=None, mode='w'):
     # User defined wavefunction.
     # PHMSD is a list of tuple of (ci, occa, occb).
     # NOMSD is a tuple of (list, numpy.ndarray).
@@ -420,38 +423,37 @@ def write_qmcpack_wfn(filename, wfn, walker_type, nelec, norb, init=None):
         print("Unknown wavefunction type passed.")
         sys.exit()
 
-    fh5 = h5py.File(filename, 'a')
-    nalpha, nbeta = nelec
-    # TODO: FIX for GHF eventually.
-    if walker_type == 'ghf':
-        walker_type = 3
-    elif walker_type == 'uhf':
-        walker_type = 2
-        uhf = True
-    else:
-        walker_type = 1
-        uhf = False
-    if wfn_type == 'PHMSD':
-        walker_type = 2
-    if wfn_type == 'NOMSD':
-        try:
-            wfn_group = fh5.create_group('Wavefunction/NOMSD')
-        except ValueError:
-            del fh5['Wavefunction/NOMSD']
-            wfn_group = fh5.create_group('Wavefunction/NOMSD')
-        write_nomsd(wfn_group, wfn, uhf, nelec, init=init)
-    else:
-        try:
-            wfn_group = fh5.create_group('Wavefunction/PHMSD')
-        except ValueError:
-            # print(" # Warning: Found existing wavefunction group. Removing.")
-            del fh5['Wavefunction/PHMSD']
-            wfn_group = fh5.create_group('Wavefunction/PHMSD')
-        write_phmsd(wfn_group, occa, occb, nelec, norb, init=init)
-    wfn_group['ci_coeffs'] = to_qmcpack_complex(coeffs)
-    dims = [norb, nalpha, nbeta, walker_type, len(coeffs)]
-    wfn_group['dims'] = numpy.array(dims, dtype=numpy.int32)
-    fh5.close()
+    with h5py.File(filename, mode) as fh5:
+        nalpha, nbeta = nelec
+        # TODO: FIX for GHF eventually.
+        if walker_type == 'ghf':
+            walker_type = 3
+        elif walker_type == 'uhf':
+            walker_type = 2
+            uhf = True
+        else:
+            walker_type = 1
+            uhf = False
+        if wfn_type == 'PHMSD':
+            walker_type = 2
+        if wfn_type == 'NOMSD':
+            try:
+                wfn_group = fh5.create_group('Wavefunction/NOMSD')
+            except ValueError:
+                del fh5['Wavefunction/NOMSD']
+                wfn_group = fh5.create_group('Wavefunction/NOMSD')
+            write_nomsd(wfn_group, wfn, uhf, nelec, init=init)
+        else:
+            try:
+                wfn_group = fh5.create_group('Wavefunction/PHMSD')
+            except ValueError:
+                # print(" # Warning: Found existing wavefunction group. Removing.")
+                del fh5['Wavefunction/PHMSD']
+                wfn_group = fh5.create_group('Wavefunction/PHMSD')
+            write_phmsd(wfn_group, occa, occb, nelec, norb, init=init)
+        wfn_group['ci_coeffs'] = to_qmcpack_complex(coeffs)
+        dims = [norb, nalpha, nbeta, walker_type, len(coeffs)]
+        wfn_group['dims'] = numpy.array(dims, dtype=numpy.int32)
 
 def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None):
     """Write NOMSD to HDF.
@@ -584,11 +586,10 @@ def write_input(filename, hamil, wfn, options={}):
             'filename': wfn
             }
         }
-    try:
-        full = {**basic, **options}
-    except SyntaxError:
+    # try:
+        # full = {**basic, **options}
+    # except SyntaxError:
         # TODO with python2 support.
-        z = basic.copy()
-        z.update(options)
+    full = merge_dicts(basic, options)
     with open(filename, 'w') as f:
         f.write(json.dumps(full, indent=4))
