@@ -132,7 +132,7 @@ class AFQMC(object):
                 self.trial = None
             self.trial = comm.bcast(self.trial, root=0)
         if self.system.name == "Generic":
-            if self.trial.name != "MultiSlater":
+            if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:

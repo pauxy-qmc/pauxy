@@ -40,18 +40,26 @@ class Walkers(object):
         self.write_file = walker_opts.get('write_file', 'restart.h5')
         self.read_file = walker_opts.get('read_file', None)
         if comm is None:
-            rank = 0
+            rank == 0:
         else:
             rank = comm.rank
         if verbose:
             print("# Setting up wavefunction object.")
         if trial.name == 'MultiSlater':
             self.walker_type = 'MSD'
-            self.walkers = [
-                    MultiDetWalker(walker_opts, system, trial,
-                                   verbose=(verbose and w == 0))
-                    for w in range(qmc.nwalkers)
-                    ]
+            # TODO: FDM FIXTHIS
+            if trial.ndets == 1:
+                if verbose:
+                    print("# Usinge single det walker with msd wavefunction.")
+                self.walker_type = 'SD'
+                self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
+                                for w in range(qmc.nwalkers)]
+            else:
+                self.walkers = [
+                        MultiDetWalker(walker_opts, system, trial,
+                                       verbose=(verbose and w == 0))
+                        for w in range(qmc.nwalkers)
+                        ]
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
