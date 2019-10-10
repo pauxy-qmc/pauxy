@@ -40,7 +40,7 @@ class Walkers(object):
         self.write_file = walker_opts.get('write_file', 'restart.h5')
         self.read_file = walker_opts.get('read_file', None)
         if comm is None:
-            rank == 0:
+            rank = 0
         else:
             rank = comm.rank
         if verbose:
