@@ -20,9 +20,9 @@ from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
-               verbose=True, qmcpack=False, wfn_file='afqmc.h5',
-               chol_cut=1e-5, sparse_zero=1e-16, cholesky=False,
-               cas=None, ortho_ao=True):
+               verbose=True, wfn_file='afqmc.h5',
+               chol_cut=1e-5, sparse_zero=1e-16, cas=None,
+               ortho_ao=True):
     scf_data = load_from_pyscf_chkfile(chkfile)
     mol = scf_data['mol']
     hcore = scf_data['hcore']
