@@ -171,7 +171,7 @@ class AFQMC(object):
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose, comm=None)
+                           self.qmc, verbose, comm=comm)
         self.psi.add_field_config(self.estimators.nprop_tot,
                                   self.estimators.nbp,
                                   self.system,
