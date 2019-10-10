@@ -584,6 +584,11 @@ def write_input(filename, hamil, wfn, options={}):
             'filename': wfn
             }
         }
-    full = {**basic, **options}
+    try:
+        full = {**basic, **options}
+    except SyntaxError:
+        # TODO with python2 support.
+        z = basic.copy()
+        z.update(options)
     with open(filename, 'w') as f:
         f.write(json.dumps(full, indent=4))
