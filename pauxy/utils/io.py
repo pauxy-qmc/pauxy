@@ -477,9 +477,13 @@ def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None):
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
         fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
     else:
-        fh5['Psi0_alpha'] = to_qmcpack_complex(wfn[0,:,:nalpha].copy())
+        fh5['Psi0_alpha'] = to_qmcpack_complex(
+                numpy.array(wfn[0,:,:nalpha].copy(), dtype=numpy.complex128)
+                )
         if uhf:
-            fh5['Psi0_beta'] = to_qmcpack_complex(wfn[0,:,nalpha:].copy())
+            fh5['Psi0_beta'] = to_qmcpack_complex(
+                    numpy.array(wfn[0,:,nalpha:].copy(), dtype=numpy.complex128)
+                    )
     for idet, w in enumerate(wfn):
         # QMCPACK stores this internally as a csr matrix, so first convert.
         ix = 2*idet if uhf else idet
