@@ -54,7 +54,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
     write_wfn_mol(scf_data, ortho_ao, wfn_file, mode='a')
 
 def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
-                  init=None, verbose=False):
+                  init=None, verbose=False, mode='w'):
     """Generate QMCPACK trial wavefunction.
 
     Parameters
@@ -107,7 +107,7 @@ def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
                 print(" # Warning: UHF trial wavefunction can only be used of "
                       "working in ortho AO basis.")
     write_qmcpack_wfn(filename, (numpy.array([1.0+0j]),wfn), 'uhf',
-                      nelec, norb)
+                      nelec, norb, mode=mode)
     return nelec
 
 def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
