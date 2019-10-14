@@ -12,6 +12,7 @@ from pauxy.utils.io import (
 
 mol = gto.M(atom=[('Be', 0, 0, 0)], basis='sto-3g', verbose=0)
 mf = scf.RHF(mol)
+mf.chkfile = 'scf.chk'
 ehf = mf.kernel()
 mc = mcscf.CASSCF(mf, 5, 4)
 e_tot, e_cas, fcivec, mo, mo_energy = mc.kernel()
