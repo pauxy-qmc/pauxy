@@ -10,22 +10,31 @@ from pauxy.utils.io import (
         write_input
         )
 
-mol = gto.M(atom=[('Be', 0, 0, 0)], basis='sto-3g', verbose=0)
+mol = gto.M(atom=[('N', 0, 0, 0), ('N', (0,0,3.0))], basis='sto-3g', verbose=3,
+            unit='Bohr')
 mf = scf.RHF(mol)
 mf.chkfile = 'scf.chk'
 ehf = mf.kernel()
-mc = mcscf.CASSCF(mf, 5, 4)
+M = 6
+N = 6
+mc = mcscf.CASSCF(mf, M, N)
+mc.chkfile = 'scf.chk'
+mc.kernel()
 e_tot, e_cas, fcivec, mo, mo_energy = mc.kernel()
+print(ehf, e_tot)
 # Rotate by casscf mo coeffs.
 h1e, chol, nelec, enuc = generate_integrals(mol, mf.get_hcore(), mo,
-                                            chol_cut=1e-5)
-dump_qmcpack_cholesky(numpy.array([h1e,h1e]), scipy.sparse.csr_matrix(chol), nelec,
+                                            chol_cut=1e-5, verbose=True)
+chol = scipy.sparse.csr_matrix(chol.T.copy())
+dump_qmcpack_cholesky(numpy.array([h1e,h1e]), chol, nelec,
                       h1e.shape[-1], e0=enuc, filename='afqmc.h5')
-coeff, oa, ob = zip(*fci.addons.large_ci(fcivec, mo.shape[0], (2,2),
-                                         tol=1e-5, return_strs=False))
-oa = [numpy.array([x for x in o.tolist()]) for o in oa]
-ob = [numpy.array([x for x in o.tolist()]) for o in ob]
+coeff, occa, occb = zip(*fci.addons.large_ci(fcivec, M, (3,3),
+                                         tol=0.1, return_strs=False))
+core = [i for i in range(mc.ncore)]
+occa = [numpy.array(core + [o + mc.ncore for o in oa]) for oa in occa]
+occb = [numpy.array(core + [o + mc.ncore for o in ob]) for ob in occb]
 coeff = numpy.array(coeff,dtype=numpy.complex128)
-write_qmcpack_wfn('afqmc.h5', (coeff,oa,ob), 'uhf', (2,2), 5, mode='a')
+nmo = mf.mo_coeff.shape[-1]
+write_qmcpack_wfn('afqmc.h5', (coeff,occa,occb), 'uhf', mol.nelec, nmo, mode='a')
 write_input('input.json', 'afqmc.h5', 'afqmc.h5',
             options={'system': {'sparse': False}})
