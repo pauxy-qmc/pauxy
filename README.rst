@@ -40,6 +40,7 @@ Clone the repository
 and run
 
 ::
+
     $ python setup.py build_ext
 
 You will also need to set your PYTHONPATH appropriately.
