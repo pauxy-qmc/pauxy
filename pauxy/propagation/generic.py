@@ -32,7 +32,7 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
-        if trial.name == "MultiSlater":
+        if trial.ndets > 1:
             optimised = False
             self.mf_shift = (
                     self.construct_mean_field_shift_multi_det(system, trial)
@@ -53,7 +53,7 @@ class GenericContinuous(object):
             self.construct_force_bias = self.construct_force_bias_fast
             self.construct_VHS = self.construct_VHS_fast
         else:
-            if trial.name == "MultiSlater":
+            if trial.ndets > 1:
                 self.construct_force_bias = self.construct_force_bias_multi_det
             else:
                 self.construct_force_bias = self.construct_force_bias_slow

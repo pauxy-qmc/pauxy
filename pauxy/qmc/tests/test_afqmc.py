@@ -172,8 +172,7 @@ def test_generic():
         }
     numpy.random.seed(7)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    sys_opts = {'sparse': False}
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc, inputs=sys_opts)
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
     comm = MPI.COMM_WORLD
     afqmc = AFQMC(comm=comm, system=sys, options=options)
     afqmc.run(comm=comm, verbose=0)

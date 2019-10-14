@@ -452,11 +452,11 @@ def eproj(estimates, enum):
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
 
-def variational_energy(system, psi, coeffs):
+def variational_energy(system, psi, coeffs, G=None, GH=None):
     if len(psi.shape) == 3:
         return variational_energy_multi_det(system, psi, coeffs)
     else:
-        return variational_energy_single_det(system, psi)
+        return variational_energy_single_det(system, psi, G=G, GH=GH)
 
 def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     weight = 0
@@ -518,10 +518,9 @@ def variational_energy_ortho_det(system, occs, coeffs):
     return evar/denom, 0.0, 0.0
 
 
-def variational_energy_single_det(system, psi):
-    na = system.nup
-    ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
-    gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
-    return local_energy(system, numpy.array([ga,gb]),
-                        Ghalf=numpy.array([ga_half,gb_half]),
-                        opt=system._opt)
+def variational_energy_single_det(system, psi, G=None, GH=None):
+    if G is None:
+        na = system.nup
+        ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
+        gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
+    return local_energy(system, G, Ghalf=GH, opt=system._opt)
