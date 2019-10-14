@@ -113,7 +113,8 @@ def test_hubbard():
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
     assert numer.real == pytest.approx(-152.68468568462666)
     data = extract_mixed_estimates('estimates.0.h5')
-    assert numpy.mean(data.ETotal.values.real) == pytest.approx(-14.974806533852874)
+    # old code seemed to ommit last value. Discard to avoid updating benchmark.
+    assert numpy.mean(data.ETotal.values[:-1]) == pytest.approx(-14.974806533852874)
 
 def test_hubbard_complex():
     options = {
@@ -152,7 +153,7 @@ def test_hubbard_complex():
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
     assert numer == pytest.approx(-153.0507706621441)
     data = extract_mixed_estimates('estimates.0.h5')
-    assert numpy.mean(data.ETotal.values.real) == pytest.approx(-15.116359546914257)
+    assert numpy.mean(data.ETotal.values[:-1].real) == pytest.approx(-15.116359546914257)
 
 def test_generic():
     nmo = 11
@@ -185,7 +186,7 @@ def test_generic():
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
     assert numer.real == pytest.approx(3.8763193646854273)
     data = extract_mixed_estimates('estimates.0.h5')
-    assert numpy.mean(data.ETotal.values.real) == pytest.approx(1.5485077038208)
+    assert numpy.mean(data.ETotal.values[:-1].real) == pytest.approx(1.5485077038208)
 
 def test_generic_single_det():
     nmo = 11
@@ -224,12 +225,11 @@ def test_generic_single_det():
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
     assert numer.real == pytest.approx(3.8763193646854273)
     data = extract_mixed_estimates('estimates.0.h5')
-    assert numpy.mean(data.ETotal.values.real) == pytest.approx(1.5485077038208)
-    rdm, weight = extract_rdm(['estimates.0.h5'], 0)
-    rdm = rdm / weight
+    assert numpy.mean(data.ETotal.values[:-1].real) == pytest.approx(1.5485077038208)
+    rdm = extract_rdm('estimates.0.h5')
     assert rdm[0,0].trace() == pytest.approx(nelec[0])
     assert rdm[0,1].trace() == pytest.approx(nelec[1])
-    assert rdm[0,0,1,3].real == pytest.approx(-0.005288057158196201)
+    assert rdm[0,0,1,3].real == pytest.approx(-0.00522306694566582)
 
 def teardown_module(self):
     cwd = os.getcwd()

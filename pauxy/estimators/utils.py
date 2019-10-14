@@ -1,3 +1,5 @@
+import h5py
+
 class H5EstimatorHelper(object):
     """Helper class for pushing data to hdf5 dataset of fixed length.
 
@@ -19,11 +21,14 @@ class H5EstimatorHelper(object):
     index : int
         Counter for incrementing data.
     """
-    def __init__(self, h5f, name, shape, dtype):
-        self.store = h5f.create_dataset(name, shape, dtype=dtype)
+    def __init__(self, filename, base):
+        # self.store = h5f.create_dataset(name, shape, dtype=dtype)
+        self.filename = filename
+        self.base = base
         self.index = 0
+        self.nzero = 9
 
-    def push(self, data):
+    def push(self, data, name):
         """Push data to dataset.
 
         Parameters
@@ -31,7 +36,14 @@ class H5EstimatorHelper(object):
         data : :class:`numpy.ndarray`
             Data to push.
         """
-        self.store[self.index] = data
+        ix = str(self.index)
+        # To ensure string indices are sorted properly.
+        padded = '0'*(self.nzero-len(ix)) + ix
+        dset = self.base + '/' + name + '/' + padded
+        with h5py.File(self.filename, 'a') as fh5:
+            fh5[dset] = data
+
+    def increment(self):
         self.index = self.index + 1
 
     def reset(self):

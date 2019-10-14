@@ -58,33 +58,34 @@ class Estimators(object):
             print ("# Setting up estimator object.")
         if root:
             index = estimates.get('index', 0)
-            self.h5f_name = estimates.get('filename', None)
+            self.filename = estimates.get('filename', None)
             self.basename = estimates.get('basename', 'estimates')
-            if self.h5f_name is None:
+            if self.filename is None:
                 overwrite = estimates.get('overwrite', True)
-                self.h5f_name = self.basename + '.%s.h5' % index
-                while os.path.isfile(self.h5f_name) and not overwrite:
-                    index = int(self.h5f_name.split('.')[1])
+                self.filename = self.basename + '.%s.h5' % index
+                while os.path.isfile(self.filename) and not overwrite:
+                    index = int(self.filename.split('.')[1])
                     index = index + 1
-                    self.h5f_name = self.basename + '.%s.h5' % index
-            self.h5f = h5py.File(self.h5f_name, 'w')
+                    self.filename = self.basename + '.%s.h5' % index
+            with h5py.File(self.filename, 'w') as fh5:
+                pass
             if verbose:
-                print("# Writing estimator data to {}.".format(self.h5f_name))
+                print("# Writing estimator data to {}.".format(self.filename))
         else:
-            self.h5f = None
+            self.filename = None
         # Sub-members:
         # 1. Back-propagation
         mixed = estimates.get('mixed', {})
         self.estimators = {}
         dtype = complex
-        self.estimators['mixed'] = Mixed(mixed, system, root, self.h5f,
+        self.estimators['mixed'] = Mixed(mixed, system, root, self.filename,
                                          qmc, trial, dtype)
         bp = get_input_value(estimates, 'back_propagation', default=None,
                               alias=['back_propagated'],
                               verbose=verbose)
         self.back_propagation = bp is not None
         if self.back_propagation:
-            self.estimators['back_prop'] = BackPropagation(bp, root, self.h5f,
+            self.estimators['back_prop'] = BackPropagation(bp, root, self.filename,
                                                            qmc, system, trial,
                                                            dtype, BT2)
             self.nprop_tot = self.estimators['back_prop'].nmax
@@ -97,7 +98,7 @@ class Estimators(object):
         self.calc_itcf = itcf is not None
         if self.calc_itcf:
             itcf['stack_size'] = estimates.get('stack_size',1)
-            self.estimators['itcf'] = ITCF(itcf, qmc, trial, root, self.h5f,
+            self.estimators['itcf'] = ITCF(itcf, qmc, trial, root, self.filename,
                                            system, dtype, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
         if verbose:
@@ -108,17 +109,15 @@ class Estimators(object):
             self.increment_file_number()
             self.dump_metadata()
             for k, e in self.estimators.items():
-                e.reset(self.h5f)
+                e.setup_output(self.filename)
 
     def dump_metadata(self):
-        self.h5f.create_dataset('metadata',
-                                data=numpy.array([self.json_string], dtype=object),
-                                dtype=h5py.special_dtype(vlen=str))
+        with h5py.File(self.filename, 'a') as fh5:
+            fh5['metadata'] = self.json_string
 
     def increment_file_number(self):
         self.index = self.index + 1
         h5f_name = 'estimates.%s.h5' % self.index
-        self.h5f = h5py.File(h5f_name, 'w')
 
     def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
         """Print QMC estimates.
@@ -136,8 +135,6 @@ class Estimators(object):
         """
         for k, e in self.estimators.items():
             e.print_step(comm, nprocs, step, nmeasure, free_projection)
-        if comm.Get_rank() == 0:
-            self.h5f.flush()
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update estimators
