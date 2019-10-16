@@ -204,7 +204,7 @@ def ao2mo_chol(eri, C):
     nb = C.shape[-1]
     for i, cv in enumerate(eri):
         half = numpy.dot(cv.reshape(nb,nb), C)
-        eri[i] = numpy.dot(C.T, half).ravel()
+        eri[i] = numpy.dot(C.conj().T, half).ravel()
 
 def load_from_pyscf_chkfile(chkfile, base='scf'):
     mol = lib.chkfile.load_mol(chkfile)
@@ -484,7 +484,7 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
         endr = time.time()
         if nchol > 0 and (nchol + 1) % chunk_size == 0:
             startw = time.time()
-            delta = (L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs)
+            # delta = L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs
             with h5py.File(erif, 'r+') as fh5:
                 fh5['chol_{}'.format(ichunk)] = chol_vecs
             endw = time.time()
