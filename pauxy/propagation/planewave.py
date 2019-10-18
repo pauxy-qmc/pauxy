@@ -54,54 +54,6 @@ class PlaneWave(object):
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
-    # def two_body_potentials(self, system, iq):
-        # """Calculatate A and B of Eq.(13) of PRB(75)245123 for a given plane-wave vector q
-        # Parameters
-        # ----------
-        # system :
-            # system class
-        # q : float
-            # a plane-wave vector
-        # Returns
-        # -------
-        # iA : numpy array
-            # Eq.(13a)
-        # iB : numpy array
-            # Eq.(13b)
-        # """
-        # rho_q = system.density_operator(iq)
-        # qscaled = system.kfac * system.qvecs[iq]
-
-        # # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
-        # piovol = math.pi / (system.vol)
-        # factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
-
-        # # JOONHO: include a factor of 1j
-        # iA = 1j * factor * (rho_q + rho_q.getH())
-        # iB = - factor * (rho_q - rho_q.getH())
-        # return (iA, iB)
-
-    # def construct_force_bias_slow(self, system, walker, trial):
-        # """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
-        # Parameters
-        # ----------
-        # system :
-            # system class
-        # G : numpy array
-            # Green's function
-        # Returns
-        # -------
-        # force bias : numpy array
-            # -sqrt(dt) * vbias
-        # """
-        # G = walker.G
-        # for (i, qi) in enumerate(system.qvecs):
-            # (iA, iB) = self.two_body_potentials(system, i)
-            # # Deal with spin more gracefully
-            # self.vbias[i] = iA.dot(G[0]).diagonal().sum() + iA.dot(G[1]).diagonal().sum()
-            # self.vbias[i+self.num_vplus] = iB.dot(G[0]).diagonal().sum() + iB.dot(G[1]).diagonal().sum()
-        # return - self.sqrt_dt * self.vbias
-
     def construct_force_bias_incore(self, system, walker, trial):
         """Compute the force bias term as in Eq.(33) of DOI:10.1002/wcms.1364
         Parameters
@@ -122,28 +74,6 @@ class PlaneWave(object):
         # print(-self.sqrt_dt*self.vbias)
         # sys.exit()
         return - self.sqrt_dt * self.vbias
-
-    # def construct_VHS_slow(self, system, xshifted):
-        # """Construct the one body potential from the HS transformation
-        # Parameters
-        # ----------
-        # system :
-            # system class
-        # xshifted : numpy array
-            # shifited auxiliary field
-        # Returns
-        # -------
-        # VHS : numpy array
-            # the HS potential
-        # """
-        # VHS = numpy.zeros((system.nbasis, system.nbasis),
-                          # dtype=numpy.complex128)
-
-        # for (i, qi) in enumerate(system.qvecs):
-            # (iA, iB) = self.two_body_potentials(system, i)
-            # VHS = VHS + (xshifted[i] * iA).todense()
-            # VHS = VHS + (xshifted[i+self.num_vplus] * iB).todense()
-        # return  VHS * self.sqrt_dt
 
     def construct_VHS_incore(self, system, xshifted):
         """Construct the one body potential from the HS transformation
@@ -247,11 +177,11 @@ def back_propagate_planewave(phi, stack, system, nstblz, BT2, dt, store=False):
 
     return psi_store
 
-
 def unit_test():
     from pauxy.systems.ueg import UEG
     from pauxy.qmc.options import QMCOpts
     from pauxy.trial_wavefunction.hartree_fock import HartreeFock
+    from pauxy.propagation.continuous import Continuous
 
     inputs = {'nup':1, 'ndown':1,
     'rs':1.0, 'ecut':1.0, 'dt':0.05, 'nwalkers':10}
@@ -262,7 +192,7 @@ def unit_test():
 
     trial = HartreeFock(system, False, inputs, True)
 
-    propagator = PlaneWave(inputs, qmc, system, trial, True)
+    propagator = Continuous(system, trial, qmc, verbose=True)
 
 
 if __name__=="__main__":
