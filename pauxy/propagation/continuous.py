@@ -73,9 +73,6 @@ class Continuous(object):
         phi : numpy array
             Exp(VHS) * phi
         """
-        # JOONHO: exact exponential
-        # copy = numpy.copy(phi)
-        # phi = scipy.linalg.expm(VHS).dot(copy)
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)

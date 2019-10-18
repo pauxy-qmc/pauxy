@@ -319,8 +319,6 @@ class ThermalWalker(object):
             
             if (center_ix < self.stack.nbins-1): # there exists left bit
 
-                # mL = len(self.Dl[spin][numpy.abs(self.Dl[spin]) > thresh])
-                
                 # # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
                 Clcr = numpy.einsum('i,ij->ij',
                         self.Dl[spin],
@@ -375,7 +373,7 @@ class ThermalWalker(object):
                     self.G[spin] = numpy.eye(nbsf, dtype=Bc[spin].dtype) - Qlcr[:,:mT].dot(numpy.diag(Dlcr[:mT])).dot(A).dot(Tlcr)
                 else:
                     G[spin] = numpy.eye(nbsf, dtype=Bc[spin].dtype) - Qlcr[:,:mT].dot(numpy.diag(Dlcr[:mT])).dot(A).dot(Tlcr)
-            print(mR,mT,nbsf)
+            # print(mR,mT,nbsf)
         return G
     
     def greens_function_left_right_no_truncation(self, center_ix, inplace=False):

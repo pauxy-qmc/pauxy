@@ -158,12 +158,6 @@ class UEG(object):
             self.ipmq_i += [idxpmq_list_i]
             self.ipmq_pmq += [idxpmq_list_pmq]
 
-
-
-        # self.ikpq_i = numpy.array(self.ikpq_i)
-        # self.ikpq_kpq = numpy.array(self.ikpq_kpq)
-        # self.ipmq_i = numpy.array(self.ipmq_i)
-        # self.ipmq_pmq = numpy.array(self.ipmq_pmq)
         for (iq, q) in enumerate(self.qvecs):
             self.ikpq_i[iq]  = numpy.array(self.ikpq_i[iq], dtype=numpy.int64)
             self.ikpq_kpq[iq] = numpy.array(self.ikpq_kpq[iq], dtype=numpy.int64)
