@@ -1,4 +1,28 @@
 import h5py
+try:
+    import pyfftw
+except ImportError:
+    pass
+import numpy
+from scipy.fftpack.helper import next_fast_len
+
+def convolve(f, g, mesh, backend=numpy.fft):
+    f_ = f.reshape(*mesh)
+    g_ = g.reshape(*mesh)
+    shape = numpy.maximum(f_.shape, g_.shape)
+    min_shape = numpy.array(f_.shape) + numpy.array(g_.shape) - 1
+
+    nqtot = numpy.prod(min_shape)
+    fshape = [next_fast_len(d) for d in min_shape]
+
+    finv = backend.ifftn(f_, s=fshape)
+    ginv = backend.ifftn(g_, s=fshape)
+    fginv = finv * ginv
+    fq = backend.fftn(fginv).copy().ravel()
+    fq = fq.reshape(fshape)
+    fq = fq[:min_shape[0],:min_shape[1],:min_shape[2]]
+    fq = fq.reshape(nqtot) * numpy.prod(fshape)
+    return fq
 
 class H5EstimatorHelper(object):
     """Helper class for pushing data to hdf5 dataset of fixed length.

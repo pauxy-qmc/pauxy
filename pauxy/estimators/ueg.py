@@ -43,7 +43,8 @@ def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
     pe : float
         potential energy
     """
-    ke = numpy.einsum('sij,sji->',system.H1,G)
+    # ke = numpy.einsum('sij,sji->',system.H1,G)
+    ke = numpy.einsum('sij,sij->',system.H1,G)
 
     Gkpq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
     Gpmq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
