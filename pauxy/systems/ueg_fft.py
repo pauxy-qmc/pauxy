@@ -5,11 +5,18 @@ import scipy.sparse
 import pauxy.utils
 import math
 import time
+import itertools
 from pauxy.utils.io import dump_qmcpack_cholesky
+from pauxy.trial_wavefunction.free_electron import FreeElectron
 
+def fill_up_range (nmesh):
+    a = numpy.zeros(nmesh)
+    n = nmesh//2
+    a = numpy.linspace(-n, n, num=nmesh,dtype=numpy.int32)
+    return a
 
-class UEG(object):
-    """UEG system class (integrals read from fcidump)
+class UEG_FFT(object):
+    """UEG_FFT system class (integrals read from fcidump)
     Parameters
     ----------
     nup : int
@@ -43,7 +50,8 @@ class UEG(object):
     def __init__(self, inputs, verbose=False):
         if verbose:
             print("# Parsing input options.")
-        self.name = "UEG"
+        self.name = "UEG_FFT"
+        print ("# {}".format(self.name))
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
         self.nelec = (self.nup,self.ndown)
@@ -88,10 +96,15 @@ class UEG(object):
             print("# Madelung Energy: %13.8e"%self.ecore)
 
         # Single particle eigenvalues and corresponding kvectors
-        (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
+        (self.sp_eigv, self.basis, self.nmax, self.gmap) = self.sp_energies(self.kfac, self.ecut)
+        self.mesh = [self.nmax*2+1]*3
 
         self.shifted_nmax = 2*self.nmax
-        self.imax_sq = numpy.dot(self.basis[-1], self.basis[-1])
+        # self.imax_sq = numpy.dot(self.basis[-1], self.basis[-1])
+        self.imax_sq = 0
+        for b in self.basis:
+            self.imax_sq = max(self.imax_sq, numpy.dot(b, b))
+        # print("self.imax_sq = {}".format(self.imax_sq))
         self.create_lookup_table()
         for (i, k) in enumerate(self.basis):
             assert(i==self.lookup_basis(k))
@@ -102,10 +115,10 @@ class UEG(object):
         self.ncore = 0
         self.nfv = 0
         self.mo_coeff = None
+        
         # Allowed momentum transfers (4*ecut)
-        (eigs, qvecs, self.qnmax) = self.sp_energies(self.kfac, 4*self.ecut)
-        # Omit Q = 0 term.
-        self.qvecs = numpy.copy(qvecs[1:])
+        (eigs, self.qvecs, self.qnmax, self.qmap) = self.sp_energies(self.kfac, 4*self.ecut, nmax=self.nmax*2)
+        self.qmesh = [self.qnmax*2+1]*3
         self.vqvec = numpy.array([self.vq(self.kfac*q) for q in self.qvecs])
         # Number of momentum transfer vectors / auxiliary fields.
         # Can reduce by symmetry but be stupid for the moment.
@@ -119,53 +132,54 @@ class UEG(object):
         self.frozen_core = False
         T = numpy.diag(self.sp_eigv)
         self.H1 = numpy.array([T, T]) # Making alpha and beta
+        self.T = numpy.array([T, T]) # Making alpha and beta
         h1e_mod = self.mod_one_body(T)
         self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         self.orbs = None
         self._opt = True
 
+        self.trial = FreeElectron(self, False, inputs, True)
 
-        nlimit = self.nup
+        nlimit = self.nbasis
 
-        if self.thermal:
-            nlimit = self.nbasis
-
-        self.ikpq_i = []
-        self.ikpq_kpq = []
-        for (iq, q) in enumerate(self.qvecs):
-            idxkpq_list_i =[]
-            idxkpq_list_kpq =[]
-            for i, k in enumerate(self.basis[0:nlimit]):
-                kpq = k + q
-                idxkpq = self.lookup_basis(kpq)
-                if idxkpq is not None:
-                    idxkpq_list_i += [i]
-                    idxkpq_list_kpq += [idxkpq]
-            self.ikpq_i += [idxkpq_list_i]
-            self.ikpq_kpq += [idxkpq_list_kpq]
-
-        self.ipmq_i = []
-        self.ipmq_pmq = []
-        for (iq, q) in enumerate(self.qvecs):
-            idxpmq_list_i =[]
-            idxpmq_list_pmq =[]
-            for i, p in enumerate(self.basis[0:nlimit]):
-                pmq = p - q
-                idxpmq = self.lookup_basis(pmq)
-                if idxpmq is not None:
-                    idxpmq_list_i += [i]
-                    idxpmq_list_pmq += [idxpmq]
-            self.ipmq_i += [idxpmq_list_i]
-            self.ipmq_pmq += [idxpmq_list_pmq]
-
-        for (iq, q) in enumerate(self.qvecs):
-            self.ikpq_i[iq]  = numpy.array(self.ikpq_i[iq], dtype=numpy.int64)
-            self.ikpq_kpq[iq] = numpy.array(self.ikpq_kpq[iq], dtype=numpy.int64)
-            self.ipmq_i[iq]  = numpy.array(self.ipmq_i[iq], dtype=numpy.int64)
-            self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
-
+        # if self.thermal:
+        #     nlimit = self.nbasis
 
         if (inputs.get('skip_cholesky') == False):
+            self.ikpq_i = []
+            self.ikpq_kpq = []
+            for (iq, q) in enumerate(self.qvecs):
+                idxkpq_list_i =[]
+                idxkpq_list_kpq =[]
+                for i, k in enumerate(self.basis[0:nlimit]):
+                    kpq = k + q
+                    idxkpq = self.lookup_basis(kpq)
+                    if idxkpq is not None:
+                        idxkpq_list_i += [i]
+                        idxkpq_list_kpq += [idxkpq]
+                self.ikpq_i += [idxkpq_list_i]
+                self.ikpq_kpq += [idxkpq_list_kpq]
+
+            self.ipmq_i = []
+            self.ipmq_pmq = []
+            for (iq, q) in enumerate(self.qvecs):
+                idxpmq_list_i =[]
+                idxpmq_list_pmq =[]
+                for i, p in enumerate(self.basis[0:nlimit]):
+                    pmq = p - q
+                    idxpmq = self.lookup_basis(pmq)
+                    if idxpmq is not None:
+                        idxpmq_list_i += [i]
+                        idxpmq_list_pmq += [idxpmq]
+                self.ipmq_i += [idxpmq_list_i]
+                self.ipmq_pmq += [idxpmq_list_pmq]
+
+            for (iq, q) in enumerate(self.qvecs):
+                self.ikpq_i[iq]  = numpy.array(self.ikpq_i[iq], dtype=numpy.int64)
+                self.ikpq_kpq[iq] = numpy.array(self.ikpq_kpq[iq], dtype=numpy.int64)
+                self.ipmq_i[iq]  = numpy.array(self.ipmq_i[iq], dtype=numpy.int64)
+                self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
+
             if verbose:
                 print("# Constructing two-body potentials incore.")
             (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()
@@ -177,9 +191,12 @@ class UEG(object):
                       "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
                 print("# Constructing two_body_potentials_incore finished")
                 print("# Finished setting up UEG system object.")
+    
 
 
-    def sp_energies(self, kfac, ecut):
+
+
+    def sp_energies(self, kfac, ecut, nmax=None):
         """Calculate the allowed kvectors and resulting single particle eigenvalues (basically kinetic energy)
         which can fit in the sphere in kspace determined by ecut.
         Parameters
@@ -199,32 +216,34 @@ class UEG(object):
 
         # Scaled Units to match with HANDE.
         # So ecut is measured in units of 1/kfac^2.
-        nmax = int(math.ceil(numpy.sqrt((2*ecut))))
+        if (nmax == None):
+            nmax = int(math.ceil(numpy.sqrt((2*ecut))))
 
         spval = []
         vec = []
         kval = []
         ks = self.ktwist
 
-        for ni in range(-nmax, nmax+1):
-            for nj in range(-nmax, nmax+1):
-                for nk in range(-nmax, nmax+1):
-                    spe = 0.5*(ni**2 + nj**2 + nk**2)
-                    if (spe <= ecut):
-                        kijk = [ni,nj,nk]
-                        kval.append(kijk)
-                        # Reintroduce 2 \pi / L factor.
-                        ek = 0.5*numpy.dot(numpy.array(kijk)+ks,
-                                           numpy.array(kijk)+ks)
-                        spval.append(kfac**2*ek)
+        gx = fill_up_range(2*nmax+1)
+        gy = fill_up_range(2*nmax+1)
+        gz = fill_up_range(2*nmax+1)
 
-        # Sort the arrays in terms of increasing energy.
-        spval = numpy.array(spval)
-        ix = numpy.argsort(spval, kind='mergesort')
-        spval = spval[ix]
-        kval = numpy.array(kval)[ix]
+        kall = numpy.array(list(itertools.product(*[gx,gy,gz])), dtype=numpy.int32)
+        kval = []
 
-        return (spval, kval, nmax)
+        Gmap = []
+
+        for i, kijk in enumerate(kall):
+            spe = 0.5*(kijk[0]**2 + kijk[1]**2 + kijk[2]**2)
+            if (spe <= ecut):
+                kval.append(kijk)
+                # Reintroduce 2 \pi / L factor.
+                ek = 0.5*numpy.dot(numpy.array(kijk)+ks,
+                                   numpy.array(kijk)+ks)
+                spval.append(kfac**2*ek)
+                Gmap +=[i]
+
+        return (spval, kval, nmax, Gmap)
 
     def create_lookup_table(self):
         basis_ix = []
@@ -281,7 +300,11 @@ class UEG(object):
         v_M: float
             3D Coulomb kernel (in Hartrees)
         """
-        return 4*math.pi / numpy.dot(q, q)
+
+        if (numpy.dot(q, q) < 1e-10):
+            return 0.0
+        else:
+            return 4*math.pi / numpy.dot(q, q)
 
     def mod_one_body(self, T):
         """ Add a diagonal term of two-body Hamiltonian to the one-body term
@@ -365,7 +388,10 @@ class UEG(object):
                 qscaled = self.kfac * self.qvecs[iq]
                 # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
                 piovol = math.pi / (self.vol)
-                factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+                if (numpy.dot(qscaled,qscaled) < 1e-10):
+                    factor = 0.0
+                else:
+                    factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
 
                 for (innz, kpq) in enumerate(rho_ikpq_kpq[iq]):
                     row_index += [rho_ikpq_kpq[iq][innz] + rho_ikpq_i[iq][innz]*self.nbasis]
@@ -376,7 +402,11 @@ class UEG(object):
                 qscaled = self.kfac * self.qvecs[iq]
                 # Due to the HS transformation, we have to do pi / 2*vol as opposed to 2*pi / vol
                 piovol = math.pi / (self.vol)
-                factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+                # factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
+                if (numpy.dot(qscaled,qscaled) < 1e-10):
+                    factor = 0.0
+                else:
+                    factor = (piovol/numpy.dot(qscaled,qscaled))**0.5
 
                 for (innz, kpq) in enumerate(rho_ikpq_kpq[iq]):
                     row_index += [rho_ikpq_kpq[iq][innz]*self.nbasis + rho_ikpq_i[iq][innz]]
@@ -445,93 +475,32 @@ class UEG(object):
 
 def unit_test():
     from numpy import linalg as LA
-    from pauxy.estimators import ci as pauxyci
+    from pauxy.estimators import ueg_fft
     from pyscf import gto, scf, ao2mo, mcscf, fci, ci, cc, tdscf, gw, hci
+    from pauxy.systems.ueg import UEG
+    from pauxy.trial_wavefunction.hartree_fock import HartreeFock
+    from pauxy.trial_wavefunction.free_electron import FreeElectron
 
-    # ecuts = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-
-    # eccsds = []
-    # for ecut in ecuts:
-
-    ecut = 4.0
+    ecut = 1.0
 
     inputs = {'nup':7,
     'ndown':7,
     'rs':1.0,
     'thermal':False,
     'ecut':ecut}
-    # -1.41489535 ecut = 1
-    # -1.41561583 ecut = 2 
-    # -1.4161452950664903 ecut = 3
-    system = UEG(inputs, True)
 
-    mol = gto.M()
-    mol.nelectron = system.nup+system.ndown
-    mol.spin = system.nup - system.ndown
-    mol.incore_anyway = True
-    mol.verbose=0
+    system = UEG_FFT(inputs, True)
+    trial = FreeElectron(system, False, inputs, True)
 
-    M = system.nbasis
+    from pauxy.qmc.options import QMCOpts
+    from pauxy.propagation.continuous import Continuous
 
-    h1 = system.H1[0]
-    # eri = numpy.zeros((M,M,M,M))
-    # for i in range(M):
-    #     for k in range(M):
-    #         for j in range(M):
-    #             for l in range(M):
-    #                 eri[i,k,l,j] = system.hijkl(i,j,k,l)
-    # chol_vecs = system.chol_vecs.toarray()
-    # chol_vecs = chol_vecs.reshape((M, M, system.nchol))
-    # eri = 4*numpy.einsum("ikP, ljP->iklj",chol_vecs, numpy.conj(chol_vecs))
-    # eri = eri.real
+    system2 = UEG(inputs, True)
 
-    eri_chol = 4 * system.chol_vecs.dot(system.chol_vecs.T)
-    eri_chol = eri_chol.toarray().reshape((M,M,M,M)).real
-    # eri_chol = numpy.einsum("ikjl->iklj",eri_chol)
-    # print(numpy.max(eri), numpy.max(eri_chol))
-    # eri_tmp = eri - eri_chol
-    # print(numpy.einsum("ijkl,ijkl->",eri_tmp,eri_tmp))
-    # exit()
+    qmc = QMCOpts(inputs, system2, True)
 
-    eri = eri_chol
+    trial = HartreeFock(system2, False, inputs, True)
+    # print(trial.G[0])
 
-    mol.symmetry = 0
-
-    mf = scf.RHF(mol)
-    
-
-    mf.conv_tol = 1e-10
-
-    mf.get_hcore = lambda *args: h1
-    mf.get_ovlp = lambda *args: numpy.eye(M)
-    mf._eri = ao2mo.restore(4, eri, M)
-    mf.init_guess = '1e'
-    escf = mf.kernel()
-
-    # mci = fci.FCI(mol, mf.mo_coeff)
-    # mci = fci.addons.fix_spin_(mci, ss=0)
-    # mci.verbose = 4
-    # efci, civec = mci.kernel(nelec=system.nup+system.ndown, h1e=h1, eri=mf._eri, ecore = system.ecore, nroots=1)
-    # print(efci)
-    cisolver = hci.SCI(mol)
-    e, civec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore, verbose=4)
-    print("ESCI = {}".format(e))
-
-    # cisolver = fci.selected_ci_spin0.SCI()
-    # cisolver.select_cutoff = 1e-4
-    # cisolver.verbose = 0
-    # e, fcivec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore)
-    # print("ESCI = {}".format(e))
-
-    # mycc = cc.RCCSD(mf)
-    # mycc.verbose = 5
-    # mycc.kernel()
-    # eccsd = escf + mycc.e_corr + system.ecore
-    # eccsds += [eccsd]
-
-    # print(eccsds)
-
-    # (e0, ev), (d,oa,ob) = pauxyci.simple_fci(system, gen_dets=True)
-    # print(e0[0])
 if __name__=="__main__":
     unit_test()
