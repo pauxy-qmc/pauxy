@@ -58,7 +58,8 @@ class UEG(object):
 
         self.thermal = inputs.get('thermal', False)
         self._alt_convention = inputs.get('alt_convention', False)
-
+        self.sparse = True
+        
         # total # of electrons
         self.ne = self.nup + self.ndown
         # core energy
@@ -78,7 +79,9 @@ class UEG(object):
         self.kf = (3*(self.zeta+1)*math.pi**2*self.ne/self.L**3)**(1/3.)
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
+        self.diagH1 = True
 
+        skip_cholesky = inputs.get('skip_cholesky', False)
         if verbose:
             print("# Spin polarisation (zeta): %d"%self.zeta)
             print("# Electron density (rho): %13.8e"%self.rho)
@@ -119,8 +122,10 @@ class UEG(object):
         self.frozen_core = False
         T = numpy.diag(self.sp_eigv)
         self.H1 = numpy.array([T, T]) # Making alpha and beta
-        h1e_mod = self.mod_one_body(T)
-        self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
+        
+        if (skip_cholesky == False):
+            h1e_mod = self.mod_one_body(T)
+            self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
         self.orbs = None
         self._opt = True
 
@@ -165,7 +170,7 @@ class UEG(object):
             self.ipmq_pmq[iq] = numpy.array(self.ipmq_pmq[iq], dtype=numpy.int64)
 
 
-        if (inputs.get('skip_cholesky') == False):
+        if (skip_cholesky == False):
             if verbose:
                 print("# Constructing two-body potentials incore.")
             (self.chol_vecs, self.iA, self.iB) = self.two_body_potentials_incore()

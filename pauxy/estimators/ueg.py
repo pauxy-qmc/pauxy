@@ -13,6 +13,12 @@ except ImportError:
     print("exchange_greens_function_per_qvec doesn't exist")
     pass
 
+try:
+    from pauxy.estimators.ueg_kernels  import  coulomb_greens_function_per_qvec
+except ImportError:
+    print("coulomb_greens_function_per_qvec doesn't exist")
+    pass
+
 def exchange_greens_function(nq, kpq_i, kpq, pmq_i, pmq, Gprod, G):
     for iq in range(nq):
         for (idxkpq,i) in zip(kpq[iq],kpq_i[iq]):
@@ -43,8 +49,10 @@ def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
     pe : float
         potential energy
     """
-    # ke = numpy.einsum('sij,sji->',system.H1,G)
-    ke = numpy.einsum('sij,sij->',system.H1,G)
+    if (system.diagH1):
+        ke = numpy.einsum('sii,sii->',system.H1,G)
+    else:
+        ke = numpy.einsum('sij,sij->',system.H1,G)
 
     Gkpq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
     Gpmq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
@@ -55,8 +63,13 @@ def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
 
     for s in [0, 1]:
         # exchange_greens_function(nq, system.ikpq_i, system.ikpq_kpq, system.ipmq_i,system.ipmq_pmq, Gprod[s],G[s])
-        coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,  system.ipmq_i,system.ipmq_pmq, Gkpq[s],Gpmq[s],G[s])
+        # coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,  system.ipmq_i, system.ipmq_pmq,Gkpq[s], Gpmq[s],G[s])
         for iq in range(nq):
+            Gkpq[s,iq], Gpmq[s,iq] = coulomb_greens_function_per_qvec(system.ikpq_i[iq], 
+                                                                    system.ikpq_kpq[iq], 
+                                                                    system.ipmq_i[iq], 
+                                                                    system.ipmq_pmq[iq], 
+                                                                    G[s])
             Gprod[s,iq] = exchange_greens_function_per_qvec(system.ikpq_i[iq],
                                                             system.ikpq_kpq[iq],
                                                             system.ipmq_i[iq],
@@ -152,10 +165,10 @@ def fock_ueg(system, G):
 def unit_test():
     from pauxy.systems.ueg import UEG
     import numpy as np
-    inputs = {'nup':27,
-    'ndown':27,
-    'rs':100.0,
-    'ecut':5.0}
+    inputs = {'nup':7,
+    'ndown':7,
+    'rs':1.0,
+    'ecut':2.0}
     system = UEG(inputs, True)
     nbsf = system.nbasis
     Pa = np.zeros([nbsf,nbsf],dtype = np.complex128)
@@ -168,7 +181,7 @@ def unit_test():
         Pb[i,i] = 1.0
     P = np.array([Pa, Pb])
     etot, ekin, epot = local_energy_ueg(system, G=P)
-    print("ERHF = {}".format(etot, ekin, epot))
+    print("ERHF = {}, {}, {}".format(etot, ekin, epot))
 
     from pauxy.utils.linalg import exponentiate_matrix, reortho
     from pauxy.estimators.greens_function import gab
@@ -194,45 +207,45 @@ def unit_test():
 
     # solver = lib.diis.DIIS()
 
-    dt = 0.1
-    for i in range(100):
-        # Compute Fock matrix
-        Fock = fock_ueg(system, G=P)
-        # Compute DIIS Errvec
-        PFmFPa = P[0].dot(Fock[0]) - Fock[0].dot(P[0])
-        PFmFPb = P[1].dot(Fock[1]) - Fock[1].dot(P[1])
-        errvec = numpy.append(numpy.reshape(PFmFPa, nbsf*nbsf),numpy.reshape(PFmFPb, nbsf*nbsf))
-        RMS = np.sqrt(np.dot(errvec, errvec))
-        print ("{} {} {}".format(i,numpy.real(local_energy_ueg(system, P)), numpy.real(RMS)))
-        # Form Fockvec
-        Fock[0] = numpy.array(Fock[0])
-        Fock[1] = numpy.array(Fock[1])
-        Fockvec = numpy.append(numpy.reshape(Fock[0],nbsf*nbsf), numpy.reshape(Fock[1],nbsf*nbsf))
-        # Extrapolate Fockvec
-        # Fockvec = solver.update(Fockvec, xerr=errvec)
+    # dt = 0.1
+    # for i in range(100):
+    #     # Compute Fock matrix
+    #     Fock = fock_ueg(system, G=P)
+    #     # Compute DIIS Errvec
+    #     PFmFPa = P[0].dot(Fock[0]) - Fock[0].dot(P[0])
+    #     PFmFPb = P[1].dot(Fock[1]) - Fock[1].dot(P[1])
+    #     errvec = numpy.append(numpy.reshape(PFmFPa, nbsf*nbsf),numpy.reshape(PFmFPb, nbsf*nbsf))
+    #     RMS = np.sqrt(np.dot(errvec, errvec))
+    #     print ("{} {} {}".format(i,numpy.real(local_energy_ueg(system, P)), numpy.real(RMS)))
+    #     # Form Fockvec
+    #     Fock[0] = numpy.array(Fock[0])
+    #     Fock[1] = numpy.array(Fock[1])
+    #     Fockvec = numpy.append(numpy.reshape(Fock[0],nbsf*nbsf), numpy.reshape(Fock[1],nbsf*nbsf))
+    #     # Extrapolate Fockvec
+    #     # Fockvec = solver.update(Fockvec, xerr=errvec)
 
-        # Apply Propagator
-        Fock = numpy.reshape(Fockvec, (2, nbsf, nbsf))
-        ea, Ca = numpy.linalg.eig(Fock[0])
-        eb, Cb = numpy.linalg.eig(Fock[1])
-        sort_perm = ea.argsort()
-        ea.sort()
-        Ca = Ca[:, sort_perm]
-        sort_perm = eb.argsort()
-        eb.sort()
-        Cb = Cb[:, sort_perm]
+    #     # Apply Propagator
+    #     Fock = numpy.reshape(Fockvec, (2, nbsf, nbsf))
+    #     ea, Ca = numpy.linalg.eig(Fock[0])
+    #     eb, Cb = numpy.linalg.eig(Fock[1])
+    #     sort_perm = ea.argsort()
+    #     ea.sort()
+    #     Ca = Ca[:, sort_perm]
+    #     sort_perm = eb.argsort()
+    #     eb.sort()
+    #     Cb = Cb[:, sort_perm]
 
-        Ca = Ca[:,:na]
-        Cb = Cb[:,:nb]
-        Ca, detR = reortho(Ca)
-        Cb, detR = reortho(Cb)
+    #     Ca = Ca[:,:na]
+    #     Cb = Cb[:,:nb]
+    #     Ca, detR = reortho(Ca)
+    #     Cb, detR = reortho(Cb)
 
-        P = [gab(Ca, Ca), gab(Cb, Cb)]
-        # expF = [exponentiate_matrix(-dt*Fock[0]), exponentiate_matrix(-dt*Fock[1])]
-        # Ca = expF[0].dot(Ca)
-        # Cb = expF[1].dot(Cb)
-        # diff = P[0] - P[1]
-        # print("fro = {}".format(numpy.linalg.norm(diff,ord='fro')))
+    #     P = [gab(Ca, Ca), gab(Cb, Cb)]
+    #     # expF = [exponentiate_matrix(-dt*Fock[0]), exponentiate_matrix(-dt*Fock[1])]
+    #     # Ca = expF[0].dot(Ca)
+    #     # Cb = expF[1].dot(Cb)
+    #     # diff = P[0] - P[1]
+    #     # print("fro = {}".format(numpy.linalg.norm(diff,ord='fro')))
 
 
 if __name__=="__main__":

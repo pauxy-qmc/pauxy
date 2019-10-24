@@ -12,6 +12,7 @@ from pauxy.estimators.ci import get_hmatel
 from pauxy.estimators.thermal import particle_number, one_rdm_from_G
 try:
     from pauxy.estimators.ueg import local_energy_ueg
+    from pauxy.estimators.pw_fft import local_energy_pw_fft
 except ImportError as e:
     print(e)
 from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
@@ -380,6 +381,8 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
             return local_energy_ghf(system, G)
         else:
             return local_energy_hubbard(system, G)
+    elif system.name == "PW_FFT":
+            return local_energy_pw_fft(system, G, Ghalf, two_rdm=two_rdm)
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
