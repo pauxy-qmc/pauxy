@@ -26,7 +26,7 @@ def propagate_single(psi, system, B):
 
 
 # TODO: Rename this
-def kinetic_real(phi, system, bt2):
+def kinetic_real(phi, system, bt2, H1diag=False):
     r"""Propagate by the kinetic term by direct matrix multiplication.
 
     For use with the continuus algorithm and free propagation.
@@ -44,8 +44,12 @@ def kinetic_real(phi, system, bt2):
     """
     nup = system.nup
     # Assuming that our walker is in UHF form.
-    phi[:,:nup] = bt2[0].dot(phi[:,:nup])
-    phi[:,nup:] = bt2[1].dot(phi[:,nup:])
+    if (H1diag):
+        phi[:,:nup] = numpy.einsum("ii,ij->ij", bt2[0],phi[:,:nup])
+        phi[:,nup:] = numpy.einsum("ii,ij->ij", bt2[1],phi[:,nup:])
+    else:
+        phi[:,:nup] = bt2[0].dot(phi[:,:nup])
+        phi[:,nup:] = bt2[1].dot(phi[:,nup:])
 
 
 

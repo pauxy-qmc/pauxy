@@ -1,7 +1,60 @@
 import numpy
 cimport numpy 
+import math
 import itertools
 from pauxy.estimators.utils import convolve
+
+DTYPE_CX = numpy.complex128
+DTYPE = numpy.float64
+
+
+def vq(numpy.ndarray q):
+    assert(q.shape[0] == 3)
+    cdef double q2 = numpy.dot(q, q)
+    if (q2 < 1e-10):
+        return 0.0
+    else:
+        return 4*math.pi / q2
+
+def mod_one_body(numpy.ndarray T, numpy.ndarray basis, double vol, double kfac):
+    """ Add a diagonal term of two-body Hamiltonian to the one-body term
+    Parameters
+    ----------
+    T : float
+        one-body Hamiltonian (i.e. kinetic energy)
+    Returns
+    -------
+    h1e_mod: float
+        modified one-body Hamiltonian
+    """
+
+    cdef size_t nbsf = basis.shape[0]
+    cdef numpy.ndarray h1e_mod = T.copy()
+    cdef double fac = 1.0 / (2.0 * vol)
+
+    for (i, ki) in enumerate(basis):
+        for (j, kj) in enumerate(basis):
+            if i != j:
+                q = kfac * (ki - kj)
+                h1e_mod[i,i] = h1e_mod[i,i] - fac * vq(q)
+    
+    return h1e_mod
+
+def coulomb_greens_function_per_qvec(numpy.ndarray kpq_i, numpy.ndarray kpq, numpy.ndarray pmq_i, numpy.ndarray pmq, double complex[:,:] G):
+
+    cdef int nq = kpq_i.shape[0]
+
+    cdef int idxkpq, idxpmq, i, j, iq
+
+    cdef double complex Gkpq = 0.0
+    cdef double complex Gpmq = 0.0
+
+    for (idxkpq,i) in zip(kpq,kpq_i):
+        Gkpq += G[i,idxkpq]
+    for (idxpmq,i) in zip(pmq,pmq_i):
+        Gpmq += G[i,idxpmq]
+
+    return Gkpq, Gpmq
 
 def exchange_greens_function_per_qvec(long[:] kpq_i, long[:] kpq, long[:] pmq_i, long[:] pmq, double complex[:,:] G):
 
@@ -21,9 +74,6 @@ def exchange_greens_function_per_qvec(long[:] kpq_i, long[:] kpq, long[:] pmq_i,
             Gprod += G[j,idxkpq]*G[i,idxpmq]
 
     return Gprod
-
-DTYPE_CX = numpy.complex128
-DTYPE = numpy.float64
 
 def exchange_greens_function_fft (long nocc, long nbsf,  
     long[:] mesh, long[:] qmesh, long[:] gmap, long[:] qmap,
