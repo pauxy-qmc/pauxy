@@ -35,8 +35,6 @@ class Mixed(object):
         Input options for mixed estimates.
     root : bool
         True if on root/master processor.
-    h5f : :class:`h5py.File`
-        Output file object.
     qmc : :class:`pauxy.state.QMCOpts` object.
         Container for qmc input options.
     trial : :class:`pauxy.trial_wavefunction.X' object
@@ -68,7 +66,7 @@ class Mixed(object):
         Class for outputting rdm data to HDF5 group.
     """
 
-    def __init__(self, mixed, system, root, h5f, qmc, trial, dtype):
+    def __init__(self, mixed, system, root, filename, qmc, trial, dtype):
         self.average_gf = mixed.get('average_gf', False)
         self.eval_energy = mixed.get('evaluate_energy', True)
         self.calc_one_rdm = mixed.get('one_rdm', False)
@@ -117,25 +115,7 @@ class Mixed(object):
             'Time': "Time per processor to complete one iteration.",
         }
         if root:
-            energies = h5f.create_group('mixed_estimates')
-            energies.create_dataset('headers',
-                                    data=numpy.array(self.header[1:], dtype=object),
-                                    dtype=h5py.special_dtype(vlen=str))
-            self.output = H5EstimatorHelper(energies, 'energies',
-                                            (self.nmeasure + 1, self.nreg),
-                                            dtype)
-            if self.calc_one_rdm:
-                name = 'one_rdm'
-                self.one_rdm_output = H5EstimatorHelper(energies, name,
-                                                        (self.nmeasure + 1,) +
-                                                        self.G.shape,
-                                                        dtype)
-            if self.calc_two_rdm is not None:
-                name = 'two_rdm'
-                two_rdm_shape = (self.nmeasure + 1,) + two_rdm_shape
-                self.two_rdm_output = H5EstimatorHelper(energies, name,
-                                                        two_rdm_shape, dtype)
-        # print(self.two_rdm)
+            self.setup_output(filename)
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update mixed estimates for walkers.
@@ -266,16 +246,17 @@ class Mixed(object):
         if comm.rank == 0:
             if self.verbose:
                 print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
-            self.output.push(gs[:ns.time+1])
+            self.output.push(gs[:ns.time+1], 'energies')
             if self.calc_one_rdm:
                 start = self.nreg
                 end = self.nreg+self.G.size
                 rdm = gs[start:end].reshape(self.G.shape)
-                self.one_rdm_output.push(rdm/gs[ns.weight])
+                self.output.push(rdm/gs[ns.weight], 'one_rdm')
             if self.calc_two_rdm:
                 start = self.nreg + self.G.size
                 rdm = gs[start:].reshape(self.two_rdm.shape)
-                self.two_rdm_output.push(rdm/gs[ns.weight])
+                self.output.push(rdm/gs[ns.weight], 'two_rdm')
+            self.output.increment()
         self.zero()
 
     def print_key(self, eol='', encode=False):
@@ -348,15 +329,10 @@ class Mixed(object):
         self.global_estimates[:] = 0
         self.estimates[self.names.time] = time.time()
 
-    def reset(self, h5f):
-        energies = h5f.create_group('mixed_estimates')
-        energies.create_dataset('headers',
-                                data=numpy.array(self.header[1:], dtype=object),
-                                dtype=h5py.special_dtype(vlen=str))
-        self.output = H5EstimatorHelper(energies, 'energies',
-                                        (self.nmeasure + 1, self.nreg),
-                                        self.dtype)
-        self.output.reset()
+    def setup_output(self, filename):
+        with h5py.File(filename, 'a') as fh5:
+            fh5['basic/headers'] = numpy.array(self.header[1:]).astype('S')
+        self.output = H5EstimatorHelper(filename, 'basic')
 
 # Energy evaluation routines.
 
@@ -455,11 +431,11 @@ def eproj(estimates, enum):
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
 
-def variational_energy(system, psi, coeffs):
+def variational_energy(system, psi, coeffs, G=None, GH=None):
     if len(psi.shape) == 3:
         return variational_energy_multi_det(system, psi, coeffs)
     else:
-        return variational_energy_single_det(system, psi)
+        return variational_energy_single_det(system, psi, G=G, GH=GH)
 
 def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     weight = 0
@@ -521,10 +497,9 @@ def variational_energy_ortho_det(system, occs, coeffs):
     return evar/denom, 0.0, 0.0
 
 
-def variational_energy_single_det(system, psi):
-    na = system.nup
-    ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
-    gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
-    return local_energy(system, numpy.array([ga,gb]),
-                        Ghalf=numpy.array([ga_half,gb_half]),
-                        opt=system._opt)
+def variational_energy_single_det(system, psi, G=None, GH=None):
+    if G is None:
+        na = system.nup
+        ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
+        gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
+    return local_energy(system, G, Ghalf=GH, opt=system._opt)

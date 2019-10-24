@@ -57,14 +57,14 @@ class BackPropagation(object):
         Class for outputting rdm data to HDF5 group.
     """
 
-    def __init__(self, bp, root, h5f, qmc, system, trial, dtype, BT2):
+    def __init__(self, bp, root, filename, qmc, system, trial, dtype, BT2):
         self.tau_bp = bp.get('tau_bp', 0)
         self.nmax = int(self.tau_bp/qmc.dt)
-        self.header = ['iteration', 'Weight', 'E', 'E1b', 'E2b']
-        self.calc_one_rdm = bp.get('one_rdm', False)
+        self.header = ['E', 'E1b', 'E2b']
+        self.calc_one_rdm = bp.get('one_rdm', True)
         self.calc_two_rdm = bp.get('two_rdm', None)
-        self.nreg = len(self.header[1:])
-        self.eval_energy = bp.get('evaluate_energy', True)
+        self.nreg = len(self.header)
+        self.eval_energy = bp.get('evaluate_energy', False)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
@@ -81,34 +81,16 @@ class BackPropagation(object):
             dms_size += self.two_rdm.size
         else:
             self.two_rdm = None
-        self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
-        self.global_estimates = numpy.zeros(self.nreg+dms_size,
+        self.estimates = numpy.zeros(self.nreg+1+dms_size, dtype=dtype)
+        self.global_estimates = numpy.zeros(self.nreg+1+dms_size,
                                             dtype=dtype)
         self.key = {
-            'iteration': "Simulation iteration when back-propagation "
-                         "measurement occured.",
-            'E_var': "BP estimate for internal energy.",
-            'T': "BP estimate for kinetic energy.",
-            'V': "BP estimate for potential energy."
+            'ETotal': "BP estimate for total energy.",
+            'E1B': "BP estimate for one-body energy.",
+            'E2B': "BP estimate for two-body energy."
         }
         if root:
-            energies = h5f.create_group('back_propagated_estimates')
-            header = numpy.array(self.header[1:], dtype=object)
-            energies.create_dataset('headers', data=header,
-                                    dtype=h5py.special_dtype(vlen=str))
-            self.output = H5EstimatorHelper(energies, 'energies',
-                                            (qmc.nsteps//self.nmax, self.nreg),
-                                            trial.G.dtype)
-            if self.calc_one_rdm:
-                one_rdm_shape = (qmc.nsteps//self.nmax+1,)+self.G.shape
-                self.one_rdm_output = H5EstimatorHelper(energies, 'one_rdm',
-                                                        one_rdm_shape,
-                                                        trial.G.dtype)
-            if self.calc_two_rdm is not None:
-                name = 'two_rdm'
-                two_rdm_shape = (qmc.nsteps//self.nmax+1,) + two_rdm_shape
-                self.two_rdm_output = H5EstimatorHelper(energies, name,
-                                                        two_rdm_shape, dtype)
+            self.setup_output(filename)
 
         if trial.type == 'GHF':
             self.update = self.update_ghf
@@ -165,10 +147,10 @@ class BackPropagation(object):
                 weight = wnm.weight * wfac
             else:
                 weight = wnm.weight
-            self.estimates[0] += weight
-            self.estimates[1:self.nreg] += weight*energies
-            start = self.nreg
-            end = self.nreg + self.G.size
+            self.estimates[:self.nreg] += weight*energies
+            self.estimates[self.nreg] += weight
+            start = self.nreg + 1
+            end = start + self.G.size
             self.estimates[start:end] += weight*self.G.flatten().real
             if self.calc_two_rdm is not None:
                 start = end
@@ -236,19 +218,35 @@ class BackPropagation(object):
         if step != 0 and step % self.nmax == 0:
             comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
             if comm.rank == 0:
-                self.output.push(self.global_estimates[:self.nreg])
+                weight = self.global_estimates[self.nreg]
+                self.output.push(numpy.array([weight]), 'denominator')
+                if self.eval_energy:
+                    if free_projection:
+                        self.output.push(self.global_estimates[:self.nreg],
+                                         'energies')
+                    else:
+                        self.output.push(self.global_estimates[:self.nreg]/weight,
+                                         'energies')
                 if self.calc_one_rdm:
-                    start = self.nreg
-                    end = self.nreg + self.G.size
-                    rdm = self.global_estimates[self.nreg:end].reshape(self.G.shape)
-                    self.one_rdm_output.push(rdm)
+                    start = self.nreg + 1
+                    end = self.nreg + 1 + self.G.size
+                    rdm = self.global_estimates[start:end].reshape(self.G.shape)
+                    self.output.push(rdm, 'one_rdm')
                 if self.calc_two_rdm:
-                    start = self.nreg + self.G.size
+                    start = self.nreg + 1 + self.G.size
                     rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
-                    self.two_rdm_output.push(rdm)
+                    self.output.push(rdm, 'two_rdm')
+                self.output.increment()
             self.zero()
 
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""
         self.estimates[:] = 0
         self.global_estimates[:] = 0
+
+    def setup_output(self, filename):
+        est_name = 'back_propagated'
+        if self.eval_energy:
+            with h5py.File(filename, 'a') as fh5:
+                fh5[est_name+'/headers'] = numpy.array(self.header).astype('S')
+        self.output = H5EstimatorHelper(filename, est_name)

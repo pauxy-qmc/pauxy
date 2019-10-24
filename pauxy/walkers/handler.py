@@ -47,11 +47,19 @@ class Walkers(object):
             print("# Setting up wavefunction object.")
         if trial.name == 'MultiSlater':
             self.walker_type = 'MSD'
-            self.walkers = [
-                    MultiDetWalker(walker_opts, system, trial,
-                                   verbose=(verbose and w == 0))
-                    for w in range(qmc.nwalkers)
-                    ]
+            # TODO: FDM FIXTHIS
+            if trial.ndets == 1:
+                if verbose:
+                    print("# Usinge single det walker with msd wavefunction.")
+                self.walker_type = 'SD'
+                self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
+                                for w in range(qmc.nwalkers)]
+            else:
+                self.walkers = [
+                        MultiDetWalker(walker_opts, system, trial,
+                                       verbose=(verbose and w == 0))
+                        for w in range(qmc.nwalkers)
+                        ]
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)

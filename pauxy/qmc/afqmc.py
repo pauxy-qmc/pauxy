@@ -107,8 +107,11 @@ class AFQMC(object):
         if system is not None:
             self.system = system
         else:
-            self.system = get_system(sys_opts=options.get('model', {}),
-                                     verbose=verbose)
+            sys_opts = get_input_value(options, 'model',
+                                       default={},
+                                       alias=['system'],
+                                       verbose=self.verbosity>1)
+            self.system = get_system(sys_opts, verbose=verbose)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -132,7 +135,7 @@ class AFQMC(object):
                 self.trial = None
             self.trial = comm.bcast(self.trial, root=0)
         if self.system.name == "Generic":
-            if self.trial.name != "MultiSlater":
+            if self.trial.ndets == 1:
                 if self.system.cplx_chol:
                     self.system.construct_integral_tensors_cplx(self.trial)
                 else:
@@ -168,7 +171,7 @@ class AFQMC(object):
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose, comm=None)
+                           self.qmc, verbose, comm=comm)
         self.psi.add_field_config(self.estimators.nprop_tot,
                                   self.estimators.nbp,
                                   self.system,
@@ -248,7 +251,6 @@ class AFQMC(object):
             If true print out some information to stdout.
         """
         if self.root:
-            self.estimators.h5f.close()
             if verbose:
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %

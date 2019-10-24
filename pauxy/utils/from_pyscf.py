@@ -20,36 +20,41 @@ from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
-               verbose=True, qmcpack=False, wfn_file='afqmc.h5',
-               chol_cut=1e-5, sparse_zero=1e-16, cholesky=False,
-               cas=None, ortho_ao=True):
+               verbose=True, wfn_file='afqmc.h5',
+               chol_cut=1e-5, sparse_zero=1e-16, cas=None,
+               ortho_ao=True):
     scf_data = load_from_pyscf_chkfile(chkfile)
-    hcore, chol_vecs, nelec, enuc = generate_hamiltonian(scf_data,
-                                                         verbose=verbose,
-                                                         chol_cut=chol_cut,
-                                                         cas=cas,
-                                                         ortho_ao=ortho_ao)
-    write_wfn_mol(scf_data, ortho_ao, wfn_file)
+    mol = scf_data['mol']
+    hcore = scf_data['hcore']
+    if ortho_ao:
+        oao = scf_data['X']
+    else:
+        oao = scf_data['mo_coeff']
+    hcore, chol, nelec, enuc = generate_integrals(mol, hcore, oao,
+                                                  chol_cut=chol_cut,
+                                                  verbose=verbose,
+                                                  cas=cas)
     nbasis = hcore.shape[-1]
     msq = nbasis * nbasis
     # Why did I transpose everything?
     # QMCPACK expects [M^2, N_chol]
     # Internally store [N_chol, M^2]
-    chol_vecs = chol_vecs.T
-    chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-    mem = 64*chol_vecs.nnz/(1024.0**3)
+    chol = chol.T
+    chol = scipy.sparse.csr_matrix(chol)
+    mem = 64*chol.nnz/(1024.0**3)
     if verbose:
         print(" # Total number of non-zero elements in sparse cholesky ERI"
-               " tensor: %d"%chol_vecs.nnz)
-        nelem = chol_vecs.shape[0]*chol_vecs.shape[1]
+               " tensor: %d"%chol.nnz)
+        nelem = chol.shape[0]*chol.shape[1]
         print(" # Sparsity of ERI Cholesky tensor: "
-               "%f"%(1-float(chol_vecs.nnz)/nelem))
+               "%f"%(1-float(chol.nnz)/nelem))
         print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
-    dump_qmcpack_cholesky([hcore,hcore], chol_vecs, nelec, nbasis, enuc,
+    dump_qmcpack_cholesky([hcore,hcore], chol, nelec, nbasis, enuc,
                           filename=outfile)
+    write_wfn_mol(scf_data, ortho_ao, wfn_file, mode='a')
 
 def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
-                  init=None, verbose=False):
+                  init=None, verbose=False, mode='w'):
     """Generate QMCPACK trial wavefunction.
 
     Parameters
@@ -102,7 +107,7 @@ def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,
                 print(" # Warning: UHF trial wavefunction can only be used of "
                       "working in ortho AO basis.")
     write_qmcpack_wfn(filename, (numpy.array([1.0+0j]),wfn), 'uhf',
-                      nelec, norb)
+                      nelec, norb, mode=mode)
     return nelec
 
 def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
@@ -111,40 +116,32 @@ def integrals_from_scf(mf, chol_cut=1e-5, verbose=0, cas=None, ortho_ao=True):
     hcore = mf.get_hcore()
     if ortho_ao:
         s1e = mf.mol.intor('int1e_ovlp_sph')
-        oao = get_orthoAO(s1e)
+        X = get_ortho_ao(s1e)
     else:
-        oao = mf.mo_coeff
-    h1e, eri = generate_integrals(mol, hcore, oao,
-                                  chol_cut=chol_cut,
-                                  verbose=verbose,
-                                  cas=cas)
-    return h1e, eri, ecore, oao
+        X = mf.mo_coeff
+    h1e, chol, nelec, enuc = generate_integrals(mol, hcore, X,
+                                                chol_cut=chol_cut,
+                                                verbose=verbose,
+                                                cas=cas)
+    return h1e, chol, nelec, enuc
 
 def integrals_from_chkfile(chkfile, chol_cut=1e-5, verbose=False,
                            cas=None, ortho_ao=True):
-    (hcore, fock, oao, ecore, mol, orbs, mf, coeffs) = load_from_pyscf_chkfile(chkfile, verbose)
-    h1e, eri = generate_integrals(mol, hcore, oao,
-                                  chol_cut=chol_cut,
-                                  verbose=verbose,
-                                  cas=cas)
-    return h1e, eri, ecore, oao, mol
-
-def generate_hamiltonian(scf_data, chol_cut=1e-5, verbose=False, cas=None,
-                         ortho_ao=False, nelec=None):
-    # Unpack SCF data.
-    # 1. core (1-body) Hamiltonian.
-    hcore = scf_data['hcore']
-    # 2. Rotation matrix to orthogonalised basis.
-    if ortho_ao:
-        X = scf_data['X']
-    else:
-        if scf_data['isUHF']:
-            print(" # UHF integrals are not allowed. Use ortho AO option (-a/--ao).")
-            sys.exit()
-        X = scf_data['mo_coeff']
-    C = scf_data['mo_coeff']
-    # 3. Pyscf mol object.
+    scf_data = load_from_pyscf_chkfile(chkfile)
     mol = scf_data['mol']
+    hcore = scf_data['hcore']
+    if ortho_ao:
+        oao = scf_data['X']
+    else:
+        oao = scf_data['mo_coeff']
+    h1e, chol, nelec, enuc = generate_integrals(mol, hcore, oao,
+                                                chol_cut=chol_cut,
+                                                verbose=verbose,
+                                                cas=cas)
+    return h1e, chol, nelec, enuc
+
+def generate_integrals(mol, hcore, X, chol_cut=1e-5, verbose=False, cas=None):
+    # Unpack SCF data.
     # Step 1. Rotate core Hamiltonian to orthogonal basis.
     if verbose:
         print(" # Transforming hcore and eri to ortho AO basis.")
@@ -207,7 +204,7 @@ def ao2mo_chol(eri, C):
     nb = C.shape[-1]
     for i, cv in enumerate(eri):
         half = numpy.dot(cv.reshape(nb,nb), C)
-        eri[i] = numpy.dot(C.T, half).ravel()
+        eri[i] = numpy.dot(C.conj().T, half).ravel()
 
 def load_from_pyscf_chkfile(chkfile, base='scf'):
     mol = lib.chkfile.load_mol(chkfile)
@@ -223,7 +220,7 @@ def load_from_pyscf_chkfile(chkfile, base='scf'):
             X = fh5['/scf/orthoAORot'][:]
         except KeyError:
             s1e = mol.intor('int1e_ovlp_sph')
-            X = get_ortho_ao_mol(s1e)
+            X = get_ortho_ao(s1e)
     mo_occ = numpy.array(lib.chkfile.load(chkfile, base+'/mo_occ'))
     mo_coeff = numpy.array(lib.chkfile.load(chkfile, base+'/mo_coeff'))
     uhf = len(mo_coeff.shape) == 3
@@ -236,7 +233,7 @@ def from_pyscf_scf(mf, verbose=True):
     hcore = mf.get_hcore()
     fock = hcore + mf.get_veff()
     s1e = mf.mol.intor('int1e_ovlp_sph')
-    orthoAO = get_orthoAO(s1e)
+    orthoAO = get_ortho_ao(s1e)
     enuc = mf.energy_nuc()
     if verbose:
         print ("# Generating PAUXY input PYSCF mol and scf objects.")
@@ -487,7 +484,7 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
         endr = time.time()
         if nchol > 0 and (nchol + 1) % chunk_size == 0:
             startw = time.time()
-            delta = (L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs)
+            # delta = L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs
             with h5py.File(erif, 'r+') as fh5:
                 fh5['chol_{}'.format(ichunk)] = chol_vecs
             endw = time.time()
@@ -596,7 +593,7 @@ def get_pyscf_wfn(system, mf):
     wfn[:,na:] = pb
     return (numpy.array([1.0+0j]), wfn)
 
-def get_ortho_ao_mol(S, LINDEP_CUTOFF=0):
+def get_ortho_ao(S, LINDEP_CUTOFF=0):
     """Generate canonical orthogonalization transformation matrix.
 
     Parameters

@@ -4,7 +4,7 @@ import time
 from pauxy.estimators.mixed import (
         variational_energy, variational_energy_ortho_det, local_energy
         )
-from pauxy.estimators.greens_function import gab, gab_mod, gab_mod_ovlp
+from pauxy.estimators.greens_function import gab, gab_spin, gab_mod, gab_mod_ovlp
 from pauxy.estimators.ci import get_hmatel, get_one_body_matel
 from pauxy.utils.io import (
         get_input_value,
@@ -39,6 +39,13 @@ class MultiSlater(object):
                 print("# Assuming non-orthogonal trial wavefunction expansion.")
             print("# Trial wavefunction shape: {}".format(self.psi.shape))
         self.ndets = len(self.coeffs)
+        if self.ndets == 1:
+            self.psi = self.psi[0]
+            self.G, self.GH = gab_spin(self.psi, self.psi,
+                                       system.nup, system.ndown)
+        else:
+            self.G = None
+            self.GH = None
         if rediag:
             if self.verbose:
                 print("# Recomputing CI coefficients.")
@@ -74,7 +81,8 @@ class MultiSlater(object):
                     )
         else:
             (self.energy, self.e1b, self.e2b) = (
-                    variational_energy(system, self.psi, self.coeffs)
+                    variational_energy(system, self.psi, self.coeffs,
+                                       G=self.G, GH=self.GH)
                     )
         if self.verbose:
             print("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"

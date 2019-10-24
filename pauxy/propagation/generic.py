@@ -32,7 +32,7 @@ class GenericContinuous(object):
         self.dt = qmc.dt
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
-        if trial.name == "MultiSlater":
+        if trial.ndets > 1:
             optimised = False
             self.mf_shift = (
                     self.construct_mean_field_shift_multi_det(system, trial)
@@ -53,7 +53,7 @@ class GenericContinuous(object):
             self.construct_force_bias = self.construct_force_bias_fast
             self.construct_VHS = self.construct_VHS_fast
         else:
-            if trial.name == "MultiSlater":
+            if trial.ndets > 1:
                 self.construct_force_bias = self.construct_force_bias_multi_det
             else:
                 self.construct_force_bias = self.construct_force_bias_slow
@@ -267,7 +267,7 @@ def back_propagate_generic(phi, configs, system, nstblz, BT2, dt, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs.get_block()[0][::-1]):
-        B = construct_propagator_matrix_generic(system, BT2, c, dt, True)
+        B = construct_propagator_matrix_generic(system, BT2, c, dt, False)
         phi[:,:nup] = numpy.dot(B[0].conj().T, phi[:,:nup])
         phi[:,nup:] = numpy.dot(B[1].conj().T, phi[:,nup:])
         if i != 0 and i % nstblz == 0:
