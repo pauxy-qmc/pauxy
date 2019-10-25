@@ -333,10 +333,6 @@ class PlaneWave(object):
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
             if (walker.stack.counter == 0):
                 walker.compute_left_right(icur)
-            # else:
-            #     walker.compute_right(icur)
-            # print(walker.Tr[0])
-            # print(walker.Tr[1])
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
             G = walker.greens_function_left_right(icur, inplace=False)
@@ -396,15 +392,11 @@ class PlaneWave(object):
             numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
             numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
             ])
-
         if self.optimised:
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
-
             if walker.stack.counter == 0:
                 walker.compute_left_right(icur)
-            # else:
-            #     walker.compute_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
             G = walker.greens_function_left_right(icur, inplace=False)
@@ -424,6 +416,7 @@ class PlaneWave(object):
         M0 = walker.M0
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
                 scipy.linalg.det(walker.G[1], check_finite=False)]
+
         # Could save M0 rather than recompute.
         try:
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])

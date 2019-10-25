@@ -73,9 +73,6 @@ class Continuous(object):
         phi : numpy array
             Exp(VHS) * phi
         """
-        # JOONHO: exact exponential
-        # copy = numpy.copy(phi)
-        # phi = scipy.linalg.expm(VHS).dot(copy)
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
@@ -159,7 +156,11 @@ class Continuous(object):
         # 1. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2. Apply 2-body projector
-        (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, trial)
+        # 2.b Apply two-body
+        self.apply_exponential(walker.phi[:,:system.nup], VHS)
+        if system.ndown > 0:
+            self.apply_exponential(walker.phi[:,system.nup:], VHS)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         walker.inverse_overlap(trial)
