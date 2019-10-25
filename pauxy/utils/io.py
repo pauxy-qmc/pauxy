@@ -88,6 +88,8 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0,
         # fh5['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
         # Number of non zero elements for two-body
         # number of cholesky vectors
+        if isinstance(h2, numpy.ndarray):
+            h2 = scipy.sparse.csr_matrix(h2.transpose((1,2,0)).reshape((nmo*nmo,-1)))
         nchol_vecs = h2.shape[-1]
         ix, vals = to_sparse(h2.toarray())
         fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([len(vals)])

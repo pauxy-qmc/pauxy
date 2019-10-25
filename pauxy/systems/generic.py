@@ -145,6 +145,10 @@ class Generic(object):
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
+            if isinstance(self.chol_vecs, numpy.ndarray):
+                self.chol_vecs = csr_matrix(
+                        self.chol_vecs.transpose((1,2,0)).reshape((self.nbasis*self.nbasis,-1))
+                        )
         write_ints = inputs.get('write_integrals', None)
         if write_ints is not None:
             self.write_integrals()
