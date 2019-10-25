@@ -11,6 +11,7 @@ import pyblock
 import scipy.stats
 from pauxy.analysis.extraction import (
         extract_mixed_estimates,
+        extract_data,
         get_metadata, set_info
         )
 from pauxy.utils.misc import get_from_dict
@@ -216,7 +217,7 @@ def average_tau(frames):
 
 
 def analyse_back_propagation(frames):
-    frames[['E', 'E1b', 'E2b']] = frames[['E','E1b','E2b']].div(frames.Weight, axis=0)
+    frames[['E', 'E1b', 'E2b']] = frames[['E','E1b','E2b']]
     frames = frames.apply(numpy.real)
     frames = frames.groupby(['nbp','dt'])
     data_len = frames.size()
@@ -260,6 +261,23 @@ def analyse_simple(files, start_time):
             columns = pauxy.analysis.extraction.set_info(reblocked, m)
         norm_data.append(reblocked)
     return pd.concat(norm_data)
+
+
+def analyse_back_prop(files, start_time):
+    full = []
+    for f in files:
+        md = get_metadata(f)
+        step = get_from_dict(md, ['qmc', 'nmeasure'])
+        dt = get_from_dict(md, ['qmc', 'dt'])
+        tbp = get_from_dict(md, ['estimators', 'estimators', 'back_prop', 'tau_bp'])
+        start = min(1, int(start_time/tbp) + 1)
+        data = extract_data(f, 'back_propagated', 'energies')[start:]
+        av = data.mean().to_frame().T
+        err = (data.std() / len(data)**0.5).to_frame().T
+        res = pd.merge(av,err,left_index=True,right_index=True,suffixes=('','_error'))
+        columns = set_info(res, md)
+        full.append(res)
+    return pd.concat(full).sort_values('tau_bp')
 
 def analyse_estimates(files, start_time, multi_sim=False):
     mds = []
