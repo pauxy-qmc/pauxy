@@ -57,6 +57,8 @@ class UEG(object):
             print("# rs: %10.5f"%self.rs)
 
         self.thermal = inputs.get('thermal', False)
+        if (self.thermal):
+            print("# Thermal UEG activated")
         self._alt_convention = inputs.get('alt_convention', False)
         self.sparse = True
         

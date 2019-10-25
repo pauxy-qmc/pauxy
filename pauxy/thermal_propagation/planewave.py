@@ -56,6 +56,11 @@ class PlaneWave(object):
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
+        
+        if (self.optimised):
+            self.propagate_walker_phaseless = self.propagate_walker_phaseless_low_rank
+        else:
+            self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
 
         if self.free_projection:
             if verbose:
@@ -65,7 +70,6 @@ class PlaneWave(object):
             if verbose:
                 print("# Using phaseless approximation")
             self.propagate_walker = self.propagate_walker_phaseless
-
         if verbose:
             print ("# Finished setting up propagator.")
         self.nfb_trig = False
@@ -367,7 +371,7 @@ class PlaneWave(object):
             walker.weight = 0.0
 
 
-    def propagate_walker_phaseless(self, system, walker, trial, eshift):
+    def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -438,6 +442,71 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
+    def propagate_walker_phaseless_low_rank(self, system, walker, trial, eshift):
+        # """Phaseless propagator
+        # Parameters
+        # ----------
+        # walker :
+        #     walker class
+        # system :
+        #     system class
+        # trial :
+        #     trial wavefunction class
+        # Returns
+        # -------
+        # """
+
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
+
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
+
+        icur = walker.stack.time_slice // walker.stack.stack_size
+        #
+        # local index within a stack = walker.stack.counter
+        # global stack index = icur
+        if (walker.stack.counter == 0):
+            walker.compute_left_right(icur)
+        # 1. Current walker's green's function.
+        # Green's function that takes Left Right and Center
+        G = walker.greens_function_left_right(icur, inplace=False)
+        # 2. Compute updated green's function.
+        walker.stack.update_new(B)
+        walker.greens_function_left_right(icur, inplace=True)
+
+        # 3. Compute det(G/G')
+        M0 = walker.M0
+        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
+                scipy.linalg.det(walker.G[1], check_finite=False)]
+
+        # Could save M0 rather than recompute.
+        try:
+            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+            # Might want to cap this at some point
+            hybrid_energy = cmath.log(oratio) + cfb + cmf
+            Q = cmath.exp(hybrid_energy)
+            expQ = self.mf_const_fac * Q
+            (magn, phase) = cmath.polar(expQ)
+            if not math.isinf(magn):
+                # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
+                # Note this doesn't include exponential factor from shifting
+                # propability distribution.
+                dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+                cosine_fac = max(0, math.cos(dtheta))
+                walker.weight *= magn * cosine_fac
+                walker.M0 = Mnew
+            else:
+                walker.weight = 0.0
+        except ZeroDivisionError:
+            walker.weight = 0.0
+
     def propagate_greens_function(self, walker):
         if walker.stack.time_slice < walker.stack.ntime_slices:
             walker.G[0] = self.BT[0].dot(walker.G[0]).dot(self.BTinv[0])
@@ -445,21 +514,44 @@ class PlaneWave(object):
 
 
 def unit_test():
+    import cProfile
     from pauxy.systems.ueg import UEG
     from pauxy.qmc.options import QMCOpts
-    # from pauxy.trial_wavefunction.hartree_fock import HartreeFock
+    from pauxy.trial_density_matrices.onebody import OneBody
+    from pauxy.qmc.comm import FakeComm
+    from pauxy.walkers.thermal import ThermalWalker
 
-    inputs = {'nup':1, 'ndown':1,
-    'rs':1.0, 'ecut':1.0, 'dt':0.05, 'nwalkers':10}
+    beta = 4.0
+    dt = 0.1
 
-    # system = UEG(inputs, True)
+    inputs = {'nup':1, 'ndown':1, 'thermal':True, 'beta':beta,
+    'rs':1.0, 'ecut':0.5, 'dt':dt, 'nwalkers':10}
 
-    # qmc = QMCOpts(inputs, system, True)
+    system = UEG(inputs, True)
 
-    # trial = HartreeFock(system, False, inputs, True)
+    qmc = QMCOpts(inputs, system, True)
 
-    # propagator = PlaneWave(inputs, qmc, system, trial, True)
+    comm = FakeComm()
 
+    trial = OneBody(comm, system, beta, dt, options=inputs,
+                    verbose=True)
+
+    propagator = PlaneWave(system, trial, qmc, inputs, True)
+
+    walker = ThermalWalker({'stack_size':trial.stack_size}, system, trial, verbose=True)
+    eshift = 0.0+0.0j
+    
+    # pr = cProfile.Profile()
+    # pr.enable()    
+    numpy.random.seed(7)
+    
+    # print("walker.num_slices = {}".format(walker.num_slices))
+    # print(walker.G)
+    for ts in range(0, walker.num_slices):
+        propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
+    # print(walker.G[0].real)
+    # pr.disable()
+    # pr.print_stats(sort='tottime')
 
 if __name__=="__main__":
     unit_test()

@@ -62,10 +62,10 @@ class OneBody(object):
         # condition number of the product does not exceed 1e3.
         self.stack_size = min(self.num_slices, int(3.0/numpy.log10(self.cond)))
         if verbose:
-            print("# Initial stack size: {} {}".format(self.stack_size,
+            print("# Initial stack size, # of slices: {}, {}".format(self.stack_size,
                   self.num_slices))
         # adjust stack size
-        self.stack_size = update_stack(self.stack_size, self.num_slices, verbose)
+        self.stack_size = update_stack(self.stack_size, self.num_slices, verbose=verbose)
         self.num_bins = int(beta/(self.stack_size*dt))
 
         if verbose:

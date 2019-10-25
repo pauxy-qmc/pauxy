@@ -110,12 +110,19 @@ class FieldConfig(object):
 
 class PropagatorStack:
     def __init__(self, stack_size, ntime_slices, nbasis, dtype, BT=None, BTinv=None,
-                 diagonal=False):
+                 diagonal=False, averaging = False, lowrank=False):
         self.time_slice = 0
         self.stack_size = stack_size
         self.ntime_slices = ntime_slices
         self.nbins = ntime_slices // self.stack_size
         self.diagonal_trial = diagonal
+        self.averaging = averaging
+
+        self.lowrank = lowrank
+
+        if(self.lowrank):
+            assert(diagonal)
+
         self.reortho = 1
 
         if self.nbins * self.stack_size < self.ntime_slices:
@@ -129,13 +136,29 @@ class PropagatorStack:
         self.counter = 0
         self.block = 0
         self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
-        I = numpy.identity(nbasis, dtype=dtype)
+
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
         self.left = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                 dtype=dtype)
         self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
+
+        if (self.lowrank):
+            self.update_new = self.update_lowrank
+        else:
+            self.update_new = self.update_fullrank
+
+        # Global block matrix
+        if (self.lowrank):
+            self.Ql = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.Dl = numpy.zeros(shape=(2, nbasis),dtype=dtype)
+            self.Tl = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+
+            self.Qr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.Dr = numpy.zeros(shape=(2, nbasis),dtype=dtype)
+            self.Tr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+
         # set all entries to be the identity matrix
         self.reset()
 
@@ -149,12 +172,25 @@ class PropagatorStack:
             'stack': self.stack,
             'wfac': self.wfac,
         }
+        if (self.lowrank):
+            buff['Ql'] = self.Ql
+            buff['Dl'] = self.Dl
+            buff['Tl'] = self.Tl
+            buff['Qr'] = self.Qr
+            buff['Dr'] = self.Dr
+            buff['Tr'] = self.Tr
         return buff
 
     def set_buffer(self, buff):
         self.stack = numpy.copy(buff['stack'])
         self.left = numpy.copy(buff['left'])
         self.right = numpy.copy(buff['right'])
+        self.Ql = numpy.copy(buff['Ql'])
+        self.Dl = numpy.copy(buff['Dl'])
+        self.Tl = numpy.copy(buff['Tl'])
+        self.Qr = numpy.copy(buff['Qr'])
+        self.Dr = numpy.copy(buff['Dr'])
+        self.Tr = numpy.copy(buff['Tr'])
         self.wfac = buff['wfac']
 
     def set_all(self, BT):
@@ -175,6 +211,12 @@ class PropagatorStack:
                 self.stack[ix,0] = self.left[ix,0].copy()
                 self.stack[ix,1] = self.left[ix,1].copy()
 
+        if (self.lowrank):
+            self.initialize_left()
+            for s in [0,1]:
+                self.Qr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
+                self.Dr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
+                self.Tr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
 
     def reset(self):
         self.time_slice = 0
@@ -187,6 +229,30 @@ class PropagatorStack:
             self.right[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.left[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.left[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
+
+        if (self.lowrank):
+            for s in [0,1]:
+                self.Qr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
+                self.Dr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
+                self.Tr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
+
+    # Form BT product for i = 1, ..., nslices - 1 (i.e., skip i = 0)
+    # \TODO add non-diagonal version of this
+    def initialize_left(self):
+        assert(self.diagonal_trial)
+        
+        for spin in [0, 1]:
+            # We will assume that B matrices are all diagonal for left....
+            B = self.stack[1]
+            self.Dl[spin] = (B[spin].diagonal())
+            self.Ql[spin] = numpy.identity(B[spin].shape[0])
+            self.Tl[spin] = numpy.identity(B[spin].shape[0])
+
+            for ix in range(2, self.stack.nbins):
+                # print("center_ix < self.stack.nbins-1 first inner loop")
+                B = self.stack.get(ix)
+                C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
+                self.Dl[spin] = C2.diagonal()
 
     def update(self, B, wfac=1.0):
         if self.counter == 0:
@@ -201,7 +267,35 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
 
-    def update_new(self, B):
+    def update_fullrank(self, B):
+        # Diagonal = True assumes BT is diagonal and left is also diagonal
+        if self.counter == 0:
+            self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
+            self.right[self.block,1] = numpy.identity(B.shape[-1], dtype=B.dtype)
+
+        if self.diagonal_trial:
+            self.left[self.block,0] = numpy.diag(numpy.multiply(self.left[self.block,0].diagonal(),self.BTinv[0].diagonal()))
+            self.left[self.block,1] = numpy.diag(numpy.multiply(self.left[self.block,1].diagonal(),self.BTinv[1].diagonal()))
+        else:
+            self.left[self.block,0] = self.left[self.block,0].dot(self.BTinv[0])
+            self.left[self.block,1] = self.left[self.block,1].dot(self.BTinv[1])
+
+        self.right[self.block,0] = B[0].dot(self.right[self.block,0])
+        self.right[self.block,1] = B[1].dot(self.right[self.block,1])
+
+
+        if self.diagonal_trial:
+            self.stack[self.block,0] = numpy.einsum('ii,ij->ij',self.left[self.block,0],self.right[self.block,0])
+            self.stack[self.block,1] = numpy.einsum('ii,ij->ij',self.left[self.block,1],self.right[self.block,1])
+        else:
+            self.stack[self.block,0] = self.left[self.block,0].dot(self.right[self.block,0])
+            self.stack[self.block,1] = self.left[self.block,1].dot(self.right[self.block,1])
+
+        self.time_slice = self.time_slice + 1 # Count the time slice
+        self.block = self.time_slice // self.stack_size # move to the next block if necessary
+        self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
+    
+    def update_lowrrank(self, B):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
         if self.counter == 0:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)

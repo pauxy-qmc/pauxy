@@ -278,6 +278,9 @@ class ThermalWalker(object):
                     self.Dl[spin] = C2.diagonal()
 
     def greens_function_left_right(self, center_ix, inplace=False, thresh = 1e-4):
+        
+        assert(self.diagonal_trial)
+
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
