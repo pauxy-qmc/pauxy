@@ -172,7 +172,6 @@ def generate_integrals(mol, hcore, X, chol_cut=1e-5, verbose=False, cas=None):
         mol.nelec = nelec
         orbs = numpy.identity(h1e.shape[-1])
         orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-        scf_data['mo_coeff'] = C[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
     return h1e, chol_vecs, nelec, enuc
 
 def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
@@ -504,7 +503,6 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
 
     with h5py.File(erif, 'r+') as fh5:
         fh5['chol_{}'.format(ichunk)] = chol_vecs
-        fh5['chol_full'] = chol_vecs_full[:nchol]
         fh5['nchol'] = numpy.array([nchol])
         fh5['ncol'] = numpy.array([nao*nao])
         fh5['chunk_size'] = numpy.array([chunk_size])
