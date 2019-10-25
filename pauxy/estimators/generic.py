@@ -119,3 +119,13 @@ def core_contribution_cholesky(system, G):
     hcb_k = 0.5*numpy.einsum('lrq,lsq->rs', tb_k, cv)
     hcb = hcb_j - hcb_k
     return (hca, hcb)
+
+def fock_generic(system, P):
+    if system.sparse:
+        mf_shift = 1j*P[0].ravel()*system.hs_pot
+        mf_shift += 1j*P[1].ravel()*system.hs_pot
+        VMF = 1j*system.hs_pot.dot(mf_shift).reshape(system.nbasis,system.nbasis)
+    else:
+        mf_shift = 1j*numpy.einsum('lpq,spq->l', system.hs_pot, P)
+        VMF = 1j*numpy.einsum('lpq,l->pq', system.hs_pot, mf_shift)
+    return system.h1e_mod - VMF
