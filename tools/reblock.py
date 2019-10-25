@@ -72,5 +72,4 @@ def main(args):
     analyse_estimates(files, start_time=options.start_time,
                       multi_sim=options.multi_sim)
 if __name__ == '__main__':
-
     main(sys.argv[1:])
