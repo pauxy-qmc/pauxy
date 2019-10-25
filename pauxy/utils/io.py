@@ -479,6 +479,10 @@ def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None):
     """
     nalpha, nbeta = nelec
     wfn[abs(wfn) < thresh] = 0.0
+    if len(wfn.shape) == 2:
+        nmo = wfn.shape[0]
+        nel = wfn.shape[1]
+        wfn = wfn.reshape((1,nmo,nel))
     if init is not None:
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
         fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
