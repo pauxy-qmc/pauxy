@@ -44,7 +44,7 @@ def test_read():
     dump_qmcpack_cholesky([h1e,h1e], chol, nelec, nmo, e0=enuc, filename='hamil.h5')
     options = {'nup': nelec[0], 'ndown': nelec[1], 'integrals': 'hamil.h5'}
     sys = Generic(inputs=options)
-    eri = sys.chol_vecs.toarray().reshape((nmo,nmo,-1)).transpose((2,0,1))
+    eri = sys.chol_vecs
     assert numpy.linalg.norm(chol-eri) == pytest.approx(0.0)
 
 
