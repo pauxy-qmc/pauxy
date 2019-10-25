@@ -455,7 +455,6 @@ class PlaneWave(object):
         # Returns
         # -------
         # """
-
         (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system, True)
         BV = self.exponentiate(VHS) # could use a power-series method to build this
 
@@ -472,23 +471,14 @@ class PlaneWave(object):
         #
         # local index within a stack = walker.stack.counter
         # global stack index = icur
-        if (walker.stack.counter == 0):
-            walker.compute_left_right(icur)
-        # 1. Current walker's green's function.
-        # Green's function that takes Left Right and Center
-        G = walker.greens_function_left_right(icur, inplace=False)
-        # 2. Compute updated green's function.
+        ovlp = walker.stack.ovlp
         walker.stack.update_new(B)
-        walker.greens_function_left_right(icur, inplace=True)
-
-        # 3. Compute det(G/G')
-        M0 = walker.M0
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
-                scipy.linalg.det(walker.G[1], check_finite=False)]
+        ovlp_new = walker.stack.ovlp
+        walker.G = walker.stack.G.copy()
 
         # Could save M0 rather than recompute.
         try:
-            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+            oratio = (ovlp_new[0] * ovlp_new[1]) / (ovlp[0] * ovlp[1])
             # Might want to cap this at some point
             hybrid_energy = cmath.log(oratio) + cfb + cmf
             Q = cmath.exp(hybrid_energy)
@@ -501,7 +491,8 @@ class PlaneWave(object):
                 dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
-                walker.M0 = Mnew
+                # walker.M0 = Mnew
+                walker.M0 = ovlp_new
             else:
                 walker.weight = 0.0
         except ZeroDivisionError:

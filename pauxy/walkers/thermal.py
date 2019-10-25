@@ -339,6 +339,8 @@ class ThermalWalker(object):
             else:
                 mT = mR
 
+
+            # D = Ds Db^{-1}
             Db = numpy.zeros(mT, Bc[spin].dtype)
             Ds = numpy.zeros(mT, Bc[spin].dtype)
             for i in range(mT):
