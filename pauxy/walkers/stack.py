@@ -316,12 +316,12 @@ class PropagatorStack:
         mR = B.shape[-1] # initial mR
         mL = B.shape[-1] # initial mR
         mT = B.shape[-1] # initial mR
-        next_block = self.time_slice // self.stack_size # move to the next block if necessary
-        
+        next_block = (self.time_slice+1) // self.stack_size # move to the next block if necessary
+        # print("next_block", next_block)
+        # print("self.block", self.block)
         if (next_block > self.block): # Do QR and update here?
             for s in [0,1]:
                 mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
-
                 self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
                 mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
                 
@@ -335,7 +335,7 @@ class PropagatorStack:
                 self.Dr[s][:mR] = Dlcr
                 self.Dr[s][mR:] = 0.0
                 self.Qr[s] = Qlcr
-
+                
                 Dinv = 1.0/Dlcr # mR
                 tmp = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:mR]) # mR, mR x mR -> mR x mR
                 tmp[:,Plcr] = tmp[:,range(mR)]
@@ -461,6 +461,7 @@ class PropagatorStack:
 
             # self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
             # self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+        # print("# mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
 
         # print("ovlp = {}".format(self.ovlp))
         self.mT = mT

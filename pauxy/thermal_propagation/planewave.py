@@ -587,7 +587,7 @@ def unit_test():
     from pauxy.qmc.comm import FakeComm
     from pauxy.walkers.thermal import ThermalWalker
 
-    beta = 4.0
+    beta = 8.0
     dt = 0.01
 
     # beta = 0.5
@@ -599,7 +599,7 @@ def unit_test():
     stack_size = 10
 
     inputs = {'nup':1, 'ndown':1, 'thermal':True, 'beta':beta,
-    'rs':1.0, 'ecut':10.0, 'dt':dt, 'nwalkers':10, 'lowrank':lowrank,
+    'rs':1.0, 'ecut':5.0, 'dt':dt, 'nwalkers':10, 'lowrank':lowrank,
     'stack_size':stack_size}
 
     system = UEG(inputs, True)
