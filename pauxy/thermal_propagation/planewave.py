@@ -423,9 +423,9 @@ class PlaneWave(object):
             walker.stack.update_new(B)
             walker.greens_function(None, slice_ix=tix, inplace=True)
 
-        ovlp = walker.stack.ovlp
+        ovlp = walker.stack.ovlp.copy()
         walker.stack.update_new(B)
-        ovlp_new = walker.stack.ovlp
+        ovlp_new = walker.stack.ovlp.copy()
         walker.G = walker.stack.G.copy()
 
         try:
