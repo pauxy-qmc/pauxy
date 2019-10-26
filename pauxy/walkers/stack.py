@@ -333,6 +333,7 @@ class PropagatorStack:
                 Dlcr = Rlcr[:mR,:mR].diagonal() # mR 
                 
                 self.Dr[s][:mR] = Dlcr
+                self.Dr[s][mR:] = 0.0
                 self.Qr[s] = Qlcr
 
                 Dinv = 1.0/Dlcr # mR
