@@ -70,6 +70,14 @@ def to_qmcpack_index(matrix, offset=0):
             # print (row, len(data[indptr[row]:indptr[row+1]]))
     return (unpacked, numpy.array(idx).flatten())
 
+def to_sparse(vals, offset=0, cutoff=1e-8):
+    nz = numpy.where(numpy.abs(vals) > cutoff)
+    ix = numpy.empty(nz[0].size+nz[1].size, dtype=numpy.int32)
+    ix[0::2] = nz[0]
+    ix[1::2] = nz[1]
+    vals = numpy.array(vals[nz], dtype=numpy.complex128)
+    return ix, vals
+
 def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0,
                           filename='hamil.h5', mode='w'):
     with h5py.File(filename, mode) as fh5:
@@ -79,16 +87,16 @@ def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0,
         fh5['Hamiltonian/hcore'] = hcore
         # fh5['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
         # Number of non zero elements for two-body
-        if len(h2.shape) == 3:
-            h2 = h2.reshape((-1,nmo*nmo)).T.copy()
-            h2 = scipy.sparse.csr_matrix(h2)
-        nnz = h2.nnz
         # number of cholesky vectors
+        if isinstance(h2, numpy.ndarray):
+            h2 = scipy.sparse.csr_matrix(h2.transpose((1,2,0)).reshape((nmo*nmo,-1)))
         nchol_vecs = h2.shape[-1]
-        fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
-        (h2_unpacked, idx) = to_qmcpack_index(h2)
-        fh5['Hamiltonian/Factorized/index_0'] = numpy.array(idx)
-        fh5['Hamiltonian/Factorized/vals_0'] = numpy.array(h2_unpacked)
+        ix, vals = to_sparse(h2.toarray())
+        fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([len(vals)])
+        # (h2_unpacked, idx) = to_qmcpack_index(h2)
+        fh5['Hamiltonian/Factorized/index_0'] = numpy.array(ix)
+        fh5['Hamiltonian/Factorized/vals_0'] = to_qmcpack_complex(numpy.array(vals, dtype=numpy.complex128))
+        nnz = len(vals)
         # Number of integral blocks used for chunked HDF5 storage.
         # Currently hardcoded for simplicity.
         nint_block = 1
@@ -473,6 +481,10 @@ def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None):
     """
     nalpha, nbeta = nelec
     wfn[abs(wfn) < thresh] = 0.0
+    if len(wfn.shape) == 2:
+        nmo = wfn.shape[0]
+        nel = wfn.shape[1]
+        wfn = wfn.reshape((1,nmo,nel))
     if init is not None:
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
         fh5['Psi0_beta'] = to_qmcpack_complex(init[1])

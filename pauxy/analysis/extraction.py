@@ -24,6 +24,9 @@ def extract_data(filename, group, estimator, raw=False):
 def extract_mixed_estimates(filename, skip=0):
     return extract_data(filename, 'basic', 'energies')[skip:]
 
+def extract_bp_estimates(filename, skip=0):
+    return extract_data(filename, 'back_propagated', 'energies')[skip:]
+
 def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm'):
     rdmtot = []
     nzero = -1
@@ -45,6 +48,9 @@ def set_info(frame, md):
     frame['nwalkers'] = qmc.get('ntot_walkers')
     frame['free_projection'] = propg.get('free_projection')
     beta = qmc.get('beta')
+    bp = md['estimators']['estimators'].get('back_prop')
+    if bp is not None:
+        frame['tau_bp'] = bp['tau_bp']
     if beta is not None:
         frame['beta'] = beta
         mu = system.get('mu')

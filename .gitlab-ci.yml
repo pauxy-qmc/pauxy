@@ -11,6 +11,8 @@ test python3.7:
   - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas
   - python setup.py build_ext
   - python -m pytest -v
+  only:
+  - master
 
 test python2.7:
   image: python:2.7
@@ -18,6 +20,8 @@ test python2.7:
   - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas
   - python setup.py build_ext
   - python -m pytest -v
+  only:
+  - master
 
 test with_pyscf:
   image: python:3.7
@@ -25,3 +29,5 @@ test with_pyscf:
   - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas pyscf
   - python setup.py build_ext
   - python -m pytest -v
+  only:
+  - master

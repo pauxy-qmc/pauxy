@@ -453,92 +453,99 @@ class UEG(object):
 def unit_test():
     from numpy import linalg as LA
     from pauxy.estimators import ci as pauxyci
-    from pyscf import gto, scf, ao2mo, mcscf, fci, ci, cc, tdscf, gw, hci
+    # from pyscf import gto, scf, ao2mo, mcscf, fci, ci, cc, tdscf, gw, hci
 
-    # ecuts = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    # # ecuts = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
 
-    # eccsds = []
-    # for ecut in ecuts:
+    # # eccsds = []
+    # # for ecut in ecuts:
 
-    ecut = 4.0
+    # ecut = 4.0
 
-    inputs = {'nup':7,
-    'ndown':7,
-    'rs':1.0,
-    'thermal':False,
-    'ecut':ecut}
-    # -1.41489535 ecut = 1
-    # -1.41561583 ecut = 2 
-    # -1.4161452950664903 ecut = 3
-    system = UEG(inputs, True)
+    # inputs = {'nup':7,
+    # 'ndown':7,
+    # 'rs':1.0,
+    # 'thermal':False,
+    # 'ecut':ecut}
+    # # -1.41489535 ecut = 1
+    # # -1.41561583 ecut = 2 
+    # # -1.4161452950664903 ecut = 3
+    # system = UEG(inputs, True)
 
-    mol = gto.M()
-    mol.nelectron = system.nup+system.ndown
-    mol.spin = system.nup - system.ndown
-    mol.incore_anyway = True
-    mol.verbose=0
+    # mol = gto.M()
+    # mol.nelectron = system.nup+system.ndown
+    # mol.spin = system.nup - system.ndown
+    # mol.incore_anyway = True
+    # mol.verbose=0
 
-    M = system.nbasis
+    # M = system.nbasis
 
-    h1 = system.H1[0]
-    # eri = numpy.zeros((M,M,M,M))
-    # for i in range(M):
-    #     for k in range(M):
-    #         for j in range(M):
-    #             for l in range(M):
-    #                 eri[i,k,l,j] = system.hijkl(i,j,k,l)
-    # chol_vecs = system.chol_vecs.toarray()
-    # chol_vecs = chol_vecs.reshape((M, M, system.nchol))
-    # eri = 4*numpy.einsum("ikP, ljP->iklj",chol_vecs, numpy.conj(chol_vecs))
-    # eri = eri.real
+    # h1 = system.H1[0]
+    # # eri = numpy.zeros((M,M,M,M))
+    # # for i in range(M):
+    # #     for k in range(M):
+    # #         for j in range(M):
+    # #             for l in range(M):
+    # #                 eri[i,k,l,j] = system.hijkl(i,j,k,l)
+    # # chol_vecs = system.chol_vecs.toarray()
+    # # chol_vecs = chol_vecs.reshape((M, M, system.nchol))
+    # # eri = 4*numpy.einsum("ikP, ljP->iklj",chol_vecs, numpy.conj(chol_vecs))
+    # # eri = eri.real
 
-    eri_chol = 4 * system.chol_vecs.dot(system.chol_vecs.T)
-    eri_chol = eri_chol.toarray().reshape((M,M,M,M)).real
-    # eri_chol = numpy.einsum("ikjl->iklj",eri_chol)
-    # print(numpy.max(eri), numpy.max(eri_chol))
-    # eri_tmp = eri - eri_chol
-    # print(numpy.einsum("ijkl,ijkl->",eri_tmp,eri_tmp))
-    # exit()
+    # eri_chol = 4 * system.chol_vecs.dot(system.chol_vecs.T)
+    # eri_chol = eri_chol.toarray().reshape((M,M,M,M)).real
+    # # eri_chol = numpy.einsum("ikjl->iklj",eri_chol)
+    # # print(numpy.max(eri), numpy.max(eri_chol))
+    # # eri_tmp = eri - eri_chol
+    # # print(numpy.einsum("ijkl,ijkl->",eri_tmp,eri_tmp))
+    # # exit()
 
-    eri = eri_chol
+    # eri = eri_chol
 
-    mol.symmetry = 0
+    # mol.symmetry = 0
 
-    mf = scf.RHF(mol)
+    # mf = scf.RHF(mol)
     
 
-    mf.conv_tol = 1e-10
+    # mf.conv_tol = 1e-10
 
-    mf.get_hcore = lambda *args: h1
-    mf.get_ovlp = lambda *args: numpy.eye(M)
-    mf._eri = ao2mo.restore(4, eri, M)
-    mf.init_guess = '1e'
-    escf = mf.kernel()
+    # mf.get_hcore = lambda *args: h1
+    # mf.get_ovlp = lambda *args: numpy.eye(M)
+    # mf._eri = ao2mo.restore(4, eri, M)
+    # mf.init_guess = '1e'
+    # escf = mf.kernel()
 
-    # mci = fci.FCI(mol, mf.mo_coeff)
-    # mci = fci.addons.fix_spin_(mci, ss=0)
-    # mci.verbose = 4
-    # efci, civec = mci.kernel(nelec=system.nup+system.ndown, h1e=h1, eri=mf._eri, ecore = system.ecore, nroots=1)
-    # print(efci)
-    cisolver = hci.SCI(mol)
-    e, civec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore, verbose=4)
-    print("ESCI = {}".format(e))
-
-    # cisolver = fci.selected_ci_spin0.SCI()
-    # cisolver.select_cutoff = 1e-4
-    # cisolver.verbose = 0
-    # e, fcivec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore)
+    # # mci = fci.FCI(mol, mf.mo_coeff)
+    # # mci = fci.addons.fix_spin_(mci, ss=0)
+    # # mci.verbose = 4
+    # # efci, civec = mci.kernel(nelec=system.nup+system.ndown, h1e=h1, eri=mf._eri, ecore = system.ecore, nroots=1)
+    # # print(efci)
+    # cisolver = hci.SCI(mol)
+    # e, civec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore, verbose=4)
     # print("ESCI = {}".format(e))
 
-    # mycc = cc.RCCSD(mf)
-    # mycc.verbose = 5
-    # mycc.kernel()
-    # eccsd = escf + mycc.e_corr + system.ecore
-    # eccsds += [eccsd]
+    # # cisolver = fci.selected_ci_spin0.SCI()
+    # # cisolver.select_cutoff = 1e-4
+    # # cisolver.verbose = 0
+    # # e, fcivec = cisolver.kernel(h1, mf._eri, M, system.nup+system.ndown, ecore = system.ecore)
+    # # print("ESCI = {}".format(e))
 
-    # print(eccsds)
+    # # mycc = cc.RCCSD(mf)
+    # # mycc.verbose = 5
+    # # mycc.kernel()
+    # # eccsd = escf + mycc.e_corr + system.ecore
+    # # eccsds += [eccsd]
 
-    # (e0, ev), (d,oa,ob) = pauxyci.simple_fci(system, gen_dets=True)
-    # print(e0[0])
+    # # print(eccsds)
+
+    # # (e0, ev), (d,oa,ob) = pauxyci.simple_fci(system, gen_dets=True)
+    # # print(e0[0])
+    inputs = {'nup':2,
+              'ndown':2,
+              'rs':1.0,
+              'thermal':True,
+              'ecut':3}
+    system = UEG(inputs, True)
+
 if __name__=="__main__":
     unit_test()

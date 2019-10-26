@@ -465,7 +465,6 @@ class PlaneWave(object):
             numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
             numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
             ])
-
         if self.optimised:
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
@@ -493,9 +492,7 @@ class PlaneWave(object):
         M0 = walker.M0
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
                 scipy.linalg.det(walker.G[1], check_finite=False)]
-        # print("ovlp_old = ", M0)
-        # print("ovlp_new = ", Mnew)
-        # print("")
+
         # Could save M0 rather than recompute.
         try:
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])

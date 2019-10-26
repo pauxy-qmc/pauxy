@@ -300,7 +300,8 @@ class ThermalWalker(object):
 #       It goes to right to left and we sample (I + L*B*R) in the end
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
-                # mR = len(self.Dr[spin][numpy.abs(self.Dr[spin])>thresh])
+
+                mR = len(self.Dr[spin][numpy.abs(self.Dr[spin])>thresh])
                 
                 Ccr = numpy.einsum('ij,j->ij',
                     numpy.dot(Bc[spin],self.Qr[spin][:,:mR]),
@@ -316,8 +317,8 @@ class ThermalWalker(object):
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True, check_finite=False)
                 # Form D matrices
                 Dlcr = Rlcr.diagonal()
-
-                # mR = len(Dlcr[numpy.abs(Dlcr) > thresh])
+                
+                mR = len(Dlcr[numpy.abs(Dlcr) > thresh])
 
                 Dinv = 1.0/Rlcr.diagonal()
                 Tlcr = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:]) # mR x N
@@ -334,14 +335,13 @@ class ThermalWalker(object):
                 Dlcr = Rlcr.diagonal()
                 Dinv = 1.0/Dlcr
 
-                # mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
+                mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
 
                 tmp = numpy.einsum('i,ij->ij',Dinv[:mT], Rlcr[:mT,:])
                 tmp[:,Plcr] = tmp[:,range(mR)] # mT x mR
                 Tlcr = numpy.dot(tmp, Tlcr) # mT x N
             else:
                 mT = mR
-
 
             # D = Ds Db^{-1}
             Db = numpy.zeros(mT, Bc[spin].dtype)

@@ -54,6 +54,7 @@ def local_energy_pw_fft(system, G, Ghalf, trial, two_rdm=None):
     nq = numpy.shape(system.qvecs)[0]
 
     nocc = [nocca, noccb]
+
     nqgrid = numpy.prod(system.qmesh)
     ngrid = numpy.prod(system.mesh)
 
@@ -276,6 +277,7 @@ def unit_test():
 
         pr = cProfile.Profile()
         pr.enable()
+
         etot, ekin, epot = local_energy_pw_fft(system, G=G, Ghalf=Ghalf, trial=system.trial)
         pr.disable()
         pr.print_stats(sort='tottime')

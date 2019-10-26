@@ -1,5 +1,5 @@
 import numpy
-cimport numpy 
+cimport numpy
 import math
 import itertools
 from pauxy.estimators.utils import convolve
@@ -37,7 +37,6 @@ def mod_one_body(numpy.ndarray T, numpy.ndarray basis, double vol, double kfac):
             if i != j:
                 q = kfac * (ki - kj)
                 h1e_mod[i,i] = h1e_mod[i,i] - fac * vq(q)
-    
     return h1e_mod
 
 def coulomb_greens_function_per_qvec(numpy.ndarray kpq_i, numpy.ndarray kpq, numpy.ndarray pmq_i, numpy.ndarray pmq, double complex[:,:] G):
@@ -75,7 +74,7 @@ def exchange_greens_function_per_qvec(long[:] kpq_i, long[:] kpq, long[:] pmq_i,
 
     return Gprod
 
-def exchange_greens_function_fft (long nocc, long nbsf,  
+def exchange_greens_function_fft (long nocc, long nbsf,
     long[:] mesh, long[:] qmesh, long[:] gmap, long[:] qmap,
     double complex[:,:] CTdagger, double complex[:,:] Ghalf):
 
