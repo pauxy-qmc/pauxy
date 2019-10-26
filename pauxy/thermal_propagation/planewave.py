@@ -593,8 +593,8 @@ def unit_test():
     # beta = 0.5
     # dt = 0.05
 
-    # lowrank = True
-    lowrank = False
+    lowrank = True
+    # lowrank = False
 
     stack_size = 10
 
