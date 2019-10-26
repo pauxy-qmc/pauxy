@@ -423,9 +423,9 @@ class PlaneWave(object):
             walker.stack.update_new(B)
             walker.greens_function(None, slice_ix=tix, inplace=True)
 
-        ovlp = walker.stack.ovlp.copy()
+        ovlp = numpy.asarray(walker.stack.ovlp).copy()
         walker.stack.update_new(B)
-        ovlp_new = walker.stack.ovlp.copy()
+        ovlp_new = numpy.asarray(walker.stack.ovlp).copy()
         walker.G = walker.stack.G.copy()
 
         try:
@@ -543,9 +543,9 @@ class PlaneWave(object):
         #
         # local index within a stack = walker.stack.counter
         # global stack index = icur
-        ovlp = walker.stack.ovlp.copy()
+        ovlp = numpy.asarray(walker.stack.ovlp).copy()
         walker.stack.update_new(B)
-        ovlp_new = walker.stack.ovlp.copy()
+        ovlp_new = numpy.asarray(walker.stack.ovlp).copy()
         walker.G = walker.stack.G.copy()
 
         # Could save M0 rather than recompute.
@@ -587,8 +587,8 @@ def unit_test():
     from pauxy.qmc.comm import FakeComm
     from pauxy.walkers.thermal import ThermalWalker
 
-    beta = 8.0
-    dt = 0.01
+    beta = 16.0
+    dt = 0.005
 
     # beta = 0.5
     # dt = 0.05
@@ -598,63 +598,65 @@ def unit_test():
 
     stack_size = 10
 
-    inputs = {'nup':1, 'ndown':1, 'thermal':True, 'beta':beta,
-    'rs':1.0, 'ecut':5.0, 'dt':dt, 'nwalkers':10, 'lowrank':lowrank,
-    'stack_size':stack_size}
+    ecuts = [4.0, 8.0, 10.0, 12.0, 16.0, 21.0, 21.5, 32.0]
+    for ecut in ecuts:
+        inputs = {'nup':33, 'ndown':33, 'thermal':True, 'beta':beta,
+        'rs':1.0, 'ecut':ecut, 'dt':dt, 'nwalkers':10, 'lowrank':lowrank,
+        'stack_size':stack_size}
 
-    system = UEG(inputs, True)
+        system = UEG(inputs, True)
 
-    qmc = QMCOpts(inputs, system, True)
+        qmc = QMCOpts(inputs, system, True)
 
-    comm = FakeComm()
+        comm = FakeComm()
 
-    trial = OneBody(comm, system, beta, dt, options=inputs,
-                    verbose=True)
+        trial = OneBody(comm, system, beta, dt, options=inputs,
+                        verbose=True)
 
-    propagator = PlaneWave(system, trial, qmc, inputs, True)
+        propagator = PlaneWave(system, trial, qmc, inputs, True)
 
-    walker = ThermalWalker({'stack_size':trial.stack_size, 'low_rank':lowrank}, system, trial, verbose=True)
-    eshift = 0.0+0.0j
-    
-    numpy.random.seed(7)
-    
-    pr = cProfile.Profile()
-    pr.enable()    
-    for ts in range(0, walker.num_slices):
-        propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
-
-    if (lowrank):
-        system = PW_FFT(inputs, False)
-        sort_basis = numpy.argsort(numpy.diag(system.H1[0]), kind='mergesort')
-        inv_sort_basis = numpy.zeros_like(sort_basis)
-
-        for i, idx in enumerate(sort_basis):
-            inv_sort_basis[idx] = i
-
-        mT = walker.stack.mT
-        Ctrial = numpy.zeros((system.nbasis, walker.stack.mT*2), dtype = numpy.complex128)
-        Ctrial[:,:mT] = walker.stack.CT[0][:,:mT]
-        Ctrial[:,mT:] = walker.stack.CT[1][:,:mT]
-
-        P = one_rdm_from_G(walker.G)
-        # Ptmp = Ctrial[:,:mT].conj().dot(walker.stack.theta[0,:mT,:])
+        walker = ThermalWalker({'stack_size':trial.stack_size, 'low_rank':lowrank}, system, trial, verbose=True)
+        eshift = 0.0+0.0j
         
-        # Reorder to FFT
-        P[:,:,:] = P[:,inv_sort_basis, :]
-        P[:,:,:] = P[:,:, inv_sort_basis]
-        Theta = walker.stack.theta[:,:mT,:]
-        Theta[:,:,:] = Theta[:,:,inv_sort_basis]
-        Ctrial = Ctrial[inv_sort_basis, :]
+        numpy.random.seed(7)
+        
+        pr = cProfile.Profile()
+        pr.enable()    
+        for ts in range(0, walker.num_slices):
+            propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
 
-        print("E = {}".format(local_energy_pw_fft(system, G = P, Ghalf = Theta, trial=Ctrial)))
-    else:
-        P = one_rdm_from_G(walker.G)
-        print(numpy.diag(walker.G[0].real))
-        print("weight = {}".format(walker.weight))
-        print("E = {}".format(local_energy_ueg(system, P)))
+        if (lowrank):
+            system = PW_FFT(inputs, False)
+            sort_basis = numpy.argsort(numpy.diag(system.H1[0]), kind='mergesort')
+            inv_sort_basis = numpy.zeros_like(sort_basis)
 
-    pr.disable()
-    pr.print_stats(sort='tottime')
+            for i, idx in enumerate(sort_basis):
+                inv_sort_basis[idx] = i
+
+            mT = walker.stack.mT
+            Ctrial = numpy.zeros((system.nbasis, walker.stack.mT*2), dtype = numpy.complex128)
+            Ctrial[:,:mT] = walker.stack.CT[0][:,:mT]
+            Ctrial[:,mT:] = walker.stack.CT[1][:,:mT]
+
+            P = one_rdm_from_G(walker.G)
+            # Ptmp = Ctrial[:,:mT].conj().dot(walker.stack.theta[0,:mT,:])
+            
+            # Reorder to FFT
+            P[:,:,:] = P[:,inv_sort_basis, :]
+            P[:,:,:] = P[:,:, inv_sort_basis]
+            Theta = walker.stack.theta[:,:mT,:]
+            Theta[:,:,:] = Theta[:,:,inv_sort_basis]
+            Ctrial = Ctrial[inv_sort_basis, :]
+
+            print("E = {}".format(local_energy_pw_fft(system, G = P, Ghalf = Theta, trial=Ctrial)))
+        else:
+            P = one_rdm_from_G(walker.G)
+            print(numpy.diag(walker.G[0].real))
+            print("weight = {}".format(walker.weight))
+            print("E = {}".format(local_energy_ueg(system, P)))
+
+        pr.disable()
+        pr.print_stats(sort='tottime')
 
 if __name__=="__main__":
     unit_test()
