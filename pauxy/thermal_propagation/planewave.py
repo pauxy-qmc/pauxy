@@ -23,6 +23,7 @@ class PlaneWave(object):
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
         self.optimised = options.get('optimised', True)
+        self.lowrank = options.get('lowrank', True)
         self.exp_nmax = options.get('expansion_order', 6)
         self.nstblz = qmc.nstblz
         self.fb_bound = options.get('fb_bound', 1.0)
@@ -56,10 +57,13 @@ class PlaneWave(object):
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-        
-        if (self.optimised):
+                
+        # self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
+        if (self.lowrank):
+            self.propagate_walker_free = self.propagate_walker_phaseless_low_rank
             self.propagate_walker_phaseless = self.propagate_walker_phaseless_low_rank
         else:
+            self.propagate_walker_free = self.propagate_walker_free_full_rank
             self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
 
         if self.free_projection:
@@ -304,7 +308,7 @@ class PlaneWave(object):
     def estimate_eshift(self, walker):
         return 0.0
 
-    def propagate_walker_free(self, system, walker, trial, eshift, force_bias=False):
+    def propagate_walker_free_full_rank(self, system, walker, trial, eshift, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -339,10 +343,10 @@ class PlaneWave(object):
                 walker.compute_left_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
-            G = walker.greens_function_left_right(icur, inplace=False)
+            G = walker.greens_function_left_right_no_truncation(icur, inplace=False)
             # 2. Compute updated green's function.
             walker.stack.update_new(B)
-            walker.greens_function_left_right(icur, inplace=True)
+            walker.greens_function_left_right_no_truncation(icur, inplace=True)
         else:
             # Compute determinant ratio det(1+A')/det(1+A).
             # 1. Current walker's green's function.
@@ -358,6 +362,7 @@ class PlaneWave(object):
               scipy.linalg.det(G[1], check_finite=False)]
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
                 scipy.linalg.det(walker.G[1], check_finite=False)]
+
         try:
             # Could save M0 rather than recompute.
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
@@ -370,6 +375,70 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
+    def propagate_walker_free_low_rank(self, system, walker, trial, eshift, force_bias=False):
+        """Free projection propagator
+        Parameters
+        ----------
+        walker :
+            walker class
+        system :
+            system class
+        trial :
+            trial wavefunction class
+        Returns
+        -------
+        """
+
+        (cmf, cfb, xmxbar, VHS) = self.two_body_propagator(walker, system,
+                                                           force_bias=force_bias)
+        BV = self.exponentiate(VHS) # could use a power-series method to build this
+
+        B = numpy.array([
+            numpy.einsum('ij,jj->ij',BV,self.BH1[0]),
+            numpy.einsum('ij,jj->ij',BV,self.BH1[1])
+            ])
+        B = numpy.array([
+            numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
+            numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
+            ])
+
+        # Compute determinant ratio det(1+A')/det(1+A).
+        if self.optimised:
+            icur = walker.stack.time_slice // walker.stack.stack_size
+            inext = (walker.stack.time_slice+1) // walker.stack.stack_size
+            if walker.stack.counter == 0:
+                walker.compute_left_right(icur)
+            # 1. Current walker's green's function.
+            # Green's function that takes Left Right and Center
+            G = walker.greens_function_left_right_no_truncation(icur, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function_left_right_no_truncation(icur, inplace=True)
+        else:
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+            tix = walker.stack.ntime_slices
+            G = walker.greens_function(None, slice_ix=tix, inplace=False)
+            # 2. Compute updated green's function.
+            walker.stack.update_new(B)
+            walker.greens_function(None, slice_ix=tix, inplace=True)
+
+        ovlp = walker.stack.ovlp
+        walker.stack.update_new(B)
+        ovlp_new = walker.stack.ovlp
+        walker.G = walker.stack.G.copy()
+
+        try:
+            # Could save M0 rather than recompute.
+            oratio = (ovlp_new[0] * ovlp_new[1]) / (ovlp[0] * ovlp[1])
+
+            walker.ot = 1.0
+            # Constant terms are included in the walker's weight.
+            (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
+            walker.weight *= magn
+            walker.phase *= cmath.exp(1j*phase)
+        except ZeroDivisionError:
+            walker.weight = 0.0
 
     def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift):
         # """Phaseless propagator
@@ -396,6 +465,7 @@ class PlaneWave(object):
             numpy.einsum('ii,ij->ij',self.BH1[0],B[0]),
             numpy.einsum('ii,ij->ij',self.BH1[1],B[1])
             ])
+
         if self.optimised:
             icur = walker.stack.time_slice // walker.stack.stack_size
             inext = (walker.stack.time_slice+1) // walker.stack.stack_size
@@ -403,10 +473,13 @@ class PlaneWave(object):
                 walker.compute_left_right(icur)
             # 1. Current walker's green's function.
             # Green's function that takes Left Right and Center
-            G = walker.greens_function_left_right(icur, inplace=False)
+            # print("walker.stack.G (before) = ", walker.G)
+            G = walker.greens_function_left_right_no_truncation(icur, inplace=False)
+            # print("G (before) = ", G)
             # 2. Compute updated green's function.
             walker.stack.update_new(B)
-            walker.greens_function_left_right(icur, inplace=True)
+            walker.greens_function_left_right_no_truncation(icur, inplace=True)
+            # print("G (after) = ", walker.G)
         else:
             # Compute determinant ratio det(1+A')/det(1+A).
             # 1. Current walker's green's function.
@@ -420,7 +493,9 @@ class PlaneWave(object):
         M0 = walker.M0
         Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
                 scipy.linalg.det(walker.G[1], check_finite=False)]
-
+        # print("ovlp_old = ", M0)
+        # print("ovlp_new = ", Mnew)
+        # print("")
         # Could save M0 rather than recompute.
         try:
             oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
@@ -471,9 +546,9 @@ class PlaneWave(object):
         #
         # local index within a stack = walker.stack.counter
         # global stack index = icur
-        ovlp = walker.stack.ovlp
+        ovlp = walker.stack.ovlp.copy()
         walker.stack.update_new(B)
-        ovlp_new = walker.stack.ovlp
+        ovlp_new = walker.stack.ovlp.copy()
         walker.G = walker.stack.G.copy()
 
         # Could save M0 rather than recompute.
@@ -507,16 +582,28 @@ class PlaneWave(object):
 def unit_test():
     import cProfile
     from pauxy.systems.ueg import UEG
+    from pauxy.systems.pw_fft import PW_FFT
+    from pauxy.estimators.ueg import local_energy_ueg
+    from pauxy.estimators.pw_fft import local_energy_pw_fft
     from pauxy.qmc.options import QMCOpts
     from pauxy.trial_density_matrices.onebody import OneBody
     from pauxy.qmc.comm import FakeComm
     from pauxy.walkers.thermal import ThermalWalker
 
     beta = 4.0
-    dt = 0.1
+    dt = 0.01
+
+    # beta = 0.5
+    # dt = 0.05
+
+    # lowrank = True
+    lowrank = False
+
+    stack_size = 10
 
     inputs = {'nup':1, 'ndown':1, 'thermal':True, 'beta':beta,
-    'rs':1.0, 'ecut':0.5, 'dt':dt, 'nwalkers':10}
+    'rs':1.0, 'ecut':10.0, 'dt':dt, 'nwalkers':10, 'lowrank':lowrank,
+    'stack_size':stack_size}
 
     system = UEG(inputs, True)
 
@@ -529,20 +616,48 @@ def unit_test():
 
     propagator = PlaneWave(system, trial, qmc, inputs, True)
 
-    walker = ThermalWalker({'stack_size':trial.stack_size}, system, trial, verbose=True)
+    walker = ThermalWalker({'stack_size':trial.stack_size, 'low_rank':lowrank}, system, trial, verbose=True)
     eshift = 0.0+0.0j
     
-    # pr = cProfile.Profile()
-    # pr.enable()    
     numpy.random.seed(7)
     
-    # print("walker.num_slices = {}".format(walker.num_slices))
-    # print(walker.G)
+    pr = cProfile.Profile()
+    pr.enable()    
     for ts in range(0, walker.num_slices):
         propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
-    # print(walker.G[0].real)
-    # pr.disable()
-    # pr.print_stats(sort='tottime')
+
+    if (lowrank):
+        system = PW_FFT(inputs, False)
+        sort_basis = numpy.argsort(numpy.diag(system.H1[0]), kind='mergesort')
+        inv_sort_basis = numpy.zeros_like(sort_basis)
+
+        for i, idx in enumerate(sort_basis):
+            inv_sort_basis[idx] = i
+
+        mT = walker.stack.mT
+        Ctrial = numpy.zeros((system.nbasis, walker.stack.mT*2), dtype = numpy.complex128)
+        Ctrial[:,:mT] = walker.stack.CT[0][:,:mT]
+        Ctrial[:,mT:] = walker.stack.CT[1][:,:mT]
+
+        P = one_rdm_from_G(walker.G)
+        # Ptmp = Ctrial[:,:mT].conj().dot(walker.stack.theta[0,:mT,:])
+        
+        # Reorder to FFT
+        P[:,:,:] = P[:,inv_sort_basis, :]
+        P[:,:,:] = P[:,:, inv_sort_basis]
+        Theta = walker.stack.theta[:,:mT,:]
+        Theta[:,:,:] = Theta[:,:,inv_sort_basis]
+        Ctrial = Ctrial[inv_sort_basis, :]
+
+        print("E = {}".format(local_energy_pw_fft(system, G = P, Ghalf = Theta, trial=Ctrial)))
+    else:
+        P = one_rdm_from_G(walker.G)
+        print(numpy.diag(walker.G[0].real))
+        print("weight = {}".format(walker.weight))
+        print("E = {}".format(local_energy_ueg(system, P)))
+
+    pr.disable()
+    pr.print_stats(sort='tottime')
 
 if __name__=="__main__":
     unit_test()

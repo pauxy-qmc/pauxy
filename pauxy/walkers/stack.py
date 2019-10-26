@@ -120,6 +120,7 @@ class PropagatorStack:
         self.averaging = averaging
 
         self.lowrank = lowrank
+        print("# Low rank trick: {}".format(lowrank))
         self.ovlp = [1.0, 1.0]
 
         if(self.lowrank):
@@ -149,9 +150,9 @@ class PropagatorStack:
         self.G = numpy.asarray([numpy.eye(self.nbasis, dtype=dtype),numpy.eye(self.nbasis, dtype=dtype)])
 
         if (self.lowrank):
-            self.update_new = self.update_lowrank
+            self.update_new = self.update_low_rank
         else:
-            self.update_new = self.update_fullrank
+            self.update_new = self.update_full_rank
 
         # Global block matrix
         if (self.lowrank):
@@ -162,6 +163,10 @@ class PropagatorStack:
             self.Qr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
             self.Dr = numpy.zeros(shape=(2, nbasis),dtype=dtype)
             self.Tr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+
+            self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.mT = nbasis
 
         # set all entries to be the identity matrix
         self.reset()
@@ -245,16 +250,16 @@ class PropagatorStack:
     # \TODO add non-diagonal version of this
     def initialize_left(self):
         assert(self.diagonal_trial)
-        
         for spin in [0, 1]:
             # We will assume that B matrices are all diagonal for left....
-            B = self.stack[1]
+            # B = self.stack[1]
+            B = self.stack[0]
             self.Dl[spin] = (B[spin].diagonal())
             self.Ql[spin] = numpy.identity(B[spin].shape[0])
             self.Tl[spin] = numpy.identity(B[spin].shape[0])
 
-            for ix in range(2, self.nbins):
-                # print("center_ix < self.stack.nbins-1 first inner loop")
+            # for ix in range(2, self.nbins):
+            for ix in range(1, self.nbins):
                 B = self.stack[ix]
                 C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
                 self.Dl[spin] = C2
@@ -272,7 +277,7 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
 
-    def update_fullrank(self, B):
+    def update_full_rank(self, B):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
         if self.counter == 0:
             self.right[self.block,0] = numpy.identity(B.shape[-1], dtype=B.dtype)
@@ -288,7 +293,6 @@ class PropagatorStack:
         self.right[self.block,0] = B[0].dot(self.right[self.block,0])
         self.right[self.block,1] = B[1].dot(self.right[self.block,1])
 
-
         if self.diagonal_trial:
             self.stack[self.block,0] = numpy.einsum('ii,ij->ij',self.left[self.block,0],self.right[self.block,0])
             self.stack[self.block,1] = numpy.einsum('ii,ij->ij',self.left[self.block,1],self.right[self.block,1])
@@ -300,7 +304,7 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
     
-    def update_lowrank(self, B, thresh = 1e-16):
+    def update_low_rank(self, B, thresh = 1e-6):
         assert (not self.averaging)
         # Diagonal = True assumes BT is diagonal and left is also diagonal
         assert (self.diagonal_trial)
@@ -311,68 +315,156 @@ class PropagatorStack:
 
         mR = B.shape[-1] # initial mR
         mL = B.shape[-1] # initial mR
-        for s in [0,1]:
-            mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
-            mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
-            # self.Tl[s] = numpy.diag(numpy.multiply(numpy.diag(self.Tl[s][:mL,:mL]), numpy.diag(self.BTinv[s][:mL,:mL])))
-            self.Dl[s][:mL] = numpy.multiply(self.Dl[s][:mL], numpy.diag(self.BTinv[s][:mL,:mL]))
-            self.Dl[s][mL:] = 0.0
-            
-            self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
-            self.Qr[s][:,mR:] = 0.0
-
-            Ccr = numpy.einsum('ij,j->ij',self.Qr[s][:,:mR],self.Dr[s][:mR]) # N x mR
-            (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
-            Dlcr = Rlcr[:mR,:mR].diagonal() # mR 
-            Dinv = 1.0/Dlcr # mR
-            tmp = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:mR]) # mR, mR x mR -> mR x mR
-            tmp[:,Plcr] = tmp[:,range(mR)]
-            Tlcr = numpy.dot(tmp, self.Tr[s][:mR,:]) # mR x N
-
-
-            # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
-            Clcr = numpy.einsum('i,ij->ij',
-                    self.Dl[s][:mL],
-                    numpy.einsum('ij,j->ij',Qlcr[:mL,:mR], Dlcr[:mR])) # mL x mR
-
-            (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False) # mL x mL, min(mL,mR) x min(mL,mR), mR x mR
-            Dlcr = Rlcr.diagonal()[:min(mL,mR)]
-            Dinv = 1.0/Dlcr
-
-            mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
-
-            assert (mT <= mL and mT <= mR)
-
-            tmp = numpy.einsum('i,ij->ij',Dinv[:mT], Rlcr[:mT,:])
-            tmp[:,Plcr] = tmp[:,range(mR)] # mT x mR
-            Tlcr = numpy.dot(tmp, Tlcr) # mT x N
-
-            Db = numpy.zeros(mT, B[s].dtype)
-            Ds = numpy.zeros(mT, B[s].dtype)
-            for i in range(mT):
-                absDlcr = abs(Dlcr[i])
-                if absDlcr > 1.0:
-                    Db[i] = 1.0 / absDlcr
-                    Ds[i] = numpy.sign(Dlcr[i])
-                else:
-                    Db[i] = 1.0
-                    Ds[i] = Dlcr[i]
-            Dbinv = 1.0 / Db
-            
-            TQ = Tlcr.dot(Qlcr[:,:mT]) # mT x mT
-            TQinv = scipy.linalg.inv(TQ, check_finite=False)
-            tmp = numpy.einsum('ij,j->ij',TQinv, Db) + numpy.diag(Ds) # mT x mT
-
-            G = numpy.einsum("ij,j->ij", tmp, Dbinv).dot(TQ)
-            self.ovlp[s] = 1.0 / scipy.linalg.det(G, check_finite=False)
-
-            A = numpy.einsum("i,ij->ij", Db, tmp.dot(TQinv)) # mT x mT
-            self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - Qlcr[:,:mT].dot(numpy.diag(Dlcr[:mT])).dot(A).dot(Tlcr)
-
-        self.time_slice = self.time_slice + 1 # Count the time slice
+        mT = B.shape[-1] # initial mR
         next_block = self.time_slice // self.stack_size # move to the next block if necessary
+        
         if (next_block > self.block): # Do QR and update here?
-            self.block = self.time_slice // self.stack_size # move to the next block if necessary
+            for s in [0,1]:
+                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
+
+                self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
+                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
+                
+                self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
+                self.Qr[s][:,mR:] = 0.0
+
+                Ccr = numpy.einsum('ij,j->ij',self.Qr[s][:,:mR],self.Dr[s][:mR]) # N x mR
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
+                Dlcr = Rlcr[:mR,:mR].diagonal() # mR 
+                
+                self.Dr[s][:mR] = Dlcr
+                self.Qr[s] = Qlcr
+
+                Dinv = 1.0/Dlcr # mR
+                tmp = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:mR]) # mR, mR x mR -> mR x mR
+                tmp[:,Plcr] = tmp[:,range(mR)]
+                Tlcr = numpy.dot(tmp, self.Tr[s][:mR,:]) # mR x N
+                
+                self.Tr[s][:mR,:] = Tlcr
+                
+                # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
+                Clcr = numpy.einsum('i,ij->ij',
+                        self.Dl[s][:mL],
+                        numpy.einsum('ij,j->ij',Qlcr[:mL,:mR], Dlcr[:mR])) # mL x mR
+
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False) # mL x mL, min(mL,mR) x min(mL,mR), mR x mR
+                Dlcr = Rlcr.diagonal()[:min(mL,mR)]
+                Dinv = 1.0/Dlcr
+
+                mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
+
+                assert (mT <= mL and mT <= mR)
+
+                tmp = numpy.einsum('i,ij->ij',Dinv[:mT], Rlcr[:mT,:])
+                tmp[:,Plcr] = tmp[:,range(mR)] # mT x mR
+                Tlcr = numpy.dot(tmp, Tlcr) # mT x N
+
+                Db = numpy.zeros(mT, B[s].dtype)
+                Ds = numpy.zeros(mT, B[s].dtype)
+                for i in range(mT):
+                    absDlcr = abs(Dlcr[i])
+                    if absDlcr > 1.0:
+                        Db[i] = 1.0 / absDlcr
+                        Ds[i] = numpy.sign(Dlcr[i])
+                    else:
+                        Db[i] = 1.0
+                        Ds[i] = Dlcr[i]
+                Dbinv = 1.0 / Db
+
+                TQ = Tlcr[:,:mL].dot(Qlcr[:mL,:mT]) # mT x mT
+                TQinv = scipy.linalg.inv(TQ, check_finite=False)
+                tmp = numpy.einsum('ij,j->ij',TQinv, Db) + numpy.diag(Ds) # mT x mT
+
+                M = numpy.einsum("ij,j->ij", tmp, Dbinv).dot(TQ)
+                # self.ovlp[s] = 1.0 / scipy.linalg.det(M, check_finite=False)
+                self.ovlp[s] = scipy.linalg.det(M, check_finite=False)
+
+                tmp = scipy.linalg.inv(tmp, check_finite=False)
+                A = numpy.einsum("i,ij->ij", Db, tmp.dot(TQinv)) # mT x mT
+                Qlcr_pad = numpy.zeros((self.nbasis, self.nbasis), dtype=B[s].dtype)
+                Qlcr_pad[:mL,:mT] = Qlcr[:,:mT]
+
+                # self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - Qlcr_pad[:,:mT].dot(numpy.diag(Dlcr[:mT])).dot(A).dot(Tlcr)
+
+                self.CT[s][:,:] = 0.0
+                self.CT[s][:,:mT] = (A.dot(Tlcr)).T.conj()
+                self.theta[s][:,:] = 0.0
+                self.theta[s][:mT,:] = Qlcr_pad[:,:mT].dot(numpy.diag(Dlcr[:mT])).T
+                # self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - self.CT[s][:,:mT].dot(self.theta[s][:mT,:])
+                self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - self.theta[s][:mT,:].T.dot(self.CT[s][:,:mT].T.conj())
+                # self.CT[s][:,:mT] = self.CT[s][:,:mT].conj()
+
+                # print("# mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
+        else: # don't do QR and just update
+            for s in [0,1]:
+                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
+
+                self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
+                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
+                
+                self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
+                self.Qr[s][:,mR:] = 0.0
+
+                Ccr = numpy.einsum('ij,j->ij',self.Qr[s][:,:mR],self.Dr[s][:mR]) # N x mR
+                Clcr = numpy.einsum('i,ij->ij', self.Dl[s][:mL], Ccr[:mL,:mR]) # mL x mR
+
+                (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False) # mL x mL, min(mL,mR) x min(mL,mR), mR x mR
+                Dlcr = Rlcr.diagonal()[:min(mL,mR)]
+                Dinv = 1.0/Dlcr
+
+                mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
+
+                assert (mT <= mL and mT <= mR)
+
+                tmp = numpy.einsum('i,ij->ij',Dinv[:mT], Rlcr[:mT,:])
+                tmp[:,Plcr] = tmp[:,range(mR)] # mT x mR
+                Tlcr = numpy.dot(tmp, self.Tr[s][:mR,:]) # mT x N
+
+                Db = numpy.zeros(mT, B[s].dtype)
+                Ds = numpy.zeros(mT, B[s].dtype)
+                for i in range(mT):
+                    absDlcr = abs(Dlcr[i])
+                    if absDlcr > 1.0:
+                        Db[i] = 1.0 / absDlcr
+                        Ds[i] = numpy.sign(Dlcr[i])
+                    else:
+                        Db[i] = 1.0
+                        Ds[i] = Dlcr[i]
+                Dbinv = 1.0 / Db
+
+                TQ = Tlcr[:,:mL].dot(Qlcr[:mL,:mT]) # mT x mT
+                TQinv = scipy.linalg.inv(TQ, check_finite=False)
+                tmp = numpy.einsum('ij,j->ij',TQinv, Db) + numpy.diag(Ds) # mT x mT
+
+                M = numpy.einsum("ij,j->ij", tmp, Dbinv).dot(TQ)
+                # self.ovlp[s] = 1.0 / scipy.linalg.det(M, check_finite=False)
+                self.ovlp[s] = scipy.linalg.det(M, check_finite=False)
+
+                tmp = scipy.linalg.inv(tmp, check_finite=False)
+                A = numpy.einsum("i,ij->ij", Db, tmp.dot(TQinv)) # mT x mT
+                Qlcr_pad = numpy.zeros((self.nbasis, self.nbasis), dtype=B[s].dtype)
+                Qlcr_pad[:mL,:mT] = Qlcr[:,:mT]
+
+                # self.CT[s][:,:] = 0.0
+                # self.CT[s][:,:mT] = Qlcr_pad[:,:mT].dot(numpy.diag(Dlcr[:mT]))
+                # self.theta[s][:,:] = 0.0
+                # self.theta[s][:mT,:] = A.dot(Tlcr)
+                # self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - self.CT[s][:,:mT].dot(self.theta[s][:mT,:])
+                # self.CT[s][:,:mT] = self.CT[s][:,:mT].conj()
+                self.CT[s][:,:] = 0.0
+                self.CT[s][:,:mT] = (A.dot(Tlcr)).T.conj()
+                self.theta[s][:,:] = 0.0
+                self.theta[s][:mT,:] = Qlcr_pad[:,:mT].dot(numpy.diag(Dlcr[:mT])).T
+                # self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - self.CT[s][:,:mT].dot(self.theta[s][:mT,:])
+                self.G[s] = numpy.eye(self.nbasis, dtype=B[s].dtype) - self.theta[s][:mT,:].T.dot(self.CT[s][:,:mT].T.conj())
+
+            # self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            # self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+
+        # print("ovlp = {}".format(self.ovlp))
+        self.mT = mT
+        self.time_slice = self.time_slice + 1 # Count the time slice
+        self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
 
     def get_wfac(self):
