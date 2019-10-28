@@ -130,19 +130,6 @@ class ThermalAFQMC(object):
                                                     self.qmc.beta,
                                                     self.qmc.dt, verbose)
 
-        prop_opts = get_input_value(options, 'propagator', default={},
-                                    verbose=self.verbosity>1)
-        self.propagators = get_propagator(prop_opts, self.qmc, self.system,
-                                          self.trial, verbose)
-
-        self.tsetup = time.time() - self._init_time
-        est_opts = get_input_value(options, 'estimators', default={},
-                                   alias=['estimates'],
-                                   verbose=self.verbosity>1)
-        self.estimators = (
-            Estimators(est_opts, self.root, self.qmc, self.system,
-                       self.trial, self.propagators.BT_BP, verbose)
-        )
         self.qmc.ntot_walkers = self.qmc.nwalkers
         # Number of walkers per core/rank.
         self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
@@ -153,12 +140,28 @@ class ThermalAFQMC(object):
                 print("# WARNING: Not enough walkers for selected core count."
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
-            afqmc.qmc.nwalkers = 1
+            self.qmc.nwalkers = 1
         wlk_opts = get_input_value(options, 'walkers', default={},
                                    alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
         self.walk = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose)
+                            self.qmc, verbose)
+        lowrank = self.walk.walkers[0].lowrank
+        prop_opts = get_input_value(options, 'propagator', default={},
+                                    verbose=self.verbosity>1)
+        self.propagators = get_propagator(prop_opts, self.qmc, self.system,
+                                          self.trial,
+                                          verbose=verbose,
+                                          lowrank=lowrank)
+
+        self.tsetup = time.time() - self._init_time
+        est_opts = get_input_value(options, 'estimators', default={},
+                                   alias=['estimates'],
+                                   verbose=self.verbosity>1)
+        self.estimators = (
+            Estimators(est_opts, self.root, self.qmc, self.system,
+                       self.trial, self.propagators.BT_BP, verbose)
+        )
         # stabilization frequency might be updated due to wrong user input
         if self.qmc.nstblz != self.propagators.nstblz:
             self.propagators.nstblz = self.qmc.nstblz
@@ -190,12 +193,6 @@ class ThermalAFQMC(object):
                                                    self.propagators.free_projection)
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
-        if comm.rank == 0:
-            eshift = self.propagators.estimate_eshift(self.walk.walkers[0])
-        else:
-            eshift = 0
-        eshift0 = comm.bcast(eshift, root=0)
-        eshift = eshift0
 
         for step in range(1, self.qmc.nsteps + 1):
             start_path = time.time()
@@ -206,18 +203,13 @@ class ThermalAFQMC(object):
                 eloc = 0.0
                 weight = 0.0
                 for w in self.walk.walkers:
-                    self.propagators.propagate_walker(self.system, w,
-                                                      ts, eshift)
+                    self.propagators.propagate_walker(self.system, w, ts)
                     if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
                         w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:
                     self.walk.pop_control(comm)
-                if ts % 1 == 0:
-                    wnew = self.walk.walkers[0].total_weight
-                    wold = self.walk.walkers[0].old_total_weight
-                    eshift = -self.qmc.dt*numpy.log(wnew/wold)
                 self.tpopc += time.time() - start
             self.tpath += time.time() - start_path
             start = time.time()
@@ -228,7 +220,6 @@ class ThermalAFQMC(object):
             self.estimators.print_step(comm, self.nprocs, step, 1,
                                        self.propagators.free_projection)
             self.walk.reset(self.trial)
-            eshift = eshift0
 
     def finalise(self, verbose):
         """Tidy up.

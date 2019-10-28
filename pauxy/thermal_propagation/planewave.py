@@ -15,7 +15,8 @@ from pauxy.walkers.single_det import SingleDetWalker
 class PlaneWave(object):
     """PlaneWave class
     """
-    def __init__(self, system, trial, qmc, options={}, verbose=False):
+    def __init__(self, system, trial, qmc, options={},
+                 verbose=False, lowrank=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing plane wave propagator input options.")
@@ -23,7 +24,7 @@ class PlaneWave(object):
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
         self.optimised = options.get('optimised', True)
-        self.lowrank = options.get('lowrank', True)
+        self.lowrank = lowrank
         self.exp_nmax = options.get('expansion_order', 6)
         self.nstblz = qmc.nstblz
         self.fb_bound = options.get('fb_bound', 1.0)
@@ -57,9 +58,9 @@ class PlaneWave(object):
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-                
+
         # self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
-        if (self.lowrank):
+        if self.lowrank:
             self.propagate_walker_free = self.propagate_walker_phaseless_low_rank
             self.propagate_walker_phaseless = self.propagate_walker_phaseless_low_rank
         else:
@@ -308,7 +309,7 @@ class PlaneWave(object):
     def estimate_eshift(self, walker):
         return 0.0
 
-    def propagate_walker_free_full_rank(self, system, walker, trial, eshift, force_bias=False):
+    def propagate_walker_free_full_rank(self, system, walker, trial, eshift=0, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -375,7 +376,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_free_low_rank(self, system, walker, trial, eshift, force_bias=False):
+    def propagate_walker_free_low_rank(self, system, walker, trial, eshift=0, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -440,7 +441,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift):
+    def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift=0):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -514,7 +515,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_phaseless_low_rank(self, system, walker, trial, eshift):
+    def propagate_walker_phaseless_low_rank(self, system, walker, trial, eshift=0):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -617,11 +618,11 @@ def unit_test():
 
         walker = ThermalWalker({'stack_size':trial.stack_size, 'low_rank':lowrank}, system, trial, verbose=True)
         eshift = 0.0+0.0j
-        
+
         numpy.random.seed(7)
-        
+
         pr = cProfile.Profile()
-        pr.enable()    
+        pr.enable()
         for ts in range(0, walker.num_slices):
             propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
 
@@ -640,7 +641,7 @@ def unit_test():
 
             P = one_rdm_from_G(walker.G)
             # Ptmp = Ctrial[:,:mT].conj().dot(walker.stack.theta[0,:mT,:])
-            
+
             # Reorder to FFT
             P[:,:,:] = P[:,inv_sort_basis, :]
             P[:,:,:] = P[:,:, inv_sort_basis]

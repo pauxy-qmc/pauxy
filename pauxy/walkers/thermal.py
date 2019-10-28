@@ -17,10 +17,6 @@ class ThermalWalker(object):
         self.alive = True
         self.num_slices = trial.num_slices
         dtype = numpy.complex128
-        # if system.name == "UEG" or system.name == "Generic" or system.name == ":
-            # dtype = numpy.complex128
-        # else:
-            # dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
         self.total_weight = 0
@@ -51,15 +47,20 @@ class ThermalWalker(object):
         if verbose:
             print("# Walker stack size: {}".format(self.stack_size))
 
-        self.lowrank = walker_opts.get('low_rank', True)
+        self.lowrank = walker_opts.get('low_rank', False)
+        self.lowrank_thresh = walker_opts.get('low_rank_thresh', 1e-6)
+        if verbose:
+            print("# Using low rank trick: {}".format(self.lowrank))
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
-                                     diagonal=self.diagonal_trial, lowrank = self.lowrank)
+                                     diagonal=self.diagonal_trial,
+                                     lowrank=self.lowrank,
+                                     thresh=self.lowrank_thresh)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
-        self.greens_function(trial)
+        self.greens_function_qr_strat(trial)
         self.stack.G = self.G
         self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
                    scipy.linalg.det(self.G[1], check_finite=False)]
@@ -83,8 +84,11 @@ class ThermalWalker(object):
             print("# Initial walker electron number: {}".format(nav))
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
-        return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
-                                             inplace=inplace)
+        if self.lowrank:
+            return self.stack.G
+        else:
+            return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
+                                                 inplace=inplace)
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if slice_ix == None:
@@ -281,20 +285,20 @@ class ThermalWalker(object):
                     self.Dl[spin] = C2.diagonal()
 
     def greens_function_left_right(self, center_ix, inplace=False, thresh = 1e-6):
-        
+
         assert(self.diagonal_trial)
 
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
             G = None
-        
+
         mL = self.G.shape[1]
         mR = self.G.shape[1]
         mT = self.G.shape[1]
 
         Bc = self.stack.get(center_ix)
-        
+
         nbsf = Bc.shape[1]
 
 #       It goes to right to left and we sample (I + L*B*R) in the end
@@ -302,13 +306,13 @@ class ThermalWalker(object):
             if (center_ix > 0): # there exists right bit
 
                 mR = len(self.Dr[spin][numpy.abs(self.Dr[spin])>thresh])
-                
+
                 Ccr = numpy.einsum('ij,j->ij',
                     numpy.dot(Bc[spin],self.Qr[spin][:,:mR]),
                     self.Dr[spin][:mR]) # N x mR
 
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
-                Dlcr = Rlcr[:mR,:mR].diagonal() # mR 
+                Dlcr = Rlcr[:mR,:mR].diagonal() # mR
                 Dinv = 1.0/Dlcr # mR
                 tmp = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:mR]) # mR, mR x mR -> mR x mR
                 tmp[:,Plcr] = tmp[:,range(mR)]
@@ -317,13 +321,13 @@ class ThermalWalker(object):
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True, check_finite=False)
                 # Form D matrices
                 Dlcr = Rlcr.diagonal()
-                
+
                 mR = len(Dlcr[numpy.abs(Dlcr) > thresh])
 
                 Dinv = 1.0/Rlcr.diagonal()
                 Tlcr = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:]) # mR x N
                 Tlcr[:,Plcr] = Tlcr[:,range(self.nbasis)] # mR x N
-            
+
             if (center_ix < self.stack.nbins-1): # there exists left bit
 
                 # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
@@ -354,8 +358,8 @@ class ThermalWalker(object):
                 else:
                     Db[i] = 1.0
                     Ds[i] = Dlcr[i]
-            
-            if (mT == nbsf): # No need for Woodbury 
+
+            if (mT == nbsf): # No need for Woodbury
                 T1inv = scipy.linalg.inv(Tlcr, check_finite=False)
                 # C = (Db Q^{-1}T^{-1}+Ds)
                 C = numpy.dot(
@@ -384,7 +388,7 @@ class ThermalWalker(object):
             # print(mR,mT,nbsf)
             # print("ref: mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
         return G
-    
+
     def greens_function_left_right_no_truncation(self, center_ix, inplace=False):
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
@@ -419,7 +423,7 @@ class ThermalWalker(object):
                 Clcr = numpy.einsum('i,ij->ij',
                         self.Dl[spin],
                         numpy.einsum('ij,j->ij',Qlcr, Dlcr))
-    
+
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
                 Dlcr = Rlcr.diagonal()
                 Dinv = 1.0/Rlcr.diagonal()
@@ -427,7 +431,7 @@ class ThermalWalker(object):
                 tmp = numpy.einsum('i,ij->ij',Dinv, Rlcr)
                 tmp[:,Plcr] = tmp[:,range(self.nbasis)]
                 Tlcr = numpy.dot(tmp, Tlcr)
-            
+
             # print("Dlcr = {}".format(Dlcr))
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
