@@ -24,7 +24,7 @@ def test_hubbard():
         prop.propagate_walker(system, walker1, ts, 0)
         walker1.weight /= 1.0e6
     numpy.random.seed(7)
-    walker2 = ThermalWalker({'stack_size': 10}, system, trial, verbose=False)
+    walker2 = ThermalWalker({'stack_size': 10, 'low_rank': False}, system, trial, verbose=False)
     energies = []
     for ts in range(0,nslice):
         prop.propagate_walker(system, walker2, ts, 0)
