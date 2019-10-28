@@ -48,24 +48,29 @@ class OneBody(object):
         self.max_it = options.get('max_it', 1000)
         self.deps = options.get('threshold', 1e-6)
         self.mu = options.get('mu', None)
-        if verbose:
-            print("# Estimating stack size from BT.")
-        eigs, ev = scipy.linalg.eigh(self.dmat[0])
-        emax = numpy.max(eigs)
-        emin = numpy.min(eigs)
+        
         self.num_slices = int(beta/dt)
-        self.cond = numpy.linalg.cond(self.dmat[0])
-        # We will end up multiplying many BTs together. Can roughly determine
-        # safe stack size from condition number of BT as the condition number of
-        # the product will scale roughly as cond(BT)^(number of products).
-        # We can determine a conservative stack size by requiring that the
-        # condition number of the product does not exceed 1e3.
-        self.stack_size = min(self.num_slices, int(3.0/numpy.log10(self.cond)))
-        if verbose:
-            print("# Initial stack size: {} {}".format(self.stack_size,
-                  self.num_slices))
+        self.stack_size = options.get("stack_size", None)
+
+        if (self.stack_size == None):
+            if verbose:
+                print("# Estimating stack size from BT.")
+            eigs, ev = scipy.linalg.eigh(self.dmat[0])
+            emax = numpy.max(eigs)
+            emin = numpy.min(eigs)
+            self.cond = numpy.linalg.cond(self.dmat[0])
+            # We will end up multiplying many BTs together. Can roughly determine
+            # safe stack size from condition number of BT as the condition number of
+            # the product will scale roughly as cond(BT)^(number of products).
+            # We can determine a conservative stack size by requiring that the
+            # condition number of the product does not exceed 1e3.
+            self.stack_size = min(self.num_slices, int(3.0/numpy.log10(self.cond)))
+            if verbose:
+                print("# Initial stack size, # of slices: {}, {}".format(self.stack_size,
+                      self.num_slices))
+
         # adjust stack size
-        self.stack_size = update_stack(self.stack_size, self.num_slices, verbose)
+        self.stack_size = update_stack(self.stack_size, self.num_slices, verbose=verbose)
         self.num_bins = int(beta/(self.stack_size*dt))
 
         if verbose:

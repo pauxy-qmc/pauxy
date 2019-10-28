@@ -17,7 +17,7 @@ import numpy
 import itertools
 import scipy.signal
 
-def local_energy_pw_fft(system, G, Ghalf, two_rdm=None):
+def local_energy_pw_fft(system, G, Ghalf, trial, two_rdm=None):
     """Local energy computation for uniform electron gas
     Parameters
     ----------
@@ -34,9 +34,15 @@ def local_energy_pw_fft(system, G, Ghalf, two_rdm=None):
     pe : float
         potential energy
     """
+    assert (Ghalf[0].shape[0] + Ghalf[1].shape[0] == trial.shape[1])
 
-    CTdagger = numpy.array([numpy.array(system.trial[:,0:system.nup],dtype=numpy.complex128).T.conj(),
-    numpy.array(system.trial[:,system.nup:],dtype=numpy.complex128).T.conj()])
+    nocca = Ghalf[0].shape[0]
+    noccb = Ghalf[1].shape[0]
+    # CTdagger = numpy.array([numpy.array(system.trial[:,0:system.nup],dtype=numpy.complex128).T.conj(),
+    # numpy.array(system.trial[:,system.nup:],dtype=numpy.complex128).T.conj()])
+
+    CTdagger = numpy.array([numpy.array(trial[:,0:nocca],dtype=numpy.complex128).T.conj(),
+    numpy.array(trial[:,nocca:],dtype=numpy.complex128).T.conj()])
 
     # ke = numpy.einsum('sij,sji->', system.H1, G) # Wrong convention (correct Joonho convention)
     # ke = numpy.einsum('sij,sij->', system.H1, G) # Correct pauxy convention
@@ -45,10 +51,10 @@ def local_energy_pw_fft(system, G, Ghalf, two_rdm=None):
     else:
         ke = numpy.einsum('sij,sij->',system.H1,G)
 
-    ne = [system.nup, system.ndown]
     nq = numpy.shape(system.qvecs)[0]
 
-    nocc = [system.nup, system.ndown]
+    nocc = [nocca, noccb]
+
     nqgrid = numpy.prod(system.qmesh)
     ngrid = numpy.prod(system.mesh)
 
@@ -242,7 +248,7 @@ def unit_test():
 
     # ecuts = [128.0]
     # ecuts = [128.0]
-    ecuts = [5.0]
+    ecuts = [2.0]
     # ecuts = [2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
 
     for ecut in ecuts:
@@ -271,12 +277,13 @@ def unit_test():
 
         pr = cProfile.Profile()
         pr.enable()
-        etot, ekin, epot = local_energy_pw_fft(system, G=G, Ghalf=Ghalf)
+
+        etot, ekin, epot = local_energy_pw_fft(system, G=G, Ghalf=Ghalf, trial=system.trial)
         pr.disable()
         pr.print_stats(sort='tottime')
         print("ERHF = {}, {}, {}".format(etot, ekin, epot))
-        # ERHF = (179.97970202343745-5.853278217324219e-15j), (185.26552391655824-6.297112435720707e-15j), (-5.285821893120771+4.4383421839648814e-16j)
-    
+    # ERHF = (55.724777391549715-1.5180081474352112e-14j), (68.06317599174015-2.2316276597217335e-14j), (-12.33839860019044+7.136195122865225e-15j)
+
         # start = time.time()
         # etot, ekin, epot = local_energy_pw_fft_no_cython(system, G=G, Ghalf=Ghalf)
         # print("ERHF = {}, {}, {}".format(etot, ekin, epot))

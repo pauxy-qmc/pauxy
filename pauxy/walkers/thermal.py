@@ -51,16 +51,19 @@ class ThermalWalker(object):
         if verbose:
             print("# Walker stack size: {}".format(self.stack_size))
 
+        self.lowrank = walker_opts.get('low_rank', True)
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
-                                     diagonal=self.diagonal_trial)
+                                     diagonal=self.diagonal_trial, lowrank = self.lowrank)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
         self.greens_function(trial)
+        self.stack.G = self.G
         self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
                    scipy.linalg.det(self.G[1], check_finite=False)]
+        self.stack.ovlp = [1.0/self.M0[0], 1.0/self.M0[1]]
         self.ot = 1.0
 
         # # temporary storage for stacks...
@@ -277,7 +280,10 @@ class ThermalWalker(object):
                     C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
                     self.Dl[spin] = C2.diagonal()
 
-    def greens_function_left_right(self, center_ix, inplace=False, thresh = 1e-4):
+    def greens_function_left_right(self, center_ix, inplace=False, thresh = 1e-6):
+        
+        assert(self.diagonal_trial)
+
         if not inplace:
             G = numpy.zeros(self.G.shape, self.G.dtype)
         else:
@@ -294,6 +300,7 @@ class ThermalWalker(object):
 #       It goes to right to left and we sample (I + L*B*R) in the end
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
+
                 mR = len(self.Dr[spin][numpy.abs(self.Dr[spin])>thresh])
                 
                 Ccr = numpy.einsum('ij,j->ij',
@@ -319,7 +326,7 @@ class ThermalWalker(object):
             
             if (center_ix < self.stack.nbins-1): # there exists left bit
 
-                # # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
+                # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
                 Clcr = numpy.einsum('i,ij->ij',
                         self.Dl[spin],
                         numpy.einsum('ij,j->ij',Qlcr[:,:mR], Dlcr[:mR])) # N x mR
@@ -336,6 +343,7 @@ class ThermalWalker(object):
             else:
                 mT = mR
 
+            # D = Ds Db^{-1}
             Db = numpy.zeros(mT, Bc[spin].dtype)
             Ds = numpy.zeros(mT, Bc[spin].dtype)
             for i in range(mT):
@@ -374,6 +382,7 @@ class ThermalWalker(object):
                 else:
                     G[spin] = numpy.eye(nbsf, dtype=Bc[spin].dtype) - Qlcr[:,:mT].dot(numpy.diag(Dlcr[:mT])).dot(A).dot(Tlcr)
             # print(mR,mT,nbsf)
+            # print("ref: mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
         return G
     
     def greens_function_left_right_no_truncation(self, center_ix, inplace=False):
@@ -386,68 +395,70 @@ class ThermalWalker(object):
         for spin in [0,1]:
             if (center_ix > 0): # there exists right bit
                 # print("center_ix > 0 second")
-                Ccr = numpy.einsum('ij,jj->ij',
+                Ccr = numpy.einsum('ij,j->ij',
                     numpy.dot(Bc[spin],self.Qr[spin]),
                     self.Dr[spin])
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
-                Dlcr = numpy.diag(Rlcr.diagonal())
-                Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                tmp = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                Dlcr = Rlcr.diagonal()
+                Dinv = 1.0/Rlcr.diagonal()
+                tmp = numpy.einsum('i,ij->ij',Dinv, Rlcr)
                 tmp[:,Plcr] = tmp[:,range(self.nbasis)]
                 Tlcr = numpy.dot(tmp, self.Tr[spin])
             else:
                 # print("center_ix > 0 else second")
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Bc[spin], pivoting=True, check_finite=False)
                 # Form D matrices
-                Dlcr = numpy.diag(Rlcr.diagonal())
-                Dinv = numpy.diag(1.0/Rlcr.diagonal())
-                Tlcr = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                Dlcr = Rlcr.diagonal()
+                Dinv = 1.0/Rlcr.diagonal()
+                Tlcr = numpy.einsum('i,ij->ij',Dinv, Rlcr)
                 Tlcr[:,Plcr] = Tlcr[:,range(self.nbasis)]
 
             if (center_ix < self.stack.nbins-1): # there exists left bit
                 # print("center_ix < self.stack.nbins-1 second")
                 # assume left stack is all diagonal
-                Clcr = numpy.einsum('ii,ij->ij',
+                Clcr = numpy.einsum('i,ij->ij',
                         self.Dl[spin],
-                        numpy.einsum('ij,jj->ij',Qlcr, Dlcr))
-
+                        numpy.einsum('ij,j->ij',Qlcr, Dlcr))
+    
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Clcr, pivoting=True, check_finite=False)
-                Dlcr = numpy.diag(Rlcr.diagonal())
-                Dinv = numpy.diag(1.0/Rlcr.diagonal())
+                Dlcr = Rlcr.diagonal()
+                Dinv = 1.0/Rlcr.diagonal()
 
-                tmp = numpy.einsum('ii,ij->ij',Dinv, Rlcr)
+                tmp = numpy.einsum('i,ij->ij',Dinv, Rlcr)
                 tmp[:,Plcr] = tmp[:,range(self.nbasis)]
                 Tlcr = numpy.dot(tmp, Tlcr)
+            
+            # print("Dlcr = {}".format(Dlcr))
 
             # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
             # Write D = Db^{-1} Ds
             # Then G^{-1} = Q Db^{-1}(Db Q^{-1}T^{-1}+Ds) T
-            Db = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
-            Ds = numpy.zeros(Bc[spin].shape, Bc[spin].dtype)
+            Db = numpy.zeros(Bc[spin].shape[-1], Bc[spin].dtype)
+            Ds = numpy.zeros(Bc[spin].shape[-1], Bc[spin].dtype)
             for i in range(Db.shape[0]):
-                absDlcr = abs(Dlcr[i,i])
-                if absDlcr > 1.0:
-                    Db[i,i] = 1.0 / absDlcr
-                    Ds[i,i] = numpy.sign(Dlcr[i,i])
+                absDlcr = abs(Dlcr[i])
+                if (absDlcr > 1.0):
+                    Db[i] = 1.0 / absDlcr
+                    Ds[i] = numpy.sign(Dlcr[i])
                 else:
-                    Db[i,i] = 1.0
-                    Ds[i,i] = Dlcr[i,i]
+                    Db[i] = 1.0
+                    Ds[i] = Dlcr[i]
 
             T1inv = scipy.linalg.inv(Tlcr, check_finite=False)
             # C = (Db Q^{-1}T^{-1}+Ds)
             C = numpy.dot(
-                numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T),
-                T1inv) + Ds
+                numpy.einsum('i,ij->ij',Db, Qlcr.conj().T),
+                T1inv) + numpy.diag(Ds)
             Cinv = scipy.linalg.inv(C, check_finite = False)
 
             # Then G = T^{-1} C^{-1} Db Q^{-1}
             # Q is unitary.
             if inplace:
                 self.G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                             numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
+                             numpy.einsum('i,ij->ij',Db, Qlcr.conj().T))
             else:
                 G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
-                            numpy.einsum('ii,ij->ij',Db, Qlcr.conj().T))
+                            numpy.einsum('i,ij->ij',Db, Qlcr.conj().T))
         return G
 
     def greens_function_qr_strat(self, trial, slice_ix=None, inplace=True):

@@ -37,7 +37,6 @@ def mod_one_body(numpy.ndarray T, numpy.ndarray basis, double vol, double kfac):
             if i != j:
                 q = kfac * (ki - kj)
                 h1e_mod[i,i] = h1e_mod[i,i] - fac * vq(q)
-
     return h1e_mod
 
 def coulomb_greens_function_per_qvec(numpy.ndarray kpq_i, numpy.ndarray kpq, numpy.ndarray pmq_i, numpy.ndarray pmq, double complex[:,:] G):
@@ -128,7 +127,7 @@ def exchange_greens_function_fft (long nocc, long nbsf,
             CTdagger_i_cube[gmap] = CTdagger_i
 
             lQ_ij =  numpy.flip(convolve(Gh_j_cube, CTdagger_i_cube, mesh))[qmap]
-
+            
             Gprod += lQ_ji*lQ_ij
-
+    
     return Gprod
