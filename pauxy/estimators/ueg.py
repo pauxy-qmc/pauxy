@@ -1,10 +1,5 @@
 import time
 import numpy
-try:
-    from mpi4py import MPI
-    mpi_sum = MPI.SUM
-except ImportError:
-    mpi_sum = None
 import scipy.linalg
 
 try:
