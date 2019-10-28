@@ -139,11 +139,9 @@ class PropagatorStack:
         self.counter = 0
         self.block = 0
         self.buff_size = (
-            1 # wfac
-            + 3*self.nbins*2*nbasis*nbasis + # stack,left,right
-            + 6*self.nbins*2*nbasis*nbasis if self.lowrank else 0 # low rank
+            3*self.nbins*2*nbasis*nbasis + # stack,left,right
+            + (6*self.nbins*2*nbasis*nbasis if self.lowrank else 0) # low rank
             )
-        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
@@ -174,7 +172,7 @@ class PropagatorStack:
             self.mT = nbasis
 
         # set all entries to be the identity matrix
-        self.buff_names = ['wfac', 'left', 'right', 'stack']
+        self.buff_names = ['left', 'right', 'stack']
         if self.lowrank:
             self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
         self.reset()
@@ -253,7 +251,6 @@ class PropagatorStack:
     def reset(self):
         self.time_slice = 0
         self.block = 0
-        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
@@ -286,7 +283,7 @@ class PropagatorStack:
                 C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
                 self.Dl[spin] = C2
 
-    def update(self, B, wfac=1.0):
+    def update(self, B):
         if self.counter == 0:
             self.stack[self.block,0] = numpy.identity(B.shape[-1],
                                                       dtype=B.dtype)
@@ -294,7 +291,6 @@ class PropagatorStack:
                                                       dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        self.wfac *= wfac
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
@@ -490,6 +486,3 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
-
-    def get_wfac(self):
-        return self.wfac
