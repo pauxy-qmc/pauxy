@@ -110,7 +110,7 @@ class FieldConfig(object):
 
 class PropagatorStack:
     def __init__(self, stack_size, ntime_slices, nbasis, dtype, BT=None, BTinv=None,
-                 diagonal=False, averaging = False, lowrank=True):
+                 diagonal=False, averaging = False, lowrank=True, thresh=1e-6):
 
         self.time_slice = 0
         self.stack_size = stack_size
@@ -118,6 +118,7 @@ class PropagatorStack:
         self.nbins = ntime_slices // self.stack_size
         self.diagonal_trial = diagonal
         self.averaging = averaging
+        self.thresh = thresh
 
         self.lowrank = lowrank
         self.ovlp = numpy.asarray([1.0, 1.0])
@@ -303,7 +304,7 @@ class PropagatorStack:
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
     
-    def update_low_rank(self, B, thresh = 1e-6):
+    def update_low_rank(self, B):
         assert (not self.averaging)
         # Diagonal = True assumes BT is diagonal and left is also diagonal
         assert (self.diagonal_trial)
@@ -320,9 +321,9 @@ class PropagatorStack:
         # print("self.block", self.block)
         if (next_block > self.block): # Do QR and update here?
             for s in [0,1]:
-                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
+                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>self.thresh])
                 self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
-                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
+                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>self.thresh])
                 
                 self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
                 self.Qr[s][:,mR:] = 0.0
@@ -351,7 +352,7 @@ class PropagatorStack:
                 Dlcr = Rlcr.diagonal()[:min(mL,mR)]
                 Dinv = 1.0/Dlcr
 
-                mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
+                mT = len(Dlcr[numpy.abs(Dlcr) > self.thresh])
 
                 assert (mT <= mL and mT <= mR)
 
@@ -397,10 +398,10 @@ class PropagatorStack:
                 # print("# mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
         else: # don't do QR and just update
             for s in [0,1]:
-                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>thresh])
+                mR = len(self.Dr[s][numpy.abs(self.Dr[s])>self.thresh])
 
                 self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
-                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>thresh])
+                mL = len(self.Dl[s][numpy.abs(self.Dl[s])>self.thresh])
                 
                 self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
                 self.Qr[s][:,mR:] = 0.0
@@ -412,7 +413,7 @@ class PropagatorStack:
                 Dlcr = Rlcr.diagonal()[:min(mL,mR)]
                 Dinv = 1.0/Dlcr
 
-                mT = len(Dlcr[numpy.abs(Dlcr) > thresh])
+                mT = len(Dlcr[numpy.abs(Dlcr) > self.thresh])
 
                 assert (mT <= mL and mT <= mR)
 
