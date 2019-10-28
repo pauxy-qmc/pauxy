@@ -79,6 +79,8 @@ class ThermalAFQMC(object):
         if verbose is not None:
             self.verbosity = verbose
             verbose = verbose > 0
+        else:
+            self.verbosity = 0
         qmc_opts = get_input_value(options, 'qmc', default={},
                                    alias=['qmc_options'],
                                    verbose=self.verbosity>1)
