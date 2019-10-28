@@ -1,0 +1,7 @@
+numpy >= 1.15.0
+scipy >= 0.18.1
+mpi4py >= 3.0.0
+cython
+pytest
+pandas
+dill

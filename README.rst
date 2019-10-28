@@ -37,11 +37,11 @@ Clone the repository
 
     $ git clone https://github.com/fdmalone/pauxy.git
 
-and run
+and run the following in the top-level pauxy directory
 
 ::
 
-    $ python setup.py build_ext
+    $ python setup.py build_ext --inplace
 
 You will also need to set your PYTHONPATH appropriately.
 

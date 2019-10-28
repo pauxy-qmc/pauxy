@@ -8,7 +8,7 @@ stages:
 test python3.7:
   image: python:3.7
   script:
-  - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas
+  - pip install -r requirements.txt
   - python setup.py build_ext --inplace
   - python -m pytest -v
   only:
@@ -17,7 +17,7 @@ test python3.7:
 test python2.7:
   image: python:2.7
   script:
-  - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas
+  - pip install -r requirements.txt
   - python setup.py build_ext --inplace
   - python -m pytest -v
   only:
@@ -26,7 +26,8 @@ test python2.7:
 test with_pyscf:
   image: python:3.7
   script:
-  - pip install numpy scipy h5py mpi4py matplotlib cython pytest pandas pyscf
+  - pip install -r requirements.txt
+  - pip install pyscf
   - python setup.py build_ext --inplace
   - python -m pytest -v
   only:
