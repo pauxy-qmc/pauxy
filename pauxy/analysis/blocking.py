@@ -4,7 +4,6 @@
 import glob
 import h5py
 import json
-import matplotlib.pyplot as pl
 import numpy
 import pandas as pd
 import pyblock
@@ -176,14 +175,6 @@ def average_correlation(gf):
     spin = 0.5*(ni[:,0,:]-ni[:,1,:])
     spin_err = spin.std(axis=0, ddof=1) / len(hole)**0.5
     return (hole.mean(axis=0), hole_err, spin.mean(axis=0), spin_err, gf)
-
-
-def plot_correlations(cfunc, cfunc_err, ix, nx, ny, stag=False):
-    c, err = get_strip(cfunc, cfunc_err, ix, nx, ny, stag)
-    frame = pd.DataFrame({'iy': iy, 'c': c, 'c_err': err})
-    pl.errorbar(iy, c, yerr=err, fmt='o')
-    pl.show()
-    return frame
 
 
 def average_tau(frames):

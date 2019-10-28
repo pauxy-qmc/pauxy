@@ -1,4 +1,3 @@
-import matplotlib.pyplot as pl
 import numpy
 import pandas as pd
 import scipy.stats
@@ -63,6 +62,7 @@ def find_chem_pot(data, target, vol, order=3, plot=False):
         print("Root not found in interval.")
 
     if plot:
+        import matplotlib.pyplot as pl
         beta = data.beta[0]
         pl.errorbar(mus, delta, yerr=nav_error, fmt='o',
                     label=r'$\beta = {}$'.format(beta), color='C0')
