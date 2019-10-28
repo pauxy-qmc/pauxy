@@ -303,7 +303,7 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
-    
+
     def update_low_rank(self, B):
         assert (not self.averaging)
         # Diagonal = True assumes BT is diagonal and left is also diagonal
@@ -324,25 +324,25 @@ class PropagatorStack:
                 mR = len(self.Dr[s][numpy.abs(self.Dr[s])>self.thresh])
                 self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
                 mL = len(self.Dl[s][numpy.abs(self.Dl[s])>self.thresh])
-                
+
                 self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
                 self.Qr[s][:,mR:] = 0.0
 
                 Ccr = numpy.einsum('ij,j->ij',self.Qr[s][:,:mR],self.Dr[s][:mR]) # N x mR
                 (Qlcr, Rlcr, Plcr) = scipy.linalg.qr(Ccr, pivoting=True, check_finite=False)
-                Dlcr = Rlcr[:mR,:mR].diagonal() # mR 
-                
+                Dlcr = Rlcr[:mR,:mR].diagonal() # mR
+
                 self.Dr[s][:mR] = Dlcr
                 self.Dr[s][mR:] = 0.0
                 self.Qr[s] = Qlcr
-                
+
                 Dinv = 1.0/Dlcr # mR
                 tmp = numpy.einsum('i,ij->ij',Dinv[:mR], Rlcr[:mR,:mR]) # mR, mR x mR -> mR x mR
                 tmp[:,Plcr] = tmp[:,range(mR)]
                 Tlcr = numpy.dot(tmp, self.Tr[s][:mR,:]) # mR x N
-                
+
                 self.Tr[s][:mR,:] = Tlcr
-                
+
                 # assume left stack is all diagonal (i.e., QDT = diagonal -> Q and T are identity)
                 Clcr = numpy.einsum('i,ij->ij',
                         self.Dl[s][:mL],
@@ -402,7 +402,7 @@ class PropagatorStack:
 
                 self.Dl[s] = numpy.einsum("i,ii->i", self.Dl[s], self.BTinv[s])
                 mL = len(self.Dl[s][numpy.abs(self.Dl[s])>self.thresh])
-                
+
                 self.Qr[s][:,:mR] = B[s].dot(self.Qr[s][:,:mR]) # N x mR
                 self.Qr[s][:,mR:] = 0.0
 
