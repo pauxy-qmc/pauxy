@@ -6,6 +6,8 @@ import json
 import h5py
 import sys
 try:
+    import mpi4py
+    mpi4py.rc.recv_mprobe = False
     from mpi4py import MPI
     parallel = True
 except ImportError:

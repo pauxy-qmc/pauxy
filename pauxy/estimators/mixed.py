@@ -246,7 +246,7 @@ class Mixed(object):
         if comm.rank == 0:
             if self.verbose:
                 print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
-            self.output.push(gs[:ns.time+1], 'energies')
+            self.output.push([step]+list(gs[:ns.time+1]), 'energies')
             if self.calc_one_rdm:
                 start = self.nreg
                 end = self.nreg+self.G.size
@@ -331,7 +331,7 @@ class Mixed(object):
 
     def setup_output(self, filename):
         with h5py.File(filename, 'a') as fh5:
-            fh5['basic/headers'] = numpy.array(self.header[1:]).astype('S')
+            fh5['basic/headers'] = numpy.array(self.header).astype('S')
         self.output = H5EstimatorHelper(filename, 'basic')
 
 # Energy evaluation routines.
