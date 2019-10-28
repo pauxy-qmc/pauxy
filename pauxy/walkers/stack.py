@@ -120,7 +120,6 @@ class PropagatorStack:
         self.averaging = averaging
 
         self.lowrank = lowrank
-        print("# Low rank trick: {}".format(lowrank))
         self.ovlp = numpy.asarray([1.0, 1.0])
 
         if(self.lowrank):

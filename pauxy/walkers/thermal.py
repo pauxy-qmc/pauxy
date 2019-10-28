@@ -52,6 +52,8 @@ class ThermalWalker(object):
             print("# Walker stack size: {}".format(self.stack_size))
 
         self.lowrank = walker_opts.get('low_rank', True)
+        if verbose:
+            print("# Using low rank trick: {}".format(self.lowrank))
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
