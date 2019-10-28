@@ -57,11 +57,11 @@ class UEG(object):
             print("# rs: %10.5f"%self.rs)
 
         self.thermal = inputs.get('thermal', False)
-        if (self.thermal):
+        if self.thermal and verbose:
             print("# Thermal UEG activated")
         self._alt_convention = inputs.get('alt_convention', False)
         self.sparse = True
-        
+
         # total # of electrons
         self.ne = self.nup + self.ndown
         # core energy
@@ -124,7 +124,7 @@ class UEG(object):
         self.frozen_core = False
         T = numpy.diag(self.sp_eigv)
         self.H1 = numpy.array([T, T]) # Making alpha and beta
-        
+
         if (skip_cholesky == False):
             h1e_mod = self.mod_one_body(T)
             self.h1e_mod = numpy.array([h1e_mod, h1e_mod])
@@ -468,7 +468,7 @@ def unit_test():
     # 'thermal':False,
     # 'ecut':ecut}
     # # -1.41489535 ecut = 1
-    # # -1.41561583 ecut = 2 
+    # # -1.41561583 ecut = 2
     # # -1.4161452950664903 ecut = 3
     # system = UEG(inputs, True)
 
@@ -505,7 +505,7 @@ def unit_test():
     # mol.symmetry = 0
 
     # mf = scf.RHF(mol)
-    
+
 
     # mf.conv_tol = 1e-10
 
