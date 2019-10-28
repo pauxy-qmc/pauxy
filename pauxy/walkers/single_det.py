@@ -294,7 +294,6 @@ class SingleDetWalker(object):
             'overlaps': self.ots,
             'E_L': self.E_L,
             'ehyb': self.hybrid_energy,
-            'stack': self.stack.get_buffer()
         }
         return buff
 
@@ -317,4 +316,3 @@ class SingleDetWalker(object):
         self.E_L = buff['E_L']
         self.hybrid_energy = buff['ehyb']
         self.ots = numpy.copy(buff['overlaps'])
-        self.stack.set_buffer(buff['stack'])

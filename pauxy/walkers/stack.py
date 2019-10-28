@@ -138,6 +138,11 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
+        self.buff_size = (
+            1 # wfac
+            + 3*self.nbins*2*nbasis*nbasis + # stack,left,right
+            + 6*self.nbins*2*nbasis*nbasis if self.lowrank else 0 # low rank
+            )
         self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
@@ -169,39 +174,56 @@ class PropagatorStack:
             self.mT = nbasis
 
         # set all entries to be the identity matrix
+        self.buff_names = ['wfac', 'left', 'right', 'stack']
+        if self.lowrank:
+            self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
         self.reset()
 
     def get(self, ix):
         return self.stack[ix]
 
     def get_buffer(self):
-        buff = {
-            'left': self.left,
-            'right': self.right,
-            'stack': self.stack,
-            'wfac': self.wfac,
-        }
-        if (self.lowrank):
-            buff['Ql'] = self.Ql
-            buff['Dl'] = self.Dl
-            buff['Tl'] = self.Tl
-            buff['Qr'] = self.Qr
-            buff['Dr'] = self.Dr
-            buff['Tr'] = self.Tr
+        # buff = {
+            # 'left': self.left,
+            # 'right': self.right,
+            # 'stack': self.stack,
+            # 'wfac': numpy.array(self.wfac),
+        # }
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            buff[s:s+data.size] = data.ravel()
+            s += data.size
+        # self.buff[0] = self.wfac
+        # s += 1
+        # self.buff[s:s+self.left.size1] = self.wfac
+        # if self.lowrank:
+            # buff['Ql'] = self.Ql
+            # buff['Dl'] = self.Dl
+            # buff['Tl'] = self.Tl
+            # buff['Qr'] = self.Qr
+            # buff['Dr'] = self.Dr
+            # buff['Tr'] = self.Tr
         return buff
 
     def set_buffer(self, buff):
-        self.stack = numpy.copy(buff['stack'])
-        self.left = numpy.copy(buff['left'])
-        self.right = numpy.copy(buff['right'])
-        self.wfac = buff['wfac']
-        if (self.lowrank):
-            self.Ql = numpy.copy(buff['Ql'])
-            self.Dl = numpy.copy(buff['Dl'])
-            self.Tl = numpy.copy(buff['Tl'])
-            self.Qr = numpy.copy(buff['Qr'])
-            self.Dr = numpy.copy(buff['Dr'])
-            self.Tr = numpy.copy(buff['Tr'])
+        # self.stack = numpy.copy(buff['stack'])
+        # self.left = numpy.copy(buff['left'])
+        # self.right = numpy.copy(buff['right'])
+        # self.wfac = buff['wfac']
+        # if self.lowrank:
+            # self.Ql = numpy.copy(buff['Ql'])
+            # self.Dl = numpy.copy(buff['Dl'])
+            # self.Tl = numpy.copy(buff['Tl'])
+            # self.Qr = numpy.copy(buff['Qr'])
+            # self.Dr = numpy.copy(buff['Dr'])
+            # self.Tr = numpy.copy(buff['Tr'])
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            data[:] = buff[s:s+data.size].reshape(data.shape)
+            s += data.size 
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
