@@ -1,7 +1,8 @@
-from setuptools import find_packages, setup
-from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
+from setuptools import find_packages, setup
+from setuptools.extension import Extension
+import sys
 
 extensions = [
         Extension("pauxy.estimators.ueg_kernels",
@@ -20,5 +21,7 @@ setup(
     long_description=open('README.rst').read(),
     requires=['numpy (>=0.19.1)', 'pandas (>=0.20)',
 	          'scipy (>=1.13.3)', 'h5py (>=2.7.1)'],
-    ext_modules = cythonize(extensions, include_path=[numpy.get_include()])
+    ext_modules = cythonize(extensions, include_path=[numpy.get_include()],
+                            compiler_directives={'language_level':
+                                                 sys.version_info[0]})
 )
