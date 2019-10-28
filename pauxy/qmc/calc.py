@@ -5,10 +5,12 @@ import numpy
 import json
 import h5py
 import sys
+import dill
 try:
     import mpi4py
     mpi4py.rc.recv_mprobe = False
     from mpi4py import MPI
+    MPI.pickle.__init__(dill.dumps, dill.loads)
     parallel = True
 except ImportError:
     parallel = False
