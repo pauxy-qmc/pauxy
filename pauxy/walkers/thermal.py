@@ -17,10 +17,6 @@ class ThermalWalker(object):
         self.alive = True
         self.num_slices = trial.num_slices
         dtype = numpy.complex128
-        # if system.name == "UEG" or system.name == "Generic" or system.name == ":
-            # dtype = numpy.complex128
-        # else:
-            # dtype = numpy.float64
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
         self.total_weight = 0
@@ -51,7 +47,7 @@ class ThermalWalker(object):
         if verbose:
             print("# Walker stack size: {}".format(self.stack_size))
 
-        self.lowrank = walker_opts.get('low_rank', True)
+        self.lowrank = walker_opts.get('low_rank', False)
         self.lowrank_thresh = walker_opts.get('low_rank_thresh', 1e-6)
         if verbose:
             print("# Using low rank trick: {}".format(self.lowrank))

@@ -15,7 +15,8 @@ from pauxy.walkers.single_det import SingleDetWalker
 class PlaneWave(object):
     """PlaneWave class
     """
-    def __init__(self, system, trial, qmc, options={}, verbose=False):
+    def __init__(self, system, trial, qmc, options={},
+                 verbose=False, lowrank=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing plane wave propagator input options.")
@@ -23,7 +24,7 @@ class PlaneWave(object):
         self.hs_type = 'plane_wave'
         self.free_projection = options.get('free_projection', False)
         self.optimised = options.get('optimised', True)
-        self.lowrank = options.get('lowrank', True)
+        self.lowrank = lowrank
         self.exp_nmax = options.get('expansion_order', 6)
         self.nstblz = qmc.nstblz
         self.fb_bound = options.get('fb_bound', 1.0)

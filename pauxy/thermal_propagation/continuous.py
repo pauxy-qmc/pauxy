@@ -30,7 +30,7 @@ class Continuous(object):
         If true print out more information during setup.
     """
 
-    def __init__(self, options, qmc, system, trial, verbose=False):
+    def __init__(self, options, qmc, system, trial, verbose=False, lowrank=False):
         if verbose:
             print ("# Parsing continuous propagator input options.")
 
@@ -44,6 +44,7 @@ class Continuous(object):
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j*self.sqrt_dt
         self.nfb_trig = 0
+        self.lowrank = lowrank
 
         self.propagator = get_continuous_propagator(system, trial, qmc,
                                                     options=options,

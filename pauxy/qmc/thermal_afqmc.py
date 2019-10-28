@@ -128,19 +128,6 @@ class ThermalAFQMC(object):
                                                     self.qmc.beta,
                                                     self.qmc.dt, verbose)
 
-        prop_opts = get_input_value(options, 'propagator', default={},
-                                    verbose=self.verbosity>1)
-        self.propagators = get_propagator(prop_opts, self.qmc, self.system,
-                                          self.trial, verbose)
-
-        self.tsetup = time.time() - self._init_time
-        est_opts = get_input_value(options, 'estimators', default={},
-                                   alias=['estimates'],
-                                   verbose=self.verbosity>1)
-        self.estimators = (
-            Estimators(est_opts, self.root, self.qmc, self.system,
-                       self.trial, self.propagators.BT_BP, verbose)
-        )
         self.qmc.ntot_walkers = self.qmc.nwalkers
         # Number of walkers per core/rank.
         self.qmc.nwalkers = int(self.qmc.nwalkers/comm.size)
@@ -151,12 +138,28 @@ class ThermalAFQMC(object):
                 print("# WARNING: Not enough walkers for selected core count."
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
-            afqmc.qmc.nwalkers = 1
+            self.qmc.nwalkers = 1
         wlk_opts = get_input_value(options, 'walkers', default={},
                                    alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
         self.walk = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose)
+                            self.qmc, verbose)
+        lowrank = self.walk.walkers[0].lowrank
+        prop_opts = get_input_value(options, 'propagator', default={},
+                                    verbose=self.verbosity>1)
+        self.propagators = get_propagator(prop_opts, self.qmc, self.system,
+                                          self.trial,
+                                          verbose=verbose,
+                                          lowrank=lowrank)
+
+        self.tsetup = time.time() - self._init_time
+        est_opts = get_input_value(options, 'estimators', default={},
+                                   alias=['estimates'],
+                                   verbose=self.verbosity>1)
+        self.estimators = (
+            Estimators(est_opts, self.root, self.qmc, self.system,
+                       self.trial, self.propagators.BT_BP, verbose)
+        )
         # stabilization frequency might be updated due to wrong user input
         if self.qmc.nstblz != self.propagators.nstblz:
             self.propagators.nstblz = self.qmc.nstblz

@@ -5,7 +5,7 @@ from pauxy.thermal_propagation.planewave import PlaneWave
 from pauxy.thermal_propagation.hubbard import ThermalDiscrete
 
 
-def get_propagator(options, qmc, system, trial, verbose=False):
+def get_propagator(options, qmc, system, trial, verbose=False, lowrank=False):
     """Wrapper to select propagator class.
 
     Parameters
@@ -27,14 +27,20 @@ def get_propagator(options, qmc, system, trial, verbose=False):
     if system.name == "Hubbard":
         hs_type = options.get('hubbard_stratonovich', 'discrete')
         if hs_type == "discrete":
-            propagator = ThermalDiscrete(options, qmc, system, trial, verbose)
+            propagator = ThermalDiscrete(options, qmc, system, trial,
+                                         verbose=verbose, lowrank=lowrank)
         else:
-            propagator = Continuous(options, qmc, system, trial, verbose)
+            propagator = Continuous(options, qmc, system, trial,
+                                    verbose=verbose, lowrank=lowrank)
     else:
         if system.name == "UEG":
             propagator = PlaneWave(system, trial, qmc,
-                                   options=options, verbose=verbose)
+                                   options=options,
+                                   verbose=verbose,
+                                   lowrank=lowrank)
         else:
-            propagator = Continuous(options, qmc, system, trial, verbose)
+            propagator = Continuous(options, qmc, system, trial,
+                                    verbose=verbose,
+                                    lowrank=lowrank)
 
     return propagator

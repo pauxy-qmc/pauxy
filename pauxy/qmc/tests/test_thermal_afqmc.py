@@ -36,9 +36,6 @@ def test_ueg():
                 'low_rank': True,
                 'low_rank_thresh': 1e-6
             },
-            'propagator': {
-                'lowrank': True
-            }
         }
     comm = MPI.COMM_WORLD
     afqmc = ThermalAFQMC(comm=comm, options=options, verbose=0)
@@ -60,3 +57,6 @@ def teardown_module(self):
             os.remove(cwd+'/'+f)
         except OSError:
             pass
+
+if __name__ == '__main__':
+    test_ueg()
