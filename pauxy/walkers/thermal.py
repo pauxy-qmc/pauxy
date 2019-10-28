@@ -52,16 +52,19 @@ class ThermalWalker(object):
             print("# Walker stack size: {}".format(self.stack_size))
 
         self.lowrank = walker_opts.get('low_rank', True)
+        self.lowrank_thresh = walker_opts.get('low_rank_thresh', 1e-6)
         if verbose:
             print("# Using low rank trick: {}".format(self.lowrank))
         self.stack = PropagatorStack(self.stack_size, trial.num_slices,
                                      trial.dmat.shape[-1], dtype,
                                      trial.dmat, trial.dmat_inv,
-                                     diagonal=self.diagonal_trial, lowrank = self.lowrank)
+                                     diagonal=self.diagonal_trial,
+                                     lowrank=self.lowrank,
+                                     thresh=self.lowrank_thresh)
 
         # Initialise all propagators to the trial density matrix.
         self.stack.set_all(trial.dmat)
-        self.greens_function(trial)
+        self.greens_function_qr_strat(trial)
         self.stack.G = self.G
         self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
                    scipy.linalg.det(self.G[1], check_finite=False)]
@@ -85,8 +88,11 @@ class ThermalWalker(object):
             print("# Initial walker electron number: {}".format(nav))
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
-        return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
-                                             inplace=inplace)
+        if self.lowrank:
+            return self.stack.G
+        else:
+            return self.greens_function_qr_strat(trial, slice_ix=slice_ix,
+                                                 inplace=inplace)
 
     def greens_function_svd(self, trial, slice_ix=None, inplace=True):
         if slice_ix == None:
