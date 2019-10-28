@@ -1,4 +1,12 @@
-import pyfftw
+import numpy
+import scipy
+from scipy.fftpack.helper import next_fast_len
+from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
+import h5py
+try:
+    import pyfftw
+except ImportError:
+    pass
 import numpy
 import scipy
 from scipy.fftpack.helper import next_fast_len
@@ -119,7 +127,6 @@ def scipy_fftconvolve(in1, in2, mesh1 = None, mesh2 = None, mode="full", axes=No
 
 
 def convolve(f, g, mesh, backend = numpy.fft):
-# def convolve(f, g, mesh, backend = pyfftw.interfaces.numpy_fft):
     f_ = f.reshape(*mesh)
     g_ = g.reshape(*mesh)
     shape = numpy.maximum(f_.shape, g_.shape)
@@ -136,16 +143,6 @@ def convolve(f, g, mesh, backend = numpy.fft):
     fq = fq[:min_shape[0],:min_shape[1],:min_shape[2]]
     fq = fq.reshape(nqtot) * numpy.prod(fshape)
     return fq
-
-import h5py
-try:
-    import pyfftw
-except ImportError:
-    pass
-import numpy
-import scipy
-from scipy.fftpack.helper import next_fast_len
-from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
 
 # Stolen from scipy
 def scipy_fftconvolve(in1, in2, mesh1 = None, mesh2 = None, mode="full", axes=None):
