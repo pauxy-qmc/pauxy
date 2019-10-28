@@ -57,7 +57,7 @@ class PlaneWave(object):
 
         self.ebound = (2.0/self.dt)**0.5
         self.mean_local_energy = 0
-                
+
         # self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
         if self.lowrank:
             self.propagate_walker_free = self.propagate_walker_phaseless_low_rank
@@ -617,11 +617,11 @@ def unit_test():
 
         walker = ThermalWalker({'stack_size':trial.stack_size, 'low_rank':lowrank}, system, trial, verbose=True)
         eshift = 0.0+0.0j
-        
+
         numpy.random.seed(7)
-        
+
         pr = cProfile.Profile()
-        pr.enable()    
+        pr.enable()
         for ts in range(0, walker.num_slices):
             propagator.propagate_walker_phaseless(walker=walker, system=system, trial=trial, eshift=eshift)
 
@@ -640,7 +640,7 @@ def unit_test():
 
             P = one_rdm_from_G(walker.G)
             # Ptmp = Ctrial[:,:mT].conj().dot(walker.stack.theta[0,:mT,:])
-            
+
             # Reorder to FFT
             P[:,:,:] = P[:,inv_sort_basis, :]
             P[:,:,:] = P[:,:, inv_sort_basis]
