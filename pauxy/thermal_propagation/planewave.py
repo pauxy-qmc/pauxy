@@ -59,7 +59,7 @@ class PlaneWave(object):
         self.mean_local_energy = 0
                 
         # self.propagate_walker_phaseless = self.propagate_walker_phaseless_full_rank
-        if (self.lowrank):
+        if self.lowrank:
             self.propagate_walker_free = self.propagate_walker_phaseless_low_rank
             self.propagate_walker_phaseless = self.propagate_walker_phaseless_low_rank
         else:
@@ -308,7 +308,7 @@ class PlaneWave(object):
     def estimate_eshift(self, walker):
         return 0.0
 
-    def propagate_walker_free_full_rank(self, system, walker, trial, eshift, force_bias=False):
+    def propagate_walker_free_full_rank(self, system, walker, trial, eshift=0, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -375,7 +375,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_free_low_rank(self, system, walker, trial, eshift, force_bias=False):
+    def propagate_walker_free_low_rank(self, system, walker, trial, eshift=0, force_bias=False):
         """Free projection propagator
         Parameters
         ----------
@@ -440,7 +440,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift):
+    def propagate_walker_phaseless_full_rank(self, system, walker, trial, eshift=0):
         # """Phaseless propagator
         # Parameters
         # ----------
@@ -514,7 +514,7 @@ class PlaneWave(object):
         except ZeroDivisionError:
             walker.weight = 0.0
 
-    def propagate_walker_phaseless_low_rank(self, system, walker, trial, eshift):
+    def propagate_walker_phaseless_low_rank(self, system, walker, trial, eshift=0):
         # """Phaseless propagator
         # Parameters
         # ----------
