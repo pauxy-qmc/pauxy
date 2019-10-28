@@ -2,12 +2,11 @@ from setuptools import find_packages, setup
 from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
-#print("======================++", numpy.get_include())
 
 extensions = [
         Extension("pauxy.estimators.ueg_kernels",
                   ["pauxy/estimators/ueg_kernels.pyx"],
-			   include_dirs=[numpy.get_include()])
+		  include_dirs=[numpy.get_include()])
         ]
 
 setup(
