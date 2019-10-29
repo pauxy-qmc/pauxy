@@ -6,7 +6,7 @@ from pauxy.estimators.thermal import greens_function, one_rdm_from_G, particle_n
 from pauxy.estimators.mixed import local_energy
 from pauxy.walkers.stack import PropagatorStack
 from pauxy.utils.linalg import regularise_matrix_inverse
-from pauxy.utils.misc import update_stack
+from pauxy.utils.misc import update_stack, get_numeric_names
 
 class ThermalWalker(object):
 
@@ -84,11 +84,12 @@ class ThermalWalker(object):
             nav = particle_number(P)
             print("# Initial walker energy: {} {} {}".format(*eloc))
             print("# Initial walker electron number: {}".format(nav))
-        self.buff_names = ['weight', 'G', 'unscaled_weight', 'phase', 'Tl',
-                           'Ql', 'Dl', 'Tr', 'Qr', 'Dr', 'M0']
-        self.buff_size = (self.G.size+3+self.Tl.size+2+
-                          self.Ql.size+self.Dl.size+self.Tr.size+self.Qr.size
-                          +self.Dr.size)
+        # self.buff_names = ['weight', 'G', 'unscaled_weight', 'phase', 'Tl',
+                           # 'Ql', 'Dl', 'Tr', 'Qr', 'Dr', 'M0']
+        self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
+        # self.buff_size = (self.G.size+3+self.Tl.size+2+
+                          # self.Ql.size+self.Dl.size+self.Tr.size+self.Qr.size
+                          # +self.Dr.size)
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
         if self.lowrank:

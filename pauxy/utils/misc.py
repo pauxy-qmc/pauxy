@@ -202,3 +202,15 @@ def get_from_dict(d, k):
     except TypeError:
         # Value not found.
         return None
+
+def get_numeric_names(d):
+    names = []
+    size = 0
+    for k, v in d.items():
+        if isinstance(v, (numpy.ndarray)):
+            names.append(k)
+            size += v.size
+        elif isinstance(v, (float, complex, int)):
+            names.append(k)
+            size += 1
+    return names, size
