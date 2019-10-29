@@ -171,11 +171,10 @@ class AFQMC(object):
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
         self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose, comm=comm)
-        self.psi.add_field_config(self.estimators.nprop_tot,
-                                  self.estimators.nbp,
-                                  self.system,
-                                  numpy.complex128)
+                           self.qmc, verbose,
+                           nprop_tot=self.estimators.nprop_tot,
+                           nbp=self.estimators.nbp,
+                           comm=comm)
         if comm.rank == 0:
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)

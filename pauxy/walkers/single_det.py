@@ -5,6 +5,7 @@ from pauxy.estimators.mixed import local_energy
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.walkers.stack import PropagatorStack, FieldConfig
+from pauxy.utils.misc import get_numeric_names
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -21,15 +22,15 @@ class SingleDetWalker(object):
         Element of trial wavefunction to initalise walker to.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0):
-        self.weight = walker_opts.get('weight', 1)
+    def __init__(self, walker_opts, system, trial, index=0, nprop_tot=None, nbp=None):
+        self.weight = walker_opts.get('weight', 1.0)
         self.unscaled_weight = self.weight
         self.phase = 1 + 0j
         self.alive = 1
         self.phi = trial.init.copy()
         # JOONHO randomizing the guess
         # self.phi = numpy.random.rand([system.nbasis,system.ne])
-        self.inv_ovlp = [0, 0]
+        self.inv_ovlp = [0.0, 0.0]
         self.nup = system.nup
         self.ndown = system.ndown
         self.inverse_overlap(trial)
@@ -40,10 +41,10 @@ class SingleDetWalker(object):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
-        self.total_weight = 0
+        self.total_weight = 0.0
         self.ot = 1.0
         # interface consistency
-        self.ots = numpy.zeros(1)
+        self.ots = numpy.zeros(1, dtype=numpy.complex128)
         self.E_L = local_energy(system, self.G, self.Gmod)[0].real
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
@@ -54,10 +55,9 @@ class SingleDetWalker(object):
         self.hybrid_energy = 0.0
         # Historic wavefunction for ITCF.
         self.phi_right = copy.deepcopy(self.phi)
-        self.weights = numpy.array([1])
+        self.weights = numpy.array([1.0])
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
-        self.stack_size = walker_opts.get('stack_size', 1)
         # if system.name == "Generic":
             # self.stack = PropagatorStack(self.stack_size, num_propg,
                                          # system.nbasis, trial.psi.dtype,
@@ -71,6 +71,13 @@ class SingleDetWalker(object):
             self.ia = trial.excite_ia
             self.reortho = self.reortho_excite
             self.trial_buff =  numpy.copy(trial.full_orbs[:,:self.ia[1]+1])
+        if nbp is not None:
+            self.field_configs = FieldConfig(system.nfields,
+                                             nprop_tot, nbp,
+                                             numpy.complex128)
+        else:
+            self.field_configs = None
+        self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
@@ -282,20 +289,21 @@ class SingleDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        # buff = {
-            # 'phi': self.phi,
-            # 'phi_old': self.phi_old,
-            # 'phi_right': self.phi_right,
-            # 'weight': self.weight,
-            # 'phase': self.phase,
-            # 'inv_ovlp': self.inv_ovlp,
-            # 'G': self.G,
-            # 'overlap': self.ot,
-            # 'overlaps': self.ots,
-            # 'E_L': self.E_L,
-            # 'ehyb': self.hybrid_energy,
-        # }
-        return self.__dict__
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, (numpy.ndarray)):
+                buff[s:s+data.size] = data.ravel()
+                s += data.size
+            else:
+                buff[s:s+1] = data
+                s += 1
+        if self.field_configs is not None:
+            stack_buff = self.field_configs.get_buffer()
+            return numpy.concatenate((buff,stack_buff))
+        else:
+            return buff
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -305,15 +313,13 @@ class SingleDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        # self.phi = numpy.copy(buff['phi'])
-        # self.phi_old = numpy.copy(buff['phi_old'])
-        # self.phi_right = numpy.copy(buff['phi_right'])
-        # self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
-        # self.G = numpy.copy(buff['G'])
-        # self.weight = buff['weight']
-        # self.phase = buff['phase']
-        # self.ot = buff['overlap']
-        # self.E_L = buff['E_L']
-        # self.hybrid_energy = buff['ehyb']
-        # self.ots = numpy.copy(buff['overlaps'])
-        self.__dict__ = buff
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, numpy.ndarray):
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+                dsize = data.size
+            else:
+                self.__dict__[d] = buff[s]
+                dsize = 1
+            s += dsize

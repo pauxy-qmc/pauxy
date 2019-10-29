@@ -1,5 +1,6 @@
 import numpy
 import scipy.linalg
+from pauxy.utils.misc import get_numeric_names
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
@@ -28,6 +29,7 @@ class FieldConfig(object):
         self.nbp = nbp
         self.nprop_tot = nprop_tot
         self.nblock = nprop_tot // nbp
+        self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def push(self, config):
         """Add field configuration to buffer.
@@ -85,6 +87,31 @@ class FieldConfig(object):
         end = self.nprop_tot - self.nbp
         return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
 
+    def get_buffer(self):
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, (numpy.ndarray)):
+                buff[s:s+data.size] = data.ravel()
+                s += data.size
+            else:
+                buff[s:s+1] = data
+                s += 1
+        return buff
+
+    def set_buffer(self, buff):
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, numpy.ndarray):
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+                dsize = data.size
+            else:
+                self.__dict__[d] = buff[s]
+                dsize = 1
+            s += dsize
+
     def get_wfac(self):
         weight_fac = [1,1]
         for c, w in zip(self.cos_fac, self.weight_fac):
@@ -92,18 +119,6 @@ class FieldConfig(object):
             weight_fac[1] *= c
         return weight_fac
 
-    def get_buffer(self):
-        buff = {
-            'configs': self.configs,
-            'cos_fac': self.cos_fac,
-            'weight_fac': self.weight_fac
-        }
-        return buff
-
-    def set_buffer(self, buff):
-        self.configs = numpy.copy(buff['configs'])
-        self.weight_fac = numpy.copy(buff['weight_fac'])
-        self.cos_fac = numpy.copy(buff['cos_fac'])
 
     def reset(self):
         self.tot_wfac = 1.0 + 0j
@@ -138,10 +153,10 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
-        self.buff_size = (
-            2+3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # ovlp,stack,left,right,G
-            + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
-            )
+        # self.buff_size = (
+            # 2+3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # ovlp,stack,left,right,G
+            # + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
+            # )
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
@@ -172,9 +187,7 @@ class PropagatorStack:
             self.theta = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
             self.mT = nbasis
 
-        self.buff_names = ['left', 'right', 'stack', 'G', 'ovlp']
-        if self.lowrank:
-            self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
+        self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
         # set all entries to be the identity matrix
         self.reset()
 
@@ -192,8 +205,12 @@ class PropagatorStack:
         buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
         for d in self.buff_names:
             data = self.__dict__[d]
-            buff[s:s+data.size] = data.ravel()
-            s += data.size
+            if isinstance(data, (numpy.ndarray)):
+                buff[s:s+data.size] = data.ravel()
+                s += data.size
+            else:
+                buff[s:s+1] = data
+                s += 1
         # self.buff[0] = self.wfac
         # s += 1
         # self.buff[s:s+self.left.size1] = self.wfac
@@ -221,8 +238,13 @@ class PropagatorStack:
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
-            self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-            s += data.size
+            if isinstance(data, numpy.ndarray):
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+                dsize = data.size
+            else:
+                self.__dict__[d] = buff[s]
+                dsize = 1
+            s += dsize
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
