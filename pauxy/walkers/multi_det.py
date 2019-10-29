@@ -203,25 +203,25 @@ class MultiDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        buff = {
-            'phi': self.phi,
-            'phi_old': self.phi_old,
-            'phi_init': self.phi_init,
-            'weight': self.weight,
-            'weights': self.weights,
-            'phase': self.phase,
-            'inv_ovlp': self.inv_ovlp,
-            'G': self.G,
-            'Gi': self.Gi,
-            'overlap': self.ot,
-            'overlaps': self.ovlps,
-            'fields': self.field_configs.configs,
-            'cfacs': self.field_configs.cos_fac,
-            'E_L': self.E_L,
-            'ehyb': self.hybrid_energy,
-            'weight_fac': self.field_configs.weight_fac
-        }
-        return buff
+        # buff = {
+            # 'phi': self.phi,
+            # 'phi_old': self.phi_old,
+            # 'phi_init': self.phi_init,
+            # 'weight': self.weight,
+            # 'weights': self.weights,
+            # 'phase': self.phase,
+            # 'inv_ovlp': self.inv_ovlp,
+            # 'G': self.G,
+            # 'Gi': self.Gi,
+            # 'overlap': self.ot,
+            # 'overlaps': self.ovlps,
+            # 'fields': self.field_configs.configs,
+            # 'cfacs': self.field_configs.cos_fac,
+            # 'E_L': self.E_L,
+            # 'ehyb': self.hybrid_energy,
+            # 'weight_fac': self.field_configs.weight_fac
+        # }
+        return self.__dict__
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -231,19 +231,20 @@ class MultiDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.phi = numpy.copy(buff['phi'])
-        self.phi_old = numpy.copy(buff['phi_old'])
-        self.phi_init = numpy.copy(buff['phi_init'])
-        self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
-        self.G = numpy.copy(buff['G'])
-        self.Gi = numpy.copy(buff['Gi'])
-        self.weight = buff['weight']
-        self.weights = numpy.copy(buff['weights'])
-        self.phase = buff['phase']
-        self.ot = buff['overlap']
-        self.E_L = buff['E_L']
-        self.ovlps = numpy.copy(buff['overlaps'])
-        self.hybrid_energy = buff['ehyb']
-        self.field_configs.configs = numpy.copy(buff['fields'])
-        self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
-        self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
+        self.__dict__ = buff
+        # self.phi = numpy.copy(buff['phi'])
+        # self.phi_old = numpy.copy(buff['phi_old'])
+        # self.phi_init = numpy.copy(buff['phi_init'])
+        # self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
+        # self.G = numpy.copy(buff['G'])
+        # self.Gi = numpy.copy(buff['Gi'])
+        # self.weight = buff['weight']
+        # self.weights = numpy.copy(buff['weights'])
+        # self.phase = buff['phase']
+        # self.ot = buff['overlap']
+        # self.E_L = buff['E_L']
+        # self.ovlps = numpy.copy(buff['overlaps'])
+        # self.hybrid_energy = buff['ehyb']
+        # self.field_configs.configs = numpy.copy(buff['fields'])
+        # self.field_configs.cos_fac = numpy.copy(buff['cfacs'])
+        # self.field_configs.weight_fac = numpy.copy(buff['weight_fac'])
