@@ -23,14 +23,14 @@ class SingleDetWalker(object):
     """
 
     def __init__(self, walker_opts, system, trial, index=0, nprop_tot=None, nbp=None):
-        self.weight = walker_opts.get('weight', 1)
+        self.weight = walker_opts.get('weight', 1.0)
         self.unscaled_weight = self.weight
         self.phase = 1 + 0j
         self.alive = 1
         self.phi = trial.init.copy()
         # JOONHO randomizing the guess
         # self.phi = numpy.random.rand([system.nbasis,system.ne])
-        self.inv_ovlp = [0, 0]
+        self.inv_ovlp = [0.0, 0.0]
         self.nup = system.nup
         self.ndown = system.ndown
         self.inverse_overlap(trial)
@@ -41,10 +41,10 @@ class SingleDetWalker(object):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
-        self.total_weight = 0
+        self.total_weight = 0.0
         self.ot = 1.0
         # interface consistency
-        self.ots = numpy.zeros(1)
+        self.ots = numpy.zeros(1, dtype=numpy.complex128)
         self.E_L = local_energy(system, self.G, self.Gmod)[0].real
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
@@ -55,7 +55,7 @@ class SingleDetWalker(object):
         self.hybrid_energy = 0.0
         # Historic wavefunction for ITCF.
         self.phi_right = copy.deepcopy(self.phi)
-        self.weights = numpy.array([1])
+        self.weights = numpy.array([1.0])
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
         # if system.name == "Generic":

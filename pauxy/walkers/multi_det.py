@@ -26,7 +26,7 @@ class MultiDetWalker(object):
                  weights='zeros', verbose=False):
         if verbose:
             print("# Setting up MultiDetWalker object.")
-        self.weight = walker_opts.get('weight', 1)
+        self.weight = walker_opts.get('weight', 1.0)
         self.unscaled_weight = self.weight
         self.alive = 1
         self.phase = 1 + 0j
