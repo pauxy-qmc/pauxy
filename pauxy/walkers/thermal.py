@@ -68,18 +68,14 @@ class ThermalWalker(object):
         self.ot = 1.0
 
         # # temporary storage for stacks...
-        self.Tl = numpy.array([numpy.identity(trial.dmat[0].shape[0]),
-                              numpy.identity(trial.dmat[1].shape[0])])
-        self.Ql = numpy.array([numpy.identity(trial.dmat[0].shape[0]),
-                              numpy.identity(trial.dmat[1].shape[0])])
-        self.Dl = numpy.array([numpy.ones(trial.dmat[0].shape[0]),
-                              numpy.ones(trial.dmat[1].shape[0])])
-        self.Tr = numpy.array([numpy.identity(trial.dmat[0].shape[0]),
-                              numpy.identity(trial.dmat[1].shape[0])])
-        self.Qr = numpy.array([numpy.identity(trial.dmat[0].shape[0]),
-                              numpy.identity(trial.dmat[1].shape[0])])
-        self.Dr = numpy.array([numpy.ones(trial.dmat[0].shape[0]),
-                              numpy.ones(trial.dmat[1].shape[0])])
+        I = numpy.identity(system.nbasis, dtype=dtype)
+        One = numpy.ones(system.nbasis, dtype=dtype)
+        self.Tl = numpy.array([I, I])
+        self.Ql = numpy.array([I, I])
+        self.Dl = numpy.array([One, One])
+        self.Tr =  numpy.array([I, I])
+        self.Qr = numpy.array([I, I])
+        self.Dr = numpy.array([One, One])
 
         self.hybrid_energy = 0.0
         if verbose:

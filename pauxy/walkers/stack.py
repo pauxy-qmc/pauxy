@@ -123,14 +123,14 @@ class PropagatorStack:
         self.lowrank = lowrank
         self.ovlp = numpy.asarray([1.0, 1.0])
 
-        if(self.lowrank):
-            assert(diagonal)
+        if self.lowrank:
+            assert diagonal
 
         self.reortho = 1
 
         if self.nbins * self.stack_size < self.ntime_slices:
             print("stack_size must divide the total path length")
-            assert(self.nbins * self.stack_size == self.ntime_slices)
+            assert self.nbins * self.stack_size == self.ntime_slices
 
         self.nbasis = nbasis
         self.dtype = dtype
@@ -150,15 +150,16 @@ class PropagatorStack:
         self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
 
-        self.G = numpy.asarray([numpy.eye(self.nbasis, dtype=dtype),numpy.eye(self.nbasis, dtype=dtype)])
+        self.G = numpy.asarray([numpy.eye(self.nbasis, dtype=dtype),
+                                numpy.eye(self.nbasis, dtype=dtype)])
 
-        if (self.lowrank):
+        if self.lowrank:
             self.update_new = self.update_low_rank
         else:
             self.update_new = self.update_full_rank
 
         # Global block matrix
-        if (self.lowrank):
+        if self.lowrank:
             self.Ql = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
             self.Dl = numpy.zeros(shape=(2, nbasis),dtype=dtype)
             self.Tl = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
@@ -171,10 +172,10 @@ class PropagatorStack:
             self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
             self.mT = nbasis
 
-        # set all entries to be the identity matrix
         self.buff_names = ['left', 'right', 'stack']
         if self.lowrank:
-            self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
+            self.buff_names += ['G', 'Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
+        # set all entries to be the identity matrix
         self.reset()
 
     def get(self, ix):
@@ -221,7 +222,7 @@ class PropagatorStack:
         for d in self.buff_names:
             data = self.__dict__[d]
             data[:] = buff[s:s+data.size].reshape(data.shape)
-            s += data.size 
+            s += data.size
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
