@@ -210,7 +210,7 @@ def get_numeric_names(d):
         if isinstance(v, (numpy.ndarray)):
             names.append(k)
             size += v.size
-        elif isinstance(v, (float, complex, int)):
+        elif isinstance(v, (float, complex)):
             names.append(k)
             size += 1
     return names, size
