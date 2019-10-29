@@ -84,7 +84,7 @@ class ThermalWalker(object):
             nav = particle_number(P)
             print("# Initial walker energy: {} {} {}".format(*eloc))
             print("# Initial walker electron number: {}".format(nav))
-        self.buff_names = ['G', 'weight', 'unscaled_weight', 'phase', 'Tl',
+        self.buff_names = ['weight', 'G', 'unscaled_weight', 'phase', 'Tl',
                            'Ql', 'Dl', 'Tr', 'Qr', 'Dr']
         self.buff_size = (self.G.size+3+self.Tl.size+
                           self.Ql.size+self.Dl.size+self.Tr.size+self.Qr.size
@@ -586,7 +586,7 @@ class ThermalWalker(object):
                 data[:] = buff[s:s+data.size].reshape(data.shape)
                 dsize = data.size
             else:
-                data = buff[s]
+                self.__dict__[d] = buff[s]
                 dsize = 1
             s += dsize
 
