@@ -2,6 +2,7 @@ import copy
 import numpy
 import scipy.linalg
 from pauxy.estimators.mixed import local_energy_multi_det
+from pauxy.utils.misc import get_numeric_names
 
 class MultiDetWalker(object):
     """Multi-Det style walker.
