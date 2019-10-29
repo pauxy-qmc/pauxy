@@ -29,6 +29,7 @@ class FieldConfig(object):
         self.nbp = nbp
         self.nprop_tot = nprop_tot
         self.nblock = nprop_tot // nbp
+        self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def push(self, config):
         """Add field configuration to buffer.
@@ -86,6 +87,31 @@ class FieldConfig(object):
         end = self.nprop_tot - self.nbp
         return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
 
+    def get_buffer(self):
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, (numpy.ndarray)):
+                buff[s:s+data.size] = data.ravel()
+                s += data.size
+            else:
+                buff[s:s+1] = data
+                s += 1
+        return buff
+
+    def set_buffer(self, buff):
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, numpy.ndarray):
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+                dsize = data.size
+            else:
+                self.__dict__[d] = buff[s]
+                dsize = 1
+            s += dsize
+
     def get_wfac(self):
         weight_fac = [1,1]
         for c, w in zip(self.cos_fac, self.weight_fac):
@@ -93,18 +119,6 @@ class FieldConfig(object):
             weight_fac[1] *= c
         return weight_fac
 
-    def get_buffer(self):
-        buff = {
-            'configs': self.configs,
-            'cos_fac': self.cos_fac,
-            'weight_fac': self.weight_fac
-        }
-        return buff
-
-    def set_buffer(self, buff):
-        self.configs = numpy.copy(buff['configs'])
-        self.weight_fac = numpy.copy(buff['weight_fac'])
-        self.cos_fac = numpy.copy(buff['cos_fac'])
 
     def reset(self):
         self.tot_wfac = 1.0 + 0j

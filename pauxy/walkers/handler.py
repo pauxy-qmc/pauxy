@@ -33,7 +33,7 @@ class Walkers(object):
     """
 
     def __init__(self, walker_opts, system, trial, qmc, verbose=False,
-                 comm=None):
+                 comm=None, nprop_tot=None, nbp=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
         self.write_freq = walker_opts.get('write_freq', 0)
@@ -84,8 +84,15 @@ class Walkers(object):
                                                   name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
-            self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
+            self.walkers = [SingleDetWalker(walker_opts, system, trial,
+                                            index=w, nprop_tot=nprop_tot,
+                                            nbp=nbp)
                             for w in range(qmc.nwalkers)]
+            self.buff_size = self.walkers[0].buff_size
+            if nbp is not None:
+                self.buff_size += self.walkers[0].field_configs.buff_size
+            self.walker_buffer = numpy.zeros(self.buff_size,
+                                             dtype=numpy.complex128)
         if system.name == "Generic" or system.name == "UEG":
             dtype = complex
         else:
@@ -335,14 +342,13 @@ class Walkers(object):
             if walker[1] > 1:
                 tag = comm.rank*len(walker_info) + walker[3]
                 self.walkers[iw].weight = walker[0]
-                walker_buffers.append(self.walkers[iw].__dict__)
-                reqs.append(comm.isend(walker_buffers[-1],
-                            dest=int(round(walker[3])), tag=tag))
+                buff = self.walkers[iw].get_buffer()
+                reqs.append(comm.Isend(buff, dest=int(round(walker[3])), tag=i))
         for iw, walker in enumerate(data):
             if walker[1] == 0:
                 tag = walker[3]*len(walker_info) + comm.rank
-                buff = comm.recv(source=int(round(walker[3])), tag=tag)
-                self.walkers[iw].__dict__ = buff
+                comm.Recv(self.walker_buffer, source=int(round(walker[3])), tag=i)
+                self.walkers[iw].set_buffer(self.walker_buffer)
         for r in reqs:
             r.wait()
 
