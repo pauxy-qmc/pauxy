@@ -187,13 +187,9 @@ class Walkers(object):
         # Rescale weights to combat exponential decay/growth.
         scale = total_weight / self.target_weight
         self.set_total_weight(total_weight)
-        # if comm.rank == 0:
-            # print("total_weight", total_weight, scale)
         # Todo: Just standardise information we want to send between routines.
         for w in self.walkers:
             w.unscaled_weight = w.weight
-            # if comm.rank == 0:
-                # print(w.unscaled_weight)
             w.weight = w.weight / scale
         if self.pcont_method == "comb":
             global_weights = global_weights / scale
@@ -256,11 +252,9 @@ class Walkers(object):
                 # copying walker data to intermediate buffer to avoid issues
                 # with accessing walker data during send. Might not be
                 # necessary.
-                # walker_buffers.append(self.walkers[clone_pos].__dict__)
                 dest_proc = k // self.nw
                 buff = self.walkers[clone_pos].get_buffer()
-                reqs.append(comm.Isend(buff,
-                            dest=dest_proc, tag=i))
+                reqs.append(comm.Isend(buff, dest=dest_proc, tag=i))
         # Now receive walkers on processors where walkers are to be killed.
         for i, (c, k) in enumerate(zip(clone, kill)):
             # Receiving to current processor?
