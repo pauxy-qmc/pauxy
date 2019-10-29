@@ -139,8 +139,8 @@ class PropagatorStack:
         self.counter = 0
         self.block = 0
         self.buff_size = (
-            3*self.nbins*2*nbasis*nbasis + # stack,left,right
-            + (6*self.nbins*2*nbasis*nbasis if self.lowrank else 0) # low rank
+            3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # stack,left,right,G
+            + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
             )
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
@@ -160,21 +160,21 @@ class PropagatorStack:
 
         # Global block matrix
         if self.lowrank:
-            self.Ql = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.Dl = numpy.zeros(shape=(2, nbasis),dtype=dtype)
-            self.Tl = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.Ql = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.Dl = numpy.zeros(shape=(2, nbasis), dtype=dtype)
+            self.Tl = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
 
-            self.Qr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.Dr = numpy.zeros(shape=(2, nbasis),dtype=dtype)
-            self.Tr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.Qr = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.Dr = numpy.zeros(shape=(2, nbasis), dtype=dtype)
+            self.Tr = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
 
-            self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.CT = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.theta = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
             self.mT = nbasis
 
-        self.buff_names = ['left', 'right', 'stack']
+        self.buff_names = ['left', 'right', 'stack', 'G']
         if self.lowrank:
-            self.buff_names += ['G', 'Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
+            self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
         # set all entries to be the identity matrix
         self.reset()
 
