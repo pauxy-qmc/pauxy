@@ -64,6 +64,9 @@ class Walkers(object):
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
                             for w in range(qmc.nwalkers)]
+            self.buff_size = self.walkers[0].buff_size + self.walkers[0].stack.buff_size
+            self.walker_buffer = numpy.zeros(self.buff_size,
+                                             dtype=numpy.complex128)
             stack_size = self.walkers[0].stack_size
             if system.name == "Hubbard":
                 if stack_size % qmc.nstblz != 0 or qmc.nstblz < stack_size:
@@ -249,10 +252,9 @@ class Walkers(object):
                 # copying walker data to intermediate buffer to avoid issues
                 # with accessing walker data during send. Might not be
                 # necessary.
-                walker_buffers.append(self.walkers[clone_pos].__dict__)
                 dest_proc = k // self.nw
-                reqs.append(comm.isend(walker_buffers[-1],
-                            dest=dest_proc, tag=i))
+                buff = self.walkers[clone_pos].get_buffer()
+                reqs.append(comm.Isend(buff, dest=dest_proc, tag=i))
         # Now receive walkers on processors where walkers are to be killed.
         for i, (c, k) in enumerate(zip(clone, kill)):
             # Receiving to current processor?
@@ -261,8 +263,8 @@ class Walkers(object):
                 source_proc = c // self.nw
                 # Location of walker to kill in local list of walkers.
                 kill_pos = k % self.nw
-                walker_buffer = comm.recv(source=source_proc, tag=i)
-                self.walkers[kill_pos].__dict__ = walker_buffer
+                comm.Recv(self.walker_buffer, source=source_proc, tag=i)
+                self.walkers[kill_pos].set_buffer(self.walker_buffer)
         # Complete non-blocking send.
         for rs in reqs:
             rs.wait()

@@ -123,14 +123,14 @@ class PropagatorStack:
         self.lowrank = lowrank
         self.ovlp = numpy.asarray([1.0, 1.0])
 
-        if(self.lowrank):
-            assert(diagonal)
+        if self.lowrank:
+            assert diagonal
 
         self.reortho = 1
 
         if self.nbins * self.stack_size < self.ntime_slices:
             print("stack_size must divide the total path length")
-            assert(self.nbins * self.stack_size == self.ntime_slices)
+            assert self.nbins * self.stack_size == self.ntime_slices
 
         self.nbasis = nbasis
         self.dtype = dtype
@@ -138,7 +138,10 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
-        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
+        self.buff_size = (
+            2+3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # ovlp,stack,left,right,G
+            + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
+            )
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
@@ -147,27 +150,31 @@ class PropagatorStack:
         self.right = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
 
-        self.G = numpy.asarray([numpy.eye(self.nbasis, dtype=dtype),numpy.eye(self.nbasis, dtype=dtype)])
+        self.G = numpy.asarray([numpy.eye(self.nbasis, dtype=dtype),
+                                numpy.eye(self.nbasis, dtype=dtype)])
 
-        if (self.lowrank):
+        if self.lowrank:
             self.update_new = self.update_low_rank
         else:
             self.update_new = self.update_full_rank
 
         # Global block matrix
-        if (self.lowrank):
-            self.Ql = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.Dl = numpy.zeros(shape=(2, nbasis),dtype=dtype)
-            self.Tl = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+        if self.lowrank:
+            self.Ql = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.Dl = numpy.zeros(shape=(2, nbasis), dtype=dtype)
+            self.Tl = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
 
-            self.Qr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.Dr = numpy.zeros(shape=(2, nbasis),dtype=dtype)
-            self.Tr = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.Qr = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.Dr = numpy.zeros(shape=(2, nbasis), dtype=dtype)
+            self.Tr = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
 
-            self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-            self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
+            self.CT = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
+            self.theta = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
             self.mT = nbasis
 
+        self.buff_names = ['left', 'right', 'stack', 'G', 'ovlp']
+        if self.lowrank:
+            self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
         # set all entries to be the identity matrix
         self.reset()
 
@@ -175,33 +182,47 @@ class PropagatorStack:
         return self.stack[ix]
 
     def get_buffer(self):
-        buff = {
-            'left': self.left,
-            'right': self.right,
-            'stack': self.stack,
-            'wfac': self.wfac,
-        }
-        if (self.lowrank):
-            buff['Ql'] = self.Ql
-            buff['Dl'] = self.Dl
-            buff['Tl'] = self.Tl
-            buff['Qr'] = self.Qr
-            buff['Dr'] = self.Dr
-            buff['Tr'] = self.Tr
+        # buff = {
+            # 'left': self.left,
+            # 'right': self.right,
+            # 'stack': self.stack,
+            # 'wfac': numpy.array(self.wfac),
+        # }
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            buff[s:s+data.size] = data.ravel()
+            s += data.size
+        # self.buff[0] = self.wfac
+        # s += 1
+        # self.buff[s:s+self.left.size1] = self.wfac
+        # if self.lowrank:
+            # buff['Ql'] = self.Ql
+            # buff['Dl'] = self.Dl
+            # buff['Tl'] = self.Tl
+            # buff['Qr'] = self.Qr
+            # buff['Dr'] = self.Dr
+            # buff['Tr'] = self.Tr
         return buff
 
     def set_buffer(self, buff):
-        self.stack = numpy.copy(buff['stack'])
-        self.left = numpy.copy(buff['left'])
-        self.right = numpy.copy(buff['right'])
-        self.wfac = buff['wfac']
-        if (self.lowrank):
-            self.Ql = numpy.copy(buff['Ql'])
-            self.Dl = numpy.copy(buff['Dl'])
-            self.Tl = numpy.copy(buff['Tl'])
-            self.Qr = numpy.copy(buff['Qr'])
-            self.Dr = numpy.copy(buff['Dr'])
-            self.Tr = numpy.copy(buff['Tr'])
+        # self.stack = numpy.copy(buff['stack'])
+        # self.left = numpy.copy(buff['left'])
+        # self.right = numpy.copy(buff['right'])
+        # self.wfac = buff['wfac']
+        # if self.lowrank:
+            # self.Ql = numpy.copy(buff['Ql'])
+            # self.Dl = numpy.copy(buff['Dl'])
+            # self.Tl = numpy.copy(buff['Tl'])
+            # self.Qr = numpy.copy(buff['Qr'])
+            # self.Dr = numpy.copy(buff['Dr'])
+            # self.Tr = numpy.copy(buff['Tr'])
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+            s += data.size
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal
@@ -231,7 +252,6 @@ class PropagatorStack:
     def reset(self):
         self.time_slice = 0
         self.block = 0
-        self.wfac = numpy.array([1.0,1.0], dtype=numpy.complex128)
         for i in range(0, self.nbins):
             self.stack[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.stack[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
@@ -264,7 +284,7 @@ class PropagatorStack:
                 C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
                 self.Dl[spin] = C2
 
-    def update(self, B, wfac=1.0):
+    def update(self, B):
         if self.counter == 0:
             self.stack[self.block,0] = numpy.identity(B.shape[-1],
                                                       dtype=B.dtype)
@@ -272,7 +292,6 @@ class PropagatorStack:
                                                       dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        self.wfac *= wfac
         self.time_slice = self.time_slice + 1
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
@@ -468,6 +487,3 @@ class PropagatorStack:
         self.time_slice = self.time_slice + 1 # Count the time slice
         self.block = self.time_slice // self.stack_size # move to the next block if necessary
         self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
-
-    def get_wfac(self):
-        return self.wfac

@@ -62,18 +62,20 @@ class ThermalWalker(object):
         self.stack.set_all(trial.dmat)
         self.greens_function_qr_strat(trial)
         self.stack.G = self.G
-        self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
-                   scipy.linalg.det(self.G[1], check_finite=False)]
-        self.stack.ovlp = [1.0/self.M0[0], 1.0/self.M0[1]]
+        self.M0 = numpy.array([scipy.linalg.det(self.G[0], check_finite=False),
+                               scipy.linalg.det(self.G[1], check_finite=False)])
+        self.stack.ovlp = numpy.array([1.0/self.M0[0], 1.0/self.M0[1]])
         self.ot = 1.0
 
         # # temporary storage for stacks...
-        self.Tl = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
-        self.Ql = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
-        self.Dl = [numpy.ones(trial.dmat[0].shape[0]), numpy.ones(trial.dmat[1].shape[0])]
-        self.Tr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
-        self.Qr = [numpy.identity(trial.dmat[0].shape[0]), numpy.identity(trial.dmat[1].shape[0])]
-        self.Dr = [numpy.ones(trial.dmat[0].shape[0]), numpy.ones(trial.dmat[1].shape[0])]
+        I = numpy.identity(system.nbasis, dtype=dtype)
+        One = numpy.ones(system.nbasis, dtype=dtype)
+        self.Tl = numpy.array([I, I])
+        self.Ql = numpy.array([I, I])
+        self.Dl = numpy.array([One, One])
+        self.Tr =  numpy.array([I, I])
+        self.Qr = numpy.array([I, I])
+        self.Dr = numpy.array([One, One])
 
         self.hybrid_energy = 0.0
         if verbose:
@@ -82,6 +84,11 @@ class ThermalWalker(object):
             nav = particle_number(P)
             print("# Initial walker energy: {} {} {}".format(*eloc))
             print("# Initial walker electron number: {}".format(nav))
+        self.buff_names = ['weight', 'G', 'unscaled_weight', 'phase', 'Tl',
+                           'Ql', 'Dl', 'Tr', 'Qr', 'Dr', 'M0']
+        self.buff_size = (self.G.size+3+self.Tl.size+2+
+                          self.Ql.size+self.Dl.size+self.Tr.size+self.Qr.size
+                          +self.Dr.size)
 
     def greens_function(self, trial, slice_ix=None, inplace=True):
         if self.lowrank:
@@ -550,19 +557,18 @@ class ThermalWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        buff = {
-            'stack': self.stack.get_buffer(),
-            'G': self.G,
-            'weight': self.weight,
-            'phase': self.phase,
-            'Tl': self.Tl,
-            'Ql': self.Ql,
-            'Dl': self.Dl,
-            'Tr': self.Tr,
-            'Qr': self.Qr,
-            'Dr': self.Dr
-        }
-        return buff
+        s = 0
+        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, (numpy.ndarray)):
+                buff[s:s+data.size] = data.ravel()
+                s += data.size
+            else:
+                buff[s:s+1] = data
+                s += 1
+        stack_buff = self.stack.get_buffer()
+        return numpy.concatenate((buff,stack_buff))
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -572,16 +578,17 @@ class ThermalWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.stack.set_buffer(buff['stack'])
-        self.G = numpy.copy(buff['G'])
-        self.weight = buff['weight']
-        self.phase = buff['phase']
-        self.Tl = [numpy.copy(buff['Tl'][0]), numpy.copy(buff['Tl'][1])]
-        self.Ql = [numpy.copy(buff['Ql'][0]), numpy.copy(buff['Ql'][1])]
-        self.Dl = [numpy.copy(buff['Dl'][0]), numpy.copy(buff['Dl'][1])]
-        self.Tr = [numpy.copy(buff['Tr'][0]), numpy.copy(buff['Tr'][1])]
-        self.Qr = [numpy.copy(buff['Qr'][0]), numpy.copy(buff['Qr'][1])]
-        self.Dr = [numpy.copy(buff['Dr'][0]), numpy.copy(buff['Dr'][1])]
+        self.stack.set_buffer(buff[self.buff_size:])
+        s = 0
+        for d in self.buff_names:
+            data = self.__dict__[d]
+            if isinstance(data, numpy.ndarray):
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
+                dsize = data.size
+            else:
+                self.__dict__[d] = buff[s]
+                dsize = 1
+            s += dsize
 
 def unit_test():
     from pauxy.systems.ueg import UEG

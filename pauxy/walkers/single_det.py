@@ -282,21 +282,20 @@ class SingleDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        buff = {
-            'phi': self.phi,
-            'phi_old': self.phi_old,
-            'phi_right': self.phi_right,
-            'weight': self.weight,
-            'phase': self.phase,
-            'inv_ovlp': self.inv_ovlp,
-            'G': self.G,
-            'overlap': self.ot,
-            'overlaps': self.ots,
-            'E_L': self.E_L,
-            'ehyb': self.hybrid_energy,
-            'stack': self.stack.get_buffer()
-        }
-        return buff
+        # buff = {
+            # 'phi': self.phi,
+            # 'phi_old': self.phi_old,
+            # 'phi_right': self.phi_right,
+            # 'weight': self.weight,
+            # 'phase': self.phase,
+            # 'inv_ovlp': self.inv_ovlp,
+            # 'G': self.G,
+            # 'overlap': self.ot,
+            # 'overlaps': self.ots,
+            # 'E_L': self.E_L,
+            # 'ehyb': self.hybrid_energy,
+        # }
+        return self.__dict__
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -306,15 +305,15 @@ class SingleDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.phi = numpy.copy(buff['phi'])
-        self.phi_old = numpy.copy(buff['phi_old'])
-        self.phi_right = numpy.copy(buff['phi_right'])
-        self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
-        self.G = numpy.copy(buff['G'])
-        self.weight = buff['weight']
-        self.phase = buff['phase']
-        self.ot = buff['overlap']
-        self.E_L = buff['E_L']
-        self.hybrid_energy = buff['ehyb']
-        self.ots = numpy.copy(buff['overlaps'])
-        self.stack.set_buffer(buff['stack'])
+        # self.phi = numpy.copy(buff['phi'])
+        # self.phi_old = numpy.copy(buff['phi_old'])
+        # self.phi_right = numpy.copy(buff['phi_right'])
+        # self.inv_ovlp = numpy.copy(buff['inv_ovlp'])
+        # self.G = numpy.copy(buff['G'])
+        # self.weight = buff['weight']
+        # self.phase = buff['phase']
+        # self.ot = buff['overlap']
+        # self.E_L = buff['E_L']
+        # self.hybrid_energy = buff['ehyb']
+        # self.ots = numpy.copy(buff['overlaps'])
+        self.__dict__ = buff
