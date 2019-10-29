@@ -62,9 +62,9 @@ class ThermalWalker(object):
         self.stack.set_all(trial.dmat)
         self.greens_function_qr_strat(trial)
         self.stack.G = self.G
-        self.M0 = [scipy.linalg.det(self.G[0], check_finite=False),
-                   scipy.linalg.det(self.G[1], check_finite=False)]
-        self.stack.ovlp = [1.0/self.M0[0], 1.0/self.M0[1]]
+        self.M0 = numpy.array([scipy.linalg.det(self.G[0], check_finite=False),
+                               scipy.linalg.det(self.G[1], check_finite=False)])
+        self.stack.ovlp = numpy.array([1.0/self.M0[0], 1.0/self.M0[1]])
         self.ot = 1.0
 
         # # temporary storage for stacks...
@@ -85,8 +85,8 @@ class ThermalWalker(object):
             print("# Initial walker energy: {} {} {}".format(*eloc))
             print("# Initial walker electron number: {}".format(nav))
         self.buff_names = ['weight', 'G', 'unscaled_weight', 'phase', 'Tl',
-                           'Ql', 'Dl', 'Tr', 'Qr', 'Dr']
-        self.buff_size = (self.G.size+3+self.Tl.size+
+                           'Ql', 'Dl', 'Tr', 'Qr', 'Dr', 'M0']
+        self.buff_size = (self.G.size+3+self.Tl.size+2+
                           self.Ql.size+self.Dl.size+self.Tr.size+self.Qr.size
                           +self.Dr.size)
 
@@ -561,7 +561,7 @@ class ThermalWalker(object):
         buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
         for d in self.buff_names:
             data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
+            if isinstance(data, (numpy.ndarray)):
                 buff[s:s+data.size] = data.ravel()
                 s += data.size
             else:

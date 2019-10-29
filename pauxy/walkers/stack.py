@@ -139,7 +139,7 @@ class PropagatorStack:
         self.counter = 0
         self.block = 0
         self.buff_size = (
-            3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # stack,left,right,G
+            2+3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # ovlp,stack,left,right,G
             + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
             )
 
@@ -172,7 +172,7 @@ class PropagatorStack:
             self.theta = numpy.zeros(shape=(2, nbasis, nbasis), dtype=dtype)
             self.mT = nbasis
 
-        self.buff_names = ['left', 'right', 'stack', 'G']
+        self.buff_names = ['left', 'right', 'stack', 'G', 'ovlp']
         if self.lowrank:
             self.buff_names += ['Ql', 'Dl', 'Tl', 'Qr', 'Dr', 'Tr']
         # set all entries to be the identity matrix
