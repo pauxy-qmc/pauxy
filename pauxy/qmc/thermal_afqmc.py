@@ -200,8 +200,6 @@ class ThermalAFQMC(object):
                 if self.verbosity >= 2 and comm.rank == 0:
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
-                eloc = 0.0
-                weight = 0.0
                 for w in self.walk.walkers:
                     self.propagators.propagate_walker(self.system, w, ts)
                     if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
