@@ -583,7 +583,7 @@ class ThermalWalker(object):
         for d in self.buff_names:
             data = self.__dict__[d]
             if isinstance(data, numpy.ndarray):
-                data[:] = buff[s:s+data.size].reshape(data.shape)
+                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
                 dsize = data.size
             else:
                 self.__dict__[d] = buff[s]
