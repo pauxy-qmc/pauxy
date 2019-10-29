@@ -221,7 +221,7 @@ class PropagatorStack:
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
-            data[:] = buff[s:s+data.size].reshape(data.shape)
+            self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
             s += data.size
 
     def set_all(self, BT):
