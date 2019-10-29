@@ -359,10 +359,10 @@ class PlaneWave(object):
                                         inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=False),
-              scipy.linalg.det(G[1], check_finite=False)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
-                scipy.linalg.det(walker.G[1], check_finite=False)]
+        M0 = numpy.array([scipy.linalg.det(G[0], check_finite=False),
+                          scipy.linalg.det(G[1], check_finite=False)])
+        Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
+                            scipy.linalg.det(walker.G[1], check_finite=False)])
 
         try:
             # Could save M0 rather than recompute.
@@ -491,8 +491,8 @@ class PlaneWave(object):
 
         # 3. Compute det(G/G')
         M0 = walker.M0
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
-                scipy.linalg.det(walker.G[1], check_finite=False)]
+        Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
+                            scipy.linalg.det(walker.G[1], check_finite=False)])
 
         # Could save M0 rather than recompute.
         try:
