@@ -5,4 +5,3 @@ cython >= 0.29.2
 h5py
 pytest
 pandas
-dill
