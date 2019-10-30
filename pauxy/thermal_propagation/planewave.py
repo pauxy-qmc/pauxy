@@ -39,6 +39,7 @@ class PlaneWave(object):
                   "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
         if verbose:
             print("# Number of fields = %i"%system.nfields)
+            print("# Using lowrank propagation: {}".format(self.lowrank))
 
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
 
