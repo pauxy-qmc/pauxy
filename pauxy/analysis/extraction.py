@@ -29,7 +29,6 @@ def extract_bp_estimates(filename, skip=0):
 
 def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm'):
     rdmtot = []
-    nzero = -1
     one_rdm = extract_data(filename, est_type, rdm_type)
     denom = extract_data(filename, est_type, 'denominator', raw=True)
     fp = get_param(filename, ['propagators','free_projection'])
