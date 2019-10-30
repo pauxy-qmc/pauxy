@@ -283,7 +283,7 @@ class Walkers(object):
             w.weight = 1.0
 
     def pair_branch(self, comm):
-        walker_info = [[w.weight,1,comm.rank,comm.rank] for w in self.walkers]
+        walker_info = [[abs(w.weight),1,comm.rank,comm.rank] for w in self.walkers]
         glob_inf = comm.gather(walker_info, root=0)
         # Want same random number seed used on all processors
         if comm.rank == 0:
@@ -343,11 +343,15 @@ class Walkers(object):
                 tag = comm.rank*len(walker_info) + walker[3]
                 self.walkers[iw].weight = walker[0]
                 buff = self.walkers[iw].get_buffer()
-                reqs.append(comm.Isend(buff, dest=int(round(walker[3])), tag=i))
+                reqs.append(comm.Isend(buff,
+                                       dest=int(round(walker[3])),
+                                       tag=tag))
         for iw, walker in enumerate(data):
             if walker[1] == 0:
                 tag = walker[3]*len(walker_info) + comm.rank
-                comm.Recv(self.walker_buffer, source=int(round(walker[3])), tag=i)
+                comm.Recv(self.walker_buffer,
+                          source=int(round(walker[3])),
+                          tag=tag)
                 self.walkers[iw].set_buffer(self.walker_buffer)
         for r in reqs:
             r.wait()
