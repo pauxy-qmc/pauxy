@@ -60,6 +60,9 @@ class Walkers(object):
                                        verbose=(verbose and w == 0))
                         for w in range(qmc.nwalkers)
                         ]
+            self.buff_size = self.walkers[0].buff_size
+            self.walker_buffer = numpy.zeros(self.buff_size,
+                                             dtype=numpy.complex128)
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
             self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
@@ -104,6 +107,8 @@ class Walkers(object):
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(self.pcont_method))
+            print("# Buffer size for communication: {:13.8e} GB"
+                  .format(float(self.walker_buffer.nbytes)/(1024.0**3)))
         if not self.walker_type == "thermal":
             walker_size = 3 + self.walkers[0].phi.size
         if self.write_freq > 0:
