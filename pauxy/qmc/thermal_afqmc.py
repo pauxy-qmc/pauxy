@@ -141,6 +141,7 @@ class ThermalAFQMC(object):
                       "There must be at least one walker per core set in the "
                       "input file. Setting one walker per core.")
             self.qmc.nwalkers = 1
+            self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         wlk_opts = get_input_value(options, 'walkers', default={},
                                    alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
