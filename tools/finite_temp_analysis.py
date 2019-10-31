@@ -2,7 +2,10 @@
 
 import glob
 import numpy
-import matplotlib.pyplot as pl
+try:
+    import matplotlib.pyplot as pl
+except ImportError:
+    pass
 import sys
 from pauxy.analysis.thermal import analyse_energy, find_chem_pot
 from pauxy.analysis.extraction import get_sys_param
