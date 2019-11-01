@@ -14,7 +14,7 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
-from pauxy.utils.misc import get_git_revision_hash
+from pauxy.utils.misc import get_git_revision_hash, print_sys_info
 from pauxy.utils.io import  to_json, serialise, get_input_value
 from pauxy.walkers.handler import Walkers
 try:
@@ -91,6 +91,8 @@ class AFQMC(object):
                 self.sha1 = get_git_revision_hash()
             else:
                 self.sha1 = 'None'
+            if verbose:
+                print_sys_info(self.sha1, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0

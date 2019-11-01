@@ -14,7 +14,7 @@ from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.utils import get_trial_density_matrices
-from pauxy.utils.misc import get_git_revision_hash
+from pauxy.utils.misc import get_git_revision_hash, print_sys_info
 from pauxy.utils.io import to_json, get_input_value
 from pauxy.walkers.handler import Walkers
 
@@ -93,7 +93,13 @@ class ThermalAFQMC(object):
             verbose = verbose > 0
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
-            self.sha1 = get_git_revision_hash()
+            get_sha1 = options.get('get_sha1', True)
+            if get_sha1:
+                self.sha1 = get_git_revision_hash()
+            else:
+                self.sha1 = 'None'
+            if verbose:
+                print_sys_info(self.sha1, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0

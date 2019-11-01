@@ -214,3 +214,28 @@ def get_numeric_names(d):
             names.append(k)
             size += 1
     return names, size
+
+
+def print_sys_info(sha1, uuid, nranks):
+    print('# Git version: {:s}.'.format(sha1))
+    print('# Calculation uuid: {:s}.'.format(uuid))
+    print('# Running on {:d} MPI rank{:s}.'.format(nranks, 's' if nranks > 1 else ''))
+    print("# Python interpreter: {:s}".format(' '.join(sys.version.splitlines())))
+    from importlib import import_module
+    for lib in ['numpy', 'scipy', 'h5py', 'mpi4py']:
+        try:
+            l = import_module(lib)
+            # Strip __init__.py
+            path = l.__file__[:-12]
+            vers = l.__version__
+            print("# Using {:s} v{:s} from: {:s}.".format(lib, vers, path))
+            if lib == 'numpy':
+                np_lib = l.__config__.blas_opt_info['libraries']
+                print("# - BLAS lib: {:s}".format(' '.join(np_lib)))
+                lib_dir = l.__config__.blas_opt_info['library_dirs']
+                print("# - BLAS dir: {:s}".format(' '.join(lib_dir)))
+            elif lib == 'mpi4py':
+                mpicc = l.get_config()['mpicc']
+                print("# - mpicc: {:s}".format(mpicc))
+        except ModuleNotFoundError:
+            print("# Package {:s} not found.".format(lib))
