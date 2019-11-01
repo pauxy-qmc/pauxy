@@ -93,7 +93,7 @@ class ThermalDiscrete(object):
         oratio =  self.calculate_overlap_ratio(walker, 0)
         return sum(oratio)
 
-    def propagate_walker_constrained(self, system, walker, time_slice, eshift):
+    def propagate_walker_constrained(self, system, walker, time_slice, eshift=0):
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
