@@ -9,7 +9,7 @@ try:
             dump_pauxy
             )
     no_pyscf = False
-except ImportError:
+except (ImportError, OSError):
     no_pyscf = True
 from pauxy.utils.io import (
         write_input,
