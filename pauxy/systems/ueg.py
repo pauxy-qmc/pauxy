@@ -52,9 +52,9 @@ class UEG(object):
         self.ktwist = numpy.array(inputs.get('ktwist', [0,0,0])).reshape(3)
         self.mu = inputs.get('mu', None)
         if verbose:
-            print("# Number of spin-up electrons: %i"%self.nup)
-            print("# Number of spin-down electrons: %i"%self.ndown)
-            print("# rs: %10.5f"%self.rs)
+            print("# Number of spin-up electrons: {:d}".format(self.nup))
+            print("# Number of spin-down electrons: {:d}".format(self.ndown))
+            print("# rs: {:10.5f}".format(self.rs))
 
         self.thermal = inputs.get('thermal', False)
         if self.thermal and verbose:
@@ -85,12 +85,12 @@ class UEG(object):
 
         skip_cholesky = inputs.get('skip_cholesky', False)
         if verbose:
-            print("# Spin polarisation (zeta): %d"%self.zeta)
-            print("# Electron density (rho): %13.8e"%self.rho)
-            print("# Box Length (L): %13.8e"%self.L)
-            print("# Volume: %13.8e"%self.vol)
-            print("# k-space factor (2pi/L): %13.8e"%self.kfac)
-            print("# Madelung Energy: %13.8e"%self.ecore)
+            print("# Spin polarisation (zeta): {:d}".format(self.zeta))
+            print("# Electron density (rho): {:13.8e}".format(self.rho))
+            print("# Box Length (L): {:13.8e}".format(self.L))
+            print("# Volume: {:13.8e}".format(self.vol))
+            print("# k-space factor (2pi/L): {:13.8e}".format(self.kfac))
+            print("# Madelung Energy: {:13.8e}".format(self.ecore))
 
         # Single particle eigenvalues and corresponding kvectors
         (self.sp_eigv, self.basis, self.nmax) = self.sp_energies(self.kfac, self.ecut)
@@ -117,8 +117,8 @@ class UEG(object):
         self.nchol = len(self.qvecs)
         self.nfields = 2*len(self.qvecs)
         if verbose:
-            print("# Number of plane waves: %i"%self.nbasis)
-            print("# Number of Cholesky vectors: %i"%self.nchol)
+            print("# Number of plane waves: {:d}".format(self.nbasis))
+            print("# Number of Cholesky vectors: {:d}.".format(self.nchol))
         # For consistency with frozen core molecular code.
         self.orbs = None
         self.frozen_core = False
@@ -181,7 +181,8 @@ class UEG(object):
                 self.write_integrals()
             if verbose:
                 print("# Approximate memory required for "
-                      "two-body potentials: %f GB."%(3*self.iA.nnz*16/(1024**3)))
+                      "two-body potentials: {:13.8e} GB."
+                      .format((3*self.iA.nnz*16/(1024**3))))
                 print("# Constructing two_body_potentials_incore finished")
                 print("# Finished setting up UEG system object.")
 
