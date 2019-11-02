@@ -7,15 +7,15 @@ def convert_from_reduced_unit(system, qmc_opts, verbose=False):
         TF = system.ef # Fermi temeprature
         if verbose:
             print("# Fermi Temperature: {:13.8e}".format(TF))
-            print("# beta in reduced unit = {:13.8e}".format(qmc_opts['beta']))
-            print("# dt in reduced unit = {:13.8e}".format(qmc_opts['dt']))
+            print("# beta in reduced unit: {:13.8e}".format(qmc_opts['beta']))
+            print("# dt in reduced unit: {:13.8e}".format(qmc_opts['dt']))
         dt = qmc_opts['dt'] # original dt
         beta = qmc_opts['beta'] # original dt
         scaled_dt = dt / TF # converting to Hartree ^ -1
         scaled_beta = beta / TF # converting to Hartree ^ -1
         if verbose:
-            print("# beta in Hartree^-1 = {:13.8e}".format(scaled_beta))
-            print("# dt in Hartree^-1 = {:13.8e}".format(scaled_dt))
+            print("# beta in Hartree^-1:  {:13.8e}".format(scaled_beta))
+            print("# dt in Hartree^-1: {:13.8e}".format(scaled_dt))
         return scaled_dt, scaled_beta
 
 
