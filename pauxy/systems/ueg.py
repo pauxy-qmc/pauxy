@@ -54,7 +54,7 @@ class UEG(object):
         if verbose:
             print("# Number of spin-up electrons: {:d}".format(self.nup))
             print("# Number of spin-down electrons: {:d}".format(self.ndown))
-            print("# rs: {:13.8e}".format(self.rs))
+            print("# rs: {:6.4e}".format(self.rs))
 
         self.thermal = inputs.get('thermal', False)
         if self.thermal and verbose:
@@ -85,7 +85,7 @@ class UEG(object):
 
         skip_cholesky = inputs.get('skip_cholesky', False)
         if verbose:
-            print("# Spin polarisation (zeta): {:d}".format(self.zeta))
+            print("# Spin polarisation (zeta): {:6.4e}".format(self.zeta))
             print("# Electron density (rho): {:13.8e}".format(self.rho))
             print("# Box Length (L): {:13.8e}".format(self.L))
             print("# Volume: {:13.8e}".format(self.vol))
@@ -183,7 +183,7 @@ class UEG(object):
                 print("# Approximate memory required for "
                       "two-body potentials: {:13.8e} GB."
                       .format((3*self.iA.nnz*16/(1024**3))))
-                print("# Constructing two_body_potentials_incore finished")
+                print("# Finished constructing two-body potentials.")
                 print("# Finished setting up UEG system object.")
 
 
