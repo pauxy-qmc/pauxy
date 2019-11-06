@@ -109,13 +109,11 @@ class QMCOpts(object):
         self.neqlb = int(self.eqlb_time/self.dt)
         self.beta = get_input_value(inputs, 'beta', default=None,
                                     verbose=verbose)
-        scale_t = get_input_value(inputs, 'scaled_temperature', default=False,
-                                  alias=['reduced_temperature'], verbose=verbose)
-        if scale_t:
+        self.scaled_temp = get_input_value(inputs, 'scaled_temperature', default=False,
+                                           alias=['reduced_temperature'], verbose=verbose)
+        if self.scaled_temp:
+            self.beta_scaled = self.beta
             self.dt, self.beta = convert_from_reduced_unit(system, inputs, verbose)
-        self.beta_reduced = get_input_value(inputs, 'beta_reduced',
-                                            default=None,
-                                            verbose=verbose)
         self.rng_seed = get_input_value(inputs, 'rng_seed',
                                         default=None,
                                         alias=['random_seed', 'seed'],
