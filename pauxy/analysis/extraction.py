@@ -90,7 +90,7 @@ def get_param(filename, param):
     return get_from_dict(md, param)
 
 def get_sys_param(filename, param):
-    return get_param(filename ['system', param])
+    return get_param(filename, ['system', param])
 
 
 # TODO : FDM FIX.
