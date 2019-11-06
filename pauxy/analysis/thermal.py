@@ -52,14 +52,31 @@ def find_chem_pot(data, target, vol, order=3, plot=False):
     nav_error[zeros] = 1e-8
     mus = data.mu.values
     delta = nav - target
-    fit = numpy.polyfit(mus, delta, order, w=1.0/nav_error)
-    a = min(mus)
-    b = max(mus)
-    try:
-        mu, r = scipy.optimize.brentq(nav_mu, a, b, args=fit, full_output=True)
-    except ValueError:
-        mu = None
-        print("Root not found in interval.")
+    s = 0
+    e = len(delta)
+    rmin = None
+    while e - s > order+1:
+        mus_range = mus[s:e]
+        delta_range = delta[s:e]
+        err_range = nav_error[s:e]
+        fit, res, rk, sv, rcond = numpy.polyfit(mus_range, delta_range, order,
+                                                w=1.0/err_range, full=True)
+        a = min(mus_range)
+        b = max(mus_range)
+        try:
+            mu, r = scipy.optimize.brentq(nav_mu, a, b, args=fit, full_output=True)
+            if rmin is None:
+                rmin = res[0]
+                mu_min = mu
+            elif res[0] < rmin:
+                mu_min = mu
+            print("# min = {:f} max = {:f} res = {:} mu = "
+                  "{:f}".format(a,b,res,mu))
+        except ValueError:
+            mu = None
+            print("Root not found in interval.")
+        s += 1
+        e -= 1
 
     if plot:
         import matplotlib.pyplot as pl
@@ -78,6 +95,6 @@ def find_chem_pot(data, target, vol, order=3, plot=False):
         pl.show()
     if mu is not None:
         if r.converged:
-            return mu
+            return mu_min
         else:
             return None
