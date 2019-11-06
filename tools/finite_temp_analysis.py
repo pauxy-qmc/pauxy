@@ -80,6 +80,9 @@ def main(args):
     if options.fit_chem_pot:
         # Assuming all files have same
         vol = get_sys_param(files[0], 'vol')
+        name = get_sys_param(files[0], 'name')
+        if name == 'UEG' or name == 'Generic':
+            vol = 1.0
         mu = find_chem_pot(data, options.nav, vol,
                            order=options.order, plot=options.plot)
         if mu is not None:
