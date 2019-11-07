@@ -233,9 +233,8 @@ class AFQMC(object):
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
-            if step % self.qmc.nmeasure == 0:
-                self.estimators.print_step(comm, comm.size, step,
-                                           self.qmc.nmeasure)
+            self.estimators.print_step(comm, comm.size, step,
+                                       self.qmc.nmeasure)
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
             if step < self.qmc.neqlb:
