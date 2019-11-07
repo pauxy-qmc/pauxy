@@ -70,17 +70,15 @@ class FieldConfig(object):
         else:
             self.tot_wfac = 0
         # Completed field configuration for this walker?
-        self.step = (self.step + 1) % self.nprop_tot
+        self.step = self.step + 1
         # Completed this block of back propagation steps?
         if self.step % self.nbp == 0:
             self.block = (self.block + 1) % self.nblock
 
     def get_block(self):
         """Return a view to current block for back propagation."""
-        start = self.block * self.nbp
-        end = (self.block + 1) * self.nbp
-        return (self.configs[start:end], self.cos_fac[start:end],
-                self.weight_fac[start:end])
+        end = self.step
+        return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
 
     def get_superblock(self):
         """Return a view to current super block for ITCF."""
@@ -114,13 +112,17 @@ class FieldConfig(object):
 
     def get_wfac(self):
         weight_fac = [1,1]
-        for c, w in zip(self.cos_fac, self.weight_fac):
-            weight_fac[0] *= w
-            weight_fac[1] *= c
-        return weight_fac
+        cfac = numpy.prod(self.cos_fac[:self.step])
+        wfac = numpy.prod(self.weight_fac[:self.step])
+        # for c, w in zip(self.cos_fac, self.weight_fac):
+            # weight_fac[0] *= w
+            # weight_fac[1] *= c
+        return cfac, wfac
 
 
     def reset(self):
+        if self.step % self.nprop_tot == 0:
+            self.step = 0
         self.tot_wfac = 1.0 + 0j
 
 class PropagatorStack:

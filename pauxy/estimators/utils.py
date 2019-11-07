@@ -297,12 +297,13 @@ class H5EstimatorHelper(object):
     index : int
         Counter for incrementing data.
     """
-    def __init__(self, filename, base):
+    def __init__(self, filename, base, nav=1):
         # self.store = h5f.create_dataset(name, shape, dtype=dtype)
         self.filename = filename
         self.base = base
         self.index = 0
         self.nzero = 9
+        self.nav = nav
 
     def push(self, data, name):
         """Push data to dataset.
@@ -320,7 +321,7 @@ class H5EstimatorHelper(object):
             fh5[dset] = data
 
     def increment(self):
-        self.index = self.index + 1
+        self.index = (self.index + 1) // self.nav
 
     def reset(self):
         self.index = 0

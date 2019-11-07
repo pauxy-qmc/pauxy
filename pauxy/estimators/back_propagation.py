@@ -65,6 +65,9 @@ class BackPropagation(object):
         self.header = ['E', 'E1b', 'E2b']
         self.calc_one_rdm = bp.get('one_rdm', True)
         self.calc_two_rdm = bp.get('two_rdm', None)
+        self.nsplit = bp.get('nsplit', 1)
+        self.splits = numpy.array([(i+1)*(self.nmax//self.nsplit)
+                                   for i in range(self.nsplit)])
         self.nreg = len(self.header)
         self.eval_energy = bp.get('evaluate_energy', False)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
@@ -124,8 +127,10 @@ class BackPropagation(object):
         free_projection : bool
             True if doing free projection.
         """
-        if step % self.nmax != 0:
+        buf_ix = psi.walkers[0].field_configs.step
+        if buf_ix not in self.splits:
             return
+        print(buf_ix, buf_ix in self.splits)
         nup = system.nup
         for i, wnm in enumerate(psi.walkers):
             phi_bp = trial.psi.copy()
@@ -159,7 +164,8 @@ class BackPropagation(object):
                 end = end + self.two_rdm.size
                 self.estimates[start:end] += weight*self.two_rdm.flatten().real
             wnm.field_configs.reset()
-        psi.copy_historic_wfn()
+        if buf_ix == 0:
+            psi.copy_historic_wfn()
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         """Calculate back-propagated estimates for GHF walkers.
@@ -217,29 +223,32 @@ class BackPropagation(object):
         nmeasure : int
             Number of steps between measurements.
         """
-        if step != 0 and step % self.nmax == 0:
-            comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
-            if comm.rank == 0:
-                weight = self.global_estimates[self.nreg]
-                self.output.push(numpy.array([weight]), 'denominator')
-                if self.eval_energy:
-                    if free_projection:
-                        self.output.push(self.global_estimates[:self.nreg],
-                                         'energies')
-                    else:
-                        self.output.push(self.global_estimates[:self.nreg]/weight,
-                                         'energies')
-                if self.calc_one_rdm:
-                    start = self.nreg + 1
-                    end = self.nreg + 1 + self.G.size
-                    rdm = self.global_estimates[start:end].reshape(self.G.shape)
-                    self.output.push(rdm, 'one_rdm')
-                if self.calc_two_rdm:
-                    start = self.nreg + 1 + self.G.size
-                    rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
-                    self.output.push(rdm, 'two_rdm')
-                self.output.increment()
-            self.zero()
+        buf_ix = psi.walkers[0].field_configs.step
+        if buf_ix not in self.splits:
+            return
+        comm.Reduce(self.estimates, self.global_estimates, op=mpi_sum)
+        if comm.rank == 0:
+            weight = self.global_estimates[self.nreg]
+            self.output.push(numpy.array([weight]),
+                             'denominator_{:d}'.format(buf_ix))
+            if self.eval_energy:
+                if free_projection:
+                    self.output.push(self.global_estimates[:self.nreg],
+                                     'energies_{:d}'.format(buf_ix))
+                else:
+                    self.output.push(self.global_estimates[:self.nreg]/weight,
+                                     'energies_{:d}'.format(buf_ix))
+            if self.calc_one_rdm:
+                start = self.nreg + 1
+                end = self.nreg + 1 + self.G.size
+                rdm = self.global_estimates[start:end].reshape(self.G.shape)
+                self.output.push(rdm, 'one_rdm_{:d}'.format(buf_ix))
+            if self.calc_two_rdm:
+                start = self.nreg + 1 + self.G.size
+                rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
+                self.output.push(rdm, 'two_rdm_{:d}'.format(buf_ix))
+            self.output.increment()
+        self.zero()
 
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""

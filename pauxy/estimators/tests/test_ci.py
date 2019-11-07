@@ -2,6 +2,7 @@ import pytest
 from pauxy.systems.ueg import UEG
 from pauxy.estimators.ci import simple_fci
 
+
 def test_ueg():
     sys = UEG({'rs': 2, 'nup': 2, 'ndown': 2, 'ecut': 0.5})
     sys.ecore = 0
