@@ -163,12 +163,12 @@ class BackPropagation(object):
                 start = end
                 end = end + self.two_rdm.size
                 self.estimates[start:end] += weight*self.two_rdm.flatten().real
+            if buff_ix == self.splits[-1]:
+                wnm.field_configs.reset()
+        if buff_ix == self.splits[-1]:
+            psi.copy_historic_wfn()
         self.accumulated = True
         self.buff_ix = buff_ix
-        if buff_ix == self.splits[-1]:
-            wnm.field_configs.reset()
-            psi.copy_historic_wfn()
-            self.buff_ix = self.splits[-1]
 
     def update_ghf(self, system, qmc, trial, psi, step, free_projection=False):
         """Calculate back-propagated estimates for GHF walkers.
