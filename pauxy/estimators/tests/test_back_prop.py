@@ -9,7 +9,7 @@ import numpy
 
 def test_back_prop():
     sys = UEG({'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 1.0})
-    bp_opt = {'tau_bp': 1.0, 'nsplit': 2}
+    bp_opt = {'tau_bp': 1.0, 'nsplit': 4}
     qmc = dotdict({'dt': 0.05, 'nstblz': 10, 'nwalkers': 1})
     trial = HartreeFock(sys, True, {})
     numpy.random.seed(8)
@@ -20,18 +20,12 @@ def test_back_prop():
     wlk = walkers.walkers[0]
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
-    for i in range(0, est.nmax//4):
+    for i in range(0, 2*est.nmax):
         prop.propagate_walker(wlk, sys, trial, 0)
         if i % 10 == 0:
             walkers.orthogonalise(trial, False)
         est.update_uhf(sys, qmc, trial, walkers, 100)
-        if i % 10 == 0:
-            est.print_step(comm, comm.size, i, 10)
-    # print(wlk.weight)
-    # print(est.nmax)
-    # print(est.splits, wlk.field_configs.step)
-    # print(est.splits, wlk.field_configs.step)
-        # est.update_uhf(sys, qmc, trial, walkers, 100)
+        est.print_step(comm, comm.size, i, 10)
     walkers.walkers[0].field_configs.reset()
 
 if __name__ == '__main__':
