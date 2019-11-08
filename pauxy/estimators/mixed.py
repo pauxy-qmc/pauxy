@@ -228,6 +228,8 @@ class Mixed(object):
         nmeasure : int
             Number of steps between measurements.
         """
+        if step % nmeasure != 0:
+            return
         es = self.estimates
         ns = self.names
         es[ns.time] = (time.time()-es[ns.time]) / nprocs

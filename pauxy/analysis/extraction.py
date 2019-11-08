@@ -27,10 +27,14 @@ def extract_mixed_estimates(filename, skip=0):
 def extract_bp_estimates(filename, skip=0):
     return extract_data(filename, 'back_propagated', 'energies')[skip:]
 
-def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm'):
+def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=None):
     rdmtot = []
-    one_rdm = extract_data(filename, est_type, rdm_type)
-    denom = extract_data(filename, est_type, 'denominator', raw=True)
+    if ix is None:
+        splits = get_param(filename, ['estimators', 'estimators',
+                                      'back_prop', 'splits'])
+        ix = splits[-1]
+    denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
+    one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix))
     fp = get_param(filename, ['propagators','free_projection'])
     if fp:
         return (one_rdm, denom)
