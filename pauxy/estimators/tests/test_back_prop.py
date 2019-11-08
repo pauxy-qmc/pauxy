@@ -26,7 +26,15 @@ def test_back_prop():
             walkers.orthogonalise(trial, False)
         est.update_uhf(sys, qmc, trial, walkers, 100)
         est.print_step(comm, comm.size, i, 10)
-    walkers.walkers[0].field_configs.reset()
+
+def teardown_module(self):
+    cwd = os.getcwd()
+    files = ['estimates.0.h5']
+    for f in files:
+        try:
+            os.remove(cwd+'/'+f)
+        except OSError:
+            pass
 
 if __name__ == '__main__':
     test_back_prop()
