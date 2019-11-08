@@ -1,11 +1,12 @@
 # import pytest
+import numpy
+import os
 from pauxy.systems.ueg import UEG
 from pauxy.utils.misc import dotdict
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.estimators.back_propagation import BackPropagation
 from pauxy.propagation.continuous import Continuous
 from pauxy.walkers.handler import Walkers
-import numpy
 
 def test_back_prop():
     sys = UEG({'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 1.0})
