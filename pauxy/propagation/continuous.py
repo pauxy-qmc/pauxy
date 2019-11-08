@@ -231,10 +231,8 @@ class Continuous(object):
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
-            try:
+            if walker.field_configs is not None:
                 walker.field_configs.update(xmxbar, wfac)
-            except AttributeError:
-                pass
         else:
             walker.ot = ot_new
             walker.weight = 0.0
