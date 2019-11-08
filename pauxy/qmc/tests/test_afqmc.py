@@ -229,7 +229,7 @@ def test_generic_single_det():
     rdm = extract_rdm('estimates.0.h5')
     assert rdm[0,0].trace() == pytest.approx(nelec[0])
     assert rdm[0,1].trace() == pytest.approx(nelec[1])
-    assert rdm[0,0,1,3].real == pytest.approx(-0.00522306694566582)
+    assert rdm[11,0,1,3].real == pytest.approx(-0.121883381144845)
 
 def teardown_module(self):
     cwd = os.getcwd()
