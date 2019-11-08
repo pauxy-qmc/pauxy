@@ -32,7 +32,7 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
     if ix is None:
         splits = get_param(filename, ['estimators', 'estimators',
                                       'back_prop', 'splits'])
-        ix = splits[-1]
+        ix = splits[-1][0]
     denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
     one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix))
     fp = get_param(filename, ['propagators','free_projection'])
