@@ -176,37 +176,39 @@ class Generic(object):
         nb = self.ndown
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
-        rup = numpy.zeros(shape=(self.nchol, na, M),
-                          dtype=numpy.complex128)
-        rdn = numpy.zeros(shape=(self.nchol, nb, M),
-                          dtype=numpy.complex128)
-        # rup = numpy.einsum('ia,lik->lak',
-                           # trial.psi[:,:na].conj(),
-                           # self.chol_vecs)
-        # rdn = numpy.einsum('ia,lik->lak',
-                           # trial.psi[:,na:].conj(),
-                           # self.chol_vecs)
+        # rup = numpy.zeros(shape=(self.nchol, na, M),
+                          # dtype=numpy.complex128)
+        # rdn = numpy.zeros(shape=(self.nchol, nb, M),
+                          # dtype=numpy.complex128)
+        rup = numpy.einsum('ia,lik->lak',
+                           trial.psi[:,:na].conj(),
+                           self.chol_vecs,
+                           optimize='greedy')
+        rdn = numpy.einsum('ia,lik->lak',
+                           trial.psi[:,na:].conj(),
+                           self.chol_vecs,
+                           optimize='greedy')
         # This is much faster than einsum.
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
             self.hs_pot = self.hs_pot.transpose(2,0,1)
-        for l in range(self.nchol):
-            rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
-            rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
+        # for l in range(self.nchol):
+            # rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
+            # rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
         if self.verbose:
             print("# Constructing half rotated V_{(ab)(kl)}.")
-        # vaklb_a = (numpy.einsum('gak,gbl->akbl', rup, rup) -
-                   # numpy.einsum('gbk,gal->akbl', rup, rup))
-        # vaklb_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn) -
-                   # numpy.einsum('gbk,gal->akbl', rdn, rdn))
+        vakbl_a = (numpy.einsum('gak,gbl->akbl', rup, rup, optimize='greedy') -
+                   numpy.einsum('gbk,gal->akbl', rup, rup, optimize='greedy'))
+        vakbl_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn, optimize='greedy') -
+                   numpy.einsum('gbk,gal->akbl', rdn, rdn, optimize='greedy'))
         # This is also much faster than einsum.
         start = time.time()
         rup = rup.reshape((self.nchol, -1))
         rdn = rdn.reshape((self.nchol, -1))
-        Ma = numpy.dot(rup.T, rup)
-        Mb = numpy.dot(rdn.T, rdn)
-        vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
-        vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
+        # Ma = numpy.dot(rup.T, rup)
+        # Mb = numpy.dot(rdn.T, rdn)
+        # vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
+        # vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
         tvakbl = time.time() - start
         self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
                            csr_matrix(rdn.T.reshape((M*nb, -1)))]
