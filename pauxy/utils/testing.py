@@ -23,7 +23,7 @@ def generate_hamiltonian(nmo, nelec, cplx=False, sym=8):
     eri = eri.reshape((nmo*nmo,nmo*nmo))
     # Make positive semi-definite.
     eri = numpy.dot(eri,eri.conj().T)
-    chol = modified_cholesky(eri, tol=1e-3, verbose=False)
+    chol = modified_cholesky(eri, tol=1e-3, verbose=False, cmax=30)
     chol = chol.reshape((-1,nmo,nmo))
     enuc = numpy.random.rand()
     return h1e, chol, enuc, eri
