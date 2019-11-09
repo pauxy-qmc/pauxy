@@ -164,7 +164,7 @@ class Generic(object):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
         v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs,
-                                self.chol_vecs.conj())
+                                self.chol_vecs.conj(), optimize='optimal')
         self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
 
 
