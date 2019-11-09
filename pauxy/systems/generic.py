@@ -210,8 +210,14 @@ class Generic(object):
         # vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
         # vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
         tvakbl = time.time() - start
+        if self.cutoff is not None:
+            rup[numpy.abs(rup) < self.cutoff] = 0.0
+            rdn[numpy.abs(rdn) < self.cutoff] = 0.0
+            vakbl_a[numpy.abs(vakbl_a) < self.cutoff] = 0.0
+            vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
         self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
                            csr_matrix(rdn.T.reshape((M*nb, -1)))]
+        # self.rot_hs_pot = [rup.T.copy().reshape((M*na, -1)), rdn.T.copy().reshape((M*nb, -1))]
         self.rchol_vecs = self.rot_hs_pot
         self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                       csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
