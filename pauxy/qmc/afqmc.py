@@ -257,9 +257,9 @@ class AFQMC(object):
                       (time.time() - self._init_time))
                 print("# Timing breakdown (per processor, per block/step):")
                 print("# - Setup: %f s"%self.tsetup)
-                nsteps = self.qmc.nsteps
-                nstblz = nsteps // self.qmc.nstblz
-                npcon = nsteps // self.qmc.npop_control
+                nsteps = max(self.qmc.nsteps, 1)
+                nstblz = max(nsteps // self.qmc.nstblz, 1)
+                npcon = max(nsteps // self.qmc.npop_control, 1)
                 print("# - Orthogonalisation: %f s"%(self.tortho/nstblz))
                 print("# - Propagation: %f s"%(self.tprop/nsteps))
                 print("# - Estimators: %f s"%(self.testim/nsteps))
