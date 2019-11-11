@@ -7,12 +7,13 @@ from pauxy.analysis.blocking import average_ratio
 
 def analyse_energy(files):
     sims = []
+    files = sorted(files)
     for f in files:
         data = extract_data(f, 'basic', 'energies')
         md = get_metadata(f)
         keys = set_info(data, md)
         sims.append(data[1:])
-    full = pd.concat(sims).groupby(keys)
+    full = pd.concat(sims).groupby(keys, sort=False)
     analysed = []
     for (i, g) in full:
         if g['free_projection'].values[0]:
