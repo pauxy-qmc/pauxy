@@ -17,10 +17,6 @@ from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash, print_sys_info
 from pauxy.utils.io import  to_json, serialise, get_input_value
 from pauxy.walkers.handler import Walkers
-try:
-    from pauxy.analysis import blocking
-except ImportError:
-    pass
 
 
 class AFQMC(object):
@@ -210,6 +206,7 @@ class AFQMC(object):
             self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
 
         for step in range(1, self.qmc.nsteps + 1):
+            start_step = time.time()
             if step % self.qmc.nstblz == 0:
                 start = time.time()
                 self.psi.orthogonalise(self.trial,
@@ -241,6 +238,7 @@ class AFQMC(object):
                 eshift = self.estimators.estimators['mixed'].get_shift()
             else:
                 eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
+            self.tstep += time.time() - start_step
 
     def finalise(self, verbose=False):
         """Tidy up.
@@ -252,18 +250,19 @@ class AFQMC(object):
         """
         if self.root:
             if verbose:
-                print("# End Time: %s" % time.asctime())
-                print("# Running time : %.6f seconds" %
-                      (time.time() - self._init_time))
+                print("# End Time: {:s}".format(time.asctime()))
+                print("# Running time : {:.6f} seconds"
+                      .format((time.time() - self._init_time)))
                 print("# Timing breakdown (per processor, per block/step):")
-                print("# - Setup: %f s"%self.tsetup)
+                print("# - Setup: {:.6f} s".format(self.tsetup))
                 nsteps = max(self.qmc.nsteps, 1)
                 nstblz = max(nsteps // self.qmc.nstblz, 1)
                 npcon = max(nsteps // self.qmc.npop_control, 1)
-                print("# - Orthogonalisation: %f s"%(self.tortho/nstblz))
-                print("# - Propagation: %f s"%(self.tprop/nsteps))
-                print("# - Estimators: %f s"%(self.testim/nsteps))
-                print("# - Population control: %f s"%(self.tpopc/npcon))
+                print("# - Step: {:.6f} s".format((self.tstep/nsteps)))
+                print("# - Orthogonalisation: {:.6f} s".format(self.tortho/nstblz))
+                print("# - Propagation: {:.6f} s".format(self.tprop/nsteps))
+                print("# - Estimators: {:.6f} s".format(self.testim/nsteps))
+                print("# - Population control: {:.6f} s".format(self.tpopc/npcon))
 
 
     def determine_dtype(self, propagator, system):
@@ -290,6 +289,7 @@ class AFQMC(object):
             Mixed estimate for the energy and standard error.
         """
         filename = self.estimators.h5f_name
+        from pauxy.analysis import blocking
         try:
             eloc = blocking.reblock_local_energy(filename, skip)
         except IndexError:
@@ -303,6 +303,7 @@ class AFQMC(object):
         self.tprop = 0
         self.testim = 0
         self.tpopc = 0
+        self.tstep = 0
 
 
     def get_one_rdm(self, skip=0):
@@ -315,6 +316,7 @@ class AFQMC(object):
         error : :class:`numpy.ndarray`
             Standard error in the RDM.
         """
+        from pauxy.analysis import blocking
         filename = self.estimators.h5f_name
         try:
             bp_rdm, bp_rdm_err = blocking.reblock_rdm(filename)
