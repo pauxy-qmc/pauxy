@@ -235,8 +235,6 @@ class ThermalAFQMC(object):
             If true print out some information to stdout.
         """
         if self.root:
-            if self.estimators.back_propagation:
-                self.estimators.h5f.close()
             if verbose:
                 print("# End Time: %s" % time.asctime())
                 print("# Running time : %.6f seconds" %

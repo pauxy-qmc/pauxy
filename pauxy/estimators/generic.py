@@ -39,14 +39,10 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
     edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
     # TODO: Fix this. Very dumb.
-    eos = 0.25 * numpy.dot((system.hs_pot.T).dot(G[0].ravel()),
-                           (system.hs_pot.T).dot(G[1].ravel()))
-    eud = 0
-    edu = 0
-    for c in system.chol_vecs:
-        eud += 0.5*numpy.sum(c*G[0]) * numpy.sum(c*G[1])
-        edu += 0.5*numpy.sum(c*G[1]) * numpy.sum(c*G[0])
-    e2b = euu + edd + eud + edu
+    eos =  numpy.dot((system.rchol_vecs[0].T).dot(Gup),
+                     (system.rchol_vecs[1].T).dot(Gdn))
+
+    e2b = euu + edd + eos #eud + edu
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 def local_energy_generic_cholesky(system, G, Ghalf=None):
