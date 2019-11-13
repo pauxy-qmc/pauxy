@@ -189,20 +189,25 @@ class Generic(object):
                           # dtype=numpy.complex128)
         # rdn = numpy.zeros(shape=(self.nchol, nb, M),
                           # dtype=numpy.complex128)
-        start = time.time()
-        rup = numpy.einsum('ia,lik->lak',
-                           trial.psi[:,:na].conj(),
-                           self.chol_vecs,
-                           optimize='greedy')
-        rdn = numpy.einsum('ia,lik->lak',
-                           trial.psi[:,na:].conj(),
-                           self.chol_vecs,
-                           optimize='greedy')
-        trot = time.time() - start
-        # This is much faster than einsum.
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
-            self.hs_pot = self.hs_pot.transpose(2,0,1)
+        start = time.time()
+        # rup = numpy.einsum('ia,ikn->akn',
+                           # trial.psi[:,:na].conj(),
+                           # self.hs_pot,
+                           # optimize='greedy')
+        # rdn = numpy.einsum('ia,ikn->akn',
+                           # trial.psi[:,na:].conj(),
+                           # self.hs_pot,
+                           # optimize='greedy')
+        rup = numpy.tensordot(trial.psi[:,:na].conj(),
+                              self.hs_pot,
+                              axes=((0),(1)))
+        rdn = numpy.tensordot(trial.psi[:,na:].conj(),
+                              self.hs_pot,
+                              axes=((0),(1)))
+        trot = time.time() - start
+        # This is much faster than einsum.
         # for l in range(self.nchol):
             # rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
             # rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
@@ -210,27 +215,19 @@ class Generic(object):
             start = time.time()
             if self.verbose:
                 print("# Constructing half rotated V_{(ab)(kl)}.")
-            vakbl_a = (numpy.einsum('gak,gbl->akbl', rup, rup, optimize='greedy') -
-                       numpy.einsum('gbk,gal->akbl', rup, rup, optimize='greedy'))
-            vakbl_b = (numpy.einsum('gak,gbl->akbl', rdn, rdn, optimize='greedy') -
-                       numpy.einsum('gbk,gal->akbl', rdn, rdn, optimize='greedy'))
+            vakbl_a = (numpy.einsum('akn,bln->akbl', rup, rup, optimize='greedy') -
+                       numpy.einsum('bkn,aln->akbl', rup, rup, optimize='greedy'))
+            vakbl_b = (numpy.einsum('akn,bln->akbl', rdn, rdn, optimize='greedy') -
+                       numpy.einsum('bkn,aln->akbl', rdn, rdn, optimize='greedy'))
             tvakbl = time.time() - start
-        # This is also much faster than einsum.
-        rup = rup.reshape((self.nchol, -1))
-        rdn = rdn.reshape((self.nchol, -1))
-        # Ma = numpy.dot(rup.T, rup)
-        # Mb = numpy.dot(rdn.T, rdn)
-        # vakbl_a = Ma - Ma.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
-        # vakbl_b = Mb - Mb.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
         if self.cutoff is not None:
             rup[numpy.abs(rup) < self.cutoff] = 0.0
             rdn[numpy.abs(rdn) < self.cutoff] = 0.0
             if self.half_rotated_integrals:
                 vakbl_a[numpy.abs(vakbl_a) < self.cutoff] = 0.0
                 vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
-        self.rot_hs_pot = [csr_matrix(rup.T.reshape((M*na, -1))),
-                           csr_matrix(rdn.T.reshape((M*nb, -1)))]
-        # self.rot_hs_pot = [rup.T.copy().reshape((M*na, -1)), rdn.T.copy().reshape((M*nb, -1))]
+        self.rot_hs_pot = [csr_matrix(rup.reshape((M*na, -1))),
+                           csr_matrix(rdn.reshape((M*nb, -1)))]
         self.rchol_vecs = self.rot_hs_pot
         if self.half_rotated_integrals:
             self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
@@ -238,11 +235,10 @@ class Generic(object):
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
-            tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            tmp = tmp.reshape(M*M, self.nfields)
-            self.hs_pot = csr_matrix(tmp)
+                self.hs_pot = self.hs_pot.reshape((M*M,-1))
+            self.hs_pot = csr_matrix(self.hs_pot)
         if self.verbose:
-            print("# Time to construct half-rotated Cholesky: %f"%trot)
+            print("# Time to construct half-rotated Cholesky: %f s"%trot)
             nnz = self.rchol_vecs[0].nnz
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
