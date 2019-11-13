@@ -235,7 +235,7 @@ class Generic(object):
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
-                self.hs_pot = self.hs_pot.reshape((M*M,-1))
+            self.hs_pot = self.hs_pot.reshape((M*M,-1))
             self.hs_pot = csr_matrix(self.hs_pot)
         if self.verbose:
             print("# Time to construct half-rotated Cholesky: %f s"%trot)

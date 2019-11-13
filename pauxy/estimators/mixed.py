@@ -368,7 +368,10 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         if system.half_rotated_integrals:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic_cholesky_opt(system, G, Ghalf)
+            if Ghalf is not None:
+                return local_energy_generic_cholesky_opt(system, G, Ghalf)
+            else:
+                return local_energy_generic_cholesky(system, G)
 
 def local_energy_multi_det(system, Gi, weights, two_rdm=None):
     weight = 0

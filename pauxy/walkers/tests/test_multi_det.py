@@ -73,7 +73,8 @@ def test_walker_energy():
     nelec = (2,2)
     nmo = 5
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    system = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    system = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc,
+                     inputs={'integral_tensor': False})
     (e0, ev), (d,oa,ob) = simple_fci(system, gen_dets=True)
     na = system.nup
     init = get_random_wavefunction(nelec, nmo)
