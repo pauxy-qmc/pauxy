@@ -40,13 +40,15 @@ def get_git_revision_hash():
                                           '--porcelain',
                                           './pauxy'],
                                          cwd=src).strip()
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                         cwd=src).strip()
     except:
         suffix = False
         sha1 = 'none'.encode()
     if suffix:
-        return sha1.decode('utf-8') + '-dirty'
+        return sha1.decode('utf-8') + '-dirty', branch.decode('utf-8')
     else:
-        return sha1.decode('utf-8')
+        return sha1.decode('utf-8'), branch.decode('utf_8')
 
 
 def is_h5file(obj):
@@ -221,8 +223,9 @@ def get_numeric_names(d):
     return names, size
 
 
-def print_sys_info(sha1, uuid, nranks):
-    print('# Git version: {:s}.'.format(sha1))
+def print_sys_info(sha1, branch, uuid, nranks):
+    print('# Git hash: {:s}.'.format(sha1))
+    print('# Git branch: {:s}.'.format(branch))
     print('# Calculation uuid: {:s}.'.format(uuid))
     print('# Running on {:d} MPI rank{:s}.'.format(nranks, 's' if nranks > 1 else ''))
     print("# Python interpreter: {:s}".format(' '.join(sys.version.splitlines())))

@@ -45,6 +45,45 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     e2b = euu + edd + eos #eud + edu
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
+def local_energy_generic_cholesky_opt(system, G, Ghalf=None):
+    r"""Calculate local for generic two-body hamiltonian.
+
+    This uses the cholesky decomposed two-electron integrals.
+
+    Parameters
+    ----------
+    system : :class:`hubbard`
+        System information for the hubbard model.
+    G : :class:`numpy.ndarray`
+        Walker's "green's function"
+
+    Returns
+    -------
+    (E, T, V): tuple
+        Local, kinetic and potential energies.
+    """
+    # Element wise multiplication.
+    e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
+    rcv = system.rchol_vecs
+    nalpha, nbeta= system.nup, system.ndown
+    nbasis = system.nbasis
+    Ga, Gb = Ghalf[0], Ghalf[1]
+    Xa = rcv[0].T.dot(Ga.ravel())
+    Xb = rcv[1].T.dot(Gb.ravel())
+    ecoul = numpy.dot(Xa,Xa)
+    ecoul += numpy.dot(Xb,Xb)
+    ecoul += 2*numpy.dot(Xa,Xb)
+    cva, cvb = [rcv[0].toarray(), rcv[1].toarray()]
+    # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
+    # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
+    Ta = numpy.tensordot(Ga, cva.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
+    exxa = numpy.tensordot(Ta,Ta, axes=((0,1,2),(1,0,2)))
+    Tb = numpy.tensordot(Gb, cvb.reshape((nbeta,nbasis,-1)), axes=((1),(1)))
+    exxb = numpy.tensordot(Tb,Tb, axes=((0,1,2),(1,0,2)))
+    exx = exxa + exxb
+    e2b = 0.5 * (ecoul - exx)
+    return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
+
 def local_energy_generic_cholesky(system, G, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
 
@@ -64,37 +103,22 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     """
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
-    cv = system.chol_vecs
-    ecoul_uu = 0
-    ecoul_dd = 0
-    ecoul_ud = 0
-    ecoul_du = 0
-    exx_uu = 0
-    exx_dd = 0
-    # Below to compute exx_uu/dd we do
-    # t1 = numpy.einsum('nik,il->nkl', cv, G[0])
-    # t2 = numpy.einsum('nlj,jk->nlk', cv.conj(), G[0])
-    # exx_uu = numpy.einsum('nkl,nlk->', t1, t2)
-    exx_uu = 0
-    for c in cv:
-        ecoul_uu += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[0])
-        ecoul_dd += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[1])
-        ecoul_ud += numpy.sum(c*G[0]) * numpy.sum(c.conj().T*G[1])
-        ecoul_du += numpy.sum(c*G[1]) * numpy.sum(c.conj().T*G[0])
-        t1 = numpy.dot(c.T, G[0])
-        # print(t1.sum())
-        t2 = numpy.dot(c.conj(), G[0])
-        # print(t2.sum())
-        exx_uu += numpy.einsum('ij,ji->',t1,t2)
-        # print("sum:", exx_uu)
-        t1 = numpy.dot(c.T, G[1])
-        t2 = numpy.dot(c.conj(), G[1])
-        exx_dd += numpy.einsum('ij,ji->',t1,t2)
-    euu = 0.5 * (ecoul_uu-exx_uu)
-    edd = 0.5 * (ecoul_dd-exx_dd)
-    eud = 0.5 * ecoul_ud
-    edu = 0.5 * ecoul_du
-    e2b = euu + edd + eud + edu
+    nalpha, nbeta= system.nup, system.ndown
+    nbasis = system.nbasis
+    print(system.chol_vecs.shape)
+    cv = system.chol_vecs.reshape((-1,nbasis*nbasis))
+    Ga, Gb = G[0], G[1]
+    Xa = cv.dot(Ga.ravel())
+    Xb = cv.dot(Gb.ravel())
+    ecoul = numpy.dot(Xa,Xa)
+    ecoul += numpy.dot(Xb,Xb)
+    ecoul += 2*numpy.dot(Xa,Xb)
+    Ta = numpy.tensordot(system.chol_vecs, Ga, axes=((1),(1)))
+    exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
+    Tb = numpy.tensordot(system.chol_vecs, Gb, axes=((1),(1)))
+    exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
+    exx = exxa + exxb
+    e2b = 0.5 * (ecoul - exx)
     return (e1b+e2b+system.ecore, e1b+system.ecore, e2b)
 
 def core_contribution(system, Gcore):
