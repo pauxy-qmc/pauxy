@@ -106,7 +106,11 @@ class Generic(object):
                     print("# Using real symmetric Cholesky decomposition.")
                 self.cplx_chol = False
         else:
+            start = time.time()
             h1e, self.chol_vecs, self.ecore = self.read_integrals()
+            if verbose:
+                print("# Time to read integrals: {:.6f} "
+                       "s".format(time.time()-start))
         self.H1 = numpy.array([h1e,h1e])
         self.nbasis = h1e.shape[0]
         self._alt_convention = False
@@ -116,7 +120,11 @@ class Generic(object):
             print("# Number of electrons: (%d, %d)"%(self.nup, self.ndown))
             print("# Approximate memory required by Cholesky vectors %f GB"%mem)
         self.nchol = self.chol_vecs.shape[0]
+        start = time.time()
         self.construct_h1e_mod()
+        if verbose:
+            print("# Time to construct H1e_mod: "
+                  "{:.6f} s".format(time.time()-start))
         self.ktwist = numpy.array([None])
         # For consistency
         self.vol = 1.0
@@ -181,6 +189,7 @@ class Generic(object):
                           # dtype=numpy.complex128)
         # rdn = numpy.zeros(shape=(self.nchol, nb, M),
                           # dtype=numpy.complex128)
+        start = time.time()
         rup = numpy.einsum('ia,lik->lak',
                            trial.psi[:,:na].conj(),
                            self.chol_vecs,
@@ -189,6 +198,7 @@ class Generic(object):
                            trial.psi[:,na:].conj(),
                            self.chol_vecs,
                            optimize='greedy')
+        trot = time.time() - start
         # This is much faster than einsum.
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
@@ -232,6 +242,7 @@ class Generic(object):
             tmp = tmp.reshape(M*M, self.nfields)
             self.hs_pot = csr_matrix(tmp)
         if self.verbose:
+            print("# Time to construct half-rotated Cholesky: %f"%trot)
             nnz = self.rchol_vecs[0].nnz
             print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
             nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
