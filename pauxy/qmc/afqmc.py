@@ -88,11 +88,11 @@ class AFQMC(object):
             self.uuid = str(uuid.uuid1())
             get_sha1 = options.get('get_sha1', True)
             if get_sha1:
-                self.sha1 = get_git_revision_hash()
+                self.sha1, self.branch = get_git_revision_hash()
             else:
                 self.sha1 = 'None'
             if verbose:
-                print_sys_info(self.sha1, self.uuid, comm.size)
+                print_sys_info(self.sha1, self.branch, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0
