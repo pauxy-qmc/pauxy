@@ -28,11 +28,15 @@ def generate_hamiltonian(nmo, nelec, cplx=False, sym=8):
     enuc = numpy.random.rand()
     return h1e, chol, enuc, eri
 
-def get_random_nomsd(system, ndet=10):
+def get_random_nomsd(system, ndet=10, cplx=True):
     a = numpy.random.rand(ndet*system.nbasis*(system.nup+system.ndown))
     b = numpy.random.rand(ndet*system.nbasis*(system.nup+system.ndown))
-    wfn = (a + 1j*b).reshape((ndet,system.nbasis,system.nup+system.ndown))
-    coeffs = numpy.random.rand(ndet)+1j*numpy.random.rand(ndet)
+    if cplx:
+        wfn = (a + 1j*b).reshape((ndet,system.nbasis,system.nup+system.ndown))
+        coeffs = numpy.random.rand(ndet)+1j*numpy.random.rand(ndet)
+    else:
+        wfn = a.reshape((ndet,system.nbasis,system.nup+system.ndown))
+        coeffs = numpy.random.rand(ndet)
     return (coeffs,wfn)
 
 def get_random_phmsd(system, ndet=10, init=False):
