@@ -20,7 +20,8 @@ from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic,
-    local_energy_generic_cholesky
+    local_energy_generic_cholesky,
+    local_energy_generic_cholesky_opt
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 from pauxy.utils.misc import dotdict
@@ -364,10 +365,10 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
-        if opt:
+        if system.half_rotated_integrals:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            return local_energy_generic_cholesky(system, G)
+            return local_energy_generic_cholesky_opt(system, G, Ghalf)
 
 def local_energy_multi_det(system, Gi, weights, two_rdm=None):
     weight = 0
