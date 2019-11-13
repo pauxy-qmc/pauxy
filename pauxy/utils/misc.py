@@ -40,7 +40,7 @@ def get_git_revision_hash():
                                           '--porcelain',
                                           './pauxy'],
                                          cwd=src).strip()
-        branch = subprocess.check_output(['git', 'branch', '--show-current'],
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                                          cwd=src).strip()
     except:
         suffix = False
