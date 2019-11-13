@@ -45,6 +45,44 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     e2b = euu + edd + eos #eud + edu
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
+def local_energy_generic_cholesky_opt(system, G, Ghalf=None):
+    r"""Calculate local for generic two-body hamiltonian.
+
+    This uses the cholesky decomposed two-electron integrals.
+
+    Parameters
+    ----------
+    system : :class:`hubbard`
+        System information for the hubbard model.
+    G : :class:`numpy.ndarray`
+        Walker's "green's function"
+
+    Returns
+    -------
+    (E, T, V): tuple
+        Local, kinetic and potential energies.
+    """
+    # Element wise multiplication.
+    e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
+    rcv = system.rchol_vecs
+    nalpha, nbeta= system.nup, system.ndown
+    nbasis = system.nbasis
+    Ga, Gb = Ghalf[0], Ghalf[1]
+    Xa = rcv[0].T.dot(Ga.ravel())
+    Xb = rcv[1].T.dot(Gb.ravel())
+    ecoul = numpy.dot(Xa,Xa)
+    ecoul += numpy.dot(Xb,Xb)
+    ecoul += 2*numpy.dot(Xa,Xb)
+    cva, cvb = [rcv[0].toarray(), rcv[1].toarray()]
+    # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
+    # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
+    Xa = numpy.tensordot(Ga, cva.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
+    exxa = numpy.tensordot(Xa,Xa, axes=((0,1,2),(1,0,2)))
+    Xb = numpy.tensordot(Gb, cvb.reshape((nbeta,nbasis,-1)), axes=((1),(1)))
+    exxb = numpy.tensordot(Xb,Xb, axes=((0,1,2),(1,0,2)))
+    e2b = 0.5 * (ecoul - (exxa+exxb))
+    return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
+
 def local_energy_generic_cholesky(system, G, Ghalf=None):
     r"""Calculate local for generic two-body hamiltonian.
 
