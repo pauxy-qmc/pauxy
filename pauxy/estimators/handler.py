@@ -90,6 +90,10 @@ class Estimators(object):
                                                            dtype, BT2)
             self.nprop_tot = self.estimators['back_prop'].nmax
             self.nbp = self.estimators['back_prop'].nmax
+            if verbose:
+                print("# Performing back propagation.")
+                print("# Total number of back propagation steps: "
+                      "{:d}.".format(self.nprop_tot))
         else:
             self.nprop_tot = None
             self.nbp = None
