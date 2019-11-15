@@ -128,16 +128,19 @@ def core_contribution(system, Gcore):
             0.5*numpy.einsum('prsq,pq->rs', system.h2e, Gcore[1]))
     return (hc_a, hc_b)
 
-def core_contribution_cholesky(system, G):
-    cv = system.chol_vecs
-    hca_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[0], axis=(1,2)), cv)
-    ta_k = numpy.einsum('lpr,pq->lrq', cv, G[0])
-    hca_k = 0.5*numpy.einsum('lrq,lsq->rs', ta_k, cv)
-    hca = hca_j - hca_k
-    hcb_j = numpy.einsum('l,lij->ij', numpy.sum(cv*G[1], axis=(1,2)), cv)
-    tb_k = numpy.einsum('lpr,pq->lrq', cv, G[1])
-    hcb_k = 0.5*numpy.einsum('lrq,lsq->rs', tb_k, cv)
-    hcb = hcb_j - hcb_k
+def core_contribution_cholesky(chol, G):
+    nb = G[0].shape[-1]
+    cmat = chol.reshape((-1,nb*nb))
+    X = numpy.dot(cmat, G[0].ravel())
+    Ja = numpy.dot(cmat.T, X).reshape(nb,nb)
+    T = numpy.tensordot(chol, G[0], axes=((1),(0)))
+    Ka = numpy.tensordot(T, chol, axes=((0,2),(0,2)))
+    hca = Ja - 0.5 * Ka
+    X = numpy.dot(cmat, G[1].ravel())
+    Jb = numpy.dot(cmat.T, X).reshape(nb,nb)
+    T = numpy.tensordot(chol, G[1], axes=((1),(0)))
+    Kb = numpy.tensordot(T, chol, axes=((0,2),(0,2)))
+    hcb = Jb - 0.5 * Kb
     return (hca, hcb)
 
 def fock_generic(system, P):
