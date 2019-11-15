@@ -87,7 +87,7 @@ class Generic(object):
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', True)
-        self.half_rotated_integrals = inputs.get('integral_tensor', True)
+        self.half_rotated_integrals = inputs.get('integral_tensor', False)
         self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
         self.mu = inputs.get('mu', None)
