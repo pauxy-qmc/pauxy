@@ -20,6 +20,7 @@ class MultiSlater(object):
             print ("# Parsing MultiSlater trial wavefunction input options.")
         init_time = time.time()
         self.name = "MultiSlater"
+        self.type = "MultiSlater"
         # TODO : Fix for MSD.
         rediag = get_input_value(options, 'recompute_ci',
                                  default=False, alias=['rediag'],
