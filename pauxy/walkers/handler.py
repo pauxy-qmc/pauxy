@@ -198,6 +198,11 @@ class Walkers(object):
         total_weight = sum(global_weights)
         # Rescale weights to combat exponential decay/growth.
         scale = total_weight / self.target_weight
+        if total_weight < 1e-8:
+            if comm.rank == 0:
+                print("# Warning: Total weight is {:13.8e}: "
+                      .format(total_weight))
+                print("# Something is seriously wrong.")
         self.set_total_weight(total_weight)
         # Todo: Just standardise information we want to send between routines.
         for w in self.walkers:
