@@ -52,7 +52,9 @@ class Walkers(object):
                 if verbose:
                     print("# Usinge single det walker with msd wavefunction.")
                 self.walker_type = 'SD'
-                self.walkers = [SingleDetWalker(walker_opts, system, trial, w)
+                self.walkers = [SingleDetWalker(walker_opts, system, trial,
+                                                index=w, nprop_tot=nprop_tot,
+                                                nbp=nbp)
                                 for w in range(qmc.nwalkers)]
             else:
                 self.walkers = [
@@ -61,6 +63,8 @@ class Walkers(object):
                         for w in range(qmc.nwalkers)
                         ]
             self.buff_size = self.walkers[0].buff_size
+            if nbp is not None:
+                self.buff_size += self.walkers[0].field_configs.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,
                                              dtype=numpy.complex128)
         elif trial.name == 'thermal':
@@ -93,6 +97,9 @@ class Walkers(object):
                             for w in range(qmc.nwalkers)]
             self.buff_size = self.walkers[0].buff_size
             if nbp is not None:
+                if verbose:
+                    print("# Performing back propagation.")
+                    print("# Number of steps in imaginary time: {:}.".format(nb))
                 self.buff_size += self.walkers[0].field_configs.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,
                                              dtype=numpy.complex128)
@@ -107,8 +114,12 @@ class Walkers(object):
         if verbose:
             print("# Using {} population control "
                   "algorithm.".format(self.pcont_method))
-            print("# Buffer size for communication: {:13.8e} GB"
-                  .format(float(self.walker_buffer.nbytes)/(1024.0**3)))
+            mem = float(self.walker_buffer.nbytes) / (1024.0**3)
+            print("# Buffer size for communication: {:13.8e} GB".format(mem))
+            if mem > 2.0:
+                # TODO: FDM FIX THIS
+                print(" # Warning: Walker buffer size > 2GB. May run into MPI"
+                      "issues.")
         if not self.walker_type == "thermal":
             walker_size = 3 + self.walkers[0].phi.size
         if self.write_freq > 0:
