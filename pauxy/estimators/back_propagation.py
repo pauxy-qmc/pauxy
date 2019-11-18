@@ -158,11 +158,11 @@ class BackPropagation(object):
             self.estimates[self.nreg] += weight
             start = self.nreg + 1
             end = start + self.G.size
-            self.estimates[start:end] += weight*self.G.flatten().real
+            self.estimates[start:end] += weight*self.G.flatten()
             if self.calc_two_rdm is not None:
                 start = end
                 end = end + self.two_rdm.size
-                self.estimates[start:end] += weight*self.two_rdm.flatten().real
+                self.estimates[start:end] += weight*self.two_rdm.flatten()
             if buff_ix == self.splits[-1]:
                 wnm.field_configs.reset()
         if buff_ix == self.splits[-1]:
