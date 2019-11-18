@@ -140,7 +140,7 @@ class Generic(object):
                 self.hs_pot[n] = vplus
                 self.hs_pot[self.nchol+n] = vminus
         else:
-            self.hs_pot = self.chol_vecs.T
+            self.hs_pot = self.chol_vecs
             self.nfields = self.nchol
         if verbose:
             print("# Number of Cholesky vectors: %d"%(self.nchol))
@@ -155,6 +155,9 @@ class Generic(object):
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
+        else:
+            self.hs_pot = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            self.hs_pot = self.hs_pot.reshape(self.nbasis*self.nbasis, self.nfields)
         write_ints = inputs.get('write_integrals', None)
         if write_ints is not None:
             self.write_integrals()
@@ -199,6 +202,8 @@ class Generic(object):
                           # dtype=numpy.complex128)
         if self.sparse:
             self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
+        else:
+            self.hs_pot = self.hs_pot.reshape(M,M,self.nfields)
         start = time.time()
         # rup = numpy.einsum('ia,ikn->akn',
                            # trial.psi[:,:na].conj(),
