@@ -17,7 +17,8 @@ def test_local_energy_opt():
     nmo = 24
     nelec = (4,2)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc,
+                  inputs={'integral_tensor': True})
     wfn = get_random_nomsd(sys, ndet=1, cplx=False)
     trial = MultiSlater(sys, wfn)
     sys.construct_integral_tensors_real(trial)
