@@ -159,6 +159,27 @@ def from_qmcpack_cholesky(filename):
                                             shape=(nmo*nmo,nchol))
         return (hcore, chol_vecs, enuc, int(nmo), int(nalpha), int(nbeta))
 
+def from_qmcpack_dense(filename):
+    with h5py.File(filename, 'r') as fh5:
+        enuc = fh5['Hamiltonian/Energies'][:][0]
+        dims = fh5['Hamiltonian/dims'][:]
+        nmo = dims[3]
+        nchol = dims[-1]
+        real_ints = False
+        try:
+            hcore = fh5['Hamiltonian/hcore'][:]
+            hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
+            chol = fh5['Hamiltonian/DenseFactorized/L'][:]
+            chol = hcore.view(numpy.complex128)
+        except ValueError:
+            # Real format.
+            hcore = fh5['Hamiltonian/hcore'][:]
+            chol = fh5['Hamiltonian/DenseFactorized/L'][:]
+            real_ints = True
+        nalpha = dims[4]
+        nbeta = dims[5]
+        return (hcore, chol, enuc, int(nmo), int(nalpha), int(nbeta))
+
 def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
                 orbs=None, verbose=True, coeffs=None):
     if verbose:
