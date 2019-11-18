@@ -64,40 +64,44 @@ class GenericContinuous(object):
             print("# Finished setting up Generic propagator.")
 
     def construct_mean_field_shift(self, system, trial):
+        """Compute mean field shift.
+
+            .. math::
+
+                \bar{v}_n = \sum_{ik\sigma} v_{(ik),n} G_{ik\sigma}
+
+        """
         if system.sparse:
             mf_shift = 1j*trial.G[0].ravel()*system.hs_pot
             mf_shift += 1j*trial.G[1].ravel()*system.hs_pot
         else:
-            mf_shift = 1j*numpy.einsum('lpq,spq->l',
-                                       system.hs_pot,
-                                       trial.G)
+            mf_shift = 1j*numpy.dot(system.hs_pot.T,
+                                    (trial.G[0]+trial.G[1]).ravel())
         return mf_shift
 
     def construct_mean_field_shift_multi_det(self, system, trial):
-        mf_shift = [trial.contract_one_body(Vpq) for Vpq in system.hs_pot]
+        nb = system.nbasis
+        mf_shift = [trial.contract_one_body(Vpq.reshape(nb,nb)) for Vpq in system.hs_pot.T]
         mf_shift = 1j*numpy.array(mf_shift)
         return mf_shift
 
     def construct_one_body_propagator(self, system, dt):
         """Construct mean-field shifted one-body propagator.
 
+        .. math::
+
+            H1 \rightarrow H1 - v0
+            v0_{ik} = \sum_n v_{(ik),n} \bar{v}_n
+
         Parameters
         ----------
+        system : system class.
+            Generic system object.
         dt : float
             Timestep.
-        chol_vecs : :class:`numpy.ndarray`
-            Cholesky vectors.
-        h1e_mod : :class:`numpy.ndarray`
-            One-body operator including factor from factorising two-body
-            Hamiltonian.
         """
-        if system.sparse:
-            nb = system.nbasis
-            shift = 1j*system.hs_pot.dot(self.mf_shift).reshape(nb,nb)
-        else:
-            shift = 1j*numpy.einsum('l,lpq->pq',
-                                    self.mf_shift,
-                                    system.hs_pot)
+        nb = system.nbasis
+        shift = 1j*system.hs_pot.dot(self.mf_shift).reshape(nb,nb)
         H1 = system.h1e_mod - numpy.array([shift,shift])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
@@ -117,8 +121,10 @@ class GenericContinuous(object):
         xbar : :class:`numpy.ndarray`
             Force bias.
         """
-        vbias = numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[0])
-        vbias += numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[1])
+        # vbias = numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[0])
+        # vbias += numpy.einsum('lpq,pq->l', system.hs_pot, walker.G[1])
+        vbias = numpy.dot(system.hs_pot.T, walker.G[0].ravel())
+        vbias += numpy.dot(system.hs_pot.T, walker.G[1].ravel())
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_force_bias_fast(self, system, walker, trial):
@@ -137,19 +143,23 @@ class GenericContinuous(object):
             Force bias.
         """
         G = walker.Gmod
-        self.vbias = G[0].ravel() * system.rot_hs_pot[0]
-        self.vbias += G[1].ravel() * system.rot_hs_pot[1]
+        if self.sparse:
+            self.vbias = G[0].ravel() * system.rot_hs_pot[0]
+            self.vbias += G[1].ravel() * system.rot_hs_pot[1]
+        else:
+            self.vbias = numpy.dot(system.rot_hs_pot[0].T, G[0].ravel())
+            self.vbias += numpy.dot(system.rot_hs_pot[1].T, G[1].ravel())
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_force_bias_multi_det(self, system, walker, trial):
         vbias = numpy.array([walker.contract_one_body(Vpq, trial)
-                             for Vpq in system.hs_pot])
+                             for Vpq in system.hs_pot.T])
         return - self.sqrt_dt * (1j*vbias-self.mf_shift)
 
     def construct_VHS_slow(self, system, shifted):
-        return self.isqrt_dt * numpy.einsum('l,lpq->pq',
-                                            shifted,
-                                            system.hs_pot)
+        # VHS_{ik} = \sum_{n} v_{(ik),n} (x-xbar)_n
+        nb = system.nbasis
+        return self.isqrt_dt * numpy.dot(system.hs_pot, shifted).reshape(nb,nb)
 
     def construct_VHS_fast(self, system, xshifted):
         """Construct the one body potential from the HS transformation
