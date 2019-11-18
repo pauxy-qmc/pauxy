@@ -8,7 +8,8 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import (
         from_qmcpack_cholesky,
-        dump_qmcpack_cholesky
+        dump_qmcpack_cholesky,
+        from_qmcpack_dense
         )
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
@@ -139,7 +140,7 @@ class Generic(object):
                 self.hs_pot[n] = vplus
                 self.hs_pot[self.nchol+n] = vminus
         else:
-            self.hs_pot = self.chol_vecs
+            self.hs_pot = self.chol_vecs.T
             self.nfields = self.nchol
         if verbose:
             print("# Number of Cholesky vectors: %d"%(self.nchol))
@@ -161,12 +162,19 @@ class Generic(object):
             print("# Finished setting up Generic system object.")
 
     def read_integrals(self):
-        (h1e, schol_vecs, ecore,
-        nbasis, nup, ndown) = from_qmcpack_cholesky(self.integral_file)
+        if self.sparse:
+            (h1e, schol_vecs, ecore, nbasis, nup, ndown) = (
+                    from_qmcpack_cholesky(self.integral_file)
+                    )
+            chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
+        else:
+            (h1e, chol_vecs, ecore, nbasis, nup, ndown) = (
+                    from_qmcpack_dense(self.integral_file)
+                    )
+            chol_vecs = chol_vecs.T.reshape((-1,nbasis,nbasis))
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
-        chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
         return h1e, chol_vecs, ecore
 
     def construct_h1e_mod(self):
