@@ -65,6 +65,7 @@ class BackPropagation(object):
         self.header = ['E', 'E1b', 'E2b']
         self.calc_one_rdm = bp.get('one_rdm', True)
         self.calc_two_rdm = bp.get('two_rdm', None)
+        self.init_walker = bp.get('init_walker', False)
         self.nsplit = bp.get('nsplit', 1)
         self.splits = numpy.array([(i+1)*(self.nmax//self.nsplit)
                                    for i in range(self.nsplit)])
@@ -133,7 +134,10 @@ class BackPropagation(object):
             return
         nup = system.nup
         for i, wnm in enumerate(psi.walkers):
-            phi_bp = trial.psi.copy()
+            if self.init_walker:
+                phi_bp = trial.init.copy()
+            else:
+                phi_bp = trial.psi.copy()
             # TODO: Fix for ITCF.
             self.back_propagate(phi_bp, wnm.field_configs, system,
                                 self.nstblz, self.BT2, self.dt)
