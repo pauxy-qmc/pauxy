@@ -56,6 +56,9 @@ def set_info(frame, md):
         frame['tau_bp'] = bp['tau_bp']
     if beta is not None:
         frame['beta'] = beta
+        br = qmc.get('beta_scaled')
+        if br is not None:
+            frame['beta_red'] = br
         mu = system.get('mu')
         if mu is not None:
             frame['mu'] = system.get('mu')
