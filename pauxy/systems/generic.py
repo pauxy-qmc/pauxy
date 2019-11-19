@@ -239,9 +239,6 @@ class Generic(object):
             if self.half_rotated_integrals:
                 vakbl_a[numpy.abs(vakbl_a) < self.cutoff] = 0.0
                 vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
-        self.rot_hs_pot = [csr_matrix(rup.reshape((M*na, -1))),
-                           csr_matrix(rdn.reshape((M*nb, -1)))]
-        self.rchol_vecs = self.rot_hs_pot
         if self.half_rotated_integrals:
             self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
                           csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
@@ -250,6 +247,12 @@ class Generic(object):
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
             self.hs_pot = self.hs_pot.reshape((M*M,-1))
             self.hs_pot = csr_matrix(self.hs_pot)
+            self.rot_hs_pot = [csr_matrix(rup.reshape((M*na, -1))),
+                               csr_matrix(rdn.reshape((M*nb, -1)))]
+        else:
+            self.rot_hs_pot = [rup.reshape((M*na, -1)), rdn.reshape((M*nb, -1))]
+            self.hs_pot = self.hs_pot.reshape((M*M,-1))
+        self.rchol_vecs = self.rot_hs_pot
         if self.verbose:
             print("# Time to construct half-rotated Cholesky: %f s"%trot)
             nnz = self.rchol_vecs[0].nnz
@@ -339,6 +342,9 @@ class Generic(object):
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
+        else:
+            self.hs_pot = numpy.transpose(self.hs_pot, axes=(1,2,0))
+            self.hs_pot = self.hs_pot.reshape(self.nbasis*self.nbasis, self.nfields)
         if self.verbose:
             print("# Time to construct V_{(ak)(bl)}: %f s"%(tvakbl))
             nnz = self.vakbl[0].nnz

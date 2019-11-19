@@ -143,7 +143,7 @@ class GenericContinuous(object):
             Force bias.
         """
         G = walker.Gmod
-        if self.sparse:
+        if system.sparse:
             self.vbias = G[0].ravel() * system.rot_hs_pot[0]
             self.vbias += G[1].ravel() * system.rot_hs_pot[1]
         else:
