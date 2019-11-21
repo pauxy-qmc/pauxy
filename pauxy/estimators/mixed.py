@@ -194,6 +194,7 @@ class Mixed(object):
                         self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*numpy.array([T,V]).real
                         )
+                        self.estimates[self.names.edenom] += w.weight
                 else:
                     if step % self.energy_eval_freq == 0:
                         w.greens_function(trial)
