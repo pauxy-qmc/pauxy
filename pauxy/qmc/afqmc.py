@@ -205,7 +205,7 @@ class AFQMC(object):
         if verbose:
             self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
 
-        for step in range(1, self.qmc.nsteps + 1):
+        for step in range(1, self.qmc.total_steps + 1):
             start_step = time.time()
             if step % self.qmc.nstblz == 0:
                 start = time.time()
@@ -230,8 +230,7 @@ class AFQMC(object):
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
-            self.estimators.print_step(comm, comm.size, step,
-                                       self.qmc.nmeasure)
+            self.estimators.print_step(comm, comm.size, step)
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
             if step < self.qmc.neqlb:

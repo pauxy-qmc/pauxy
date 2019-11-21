@@ -123,7 +123,7 @@ class Estimators(object):
         self.index = self.index + 1
         h5f_name = 'estimates.%s.h5' % self.index
 
-    def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
+    def print_step(self, comm, nprocs, step, nsteps=None, free_projection=False):
         """Print QMC estimates.
 
         Parameters
@@ -138,7 +138,7 @@ class Estimators(object):
             Number of steps between measurements.
         """
         for k, e in self.estimators.items():
-            e.print_step(comm, nprocs, step, nmeasure, free_projection)
+            e.print_step(comm, nprocs, step, nsteps=nsteps, free_projection=free_projection)
 
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update estimators

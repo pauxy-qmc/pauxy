@@ -20,8 +20,14 @@ def test_constructor():
             'qmc': {
                 'timestep': 0.01,
                 'num_steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
             },
+            'estimates': {
+                'mixed': {
+                    'energy_eval_freq': 1
+                }
+            }
         }
     model = {
         'name': "UEG",
@@ -45,6 +51,7 @@ def test_ueg():
             'qmc': {
                 'timestep': 0.01,
                 'num_steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
             },
             'model': {
@@ -53,6 +60,11 @@ def test_ueg():
                 'ecut': 4,
                 'nup': 7,
                 'ndown': 7,
+            },
+            'estimates': {
+                'mixed': {
+                    'energy_eval_freq': 1
+                }
             },
             'trial': {
                 'name': 'hartree_fock'
@@ -67,14 +79,14 @@ def test_ueg():
                                                 afqmc.trial, afqmc.psi, 0)
     enum = afqmc.estimators.estimators['mixed'].names
     numer = afqmc.estimators.estimators['mixed'].estimates[enum.enumer]
-    assert numer == pytest.approx(210.6272953292560)
+    assert numer == pytest.approx(15.5272838037998)
     denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
-    assert denom == pytest.approx(120)
+    assert denom == pytest.approx(10)
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
-    assert weight == pytest.approx(117.758085974906)
+    assert weight == pytest.approx(9.76035750882054)
     ehy = afqmc.psi.walkers[0].hybrid_energy
-    assert ehy.real == pytest.approx(1.1153859035083666)
-    assert ehy.imag == pytest.approx(0.17265962035671692)
+    assert ehy.real == pytest.approx(2.41659997842609)
+    assert ehy.imag == pytest.approx(-0.395817411848255)
 
 def test_hubbard():
     options = {
@@ -82,8 +94,8 @@ def test_hubbard():
             'get_sha1': False,
             'qmc': {
                 'timestep': 0.01,
-                'print_freq': 10,
-                'num_steps': 100,
+                'num_steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
             },
             'model': {
@@ -96,6 +108,11 @@ def test_hubbard():
             },
             'trial': {
                 'name': 'UHF'
+            },
+            'estimates': {
+                'mixed': {
+                    'energy_eval_freq': 1
+                }
             },
             'propagator': {
                 'hubbard_stratonovich': 'discrete'
@@ -122,8 +139,8 @@ def test_hubbard_complex():
             'get_sha1': False,
             'qmc': {
                 'timestep': 0.01,
-                'print_freq': 10,
-                'num_steps': 100,
+                'num_steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
             },
             'model': {
@@ -136,6 +153,11 @@ def test_hubbard_complex():
             },
             'trial': {
                 'name': 'UHF'
+            },
+            'estimates': {
+                'mixed': {
+                    'energy_eval_freq': 1
+                }
             },
             'propagator': {
                 'hubbard_stratonovich': 'continuous'
@@ -163,9 +185,14 @@ def test_generic():
             'get_sha1': False,
             'qmc': {
                 'timestep': 0.005,
-                'print_freq': 10,
-                'num_steps': 100,
+                'steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
+            },
+            'estimates': {
+                'mixed': {
+                    'energy_eval_freq': 1
+                }
             },
             'trial': {
                 'name': 'MultiSlater'
@@ -195,17 +222,20 @@ def test_generic_single_det():
             'verbosity': 0,
             'qmc': {
                 'timestep': 0.005,
-                'print_freq': 10,
-                'num_steps': 100,
+                'num_steps': 10,
+                'blocks': 10,
                 'rng_seed': 8,
             },
             'trial': {
                 'name': 'hartree_fock'
             },
-            "estimator": {
-                "back_propagated": {
-                    "tau_bp": 0.025,
-                    "one_rdm": True
+            'estimator': {
+                'back_propagated': {
+                    'tau_bp': 0.025,
+                    'one_rdm': True
+                    },
+                    'mixed': {
+                        'energy_eval_freq': 1
                     }
                 }
         }

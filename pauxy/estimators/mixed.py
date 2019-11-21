@@ -72,8 +72,12 @@ class Mixed(object):
         self.eval_energy = mixed.get('evaluate_energy', True)
         self.calc_one_rdm = mixed.get('one_rdm', False)
         self.calc_two_rdm = mixed.get('two_rdm', None)
+        self.energy_eval_freq = mixed.get('energy_eval_freq', None)
+        if self.energy_eval_freq is None:
+            self.energy_eval_freq = qmc.nsteps
         self.verbose = mixed.get('verbose', True)
-        self.nmeasure = qmc.nsteps // qmc.nmeasure
+        # number of steps per block
+        self.nsteps = qmc.nsteps
         self.header = ['Iteration', 'Weight', 'ENumer', 'EDenom', 'ETotal',
                        'E1Body', 'E2Body', 'EHybrid', 'Overlap']
         if qmc.beta is not None:
@@ -138,22 +142,23 @@ class Mixed(object):
         """
         if free_projection:
             for i, w in enumerate(psi.walkers):
-                w.greens_function(trial)
-                if self.eval_energy:
-                    E, T, V = w.local_energy(system)
-                else:
-                    E, T, V = 0, 0, 0
                 # For T > 0 w.ot = 1 always.
                 wfac = w.weight * w.ot * w.phase
-                self.estimates[self.names.enumer] += wfac * E
-                self.estimates[self.names.e1b:self.names.e2b+1] += (
-                        wfac * numpy.array([T,V])
-                )
+                if step % self.energy_eval_freq == 0:
+                    w.greens_function(trial)
+                    if self.eval_energy:
+                        E, T, V = w.local_energy(system)
+                    else:
+                        E, T, V = 0, 0, 0
+                    self.estimates[self.names.enumer] += wfac * E
+                    self.estimates[self.names.e1b:self.names.e2b+1] += (
+                            wfac * numpy.array([T,V])
+                    )
+                    self.estimates[self.names.edenom] += wfac
                 if self.thermal:
                     nav = particle_number(one_rdm_from_G(w.G))
                     self.estimates[self.names.nav] += wfac * nav
                 self.estimates[self.names.weight] += w.weight
-                self.estimates[self.names.edenom] += wfac
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
                 self.estimates[self.names.ovlp] += wfac * abs(w.ot)
         else:
@@ -190,17 +195,18 @@ class Mixed(object):
                                 w.weight*numpy.array([T,V]).real
                         )
                 else:
-                    w.greens_function(trial)
-                    if self.eval_energy:
-                        E, T, V = w.local_energy(system)
-                    else:
-                        E, T, V = 0, 0, 0
-                    self.estimates[self.names.enumer] += w.weight*E.real
-                    self.estimates[self.names.e1b:self.names.e2b+1] += (
-                            w.weight*numpy.array([T,V]).real
-                    )
+                    if step % self.energy_eval_freq == 0:
+                        w.greens_function(trial)
+                        if self.eval_energy:
+                            E, T, V = w.local_energy(system)
+                        else:
+                            E, T, V = 0, 0, 0
+                        self.estimates[self.names.enumer] += w.weight*E.real
+                        self.estimates[self.names.e1b:self.names.e2b+1] += (
+                                w.weight*numpy.array([T,V]).real
+                        )
+                        self.estimates[self.names.edenom] += w.weight
                 self.estimates[self.names.weight] += w.unscaled_weight
-                self.estimates[self.names.edenom] += w.weight
                 self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
                 if self.calc_one_rdm:
@@ -212,7 +218,7 @@ class Mixed(object):
                     end = end + self.two_rdm.size
                     self.estimates[start:end] += w.weight*self.two_rdm.flatten().real
 
-    def print_step(self, comm, nprocs, step, nmeasure, free_projection=False):
+    def print_step(self, comm, nprocs, step, nsteps=None, free_projection=False):
         """Print mixed estimates to file.
 
         This reduces estimates arrays over processors. On return estimates
@@ -229,12 +235,14 @@ class Mixed(object):
         nmeasure : int
             Number of steps between measurements.
         """
-        if step % nmeasure != 0:
+        if step % self.nsteps != 0:
             return
+        if nsteps is None:
+            nsteps = self.nsteps
         es = self.estimates
         ns = self.names
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
-        es[:ns.time] /= nmeasure
+        es[:ns.time] /= nsteps
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
         gs = self.global_estimates
         if comm.rank == 0:
