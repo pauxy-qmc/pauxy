@@ -35,7 +35,7 @@ class QMCOpts(object):
     dt : float
         Timestep.
     nsteps : int
-        Total number of Monte Carlo steps to perform.
+        Number of steps per block.
     nmeasure : int
         Frequency of energy measurements.
     nstblz : int
@@ -88,12 +88,13 @@ class QMCOpts(object):
         self.dt = get_input_value(inputs, 'timestep', default=0.005,
                                   alias=['dt'], verbose=verbose)
         self.nsteps = get_input_value(inputs, 'num_steps',
-                                      default=10, alias=['nsteps'],
+                                      default=10, alias=['nsteps, steps'],
                                       verbose=verbose)
-        self.nmeasure = get_input_value(inputs, 'print_freq',
-                                        default=1000,
-                                        alias=['nmeasure'],
-                                        verbose=verbose)
+        self.nblocks = get_input_value(inputs, 'blocks',
+                                      default=1000,
+                                      alias=['num_blocks', 'nblocks'],
+                                      verbose=verbose)
+        self.total_steps = self.nsteps * self.nblocks
         self.nstblz = get_input_value(inputs, 'stabilise_freq',
                                       default=10,
                                       alias=['nstabilise', 'reortho'],

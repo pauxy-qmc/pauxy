@@ -16,8 +16,8 @@ def test_ueg():
             'get_sha1': False,
             'qmc': {
                 'timestep': 0.05,
-                'num_steps': 1,
                 'rng_seed': 8,
+                'nblocks': 1,
                 'nwalkers': 10,
                 'beta': 0.5,
             },

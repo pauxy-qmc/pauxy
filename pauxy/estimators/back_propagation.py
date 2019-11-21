@@ -216,7 +216,7 @@ class BackPropagation(object):
         psi.copy_historic_wfn()
         psi.copy_bp_wfn(psi_bp)
 
-    def print_step(self, comm, nprocs, step, nmeasure=1, free_projection=False):
+    def print_step(self, comm, nprocs, step, nsteps=1, free_projection=False):
         """Print back-propagated estimates to file.
 
         Parameters
