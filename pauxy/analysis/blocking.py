@@ -11,7 +11,8 @@ import scipy.stats
 from pauxy.analysis.extraction import (
         extract_mixed_estimates,
         extract_data,
-        get_metadata, set_info
+        get_metadata, set_info,
+        extract_rdm
         )
 from pauxy.utils.misc import get_from_dict
 
@@ -145,26 +146,13 @@ def reblock_local_energy(filename, skip=0):
             return None
 
 
-def reblock_rdm(files, skip=1, est_type='back_propagated',
-                free_projection=False, rdm_type='one_rdm'):
+def average_rdm(files, skip=1, est_type='back_propagated', rdm_type='one_rdm', ix=None):
 
-    rdm_series, weights = pauxy.analysis.extraction.extract_rdm(files, skip,
-                                                                est_type=est_type,
-                                                                rdm_type=rdm_type)
+    rdm_series = extract_rdm(files, est_type=est_type, rdm_type=rdm_type, ix=ix)
 
-    if not free_projection:
-        rdm_series = rdm_series / weights
-    else:
-        print("Analysis for FP RDM not implemented.")
-
-    rdm, rdm_err = average_rdm(rdm_series)
-    return rdm, rdm_err
-
-
-def average_rdm(gf):
-    gf_av = gf.mean(axis=0)
-    gf_err = gf.std(axis=0) / len(gf)**0.5
-    return (gf_av, gf_err)
+    rdm_av = rdm_series[skip:].mean(axis=0)
+    rdm_err = rdm_series[skip:].std(axis=0, ddof=1) / len(rdm_series)**0.5
+    return rdm_av, rdm_err
 
 
 def average_correlation(gf):
