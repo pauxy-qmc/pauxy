@@ -121,7 +121,8 @@ class ThermalAFQMC(object):
         self.qmc.rng_seed = set_rng_seed(self.qmc.rng_seed, comm)
         self.qmc.ntime_slices = int(round(self.qmc.beta/self.qmc.dt))
         # Overide whatever's in the input file due to structure of FT algorithm.
-        self.qmc.nmeasure = 1
+        self.qmc.nsteps = 1
+        self.qmc.total_steps = self.qmc.nblocks
         if verbose:
             print("# Number of time slices = %i"%self.qmc.ntime_slices)
         self.cplx = True
@@ -201,7 +202,7 @@ class ThermalAFQMC(object):
         # Print out zeroth step for convenience.
         self.estimators.estimators['mixed'].print_step(comm, self.nprocs, 0, 1)
 
-        for step in range(1, self.qmc.nsteps + 1):
+        for step in range(1, self.qmc.total_steps + 1):
             start_path = time.time()
             for ts in range(0, self.qmc.ntime_slices):
                 if self.verbosity >= 2 and comm.rank == 0:
@@ -222,8 +223,8 @@ class ThermalAFQMC(object):
                                    self.trial, self.walk, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
-            self.estimators.print_step(comm, self.nprocs, step, 1,
-                                       self.propagators.free_projection)
+            self.estimators.print_step(comm, self.nprocs, step,
+                                       free_projection=self.propagators.free_projection)
             self.walk.reset(self.trial)
 
     def finalise(self, verbose):
