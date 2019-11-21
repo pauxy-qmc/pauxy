@@ -31,6 +31,9 @@ def parse_args(args):
                         default=1e-5, help='Cholesky convergence threshold.')
     parser.add_argument('-s', '--sparse', dest='sparse', type=float,
                         default=1e-16, help='Sparse zero value.')
+    parser.add_argument('-b', '--back-prop', dest='bp', action='store_true',
+                        default=False, help='Add back propagation option to json'
+                        'input file.')
     parser.add_argument('-j', '--json-input', dest='json_input', type=str,
                         default='input.json', help='Name of input file.')
 
@@ -55,7 +58,7 @@ def main(args):
     dump_pauxy(chkfile=options.input_scf, outfile=options.output,
                wfn_file=options.wfn, chol_cut=options.thresh,
                sparse_zero=options.sparse)
-    write_input(options.json_input, options.output, options.wfn)
+    write_input(options.json_input, options.output, options.wfn, options.bp)
 
 if __name__ == '__main__':
 
