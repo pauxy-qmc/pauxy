@@ -37,6 +37,7 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
     one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix))
     fp = get_param(filename, ['propagators','free_projection'])
     if fp:
+        print("# Warning analysis of FP RDM not implemented.")
         return (one_rdm, denom)
     else:
         return one_rdm / denom[:,None,None]
