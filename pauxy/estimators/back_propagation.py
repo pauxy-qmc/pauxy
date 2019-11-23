@@ -11,6 +11,7 @@ import sys
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.greens_function import gab
 from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.ekt import ekt_1p_fock, ekt_1h_fock
 from pauxy.propagation.generic import back_propagate_generic
 from pauxy.propagation.planewave import back_propagate_planewave
 import pauxy.propagation.hubbard
@@ -72,6 +73,7 @@ class BackPropagation(object):
         self.nreg = len(self.header)
         self.accumulated = False
         self.eval_energy = bp.get('evaluate_energy', False)
+        self.eval_ekt = bp.get('evaluate_ekt', False)
         self.G = numpy.zeros(trial.G.shape, dtype=trial.G.dtype)
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
@@ -88,6 +90,13 @@ class BackPropagation(object):
             dms_size += self.two_rdm.size
         else:
             self.two_rdm = None
+
+        if self.eval_ekt:
+            self.ekt_fock_1h = numpy.zeros_like(self.G[0])
+            self.ekt_fock_1p = numpy.zeros_like(self.G[0])
+            dms_size += self.ekt_fock_1h.size
+            dms_size += self.ekt_fock_1p.size
+
         self.estimates = numpy.zeros(self.nreg+1+dms_size, dtype=dtype)
         self.global_estimates = numpy.zeros(self.nreg+1+dms_size,
                                             dtype=dtype)
@@ -143,12 +152,18 @@ class BackPropagation(object):
                                 self.nstblz, self.BT2, self.dt)
             self.G[0] = gab(phi_bp[:,:nup], wnm.phi_old[:,:nup]).T
             self.G[1] = gab(phi_bp[:,nup:], wnm.phi_old[:,nup:]).T
+
             if self.eval_energy:
                 eloc = local_energy(system, self.G, opt=False,
                                     two_rdm=self.two_rdm)
                 energies = numpy.array(list(eloc))
             else:
                 energies = numpy.zeros(3)
+
+            if self.eval_ekt:
+                self.ekt_fock_1p = ekt_1p_fock(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+                self.ekt_fock_1h = ekt_1h_fock(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+
             if self.restore_weights is not None:
                 wfac = wnm.field_configs.get_wfac()
                 if self.restore_weights == "full":
@@ -158,15 +173,27 @@ class BackPropagation(object):
                 weight = wnm.weight * wfac
             else:
                 weight = wnm.weight
+            
             self.estimates[:self.nreg] += weight*energies
             self.estimates[self.nreg] += weight
+
             start = self.nreg + 1
             end = start + self.G.size
             self.estimates[start:end] += weight*self.G.flatten()
+
             if self.calc_two_rdm is not None:
                 start = end
                 end = end + self.two_rdm.size
                 self.estimates[start:end] += weight*self.two_rdm.flatten()
+            
+            if self.eval_ekt:
+                start = end
+                end = end + self.ekt_fock_1p.size
+                self.estimates[start:end] += weight*self.ekt_fock_1p.flatten()
+                start = end
+                end = end + self.ekt_fock_1h.size
+                self.estimates[start:end] += weight*self.ekt_fock_1h.flatten()
+
             if buff_ix == self.splits[-1]:
                 wnm.field_configs.reset()
         if buff_ix == self.splits[-1]:
