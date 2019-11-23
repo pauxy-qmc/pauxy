@@ -161,8 +161,8 @@ class BackPropagation(object):
                 energies = numpy.zeros(3)
 
             if self.eval_ekt:
-                self.ekt_fock_1p = ekt_1p_fock(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
-                self.ekt_fock_1h = ekt_1h_fock(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+                self.ekt_fock_1p = ekt_1p_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+                self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
 
             if self.restore_weights is not None:
                 wfac = wnm.field_configs.get_wfac()
