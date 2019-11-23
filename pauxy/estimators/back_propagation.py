@@ -11,7 +11,7 @@ import sys
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.estimators.greens_function import gab
 from pauxy.estimators.mixed import local_energy
-from pauxy.estimators.ekt import ekt_1p_fock, ekt_1h_fock
+from pauxy.estimators.ekt import ekt_1p_fock_opt, ekt_1h_fock_opt
 from pauxy.propagation.generic import back_propagate_generic
 from pauxy.propagation.planewave import back_propagate_planewave
 import pauxy.propagation.hubbard
@@ -278,8 +278,25 @@ class BackPropagation(object):
                 self.output.push(rdm, 'one_rdm_{:d}'.format(self.buff_ix))
             if self.calc_two_rdm:
                 start = self.nreg + 1 + self.G.size
-                rdm = self.global_estimates[start:].reshape(self.two_rdm.shape)
+                end = start + self.two_rdm.size
+                rdm = self.global_estimates[start:end].reshape(self.two_rdm.shape)
                 self.output.push(rdm, 'two_rdm_{:d}'.format(self.buff_ix))
+
+            if self.eval_ekt:
+                start = self.nreg + 1
+                if self.calc_one_rdm:
+                    start += self.G.size
+                if self.calc_two_rdm:
+                    start += self.two_rdm.size
+                
+                end = start + self.ekt_fock_1p.size
+                fock = self.global_estimates[start:end].reshape(self.ekt_fock_1p.shape)
+                self.output.push(fock, 'fock_1p_{:d}'.format(self.buff_ix))
+                start = end
+                end = end + self.ekt_fock_1h.size
+                fock = self.global_estimates[start:end].reshape(self.ekt_fock_1h.shape)
+                self.output.push(fock, 'fock_1h_{:d}'.format(self.buff_ix))
+
             if self.buff_ix == self.splits[-1]:
                 self.output.increment()
         self.accumulated = False
