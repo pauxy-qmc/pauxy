@@ -34,13 +34,18 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
                                       'back_prop', 'splits'])
         ix = splits[-1][0]
     denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
-    one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix))
+    one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix), raw=True)
     fp = get_param(filename, ['propagators','free_projection'])
     if fp:
         print("# Warning analysis of FP RDM not implemented.")
         return (one_rdm, denom)
     else:
-        return one_rdm / denom[:,None,None]
+        if (len(one_rdm.shape) == 4):
+            return one_rdm / denom[:,None,None]
+        elif (len(one_rdm.shape) == 3):
+            return one_rdm / denom[:,None]
+        else:
+            return one_rdm / denom
 
 def set_info(frame, md):
     system = md.get('system')
