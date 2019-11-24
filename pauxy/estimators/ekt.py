@@ -5,14 +5,15 @@ try:
 except ImportError:
     einsum = numpy.einsum
 
+# Assume it's generic
 def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
 
     nmo = rdm1a.shape[0]
-    assert (len(cholvec.shape) == 2)
-    assert (cholvec.shape[0] == nmo*nmo)
-    nchol = cholvec.shape[1]
-    cholvec = numpy.array(cholvec.todense()).T.reshape((nchol,nmo,nmo))                 
-
+    assert (len(cholvec.shape) == 3)
+    assert (cholvec.shape[1] * cholvec.shape[2] == nmo*nmo)
+    nchol = cholvec.shape[0]
+    
+    # cholvec = numpy.array(cholvec.todense()).T.reshape((nchol,nmo,nmo))                 
     I = numpy.eye(nmo)
     gamma = I - rdm1a.T + I - rdm1b.T
     rdm1 = rdm1a + rdm1b
@@ -43,10 +44,11 @@ def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
 def ekt_1h_fock_opt(h1, cholvec, rdm1a, rdm1b):
     
     nmo = rdm1a.shape[0]
-    assert (len(cholvec.shape) == 2)
-    assert (cholvec.shape[0] == nmo*nmo)
-    nchol = cholvec.shape[1]
-    cholvec = numpy.array(cholvec.todense()).T.reshape((nchol,nmo,nmo))                 
+    assert (len(cholvec.shape) == 3)
+    assert (cholvec.shape[1] * cholvec.shape[2] == nmo*nmo)
+    nchol = cholvec.shape[0]
+
+    # cholvec = numpy.array(cholvec.todense()).T.reshape((nchol,nmo,nmo))                 
 
     Xa = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1a.ravel())
     Xb = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1b.ravel())
