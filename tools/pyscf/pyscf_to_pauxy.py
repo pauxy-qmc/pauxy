@@ -57,7 +57,6 @@ def main(args):
     """
 
     options = parse_args(args)
-    print("options.oao = ", options.oao)
     dump_pauxy(chkfile=options.input_scf, outfile=options.output,
                wfn_file=options.wfn, chol_cut=options.thresh,
                sparse_zero=options.sparse, ortho_ao=options.oao)

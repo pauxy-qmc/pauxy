@@ -155,7 +155,10 @@ def generate_integrals(mol, hcore, X, chol_cut=1e-5, verbose=False, cas=None):
         print (" # Orthogonalising Cholesky vectors.")
     start = time.time()
     # Step 2.a Orthogonalise Cholesky vectors.
-    ao2mo_chol(chol_vecs, X)
+    if (len(X.shape) == 2):
+        ao2mo_chol(chol_vecs, X)
+    elif (len(X.shape) == 3):
+        ao2mo_chol(chol_vecs, X[0])
     if verbose:
         print (" # Time to orthogonalise: %f"%(time.time() - start))
     enuc = mol.energy_nuc()
