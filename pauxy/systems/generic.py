@@ -90,25 +90,19 @@ class Generic(object):
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', False)
         self.half_rotated_integrals = inputs.get('integral_tensor', False)
-        self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
         self.mu = inputs.get('mu', None)
-        if verbose:
-            print("# Reading integrals from %s." % self.integral_file)
         if chol is not None:
             self.chol_vecs = chol
-            self.ecore = ecore
-            if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
-                self.cplx_chol = True
+            if isinstance(self.chol_vecs.dtype, numpy.complex128):
                 if verbose:
                     print("# Found complex integrals.")
                     print("# Using Hermitian Cholesky decomposition.")
             else:
                 if verbose:
-                    print("# Using real symmetric Cholesky decomposition.")
+                    print("# Using real Cholesky decomposition.")
                 self.cplx_chol = False
         else:
-            start = time.time()
             h1e, self.chol_vecs, self.ecore = self.read_integrals()
             if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
                 self.cplx_chol = True
@@ -126,6 +120,7 @@ class Generic(object):
         self.nbasis = h1e.shape[0]
         self._alt_convention = False
         mem = self.chol_vecs.nbytes / (1024.0**3)
+        self.chol_3ix = self.chol_vecs.reshape((self.nbasis, self.nbasis, -1))
         if verbose:
             print("# Number of orbitals: %d"%self.nbasis)
             print("# Number of electrons: (%d, %d)"%(self.nup, self.ndown))
@@ -140,13 +135,14 @@ class Generic(object):
         # For consistency
         self.vol = 1.0
         start = time.time()
+        # Should be a view
         if self.cplx_chol:
             self.nfields = 2 * self.nchol
             self.hs_pot = numpy.zeros(shape=(self.nfields,self.nbasis,self.nbasis),
                                       dtype=numpy.complex128)
             for (n,cn) in enumerate(self.chol_vecs):
                 vplus = 0.5*(cn+cn.conj().T)
-                vminus = 0.5j*(cn-cn.conj().T)
+                vminus = 0.5*(cn-cn.conj().T)
                 self.hs_pot[n] = vplus
                 self.hs_pot[self.nchol+n] = vminus
         else:
@@ -165,9 +161,6 @@ class Generic(object):
             tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
             tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
             self.hs_pot = csr_matrix(tmp)
-        else:
-            self.hs_pot = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            self.hs_pot = self.hs_pot.reshape(self.nbasis*self.nbasis, self.nfields)
         write_ints = inputs.get('write_integrals', None)
         if write_ints is not None:
             self.write_integrals()
@@ -197,10 +190,10 @@ class Generic(object):
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
         # Eqn (17) of [Motta17]_
-        v0 = 0.5 * numpy.einsum('lik,ljk->ij', self.chol_vecs,
-                                self.chol_vecs.conj(), optimize='optimal')
-        self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
-
+        # v0 = 0.5 * numpy.tensordot(self.chol_3ix, self.chol_3ix, axes=((1,2),(0,2)))
+        v0 = 0.5 * numpy.einsum('ikn,ljn->ij', self.chol_3ix, self.chol_3ix.conj())
+        # TODO: FDM SHARED MEMORY
+        # self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
 
     def construct_integral_tensors_real(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).
@@ -374,7 +367,7 @@ class Generic(object):
             print("# Sparsity: %f"%(1-float(nnz)/nelem))
 
     def hijkl(self, i, j, k, l):
-        return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
+        return numpy.dot(self.chol_3ix[i,k,:], self.chol_3ix[l,j,:].conj())
 
     def write_integrals(self, filename='hamil.h5'):
         if self.sparse:

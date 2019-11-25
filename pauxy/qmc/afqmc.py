@@ -16,6 +16,7 @@ from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import get_git_revision_hash, print_sys_info
 from pauxy.utils.io import  to_json, serialise, get_input_value
+from pauxy.utils.mpi import get_shared_comm
 from pauxy.walkers.handler import Walkers
 
 
@@ -97,13 +98,8 @@ class AFQMC(object):
         self.rank = comm.rank
         self._init_time = time.time()
         self.run_time = time.asctime()
+        self.shared_comm = get_shared_comm(verbose=verbose)
         # 2. Calculation objects.
-        # if comm.rank == 0:
-            # system = get_system(sys_opts=options.get('model', {}),
-                                     # mf=mf, verbose=verbose)
-        # else:
-            # system = None
-        # self.system = comm.bcast(system, root=0)
         if system is not None:
             self.system = system
         else:
@@ -111,7 +107,7 @@ class AFQMC(object):
                                        default={},
                                        alias=['system'],
                                        verbose=self.verbosity>1)
-            self.system = get_system(sys_opts, verbose=verbose)
+            self.system = get_system(sys_opts, verbose=verbose, comm=comm)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
