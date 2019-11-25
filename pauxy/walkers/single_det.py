@@ -324,4 +324,4 @@ class SingleDetWalker(object):
                 dsize = 1
             s += dsize
         if self.field_configs is not None:
-            self.field_configs.set_buffer(buff[s:])
+            self.field_configs.set_buffer(buff[self.buff_size:])
