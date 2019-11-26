@@ -78,7 +78,9 @@ class ThermalAFQMC(object):
                  trial=None, parallel=False, verbose=None):
         if verbose is not None:
             self.verbosity = verbose
-            verbose = verbose > 0
+            if comm.rank != 0:
+                self.verbosity = 0
+            verbose = verbose > 0 and comm.rank == 0
         else:
             self.verbosity = 0
         qmc_opts = get_input_value(options, 'qmc', default={},

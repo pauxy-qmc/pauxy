@@ -88,7 +88,7 @@ class QMCOpts(object):
         self.dt = get_input_value(inputs, 'timestep', default=0.005,
                                   alias=['dt'], verbose=verbose)
         self.nsteps = get_input_value(inputs, 'num_steps',
-                                      default=10, alias=['nsteps, steps'],
+                                      default=10, alias=['nsteps', 'steps'],
                                       verbose=verbose)
         self.nblocks = get_input_value(inputs, 'blocks',
                                       default=1000,

@@ -47,11 +47,11 @@ def get_driver(options, comm):
     if beta is not None:
         afqmc = ThermalAFQMC(comm, options=options,
                              parallel=comm.size>1,
-                             verbose=(verbosity and comm.rank==0))
+                             verbose=verbosity)
     else:
         afqmc = AFQMC(comm, options=options,
                       parallel=comm.size>1,
-                      verbose=(verbosity and comm.rank==0))
+                      verbose=verbosity)
     return afqmc
 
 def read_input(input_file, comm, verbose=False):

@@ -365,7 +365,7 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
         if val is None:
             val = default
             if verbose:
-                print("# Warning: {} not specified. Setting to default value"
+                print("# Note: {} not specified. Setting to default value"
                       " of {}.".format(key, default))
     return val
 
