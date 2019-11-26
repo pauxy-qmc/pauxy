@@ -2,6 +2,104 @@ import numpy
 import scipy.linalg
 import itertools
 
+def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, hamil=False):
+    """Very dumb FCI routine."""
+    orbs = numpy.arange(system.nbasis)
+    # bosons
+    perms = []
+    for ib in range(nboson_max+1):
+        perms += [c for c in itertools.product(orbs, repeat=ib)]
+
+    # fermions
+    if occs is None:
+        oa = [c for c in itertools.combinations(orbs, system.nup)]
+        ob = [c for c in itertools.combinations(orbs, system.ndown)]
+        print(oa)
+        oa, ob = zip(*itertools.product(oa,ob))
+    else:
+        oa, ob = occs
+
+    # convert to spin orbitals
+    dets = [[j for j in a] + [i+system.nbasis for i in c] for (a,c) in zip(oa,ob)]
+    print("dets = {}".format(dets))
+    print("perms = {}".format(perms))
+    dets = [numpy.sort(d) for d in dets]
+
+    nperms = len(perms)
+    ndets = len(dets)
+
+    print("# ndets, nperms = {}, {}".format(ndets, nperms))
+    
+    Htot = numpy.zeros((ndets*nperms, ndets*nperms))
+    
+    Hel = numpy.zeros((ndets,ndets))
+    for i in range(ndets):
+        for j in range(i,ndets):
+            Hel[i,j] = get_hmatel(system, dets[i], dets[j])
+            Hel[j,i] = Hel[i,j]
+
+    Hb = numpy.zeros((nperms, nperms))
+
+    for i in range(nperms):
+        for j in range(i,nperms):
+            Hb[i,j] = get_hmatboson(system, perms[i], perms[j])
+            Hb[j,i] = Hb[i,j]
+
+    for i, perm in enumerate(perms):
+        offset = i * ndets
+        Htot[offset:offset+ndets, offset:offset+ndets] = Hel.copy()
+        Htot[offset:offset+ndets, offset:offset+ndets] += Hb[i, i]
+
+    for ip, pi in enumerate(perms):
+        offset_i = ip * ndets
+        for idxdi, di in enumerate(dets):
+            for jp, pj in enumerate(perms):
+                offset_j = jp * ndets
+                for idxdj, dj in enumerate(dets):
+                    get_holstein(system, pi, pj, di, dj)
+
+    if gen_dets:
+        return scipy.linalg.eigh(Htot, lower=False), (dets,numpy.array(oa),numpy.array(ob))
+    elif hamil:
+        return scipy.linalg.eigh(Htot, lower=False), Htot
+    else:
+        return scipy.linalg.eigh(Htot, lower=False)
+
+def to_occ (perm, nbsf):
+    occ_string = numpy.zeros(nbsf)
+    for i in range(nbsf):
+        
+
+def get_holstein(system, pi, pj, di, dj):
+    nbsf = system.nbasis
+
+    api = numpy.asarray(pi)
+    apj = numpy.asarray(pj)
+
+    ndiff = abs(len(api) - len(apj))
+
+    if (ndiff == 1):
+        print(list(api), list(apj))
+        if (len(api) > len(apj)):
+            result = all(elem in list(api) for elem in list(apj))
+        else:
+            result = all(elem in list(apj) for elem in list(api))
+        print(result)
+
+
+
+# only diagonal is supported for now
+def get_hmatboson(system, pi, pj):
+    if (pi == pj):
+        p = numpy.asarray(pi)
+        h = 0.0
+        for i, isite in enumerate(p): # going through each boson
+            h += system.hb1(isite, isite)
+        return h
+    else:
+        return 0.0
+    
+
 def simple_fci(system, gen_dets=False, occs=None, hamil=False):
     """Very dumb FCI routine."""
     orbs = numpy.arange(system.nbasis)
@@ -25,7 +123,6 @@ def simple_fci(system, gen_dets=False, occs=None, hamil=False):
         return scipy.linalg.eigh(H, lower=False), H
     else:
         return scipy.linalg.eigh(H, lower=False)
-
 
 def get_hmatel(system, di, dj):
     from_orb = list(set(dj)-set(di))

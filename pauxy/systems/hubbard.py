@@ -63,6 +63,10 @@ class Hubbard(object):
         else:
             self._alt_convention = False
         self.nbasis = self.nx * self.ny
+        
+        print("# nx, ny = {},{}".format(self.nx, self.ny))
+        print("# nbasis = {}".format(self.nbasis))
+
         self.nactive = self.nbasis
         self.nfv = 0
         self.ncore = 0
@@ -135,6 +139,27 @@ class Hubbard(object):
             print(header)
         else:
             return header
+    
+    def hijkl(self,i,j,k,l):
+        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
+
+        Checks for momentum conservation k_i + k_j = k_k + k_k, or
+        k_k - k_i = k_j - k_l.
+
+        Parameters
+        ----------
+        i, j, k, l : int
+            Orbital indices for integral (ik|jl) = <ij|kl>.
+
+        Returns
+        -------
+        integral : float
+            (ik|jl)
+        """
+        if (i == k and j == l and i==j):
+            return self.U
+        else:
+            return 0.0
 
     def construct_h1e_mod(self):
         # Subtract one-body bit following reordering of 2-body operators.
@@ -436,3 +461,25 @@ def get_strip(cfunc, cfunc_err, ix, nx, ny, stag=False):
         c = [cfunc[ib] for ib in idx]
     cerr = [cfunc_err[ib] for ib in idx]
     return c, cerr
+
+
+def unit_test():
+    import itertools
+    options = {
+    "name": "Hubbard",
+    "nup": 1,
+    "ndown": 1,
+    "nx": 2,
+    "ny": 1,
+    "U": numpy.sqrt(2.),
+    }
+    from pauxy.estimators.ci import simple_fci
+    system = Hubbard (options, verbose=True)
+    (eig, evec), H = simple_fci(system, hamil=True)
+    # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
+    # print(eig)
+    # print(dets)
+    # oa, ob = zip(*itertools.product(oa,ob))
+
+if __name__=="__main__":
+    unit_test()
