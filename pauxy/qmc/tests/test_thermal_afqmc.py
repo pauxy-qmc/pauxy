@@ -42,7 +42,7 @@ def test_ueg():
     afqmc.run(comm=comm)
     afqmc.finalise(verbose=0)
     data = extract_data(afqmc.estimators.filename, 'basic', 'energies')
-    numpy.testing.assert_almost_equal(numpy.real(data.Weight.values),
+    numpy.testing.assert_almost_equal(numpy.real(data.WeightFactor.values),
                                       numpy.array([10.0, 9.8826616]))
     numpy.testing.assert_almost_equal(numpy.real(data.Nav.values),
                                       numpy.array([1.99999991, 2.5848349]))
