@@ -620,8 +620,8 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
             },
         'qmc': {
             'dt': 0.005,
-            'nsteps': 5000,
-            'nmeasure': 10,
+            'nsteps': 10,
+            'blocks': 500,
             'nwalkers': 30,
             'pop_control': 1
             },
