@@ -10,7 +10,7 @@ from pauxy.walkers.handler import Walkers
 
 def test_back_prop():
     sys = UEG({'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 1.0})
-    bp_opt = {'tau_bp': 1.0, 'nsplit': 4}
+    bp_opt = {'tau_bp': 1.0, 'nsplit': 4, 'evaluate_ekt':True}
     qmc = dotdict({'dt': 0.05, 'nstblz': 10, 'nwalkers': 1})
     trial = HartreeFock(sys, True, {})
     numpy.random.seed(8)
