@@ -78,8 +78,9 @@ class Mixed(object):
         self.verbose = mixed.get('verbose', True)
         # number of steps per block
         self.nsteps = qmc.nsteps
-        self.header = ['Iteration', 'Weight', 'ENumer', 'EDenom', 'ETotal',
-                       'E1Body', 'E2Body', 'EHybrid', 'Overlap']
+        self.header = ['Iteration', 'WeightFactor', 'Weight', 'ENumer',
+                       'EDenom', 'ETotal', 'E1Body', 'E2Body', 'EHybrid',
+                       'Overlap']
         if qmc.beta is not None:
             self.thermal = True
             self.header.append('Nav')
@@ -89,7 +90,10 @@ class Mixed(object):
         self.nreg = len(self.header[1:])
         self.dtype = dtype
         self.G = numpy.zeros((2,system.nbasis,system.nbasis), dtype)
-        dms_size = self.G.size
+        if self.calc_one_rdm:
+            dms_size = self.G.size
+        else:
+            dms_size = 0
         self.eshift = 0
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
         # TODO: Add functionality to accumulate 2RDM?
@@ -108,7 +112,8 @@ class Mixed(object):
                                             dtype=dtype)
         self.key = {
             'Iteration': "Simulation iteration. iteration*dt = tau.",
-            'Weight': "Total walker weight before rescaling.",
+            'WeightFactor': "Rescaling Factor from population control.",
+            'Weight': "Total walker weight.",
             'E_num': "Numerator for projected energy estimator.",
             'E_denom': "Denominator for projected energy estimator.",
             'ETotal': "Projected energy estimator.",
@@ -158,7 +163,8 @@ class Mixed(object):
                 if self.thermal:
                     nav = particle_number(one_rdm_from_G(w.G))
                     self.estimates[self.names.nav] += wfac * nav
-                self.estimates[self.names.weight] += w.weight
+                self.estimates[self.names.uweight] += w.unscaled_weight
+                self.estimates[self.names.uweight] += w.weight
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
                 self.estimates[self.names.ovlp] += wfac * abs(w.ot)
         else:
@@ -207,7 +213,8 @@ class Mixed(object):
                                 w.weight*numpy.array([T,V]).real
                         )
                         self.estimates[self.names.edenom] += w.weight
-                self.estimates[self.names.weight] += w.unscaled_weight
+                self.estimates[self.names.uweight] += w.unscaled_weight
+                self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
                 if self.calc_one_rdm:
@@ -243,16 +250,18 @@ class Mixed(object):
         es = self.estimates
         ns = self.names
         es[ns.time] = (time.time()-es[ns.time]) / nprocs
-        es[:ns.time] /= nsteps
+        es[ns.uweight:ns.weight+1] /= nsteps
+        es[ns.ehyb:ns.time+1] /= nsteps
         comm.Reduce(es, self.global_estimates, op=mpi_sum)
         gs = self.global_estimates
         if comm.rank == 0:
             gs[ns.eproj] = gs[ns.enumer]
-            gs[ns.eproj:ns.time] = gs[ns.eproj:ns.time] / gs[ns.edenom]
+            gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
         if self.thermal and comm.rank == 0:
             if free_projection:
                 gs[ns.nav] = gs[ns.nav] * gs[ns.weight]
-        eshift = gs[ns.ehyb]
+        eshift = gs[ns.ehyb] / gs[ns.weight]
+        gs[ns.ovlp] /= gs[ns.weight]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift
         if comm.rank == 0:
@@ -393,9 +402,8 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None):
     return tuple(energies/denom)
 
 def get_estimator_enum(thermal=False):
-    keys = ['weight', 'enumer', 'edenom',
-            'eproj', 'e1b', 'e2b', 'ehyb',
-            'ovlp']
+    keys = ['uweight', 'weight', 'enumer', 'edenom',
+            'eproj', 'e1b', 'e2b', 'ehyb', 'ovlp']
     if thermal:
         keys.append('nav')
     keys.append('time')
@@ -403,27 +411,6 @@ def get_estimator_enum(thermal=False):
     for v, k in enumerate(keys):
         enum[k] = v
     return dotdict(enum)
-
-class EstimatorEnum(object):
-    """Enum structure for help with indexing Mixed estimators.
-
-    python's support for enums doesn't help as it indexes from 1.
-    """
-
-    def __init__(self, thermal=False):
-        self.weight = 0
-        self.enumer = 1
-        self.edenom = 2
-        self.eproj = 3
-        self.e1b = 4
-        self.e2b = 5
-        self.ehyb = 6
-        self.ovlp = 7
-        if thermal:
-            self.nav = 8
-            self.time = 9
-        else:
-            self.time = 8
 
 
 def eproj(estimates, enum):
