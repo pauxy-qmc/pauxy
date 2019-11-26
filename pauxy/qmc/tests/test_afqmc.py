@@ -82,7 +82,7 @@ def test_ueg():
     assert numer == pytest.approx(15.5272838037998)
     denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
     assert denom == pytest.approx(10)
-    weight = afqmc.estimators.estimators['mixed'].estimates[enum.weight]
+    weight = afqmc.estimators.estimators['mixed'].estimates[enum.uweight]
     assert weight == pytest.approx(9.76035750882054)
     ehy = afqmc.psi.walkers[0].hybrid_energy
     assert ehy.real == pytest.approx(2.41659997842609)
@@ -261,11 +261,11 @@ def test_generic_single_det():
     assert rdm[0,1].trace() == pytest.approx(nelec[1])
     assert rdm[11,0,1,3].real == pytest.approx(-0.121883381144845)
 
-def teardown_module(self):
-    cwd = os.getcwd()
-    files = ['estimates.0.h5']
-    for f in files:
-        try:
-            os.remove(cwd+'/'+f)
-        except OSError:
-            pass
+# def teardown_module(self):
+    # cwd = os.getcwd()
+    # files = ['estimates.0.h5']
+    # for f in files:
+        # try:
+            # os.remove(cwd+'/'+f)
+        # except OSError:
+            # pass
