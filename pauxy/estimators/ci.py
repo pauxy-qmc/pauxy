@@ -68,25 +68,41 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
 def to_occ (perm, nbsf):
     occ_string = numpy.zeros(nbsf)
     for i in range(nbsf):
-        
+        occs = numpy.array(numpy.array(perm) == i, dtype=numpy.int64)
+        occ_string[i] = numpy.sum(occs)
+    # print(perm, occ_string)
+    return occ_string.copy()
 
+# Aim to compute <i | H | j>
 def get_holstein(system, pi, pj, di, dj):
     nbsf = system.nbasis
 
-    api = numpy.asarray(pi)
-    apj = numpy.asarray(pj)
+    occi = to_occ(pi, nbsf)
+    occj = to_occ(pj, nbsf)
+    occdiff = numpy.abs(occi - occj)
+    noccdiff = numpy.sum(occdiff)
 
-    ndiff = abs(len(api) - len(apj))
+    if (noccdiff == 1.0):
+        nocci = numpy.sum(occi)
+        noccj = numpy.sum(occj)
+        i = int(numpy.argwhere (occdiff > 0)[0][0])
 
-    if (ndiff == 1):
-        print(list(api), list(apj))
-        if (len(api) > len(apj)):
-            result = all(elem in list(api) for elem in list(apj))
-        else:
-            result = all(elem in list(apj) for elem in list(api))
-        print(result)
+        from_orb = list(set(dj)-set(di))
+        to_orb = list(set(di)-set(dj))
+        from_orb.sort()
+        to_orb.sort()
+        nex = len(from_orb)
 
+        if (nex == 0):
+            print(from_orb, to_orb)
+            exit()
+        # print(i, occdiff)
+        # print(occi, occj)
 
+    # if (len(api) > len(apj)):
+    #     result = all(elem in list(api) for elem in list(apj))
+    # else:
+    #     result = all(elem in list(apj) for elem in list(api))
 
 # only diagonal is supported for now
 def get_hmatboson(system, pi, pj):

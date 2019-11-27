@@ -490,7 +490,7 @@ def unit_test():
     from pauxy.estimators.ci import simple_fci_bose_fermi
     system = HubbardHolstein (options, verbose=True)
 
-    (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=2, hamil=True)
+    (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=3, hamil=True)
     print(eig)
     # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
     # print(dets)
