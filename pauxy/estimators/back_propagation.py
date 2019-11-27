@@ -150,13 +150,16 @@ class BackPropagation(object):
             else:
                 energies = numpy.zeros(3)
             if self.restore_weights is not None:
-                wfac = wnm.field_configs.get_wfac()
+                cosine_fac, ph_fac = wnm.field_configs.get_wfac()
                 if self.restore_weights == "full":
-                    wfac = wfac[0]/wfac[1]
+                    # BP-Pres
+                    wfac = ph_fac / cosine_fac
                 else:
-                    wfac  = wfac[1]
+                    # BP-PRes (partial)
+                    wfac = ph_fac
                 weight = wnm.weight * wfac
             else:
+                # BP-PhL
                 weight = wnm.weight
             self.estimates[:self.nreg] += weight*energies
             self.estimates[self.nreg] += weight
