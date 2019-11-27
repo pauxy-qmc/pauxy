@@ -165,16 +165,18 @@ class Generic(object):
             print("# Finished setting up Generic system object.")
 
     def read_integrals(self):
-        if self.sparse:
+        try:
             (h1e, schol_vecs, ecore, nbasis, nup, ndown) = (
                     from_qmcpack_cholesky(self.integral_file)
                     )
             chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
-        else:
+        except KeyError:
             (h1e, chol_vecs, ecore, nbasis, nup, ndown) = (
                     from_qmcpack_dense(self.integral_file)
                     )
             chol_vecs = chol_vecs.T.reshape((-1,nbasis,nbasis))
+        except:
+            print("# Unknown Hamiltonian file format.")
         if ((nup != self.nup) or ndown != self.ndown):
             print("Number of electrons is inconsistent")
             print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
@@ -255,12 +257,17 @@ class Generic(object):
         self.rchol_vecs = self.rot_hs_pot
         if self.verbose:
             print("# Time to construct half-rotated Cholesky: %f s"%trot)
-            nnz = self.rchol_vecs[0].nnz
-            print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
-            nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
-            print("# Sparsity: %f"%(1-float(nnz)/nelem))
-            mem = (2*nnz*16/(1024.0**3))
-            print("# Approximate memory used %f" " GB"%mem)
+            if self.sparse:
+                nnz = self.rchol_vecs[0].nnz
+                print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
+                nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
+                print("# Sparsity: %f"%(1-float(nnz)/nelem))
+                mem = (2*nnz*16/(1024.0**3))
+            else:
+                mem = self.rchol_vecs[0].nbytes + self.rchol_vecs[1].nbytes
+                mem /= 1024.0**3
+            print("# Approximate memory required for half-rotated Cholesky: "
+                  "{:.6f} GB".format(mem))
             if self.half_rotated_integrals:
                 print("# Time to construct V_{(ak)(bl)}: %f"%tvakbl)
                 nnz = self.vakbl[0].nnz

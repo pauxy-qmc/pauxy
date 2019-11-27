@@ -73,7 +73,10 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None):
     ecoul = numpy.dot(Xa,Xa)
     ecoul += numpy.dot(Xb,Xb)
     ecoul += 2*numpy.dot(Xa,Xb)
-    cva, cvb = [rcv[0].toarray(), rcv[1].toarray()]
+    if system.sparse:
+        cva, cvb = [rcv[0].toarray(), rcv[1].toarray()]
+    else:
+        cva, cvb = [rcv[0], rcv[1]]
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
     Ta = numpy.tensordot(Ga, cva.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
