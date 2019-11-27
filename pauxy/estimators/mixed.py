@@ -257,6 +257,8 @@ class Mixed(object):
         if comm.rank == 0:
             gs[ns.eproj] = gs[ns.enumer]
             gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
+            gs[ns.ehyb] /= gs[ns.weight]
+            gs[ns.ovlp] /= gs[ns.weight]
         if self.thermal and comm.rank == 0:
             gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
         eshift = gs[ns.ehyb] / gs[ns.weight]
