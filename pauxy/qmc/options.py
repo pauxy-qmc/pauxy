@@ -101,7 +101,8 @@ class QMCOpts(object):
                                       verbose=verbose)
         self.npop_control = get_input_value(inputs, 'pop_control_freq',
                                             default=1,
-                                            alias=['npop_control'],
+                                            alias=['npop_control',
+                                                   'pop_control'],
                                             verbose=verbose)
         self.eqlb_time = get_input_value(inputs, 'equilibration_time',
                                          default=2.0,

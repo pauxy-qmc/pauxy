@@ -623,7 +623,9 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
             'nsteps': 10,
             'blocks': 500,
             'nwalkers': 30,
-            'pop_control': 1
+            'blocks': 10000,
+            'nsteps': 10,
+            'pop_control_freq': 5
             },
         'trial': {
             'filename': wfn
@@ -642,4 +644,4 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
         # TODO with python2 support.
     full = merge_dicts(basic, options)
     with open(filename, 'w') as f:
-        f.write(json.dumps(full, indent=4))
+        f.write(json.dumps(full, indent=4, separators=(',', ': ')))
