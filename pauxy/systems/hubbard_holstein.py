@@ -152,6 +152,7 @@ class HubbardHolstein(object):
             return self.w0
         else:
             return 0.0
+
     def hijkl(self,i,j,k,l):
         """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
 
@@ -477,21 +478,26 @@ def get_strip(cfunc, cfunc_err, ix, nx, ny, stag=False):
 
 def unit_test():
     import itertools
+    from pauxy.systems.hubbard import Hubbard
+    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
     options = {
     "name": "HubbardHolstein",
     "nup": 1,
-    "ndown": 1,
-    "nx": 2,
+    "ndown": 0,
+    "nx": 1,
     "ny": 1,
     "U": numpy.sqrt(2.),
-    "w0": 1.0,
-    "g": -1.0,
+    "w0": 5.0,
+    "g": 0.25,
     }
-    from pauxy.estimators.ci import simple_fci_bose_fermi
     system = HubbardHolstein (options, verbose=True)
+    # system = Hubbard (options, verbose=True)
 
-    (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=3, hamil=True)
-    print(eig)
+    nbosons = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    for nboson in nbosons:
+        (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
+        print(eig[0:5])
+    # eig, evec = simple_fci(system, gen_dets=True)[0]
     # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
     # print(dets)
     # oa, ob = zip(*itertools.product(oa,ob))

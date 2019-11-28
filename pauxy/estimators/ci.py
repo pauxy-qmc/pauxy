@@ -21,14 +21,14 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
 
     # convert to spin orbitals
     dets = [[j for j in a] + [i+system.nbasis for i in c] for (a,c) in zip(oa,ob)]
-    print("dets = {}".format(dets))
-    print("perms = {}".format(perms))
+    # print("dets = {}".format(dets))
+    # print("perms = {}".format(perms))
     dets = [numpy.sort(d) for d in dets]
 
     nperms = len(perms)
     ndets = len(dets)
 
-    print("# ndets, nperms = {}, {}".format(ndets, nperms))
+    print("# ndets, nperms, ntot = {}, {}, {}".format(ndets, nperms, ndets*nperms))
     
     Htot = numpy.zeros((ndets*nperms, ndets*nperms))
     
@@ -56,7 +56,8 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
             for jp, pj in enumerate(perms):
                 offset_j = jp * ndets
                 for idxdj, dj in enumerate(dets):
-                    get_holstein(system, pi, pj, di, dj)
+                    Htot[offset_i+idxdi, offset_j+idxdj] += get_holstein(system, pi, pj, di, dj)
+                    Htot[offset_j+idxdj, offset_i+idxdi] = Htot[offset_i+idxdi, offset_j+idxdj]
 
     if gen_dets:
         return scipy.linalg.eigh(Htot, lower=False), (dets,numpy.array(oa),numpy.array(ob))
@@ -82,6 +83,8 @@ def get_holstein(system, pi, pj, di, dj):
     occdiff = numpy.abs(occi - occj)
     noccdiff = numpy.sum(occdiff)
 
+    hij = 0.0
+
     if (noccdiff == 1.0):
         nocci = numpy.sum(occi)
         noccj = numpy.sum(occj)
@@ -94,15 +97,11 @@ def get_holstein(system, pi, pj, di, dj):
         nex = len(from_orb)
 
         if (nex == 0):
-            print(from_orb, to_orb)
-            exit()
-        # print(i, occdiff)
-        # print(occi, occj)
-
-    # if (len(api) > len(apj)):
-    #     result = all(elem in list(api) for elem in list(apj))
-    # else:
-    #     result = all(elem in list(apj) for elem in list(api))
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == i):
+                    hij += system.g
+    return hij
 
 # only diagonal is supported for now
 def get_hmatboson(system, pi, pj):
