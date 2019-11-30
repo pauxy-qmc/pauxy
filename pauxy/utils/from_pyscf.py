@@ -244,6 +244,23 @@ def write_fcidump(system, name='FCIDUMP'):
     fcidump.from_integrals(name, system.H1[0], system.h2e,
                            system.H1[0].shape[0], system.ne, nuc=system.ecore)
 
+def cholesky(mol, filename='hamil.h5', max_error=1e-6, verbose=False, cmax=20,
+             CHUNK_SIZE=2.0, MAX_SIZE=20.0):
+    nao = mol.nao_nr()
+    if nao*nao*cmax*nao*8.0 / 1024.0**3 > MAX_SIZE:
+        if verbose:
+            print("# Approximate memory for cholesky > MAX_SIZE ({} GB)."
+                  .format(MAX_SIZE))
+            print("# Using out of core algorithm.")
+            return chunked_cholesky_outcore(mol, filename=filename,
+                                            max_error=max_error,
+                                            verbose=verbose,
+                                            cmax=cmax,
+                                            CHUNK_SIZE=CHUNK_SIZE)
+        else:
+            return chunked_cholesky(mol, max_error=max_error, verbose=verbose,
+                                    cmax=cmax)
+
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     """Modified cholesky decomposition from pyscf eris.
 
@@ -353,8 +370,8 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
 
     return chol_vecs[:nchol]
 
-def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
-                             verbose=False, cmax=10, CHUNK_SIZE=2.0):
+def chunked_cholesky_outcore(mol, filename='hamil.h5', max_error=1e-6,
+                             verbose=False, cmax=20, CHUNK_SIZE=2.0):
     """Modified cholesky decomposition from pyscf eris.
 
     See, e.g. [Motta17]_
@@ -383,13 +400,15 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
     nao = mol.nao_nr()
     diag = numpy.zeros(nao*nao)
     nchol_max = cmax * nao
-    mem = 16.0*nchol_max*nao*nao / 1024.0**3
-    chunk_size = min(int(CHUNK_SIZE*1024.0**3/(16*nao*nao)),nchol_max)
+    mem = 8.0*nchol_max*nao*nao / 1024.0**3
+    chunk_size = min(int(CHUNK_SIZE*1024.0**3/(8*nao*nao)),nchol_max)
     if verbose:
         print("# Number of AOs: {}".format(nao))
+        print("# Writing AO Cholesky to {:s}.".format(filename))
         print("# Max number of Cholesky vectors: {}".format(nchol_max))
         print("# Max memory required for Cholesky tensor: {} GB".format(mem))
-        print("# Splitting calculation into chunks of size: {}".format(chunk_size))
+        print("# Splitting calculation into chunks of size: {} / GB"
+              .format(chunk_size, 8*chunk_size*nao*nao/(1024.0**3)))
         print("# Generating diagonal.")
     chol_vecs = numpy.zeros((chunk_size,nao*nao))
     ndiag = 0
@@ -409,13 +428,15 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
         ndiag += di * nao
     nu = numpy.argmax(diag)
     delta_max = diag[nu]
-    with h5py.File(erif, 'w') as fh5:
-        fh5['diagonal'] = diag
+    with h5py.File(filename, 'w') as fh5:
+        fh5.create_dataset('Lao',
+                           shape=(nchol_max, nao*nao),
+                           dtype=numpy.float64)
     end = time.time()
     if verbose:
-        print("# Time to generate diagonal {}.".format(end-start))
-        print("# Generating Cholesky decomposition of ERIs."%nchol_max)
-        print("# iteration %5d: delta_max = %f"%(0, delta_max))
+        print("# Time to generate diagonal {} s.".format(end-start))
+        print("# Generating Cholesky decomposition of ERIs.")
+        print("# iteration {:5d}: delta_max = {:13.8e}".format(0, delta_max))
     j = nu // nao
     l = nu % nao
     sj = numpy.searchsorted(dims, j)
@@ -425,22 +446,23 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
     if dims[sl] != l and l != 0:
         sl -= 1
     Mapprox = numpy.zeros(nao*nao)
-    # ERI[:,jl]
     eri_col = mol.intor('int2e_sph',
                         shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
     cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
-    # chol_vecs_full = numpy.zeros((nchol_max,nao*nao))
     chol_vecs[0] = numpy.copy(eri_col[:,:,cj,cl].reshape(nao*nao)) / delta_max**0.5
-    # chol_vecs_full[0] = chol_vecs[0]
 
     def compute_residual(chol, ichol, nchol, nu):
         # Updated residual = \sum_x L_i^x L_nu^x
         # R = numpy.dot(chol_vecs[:nchol+1,nu], chol_vecs[:nchol+1,:])
         R = 0.0
-        with h5py.File(erif, 'r') as fh5:
-            for ic in range(0,ichol):
+        with h5py.File(filename, 'r') as fh5:
+            for ic in range(0, ichol):
                 # Compute dot product from file.
-                L = fh5['chol_{}'.format(ic)][:]
+                # print(ichol*chunk_size, (ichol+1)*chunk_size)
+                # import sys
+                # sys.exit()
+                # print(ic*chunk_size, (ic*chunk_size)
+                L = fh5['Lao'][ic*chunk_size:(ic+1)*chunk_size,:]
                 R += numpy.dot(L[:,nu], L[:,:])
         R += numpy.dot(chol[:nchol+1,nu], chol[:nchol+1,:])
         return R
@@ -484,8 +506,8 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
         if nchol > 0 and (nchol + 1) % chunk_size == 0:
             startw = time.time()
             # delta = L[ichunk*chunk_size:(ichunk+1)*chunk_size]-chol_vecs
-            with h5py.File(erif, 'r+') as fh5:
-                fh5['chol_{}'.format(ichunk)] = chol_vecs
+            with h5py.File(filename, 'r+') as fh5:
+                fh5['Lao'][ichunk*chunk_size:(ichunk+1)*chunk_size] = chol_vecs
             endw = time.time()
             if verbose:
                 print("# Writing Cholesky chunk {} to file".format(ichunk))
@@ -493,22 +515,16 @@ def chunked_cholesky_outcore(mol, erif='chol.h5', max_error=1e-6,
             ichunk += 1
             chol_vecs[:] = 0.0
         chol_vecs[(nchol+1)%chunk_size] = (Munu0 - R) / (delta_max)**0.5
-        # chol_vecs_full[nchol+1] = (Munu0 - R) / (delta_max)**0.5
         nchol += 1
         if verbose:
             step_time = time.time() - start
-            info = (nchol, delta_max, step_time, endr-startr)
-            print("# iteration %5d: delta_max = %13.8e: step time = %13.8e: res"
-                  " time = %13.8e "%info)
-
-    with h5py.File(erif, 'r+') as fh5:
-        fh5['chol_{}'.format(ichunk)] = chol_vecs
-        fh5['nchol'] = numpy.array([nchol])
-        fh5['ncol'] = numpy.array([nao*nao])
-        fh5['chunk_size'] = numpy.array([chunk_size])
-        fh5['num_chunks'] = numpy.array([ichunk+1])
-
-    return chol_vecs[:nchol]
+            # info = (nchol, delta_max, step_time, endr-startr)
+            print("iteration {:5d} : delta_max = {:13.8e} : step time ="
+                  " {:13.8e} : res time = {:13.8e} "
+                  .format(nchol, delta_max, step_time, endr-startr))
+    with h5py.File(filename, 'r+') as fh5:
+        fh5['dims'] = numpy.array([nao*nao, nchol])
+    return nchol
 
 
 def multi_det_wavefunction(mc, weight_cutoff=0.95, verbose=False,
