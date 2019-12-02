@@ -165,13 +165,16 @@ class BackPropagation(object):
                 self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
 
             if self.restore_weights is not None:
-                wfac = wnm.field_configs.get_wfac()
+                cosine_fac, ph_fac = wnm.field_configs.get_wfac()
                 if self.restore_weights == "full":
-                    wfac = wfac[0]/wfac[1]
+                    # BP-Pres
+                    wfac = ph_fac / cosine_fac
                 else:
-                    wfac  = wfac[1]
+                    # BP-PRes (partial)
+                    wfac = ph_fac
                 weight = wnm.weight * wfac
             else:
+                # BP-PhL
                 weight = wnm.weight
             
             self.estimates[:self.nreg] += weight*energies

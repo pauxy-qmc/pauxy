@@ -111,12 +111,8 @@ class FieldConfig(object):
             s += dsize
 
     def get_wfac(self):
-        weight_fac = [1,1]
         cfac = numpy.prod(self.cos_fac[:self.step])
         wfac = numpy.prod(self.weight_fac[:self.step])
-        # for c, w in zip(self.cos_fac, self.weight_fac):
-            # weight_fac[0] *= w
-            # weight_fac[1] *= c
         return cfac, wfac
 
 

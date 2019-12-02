@@ -171,6 +171,11 @@ class Continuous(object):
         walker.phase *= cmath.exp(1j*dtheta)
 
     def apply_bound(self, ehyb, eshift):
+        # For initial steps until first estimator communication eshift will be
+        # zero and hybrid energy can be incorrectly. So just avoid capping for
+        # first block until reasonable estimate of eshift can be computed.
+        if abs(eshift) < 1e-10:
+            return ehyb
         if ehyb.real > eshift.real + self.ebound:
             ehyb = eshift.real+self.ebound+1j*ehyb.imag
             self.nhe_trig += 1

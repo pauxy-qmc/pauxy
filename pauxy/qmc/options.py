@@ -88,7 +88,7 @@ class QMCOpts(object):
         self.dt = get_input_value(inputs, 'timestep', default=0.005,
                                   alias=['dt'], verbose=verbose)
         self.nsteps = get_input_value(inputs, 'num_steps',
-                                      default=10, alias=['nsteps, steps'],
+                                      default=10, alias=['nsteps', 'steps'],
                                       verbose=verbose)
         self.nblocks = get_input_value(inputs, 'blocks',
                                       default=1000,
@@ -101,7 +101,8 @@ class QMCOpts(object):
                                       verbose=verbose)
         self.npop_control = get_input_value(inputs, 'pop_control_freq',
                                             default=1,
-                                            alias=['npop_control'],
+                                            alias=['npop_control',
+                                                   'pop_control'],
                                             verbose=verbose)
         self.eqlb_time = get_input_value(inputs, 'equilibration_time',
                                          default=2.0,

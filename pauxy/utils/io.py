@@ -365,7 +365,7 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
         if val is None:
             val = default
             if verbose:
-                print("# Warning: {} not specified. Setting to default value"
+                print("# Note: {} not specified. Setting to default value"
                       " of {}.".format(key, default))
     return val
 
@@ -620,10 +620,12 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
             },
         'qmc': {
             'dt': 0.005,
-            'nsteps': 5000,
-            'nmeasure': 10,
+            'nsteps': 10,
+            'blocks': 500,
             'nwalkers': 30,
-            'pop_control': 1
+            'blocks': 10000,
+            'nsteps': 10,
+            'pop_control_freq': 5
             },
         'trial': {
             'filename': wfn
@@ -642,4 +644,4 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
         # TODO with python2 support.
     full = merge_dicts(basic, options)
     with open(filename, 'w') as f:
-        f.write(json.dumps(full, indent=4))
+        f.write(json.dumps(full, indent=4, separators=(',', ': ')))

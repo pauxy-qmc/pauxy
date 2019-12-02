@@ -78,7 +78,9 @@ class AFQMC(object):
                  parallel=False, verbose=False):
         if verbose is not None:
             self.verbosity = verbose
-            verbose = verbose > 0
+            if comm.rank != 0:
+                self.verbosity = 0
+            verbose = verbose > 0 and comm.rank == 0
         # 1. Environment attributes
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
