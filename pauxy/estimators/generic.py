@@ -108,7 +108,6 @@ def local_energy_generic_cholesky(system, G, Ghalf=None):
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     nalpha, nbeta= system.nup, system.ndown
     nbasis = system.nbasis
-    print(system.chol_vecs.shape)
     cv = system.chol_vecs.reshape((-1,nbasis*nbasis))
     Ga, Gb = G[0], G[1]
     Xa = cv.dot(Ga.ravel())
