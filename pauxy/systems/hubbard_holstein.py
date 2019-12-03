@@ -1,7 +1,8 @@
 '''Hubbard model specific classes and methods'''
 
 import cmath
-from math import cos, pi
+import math
+from math import cos, pi, sqrt
 import numpy
 import numpy
 import scipy.linalg
@@ -52,8 +53,9 @@ class HubbardHolstein(object):
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
         self.t = inputs.get('t', 1.0)
-        self.g = inputs.get('g', -1.0)
+        self.lmbda = inputs.get('lambda', None)
         self.w0 = inputs.get('w0', 1.0)
+
         self.U = inputs['U']
         self.nx = inputs['nx']
         self.ny = inputs['ny']
@@ -69,9 +71,18 @@ class HubbardHolstein(object):
         else:
             self._alt_convention = False
         self.nbasis = self.nx * self.ny
+
+        # This depends on the dimension of the system hard-coded to do 1D
+        d = 2
+        if (self.nx == 1 or self.ny == 1): # 1d
+            d = 1
+        self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
+
         
         print("# nx, ny = {},{}".format(self.nx, self.ny))
+        print("# d = {}".format(d))
         print("# nbasis = {}".format(self.nbasis))
+        print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
 
         self.nactive = self.nbasis
         self.nfv = 0
@@ -480,27 +491,41 @@ def unit_test():
     import itertools
     from pauxy.systems.hubbard import Hubbard
     from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+    import scipy
+    import numpy
+    import scipy.sparse.linalg
     options = {
     "name": "HubbardHolstein",
     "nup": 1,
-    "ndown": 0,
-    "nx": 1,
-    "ny": 1,
-    "U": numpy.sqrt(2.),
-    "w0": 5.0,
-    "g": 0.25,
+    "ndown": 1,
+    "nx": 2,
+    "ny": 2,
+    "U": 8.0,
+    "w0": 0.5,
+    "lambda": 1.0,
+    # "U": 0.0,
+    # "w0": 0.5,
+    # "lambda": 1.0,
     }
     system = HubbardHolstein (options, verbose=True)
-    # system = Hubbard (options, verbose=True)
+    # nbosons = [5, 10, 20]#, 10, 20]
+    nbosons = [5, 10, 15, 20]
+    # eig = [-2.81790701 -2.56972224 -2.56972224 -2.49849154 -2.28210542]
+    # eig = [-2.83425305 -2.63010139 -2.63010139 -2.57878648 -2.36224815]
 
-    nbosons = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    # 
+    # nbosons = [5, 10, 20, 40, 60]
+    # nbosons = [1, 2]
+
     for nboson in nbosons:
+        print("# nboson = {}".format(nboson))
         (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
-        print(eig[0:5])
-    # eig, evec = simple_fci(system, gen_dets=True)[0]
-    # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
-    # print(dets)
-    # oa, ob = zip(*itertools.product(oa,ob))
+        # sH = scipy.sparse.csr_matrix(H)
+        # seig, sevec = scipy.sparse.linalg.eigsh(H, k=100)
+        # eig, evec = scipy.linalg.eigh(H, turbo=True)
+        # print(seig)
+        # return scipy.sparse.linalg.eigsh(Htot, k=6), Htot
+        print("eig = {}".format(eig[0:5]))
 
 if __name__=="__main__":
     unit_test()

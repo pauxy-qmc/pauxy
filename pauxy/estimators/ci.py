@@ -1,119 +1,128 @@
+import math
 import numpy
+import scipy
 import scipy.linalg
+import scipy.sparse.linalg
 import itertools
 
 def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, hamil=False):
     """Very dumb FCI routine."""
     orbs = numpy.arange(system.nbasis)
-    # bosons
-    perms = []
-    for ib in range(nboson_max+1):
-        perms += [c for c in itertools.product(orbs, repeat=ib)]
 
-    # fermions
+    # bosons
+    blkboson = [1] # blk size for each boson sector
+    perms = [[0 for i in range(system.nbasis)]]
+    for nboson in range(1,nboson_max+1):
+        perm = list(unlabeled_balls_in_labeled_boxes(nboson, [nboson for i in range(system.nbasis)]))
+        perms += perm
+        blkboson += [len(perm)]
+    # print("blkboson = {}".format(blkboson))
+    nperms = len(perms)
+    for i, perm in enumerate(perms):
+        perms[i] = numpy.array(perm)
+
     if occs is None:
         oa = [c for c in itertools.combinations(orbs, system.nup)]
         ob = [c for c in itertools.combinations(orbs, system.ndown)]
-        print(oa)
         oa, ob = zip(*itertools.product(oa,ob))
     else:
         oa, ob = occs
 
     # convert to spin orbitals
     dets = [[j for j in a] + [i+system.nbasis for i in c] for (a,c) in zip(oa,ob)]
-    # print("dets = {}".format(dets))
-    # print("perms = {}".format(perms))
     dets = [numpy.sort(d) for d in dets]
-
-    nperms = len(perms)
     ndets = len(dets)
 
     print("# ndets, nperms, ntot = {}, {}, {}".format(ndets, nperms, ndets*nperms))
     
-    Htot = numpy.zeros((ndets*nperms, ndets*nperms))
+    # Htot = numpy.zeros((ndets*nperms, ndets*nperms))
+    Htot = scipy.sparse.csr_matrix((ndets*nperms, ndets*nperms))
     
-    Hel = numpy.zeros((ndets,ndets))
+    Iel = scipy.sparse.eye(ndets)
+    Ib = scipy.sparse.eye(nperms)
+
+    hel = scipy.sparse.csr_matrix((ndets,ndets))
     for i in range(ndets):
         for j in range(i,ndets):
-            Hel[i,j] = get_hmatel(system, dets[i], dets[j])
-            Hel[j,i] = Hel[i,j]
+            hel[i,j] = get_hmatel(system, dets[i], dets[j])
+            hel[j,i] = hel[i,j]
 
-    Hb = numpy.zeros((nperms, nperms))
+    print("# finshed forming hel")
+
+    hb = scipy.sparse.csr_matrix((nperms, nperms))
 
     for i in range(nperms):
-        for j in range(i,nperms):
-            Hb[i,j] = get_hmatboson(system, perms[i], perms[j])
-            Hb[j,i] = Hb[i,j]
+        p = numpy.asarray(perms[i])
+        nocc = numpy.sum(p)
+        hb[i,i] = system.w0 * nocc
 
-    for i, perm in enumerate(perms):
-        offset = i * ndets
-        Htot[offset:offset+ndets, offset:offset+ndets] = Hel.copy()
-        Htot[offset:offset+ndets, offset:offset+ndets] += Hb[i, i]
+    print("# finshed forming hb")
 
-    for ip, pi in enumerate(perms):
-        offset_i = ip * ndets
-        for idxdi, di in enumerate(dets):
-            for jp, pj in enumerate(perms):
-                offset_j = jp * ndets
-                for idxdj, dj in enumerate(dets):
-                    Htot[offset_i+idxdi, offset_j+idxdj] += get_holstein(system, pi, pj, di, dj)
-                    Htot[offset_j+idxdj, offset_i+idxdi] = Htot[offset_i+idxdi, offset_j+idxdj]
-
-    if gen_dets:
-        return scipy.linalg.eigh(Htot, lower=False), (dets,numpy.array(oa),numpy.array(ob))
-    elif hamil:
-        return scipy.linalg.eigh(Htot, lower=False), Htot
-    else:
-        return scipy.linalg.eigh(Htot, lower=False)
-
-def to_occ (perm, nbsf):
-    occ_string = numpy.zeros(nbsf)
-    for i in range(nbsf):
-        occs = numpy.array(numpy.array(perm) == i, dtype=numpy.int64)
-        occ_string[i] = numpy.sum(occs)
-    # print(perm, occ_string)
-    return occ_string.copy()
-
-# Aim to compute <i | H | j>
-def get_holstein(system, pi, pj, di, dj):
-    nbsf = system.nbasis
-
-    occi = to_occ(pi, nbsf)
-    occj = to_occ(pj, nbsf)
-    occdiff = numpy.abs(occi - occj)
-    noccdiff = numpy.sum(occdiff)
-
-    hij = 0.0
-
-    if (noccdiff == 1.0):
-        nocci = numpy.sum(occi)
-        noccj = numpy.sum(occj)
-        i = int(numpy.argwhere (occdiff > 0)[0][0])
-
-        from_orb = list(set(dj)-set(di))
-        to_orb = list(set(di)-set(dj))
-        from_orb.sort()
-        to_orb.sort()
-        nex = len(from_orb)
-
-        if (nex == 0):
+    Heb = scipy.sparse.csr_matrix(Htot.shape)
+    for isite in range(system.nbasis):
+        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+        for i, di in enumerate(dets):
             for d in di:
                 ii, spin_ii = map_orb(d, system.nbasis)
-                if (ii == i):
-                    hij += system.g
-    return hij
+                if (ii == isite):
+                    rhoi[i,i] += 1.0
+        
+        bi = scipy.sparse.csr_matrix((nperms, nperms))
+        for i, iperm in enumerate(perms):
+            ni = numpy.sum(iperm)
+            offset_i = numpy.sum(blkboson[:ni+1]) # block size sum
+            if (ni == nboson_max):
+                continue
 
-# only diagonal is supported for now
-def get_hmatboson(system, pi, pj):
-    if (pi == pj):
-        p = numpy.asarray(pi)
-        h = 0.0
-        for i, isite in enumerate(p): # going through each boson
-            h += system.hb1(isite, isite)
-        return h
-    else:
-        return 0.0
+            for j, jperm in enumerate(perms[offset_i:offset_i+blkboson[ni+1]]):
+                diff = numpy.array(iperm) - numpy.array(jperm)
+                ndiff = numpy.sum(numpy.abs(diff))
+                if (ndiff == 1 and diff[isite] == -1):
+                    factor = math.sqrt(numpy.array(iperm)[isite]+1)
+                    bi[i,j+offset_i] = 1.0 * factor
+
+        xi = bi + bi.T
+
+        srhoi = scipy.sparse.csr_matrix(rhoi)
+        sxi = scipy.sparse.csr_matrix(xi)
+
+        # Heb += - system.g * numpy.kron(xi, rhoi)
+        Heb += - system.g * scipy.sparse.kron(xi, rhoi)
+
+        # bi_dagger = numpy.zeros((nperms, nperms))
+        # for i, iperm in enumerate(perms):
+        #     ni = numpy.sum(iperm)
+        #     offset_i = numpy.sum(blkboson[:ni+1]) # block size sum
+        #     for j, jperm in enumerate(perms):
+        #         diff = numpy.array(iperm) - numpy.array(jperm)
+        #         ndiff = numpy.sum(numpy.abs(diff))
+        #         if (ndiff == 1 and diff[isite] == 1):
+        #             factor = math.sqrt(numpy.array(iperm)[isite])
+        #             bi_dagger[i,j] = 1.0 * factor
+        
+        # bi = bi_dagger + bi_dagger.T
+        # Heb += - system.g * numpy.kron(bi, rhoi)
     
+    print("# finshed forming Heb")
+
+    
+    He = scipy.sparse.kron(Ib, hel)
+    Hb = scipy.sparse.kron(hb, Iel)
+
+    Htot = He + Hb + Heb
+
+    print("# finshed forming Htot")
+    print("# He nnz = {} out of total {}".format(He.nnz,ndets*nperms*ndets*nperms))
+    print("# Hb nnz = {} out of total {}".format(Hb.nnz,ndets*nperms*ndets*nperms))
+    print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
+    print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
+
+    if gen_dets:
+        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA'), (dets,numpy.array(oa),numpy.array(ob))
+    elif hamil:
+        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA'), Htot
+    else:
+        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA')
 
 def simple_fci(system, gen_dets=False, occs=None, hamil=False):
     """Very dumb FCI routine."""
@@ -261,3 +270,77 @@ def get_one_body_matel(ints, di, dj):
         return -matel
     else:
         return matel
+
+def unlabeled_balls_in_labeled_boxes(balls, box_sizes):
+   """
+   OVERVIEW
+   This function returns a generator that produces all distinct distributions of
+   indistinguishable balls among labeled boxes with specified box sizes
+   (capacities).  This is a generalization of the most common formulation of the
+   problem, where each box is sufficiently large to accommodate all of the
+   balls, and is an important example of a class of combinatorics problems
+   called 'weak composition' problems.
+   CONSTRUCTOR INPUTS
+   n: the number of balls
+   box_sizes: This argument is a list of length 1 or greater.  The length of
+   the list corresponds to the number of boxes.  `box_sizes[i]` is a positive
+   integer that specifies the maximum capacity of the ith box.  If
+   `box_sizes[i]` equals `n` (or greater), the ith box can accommodate all `n`
+   balls and thus effectively has unlimited capacity.
+   ACKNOWLEDGMENT
+   I'd like to thank Chris Rebert for helping me to convert my prototype
+   class-based code into a generator function.
+   """
+   if not isinstance(balls, int):
+      raise TypeError("balls must be a non-negative integer.")
+   if balls < 0:
+      raise ValueError("balls must be a non-negative integer.")
+
+   if not isinstance(box_sizes,list):
+      raise ValueError("box_sizes must be a non-empty list.")
+
+   capacity= 0
+   for size in box_sizes:
+      if not isinstance(size, int):
+          raise TypeError("box_sizes must contain only positive integers.")
+      if size < 1:
+          raise ValueError("box_sizes must contain only positive integers.")
+      capacity+= size
+
+   if capacity < balls:
+      raise ValueError("The total capacity of the boxes is less than the "
+        "number of balls to be distributed.")
+
+   return _unlabeled_balls_in_labeled_boxes(balls, box_sizes)
+
+
+def _unlabeled_balls_in_labeled_boxes(balls, box_sizes):
+   """
+   This recursive generator function was designed to be returned by
+   `unlabeled_balls_in_labeled_boxes`.
+   """
+
+   # If there are no balls, all boxes must be empty:
+   if not balls:
+      yield len(box_sizes) * (0,)
+
+   elif len(box_sizes) == 1:
+
+      # If the single available box has sufficient capacity to store the balls,
+      # there is only one possible distribution, and we return it to the caller
+      # via `yield`.  Otherwise, the flow of control will pass to the end of the
+      # function, triggering a `StopIteration` exception.
+      if box_sizes[0] >= balls:
+          yield (balls,)
+
+   else:
+
+      # Iterate over the number of balls in the first box (from the maximum
+      # possible down to zero), recursively invoking the generator to distribute
+      # the remaining balls among the remaining boxes.
+      for balls_in_first_box in range( min(balls, box_sizes[0]), -1, -1 ):
+         balls_in_other_boxes= balls - balls_in_first_box
+
+         for distribution_other in _unlabeled_balls_in_labeled_boxes(
+           balls_in_other_boxes, box_sizes[1:]):
+            yield (balls_in_first_box,) + distribution_other
