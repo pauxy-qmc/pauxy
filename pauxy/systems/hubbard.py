@@ -64,8 +64,9 @@ class Hubbard(object):
             self._alt_convention = False
         self.nbasis = self.nx * self.ny
         
-        print("# nx, ny = {},{}".format(self.nx, self.ny))
-        print("# nbasis = {}".format(self.nbasis))
+        if verbose:        
+            print("# nx, ny = {},{}".format(self.nx, self.ny))
+            print("# nbasis = {}".format(self.nbasis))
 
         self.nactive = self.nbasis
         self.nfv = 0
@@ -470,14 +471,14 @@ def unit_test():
     "nup": 1,
     "ndown": 1,
     "nx": 2,
-    "ny": 1,
-    "U": numpy.sqrt(2.),
+    "ny": 2,
+    "U": 4.0
     }
     from pauxy.estimators.ci import simple_fci
     system = Hubbard (options, verbose=True)
     (eig, evec), H = simple_fci(system, hamil=True)
     # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
-    # print(eig)
+    print(eig)
     # print(dets)
     # oa, ob = zip(*itertools.product(oa,ob))
 

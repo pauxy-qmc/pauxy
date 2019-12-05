@@ -53,7 +53,7 @@ class HubbardHolstein(object):
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
         self.t = inputs.get('t', 1.0)
-        self.lmbda = inputs.get('lambda', None)
+        self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)
 
         self.U = inputs['U']
@@ -78,11 +78,14 @@ class HubbardHolstein(object):
             d = 1
         self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
 
-        
-        print("# nx, ny = {},{}".format(self.nx, self.ny))
-        print("# d = {}".format(d))
-        print("# nbasis = {}".format(self.nbasis))
-        print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
+        if verbose:
+            print("# d = {}".format(d))
+            print("# nx, ny = {},{}".format(self.nx, self.ny))
+            print("# nbasis = {}".format(self.nbasis))
+            print("# t, U = {}, {}".format(self.t, self.U))
+            print("# w0, g, lambda = {}, {}, {}".format(self.w0, self.g, self.lmbda))
+            # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
+            # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
 
         self.nactive = self.nbasis
         self.nfv = 0
@@ -157,29 +160,7 @@ class HubbardHolstein(object):
         else:
             return header
     
-    # Boson one-body
-    def hb1(self,i,j):
-        if (i == j):
-            return self.w0
-        else:
-            return 0.0
-
     def hijkl(self,i,j,k,l):
-        """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
-
-        Checks for momentum conservation k_i + k_j = k_k + k_k, or
-        k_k - k_i = k_j - k_l.
-
-        Parameters
-        ----------
-        i, j, k, l : int
-            Orbital indices for integral (ik|jl) = <ij|kl>.
-
-        Returns
-        -------
-        integral : float
-            (ik|jl)
-        """
         if (i == k and j == l and i==j):
             return self.U
         else:

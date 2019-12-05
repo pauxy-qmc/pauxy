@@ -63,6 +63,10 @@ class SingleDetWalker(object):
                                          # system.nbasis, trial.psi.dtype,
                                          # BT=None, BTinv=None,
                                          # diagonal=False)
+        
+        if system.name == "HubbardHolstein":
+            self.X = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position
+
         try:
             excite = trial.excite_ia
         except AttributeError:

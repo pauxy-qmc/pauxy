@@ -2,6 +2,7 @@
 
 from pauxy.propagation.continuous import Continuous
 from pauxy.propagation.hubbard import HirschSpin
+from pauxy.propagation.hubbard_holstein import HirschSpinDMC
 
 # TODO: Fix for discrete transformation.
 def get_propagator_driver(system, trial, qmc, options={}, verbose=False):
@@ -33,6 +34,9 @@ def get_discrete_propagator(options, qmc, system, trial, verbose=False):
     hs_type = options.get('hubbard_stratonovich', 'discrete')
     if system.name == "Hubbard":
         propagator = HirschSpin(system, trial, qmc,
+                                options=options, verbose=verbose)
+    elif system.name == "HubbardHolstein":
+        propagator = HirschSpinDMC(system, trial, qmc,
                                 options=options, verbose=verbose)
     else:
         propagator = None
