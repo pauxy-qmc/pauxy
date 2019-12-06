@@ -15,7 +15,7 @@ try:
     from pauxy.estimators.pw_fft import local_energy_pw_fft
 except ImportError as e:
     print(e)
-from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
+from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf, local_energy_hubbard_holstein
 from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
@@ -359,6 +359,13 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
+def local_energy_hh(system, G, X, Xprev, dt, Ghalf=None):
+    if system.name == "HubbardHolstein":
+        return local_energy_hubbard_holstein(system, G, X, Xprev, dt, Ghalf)
+    else:
+        print("SOMETHING IS VERY WRONG... WHY ARE YOU CALLING HUBBARD-HOSTEIN FUNCTION?")
+        exit()
+
 def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
     """Helper routine to compute local energy.
 
@@ -381,7 +388,7 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         else:
             return local_energy_hubbard(system, G)
     elif system.name == "PW_FFT":
-            return local_energy_pw_fft(system, G, Ghalf, two_rdm=two_rdm)
+        return local_energy_pw_fft(system, G, Ghalf, two_rdm=two_rdm)
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:

@@ -111,9 +111,9 @@ class HubbardHolstein(object):
         self.ecore = 0.0
         # Number of field configurations per walker.
         self.nfields = self.nbasis
-        self.name = "Hubbard"
+        self.name = "HubbardHolstein"
         if verbose:
-            print("# Finished setting up Hubbard system object.")
+            print("# Finished setting up Hubbard-Holstein system object.")
         # "Volume" to define density.
         self.vol = self.nx * self.ny
         self.construct_h1e_mod()

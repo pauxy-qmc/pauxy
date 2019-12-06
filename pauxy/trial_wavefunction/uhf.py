@@ -108,7 +108,7 @@ class UHF(object):
                 enew = local_energy(system, numpy.array([Gup, Gdown]))[0].real
                 if verbose > 1:
                     print("# %d %f %f" % (it, enew, eold))
-                sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
+                sc = self.self_consistent(enew, eold, niup, niup_old, nidown,
                                           nidown_old, it, deps, verbose)
                 if sc:
                     # Global minimum search.
@@ -132,9 +132,20 @@ class UHF(object):
             if verbose > 1:
                 print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
                       " energy found is: {: 8f}".format(attempt, it, eold))
+                MS = numpy.abs(system.nup - system.ndown) / 2.0
+                S2exact = MS * (MS+1.)
+                Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+                S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+                print("# <S^2> = {: 3f}".format(S2))
 
         system.U = uold
         print("# Minimum energy found: {: 8f}".format(min(minima)))
+        MS = numpy.abs(system.nup - system.ndown) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+        print("# <S^2> = {: 3f}".format(S2))
+
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
@@ -167,7 +178,7 @@ class UHF(object):
     def density(self, wfn):
         return numpy.diag(wfn.dot((wfn.conj()).T))
 
-    def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
+    def self_consistent(self, enew, eold, niup, niup_old, nidown, nidown_old,
                         it, deps=1e-8, verbose=0):
         '''Check if system parameters are converged'''
 
@@ -187,6 +198,10 @@ class UHF(object):
         # mean field Hamiltonians.
         HMFU = system.T[0] + numpy.diag(ueff*nidown)
         HMFD = system.T[1] + numpy.diag(ueff*niup)
+
+        # if (system.name == "HubbardHolstein"):
+            # print("HHMODEL")
+
         (e_up, ev_up) = diagonalise_sorted(HMFU)
         (e_down, ev_down) = diagonalise_sorted(HMFD)
         # Construct new wavefunction given new density.
@@ -204,3 +219,45 @@ class UHF(object):
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))
+
+
+def unit_test():
+    import itertools
+    from pauxy.systems.hubbard import Hubbard
+    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+    from pauxy.systems.hubbard_holstein import HubbardHolstein
+    import scipy
+    import numpy
+    import scipy.sparse.linalg
+    options1 = {
+    "name": "Hubbard",
+    # "name": "HubbardHolstein",
+    "nup": 7,
+    "ndown": 7,
+    "nx": 7,
+    "ny": 7,
+    "U": 8.0,
+    "w0": 0.5,
+    "lambda": 1.0
+    }
+    options2 = {
+    # "name": "Hubbard",
+    "name": "HubbardHolstein",
+    "nup": 7,
+    "ndown": 7,
+    "nx": 7,
+    "ny": 7,
+    "U": 8.0,
+    "w0": 0.5,
+    "lambda": 1.0
+    }
+    system = Hubbard (options1, verbose=True)
+    system = HubbardHolstein (options2, verbose=True)
+
+    uhf_driver = UHF(system, False, options1, parallel=False, verbose=0)
+    uhf_driver = UHF(system, False, options2, parallel=False, verbose=0)
+
+
+
+if __name__=="__main__":
+    unit_test()

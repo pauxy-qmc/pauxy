@@ -1,7 +1,7 @@
 import copy
 import numpy
 import scipy.linalg
-from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.mixed import local_energy, local_energy_hh
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.walkers.stack import PropagatorStack, FieldConfig
@@ -65,7 +65,8 @@ class SingleDetWalker(object):
                                          # diagonal=False)
         
         if system.name == "HubbardHolstein":
-            self.X = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position
+            self.X = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position current time
+            self.Xprev = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position previous time
 
         try:
             excite = trial.excite_ia
@@ -283,7 +284,10 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
+        if (system.name == "HubbardHolstein"):
+            return local_energy_hh(system, self.G, self.X, self.Xprev, self.dt, Ghalf=self.Gmod)
+        else:
+            return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

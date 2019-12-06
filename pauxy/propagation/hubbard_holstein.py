@@ -165,7 +165,6 @@ class HirschSpinDMC(object):
         acc = self.acceptance(walker.X ,posnew, driftold, driftnew, self.dt, boson_trial)
         if (acc > numpy.random.random(1)):
             walker.X = posnew.copy()
-        
         #Change weight
         eloc = boson_trial.local_energy(walker.X)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eref))
@@ -240,7 +239,35 @@ class HirschSpinDMC(object):
             else:
                 walker.weight = 0
                 return
+    
+    def boson_propagator(self, walker, system):
+        Ev = 0.5 * system.w0**2 * numpy.sum(walker.X * walker.X)
+        expEv = math.exp(-self.dt * Ev)
 
+        dX = math.sqrt(2.0 * math.pi * self.dt) * numpy.random.normal(loc=0.0, scale=self.sqrtdt, size=system.nbasis)
+
+        Xnew = walker.X + dX
+
+        walker.X = Xnew.copy()
+        walker.weight *= expEv
+
+
+        # #Drift+diffusion
+        # driftold = self.dt * boson_trial.gradient(walker.X)
+        # elocold = boson_trial.local_energy(walker.X)
+        
+        # posnew = walker.X + self.sqrtdt * np.random.randn(walker.X.shape) + driftold
+        
+        # driftnew = self.dt * boson_trial.gradient(posnew)
+
+        # acc = self.acceptance(walker.X ,posnew, driftold, driftnew, self.dt, boson_trial)
+        # if (acc > numpy.random.random(1)):
+        #     walker.X = posnew.copy()
+
+        # #Change weight
+        # eloc = boson_trial.local_energy(walker.X)
+        # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eref))
+    
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
 
@@ -258,8 +285,10 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
+        # if abs(walker.weight) > 0:
+        #     self.boson_importance_sampling(walker, system, self.boson_trial)
         if abs(walker.weight) > 0:
-            self.boson_importance_sampling(walker, system, self.boson_trial)
+            self.boson_propagator(walker, system)
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
         if abs(walker.weight) > 0:

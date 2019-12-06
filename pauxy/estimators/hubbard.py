@@ -1,3 +1,4 @@
+import cmath
 import numpy
 
 def local_energy_hubbard(system, G, Ghalf=None):
@@ -22,6 +23,40 @@ def local_energy_hubbard(system, G, Ghalf=None):
     pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal())
 
     return (ke + pe, ke, pe)
+
+def local_energy_hubbard_holstein(system, G, X, Xprev, dt, Ghalf=None):
+    r"""Calculate local energy of walker for the Hubbard model.
+
+    Parameters
+    ----------
+    system : :class:`Hubbard`
+        System information for the Hubbard model.
+    G : :class:`numpy.ndarray`
+        Walker's "Green's function"
+
+    Returns
+    -------
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
+    """
+    ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
+    # Todo: Stupid
+    if system.symmetric:
+        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
+    pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal())
+
+    
+    pe_ph = 0.5 * system.w0 ** 2 * numpy.sum(X * X)
+    
+    dX = X - Xprev
+    ke_ph = 0.5 * numpy.sum(dX * dX / dt)
+
+
+    e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.dot(G[0].diagonal() + G[1].diagonal(), X)
+
+    etot = ke + pe + pe_ph + ke_ph + e_eph
+
+    return (etot, ke+ke_ph, pe+pe_ph+e_eph)
 
 
 def local_energy_hubbard_ghf(system, Gi, weights, denom):
