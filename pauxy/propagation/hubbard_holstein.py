@@ -327,7 +327,7 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
 
-    def propagate_walker_free(self, walker, system, trial):
+    def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
 
         Uses single-site updates for potential term.
