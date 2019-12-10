@@ -296,7 +296,6 @@ class HirschSpinDMC(object):
         #Change weight
         eloc = self.boson_trial.local_energy(walker.X)
         # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
-
         # print("# acc_ratio = {}".format(acc_ratio))
         # print("# eloc = {}".format(eloc))
 
@@ -343,7 +342,15 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
+        self.boson_importance_sampling(walker, system, self.boson_trial, eshift)
+
         kinetic_real(walker.phi, system, self.bt2)
+
+        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
         delta = self.delta
         nup = system.nup
         for i in range(0, system.nbasis):
@@ -358,6 +365,9 @@ class HirschSpinDMC(object):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
         kinetic_real(walker.phi, system, self.bt2)
+
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
         walker.inverse_overlap(trial)
         # Update walker weight
         walker.ot = walker.calc_otrial(trial.psi)
