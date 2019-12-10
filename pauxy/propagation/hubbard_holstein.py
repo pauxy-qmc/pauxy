@@ -10,25 +10,23 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
 class HarmonicOscillator(object):
-    def __init__(self, w, order):
+    def __init__(self, w, order, shift = 0.0):
         self.w = w
         self.order = order
         self.norm = (self.w / math.pi) ** 0.25 # not necessary but we just include...
+        self.xavg = shift
+        self.eshift = self.xavg**2 * self.w**2 / 2.0
 #-------------------------
     def value(self,X): # X : lattice configuration
-        result = self.norm * numpy.exp(- self.w / 2.0 * X * X)
+        result = self.norm * numpy.exp(- self.w / 2.0 * (X-self.xavg) * (X-self.xavg))
         return result 
 #-------------------------
     def gradient(self,X):
-        grad = (-self.w * X) * self.value(X)
+        grad = (-self.w * (X-self.xavg)) * self.value(X)
         return grad
 #-------------------------
     def laplacian(self,X):
-        # lap = - self.w * self.value(X) - self.w * X * self.gradient(X)
-        # lap = self.w * X * X * self.value(X)
-        lap = self.w * self.w * X * X * self.value(X) - self.w * self.value(X)
-        # lap = self.w * (-1.0 + self.w * X * X)
-        # lap = self.w * self.w * X * X - self.w
+        lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) * self.value(X) - self.w * self.value(X)
         return lap
 #-------------------------
     def local_energy(self, X):
@@ -39,8 +37,10 @@ class HarmonicOscillator(object):
         pot  = 0.5 * self.w * self.w * numpy.sum(X * X)
 
         eloc = ke+pot - 0.5 * self.w * nsites # No zero-point energy
+        eloc -= self.eshift * nsites # subtract the shift energy
 
         return eloc
+
 
 
 class HirschSpinDMC(object):
@@ -113,7 +113,8 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        self.boson_trial = HarmonicOscillator(system.w0, 0)
+        shift = numpy.sqrt(system.w0*2.0) * system.g
+        self.boson_trial = HarmonicOscillator(system.w0, shift)
 
         if verbose:
             print ("# Finished setting up propagator.")
@@ -294,7 +295,7 @@ class HirschSpinDMC(object):
         acc_ratio=numpy.sum(imove)/float(nconfig)
 
         #Change weight
-        eloc = self.boson_trial.local_energy(walker.X)
+        # eloc = self.boson_trial.local_energy(walker.X)
         # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
         # print("# acc_ratio = {}".format(acc_ratio))
         # print("# eloc = {}".format(eloc))

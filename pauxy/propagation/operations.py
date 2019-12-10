@@ -31,7 +31,7 @@ def kinetic_real(phi, system, bt2, H1diag=False):
 
     For use with the continuus algorithm and free propagation.
 
-    todo : this is the same a propagating by an arbitrary matrix, remove.
+    todo : this is the same as propagating by an arbitrary matrix, remove.
 
     Parameters
     ----------

@@ -34,6 +34,8 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     ndets = len(dets)
 
     print("# ndets, nperms, ntot = {}, {}, {}".format(ndets, nperms, ndets*nperms))
+
+    ntot = ndets*nperms
     
     # Htot = numpy.zeros((ndets*nperms, ndets*nperms))
     Htot = scipy.sparse.csr_matrix((ndets*nperms, ndets*nperms))
@@ -87,8 +89,9 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
         sxi = scipy.sparse.csr_matrix(xi)
 
         # Heb += - system.g * numpy.kron(xi, rhoi)
-        Heb += - system.g * scipy.sparse.kron(xi, rhoi)
-
+        # Heb += - system.g * scipy.sparse.kron(xi, rhoi)
+        Heb += system.g * scipy.sparse.kron(xi, rhoi)
+        
         # bi_dagger = numpy.zeros((nperms, nperms))
         # for i, iperm in enumerate(perms):
         #     ni = numpy.sum(iperm)
@@ -122,6 +125,40 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
     Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
     Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
+
+    for isite in range(system.nbasis):
+        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+        for i, di in enumerate(dets):
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == isite):
+                    rhoi[i,i] += 1.0
+        rho = scipy.sparse.kron(Ib, rhoi)
+        nocc1 =  eigvec[:,0].T.conj().dot(rho.dot(eigvec[:,0]))
+        nocc2 =  eigvec[:,1].T.conj().dot(rho.dot(eigvec[:,1]))
+        print("i, nocc1, nocc2 = {}, {}, {}".format(isite, nocc1, nocc2))
+
+    # for isite in range(system.nbasis):
+    #     bi = scipy.sparse.csr_matrix((nperms, nperms))
+    #     for i, iperm in enumerate(perms):
+    #         ni = numpy.sum(iperm)
+    #         offset_i = numpy.sum(blkboson[:ni+1]) # block size sum
+    #         if (ni == nboson_max):
+    #             continue
+
+    #         for j, jperm in enumerate(perms[offset_i:offset_i+blkboson[ni+1]]):
+    #             diff = numpy.array(iperm) - numpy.array(jperm)
+    #             ndiff = numpy.sum(numpy.abs(diff))
+    #             if (ndiff == 1 and diff[isite] == -1):
+    #                 factor = math.sqrt(numpy.array(iperm)[isite]+1)
+    #                 bi[i,j+offset_i] = 1.0 * factor
+
+    #     nib = bi.T.dot(bi)
+    #     ni = scipy.sparse.kron(nib, Iel)
+
+    #     nocc1 =  eigvec[:,0].T.conj().dot(ni.dot(eigvec[:,0]))
+    #     nocc2 =  eigvec[:,1].T.conj().dot(ni.dot(eigvec[:,1]))
+    #     print("i, nocc1, nocc2 = {}, {}, {}".format(isite, nocc1, nocc2))
 
     print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eb, Eeb, Eel+Eb+Eeb))
 
