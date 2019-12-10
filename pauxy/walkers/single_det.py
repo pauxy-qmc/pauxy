@@ -66,7 +66,7 @@ class SingleDetWalker(object):
         
         if system.name == "HubbardHolstein":
             self.X = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position current time
-            self.Xprev = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position previous time
+            self.P = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
 
         try:
             excite = trial.excite_ia
@@ -285,7 +285,7 @@ class SingleDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         if (system.name == "HubbardHolstein"):
-            return local_energy_hh(system, self.G, self.X, self.Xprev, self.dt, Ghalf=self.Gmod)
+            return local_energy_hh(system, self.G, self.X, self.P, Ghalf=self.Gmod)
         else:
             return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 

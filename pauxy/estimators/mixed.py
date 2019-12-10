@@ -359,9 +359,11 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy_hh(system, G, X, Xprev, dt, Ghalf=None):
+def local_energy_hh(system, G, X, P, Ghalf=None):
     if system.name == "HubbardHolstein":
-        return local_energy_hubbard_holstein(system, G, X, Xprev, dt, Ghalf)
+        (e1, e2, e3) = local_energy_hubbard_holstein(system, G, X, P, Ghalf)
+        # print("(e1, e2, e3) = ", (e1, e2, e3))
+        return (e1, e2, e3)
     else:
         print("SOMETHING IS VERY WRONG... WHY ARE YOU CALLING HUBBARD-HOSTEIN FUNCTION?")
         exit()
@@ -386,6 +388,8 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
         if ghf:
             return local_energy_ghf(system, G)
         else:
+            return local_energy_hubbard(system, G)
+    elif system.name == "HubbardHolstein":
             return local_energy_hubbard(system, G)
     elif system.name == "PW_FFT":
         return local_energy_pw_fft(system, G, Ghalf, two_rdm=two_rdm)

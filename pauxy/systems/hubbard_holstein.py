@@ -480,17 +480,19 @@ def unit_test():
     "nup": 1,
     "ndown": 1,
     "nx": 2,
-    "ny": 2,
-    "U": 8.0,
-    "w0": 0.5,
-    "lambda": 1.0,
+    "ny": 1,
+    "U": 0.0,
+    "w0": 1.0,
+    "lambda": 0.01,
     # "U": 0.0,
     # "w0": 0.5,
     # "lambda": 1.0,
     }
     system = HubbardHolstein (options, verbose=True)
     # nbosons = [5, 10, 20]#, 10, 20]
+    # nbosons = [5, 10, 15, 20]
     nbosons = [5, 10, 15, 20]
+    # nbosons = [1]
     # eig = [-2.81790701 -2.56972224 -2.56972224 -2.49849154 -2.28210542]
     # eig = [-2.83425305 -2.63010139 -2.63010139 -2.57878648 -2.36224815]
 
@@ -501,6 +503,7 @@ def unit_test():
     for nboson in nbosons:
         print("# nboson = {}".format(nboson))
         (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
+        # print(H.todense())
         # sH = scipy.sparse.csr_matrix(H)
         # seig, sevec = scipy.sparse.linalg.eigsh(H, k=100)
         # eig, evec = scipy.linalg.eigh(H, turbo=True)

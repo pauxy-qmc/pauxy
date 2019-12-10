@@ -117,12 +117,20 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
     print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
 
+    eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=5, which='SA')
+
+    Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
+    Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
+    Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
+
+    print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eb, Eeb, Eel+Eb+Eeb))
+
     if gen_dets:
-        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA'), (dets,numpy.array(oa),numpy.array(ob))
+        return (eigval, eigvec), (dets,numpy.array(oa),numpy.array(ob))
     elif hamil:
-        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA'), Htot
+        return (eigval, eigvec), Htot
     else:
-        return scipy.sparse.linalg.eigsh(Htot, k=5, which='SA')
+        return (eigval, eigvec)
 
 def simple_fci(system, gen_dets=False, occs=None, hamil=False):
     """Very dumb FCI routine."""

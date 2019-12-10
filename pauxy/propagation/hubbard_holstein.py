@@ -24,13 +24,22 @@ class HarmonicOscillator(object):
         return grad
 #-------------------------
     def laplacian(self,X):
-        lap = - self.w * self.value(X) - self.w * X * self.gradient(X)
+        # lap = - self.w * self.value(X) - self.w * X * self.gradient(X)
+        # lap = self.w * X * X * self.value(X)
+        lap = self.w * self.w * X * X * self.value(X) - self.w * self.value(X)
+        # lap = self.w * (-1.0 + self.w * X * X)
+        # lap = self.w * self.w * X * X - self.w
         return lap
 #-------------------------
     def local_energy(self, X):
-        ke   = - 0.5 * self. w * numpy.sum(self.laplacian(X))
-        pot  = 0.5 * self.w * numpy.sum(X * X)
-        eloc = ke+pot
+
+        nsites = X.shape[0]
+
+        ke   = - 0.5 * numpy.sum(self.laplacian(X)/self.value(X))
+        pot  = 0.5 * self.w * self.w * numpy.sum(X * X)
+
+        eloc = ke+pot - 0.5 * self.w * nsites # No zero-point energy
+
         return eloc
 
 
@@ -60,6 +69,10 @@ class HirschSpinDMC(object):
         else:
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
                                     scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
+
+        # eigval, eigvec = scipy.linalg.eigh(system.T[1])
+        # print(eigval)
+        # exit()
 
         if trial.type == 'GHF' and trial.bp_wfn is not None:
             self.BT_BP = scipy.linalg.block_diag(self.bt2, self.bt2)
@@ -144,31 +157,6 @@ class HirschSpinDMC(object):
         """
         walker.greens_function(trial)
     
-    def acceptance(posold,posnew,driftold,driftnew,tau,wf):
-        
-        gfratio=np.exp(-np.sum( (posold-posnew-driftnew)**2/(2*tau),axis=(0,1)) 
-                       +np.sum( (posnew-posold-driftold)**2/(2*tau),axis=(0,1)) )
-        
-        ratio = wf.value(posnew)**2 / wf.value(posold)**2
-
-        return ratio*gfratio
-    
-    def boson_importance_sampling(self, walker, system, trial):
-        #Drift+diffusion
-        driftold = self.dt * boson_trial.gradient(walker.X)
-        elocold = boson_trial.local_energy(walker.X)
-        
-        posnew = walker.X + self.sqrtdt * np.random.randn(walker.X.shape) + driftold
-        
-        driftnew = self.dt * boson_trial.gradient(posnew)
-
-        acc = self.acceptance(walker.X ,posnew, driftold, driftnew, self.dt, boson_trial)
-        if (acc > numpy.random.random(1)):
-            walker.X = posnew.copy()
-        #Change weight
-        eloc = boson_trial.local_energy(walker.X)
-        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eref))
-    
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
 
@@ -183,6 +171,12 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
         self.kinetic(walker.phi, system, self.bt2)
+
+        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
         # Update inverse overlap
         walker.inverse_overlap(trial)
         # Update walker weight
@@ -240,34 +234,72 @@ class HirschSpinDMC(object):
                 walker.weight = 0
                 return
     
-    def boson_propagator(self, walker, system):
+    def propagate_boson(self, walker, system):
+        
         Ev = 0.5 * system.w0**2 * numpy.sum(walker.X * walker.X)
+        Et = 0.5 * numpy.sum(walker.P * walker.P)
+        Eold = Ev + Et
         expEv = math.exp(-self.dt * Ev)
 
-        dX = math.sqrt(2.0 * math.pi * self.dt) * numpy.random.normal(loc=0.0, scale=self.sqrtdt, size=system.nbasis)
 
+        dX = math.sqrt(2.0 * math.pi * self.dt) * numpy.random.normal(loc=0.0, scale=self.sqrtdt, size=system.nbasis)
         Xnew = walker.X + dX
 
-        walker.X = Xnew.copy()
-        walker.weight *= expEv
+        Pnew = (Xnew - walker.X) / self.dt
 
+        Ev = 0.5 * system.w0**2 * numpy.sum(Xnew * Xnew)
+        Et = 0.5 * numpy.sum(Pnew * Pnew)
+        Enew = Ev + Et
 
-        # #Drift+diffusion
-        # driftold = self.dt * boson_trial.gradient(walker.X)
-        # elocold = boson_trial.local_energy(walker.X)
-        
-        # posnew = walker.X + self.sqrtdt * np.random.randn(walker.X.shape) + driftold
-        
-        # driftnew = self.dt * boson_trial.gradient(posnew)
+        dE = Enew - Eold
 
-        # acc = self.acceptance(walker.X ,posnew, driftold, driftnew, self.dt, boson_trial)
-        # if (acc > numpy.random.random(1)):
-        #     walker.X = posnew.copy()
+        Pacc = numpy.exp(-self.dt * dE)
 
-        # #Change weight
-        # eloc = boson_trial.local_energy(walker.X)
-        # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eref))
+        x = numpy.random.rand(1)
+
+        if (x < Pacc):
+            walker.X = Xnew.copy()
+            walker.P = Pnew.copy()
+            walker.weight *= Pacc
     
+    def acceptance(self, posold,posnew,driftold,driftnew, trial):
+        
+        gfratio=numpy.exp(-numpy.sum( (posold-posnew-driftnew)**2/(2*self.dt) ) 
+                       +numpy.sum( (posnew-posold-driftold)**2/(2*self.dt) ) 
+                       )
+        
+        ratio = trial.value(posnew)**2 / trial.value(posold)**2
+
+        return ratio*gfratio
+    
+    def boson_importance_sampling(self, walker, system, trial, eshift):
+        #Drift+diffusion
+        driftold = self.dt * self.boson_trial.gradient(walker.X)
+        elocold = self.boson_trial.local_energy(walker.X)
+
+        Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
+        Pnew = self.boson_trial.gradient(walker.X) * 1j
+        
+        driftnew = self.dt * self.boson_trial.gradient(Xnew)
+
+        acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
+
+        nconfig = walker.X.shape[0]
+
+        imove = acc > numpy.random.random(nconfig)
+        walker.X[imove] = Xnew[imove]
+        lap = self.boson_trial.laplacian(walker.X) / self.boson_trial.value(walker.X)
+        walker.P = lap
+        
+        acc_ratio=numpy.sum(imove)/float(nconfig)
+
+        #Change weight
+        eloc = self.boson_trial.local_energy(walker.X)
+        # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
+
+        # print("# acc_ratio = {}".format(acc_ratio))
+        # print("# eloc = {}".format(eloc))
+
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
 
@@ -285,10 +317,10 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-        # if abs(walker.weight) > 0:
-        #     self.boson_importance_sampling(walker, system, self.boson_trial)
         if abs(walker.weight) > 0:
-            self.boson_propagator(walker, system)
+            self.boson_importance_sampling(walker, system, self.boson_trial, eshift)
+        # if abs(walker.weight) > 0:
+        #     self.propagate_boson(walker, system)
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
         if abs(walker.weight) > 0:
