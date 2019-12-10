@@ -76,7 +76,11 @@ class HubbardHolstein(object):
         d = 2
         if (self.nx == 1 or self.ny == 1): # 1d
             d = 1
-        self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
+
+        self.g = inputs.get('g', None)
+        
+        if (self.g == None):
+            self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
 
         if verbose:
             print("# d = {}".format(d))
@@ -482,8 +486,11 @@ def unit_test():
     "nx": 2,
     "ny": 1,
     "U": 0.0,
+    "t": 0.0,
     "w0": 1.0,
-    "lambda": 0.01,
+    # "lambda": 0.01,
+    # "lambda": 0.5,
+    "g": 0.5,
     # "U": 0.0,
     # "w0": 0.5,
     # "lambda": 1.0,
@@ -492,7 +499,7 @@ def unit_test():
     # nbosons = [5, 10, 20]#, 10, 20]
     # nbosons = [5, 10, 15, 20]
     nbosons = [5, 10, 15, 20]
-    # nbosons = [1]
+    # nbosons = [2]
     # eig = [-2.81790701 -2.56972224 -2.56972224 -2.49849154 -2.28210542]
     # eig = [-2.83425305 -2.63010139 -2.63010139 -2.57878648 -2.36224815]
 
@@ -509,6 +516,7 @@ def unit_test():
         # eig, evec = scipy.linalg.eigh(H, turbo=True)
         # print(seig)
         # return scipy.sparse.linalg.eigsh(Htot, k=6), Htot
+        # print(H.todense())
         print("eig = {}".format(eig[0:5]))
 
 if __name__=="__main__":
