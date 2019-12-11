@@ -110,8 +110,7 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        # shift = numpy.sqrt(system.w0*2.0) * system.g
-        shift = 0.0
+        shift = numpy.sqrt(system.w0*2.0) * system.g
         if verbose:
             print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
