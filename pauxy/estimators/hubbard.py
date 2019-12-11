@@ -51,8 +51,8 @@ def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
     ke_ph = -0.5 * numpy.sum(Lap) - 0.5 * system.w0 * system.nbasis
     
     rho = G[0].diagonal() + G[1].diagonal()
-    # e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.dot(rho, X)
-    e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.sum(X)
+    e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.dot(rho, X)
+    # e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.sum(X)
 
 
     etot = ke + pe + pe_ph + ke_ph + e_eph

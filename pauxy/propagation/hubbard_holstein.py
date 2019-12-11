@@ -174,8 +174,7 @@ class HirschSpinDMC(object):
         self.kinetic(walker.phi, system, self.bt2)
 
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        # nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
-        nX = [walker.X, walker.X]
+        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
@@ -258,15 +257,12 @@ class HirschSpinDMC(object):
 
         acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
 
-        nsites = walker.X.shape[0]
-
-        imove = acc > numpy.random.random(nsites)
-        walker.X[imove] = Xnew[imove]
+        if (acc > numpy.random.random(1)):
+            walker.X = Xnew
+        
         lap = self.boson_trial.laplacian(walker.X)
         walker.Lap = lap
         
-        acc_ratio=numpy.sum(imove)/float(nsites)
-
         #Change weight
         eloc = self.boson_trial.local_energy(walker.X)
         eloc = numpy.real(eloc)
