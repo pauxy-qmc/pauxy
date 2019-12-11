@@ -90,7 +90,8 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
 
         # Heb += - system.g * numpy.kron(xi, rhoi)
         # Heb += - system.g * scipy.sparse.kron(xi, rhoi)
-        Heb += system.g * scipy.sparse.kron(xi, rhoi)
+        # Heb += system.g * scipy.sparse.kron(xi, rhoi)
+        Heb += system.g * scipy.sparse.kron(xi, Iel)
         
         # bi_dagger = numpy.zeros((nperms, nperms))
         # for i, iperm in enumerate(perms):

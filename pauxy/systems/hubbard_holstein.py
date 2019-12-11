@@ -486,11 +486,11 @@ def unit_test():
     "nx": 2,
     "ny": 1,
     "U": 0.0,
-    "t": 1.0,
+    "t": 0.0,
     "w0": 1.0,
-    "lambda": 0.01,
+    # "lambda": 0.01,
     # "lambda": 0.5,
-    # "g": 1.0,
+    "g": 0.25,
     # "U": 0.0,
     # "w0": 0.5,
     # "lambda": 1.0,
@@ -517,7 +517,11 @@ def unit_test():
         # print(seig)
         # return scipy.sparse.linalg.eigsh(Htot, k=6), Htot
         # print(H.todense())
-        print("eig = {}".format(eig[0:5]))
+        # print("eig = {}".format(eig[0:5]))
+        print("eig = {}".format(eig[0]))
+    alpha = numpy.sqrt(system.w0 * 2.0) * system.g 
+    shift = alpha * alpha / (2.0 * system.w0**2) * system.nbasis
+    print("shift = {}".format(shift))
 
 if __name__=="__main__":
     unit_test()

@@ -10,34 +10,35 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
 class HarmonicOscillator(object):
-    def __init__(self, w, order, shift = 0.0):
+    def __init__(self, w, order=0, shift = 0.0):
         self.w = w
         self.order = order
         self.norm = (self.w / math.pi) ** 0.25 # not necessary but we just include...
         self.xavg = shift
-        self.eshift = self.xavg**2 * self.w**2 / 2.0
+        # self.eshift = self.xavg**2 * self.w**2 / 2.0
 #-------------------------
     def value(self,X): # X : lattice configuration
-        result = self.norm * numpy.exp(- self.w / 2.0 * (X-self.xavg) * (X-self.xavg))
+        result = numpy.prod(self.norm * numpy.exp(- self.w / 2.0 * (X-self.xavg) * (X-self.xavg)))
         return result 
 #-------------------------
     def gradient(self,X):
-        grad = (-self.w * (X-self.xavg)) * self.value(X)
+        # grad = (-self.w * (X-self.xavg)) * self.value(X)
+        grad = -self.w * (X-self.xavg)
         return grad
 #-------------------------
     def laplacian(self,X):
-        lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) * self.value(X) - self.w * self.value(X)
+        # lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) * self.value(X) - self.w * self.value(X)
+        lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) - self.w 
         return lap
 #-------------------------
     def local_energy(self, X):
 
         nsites = X.shape[0]
 
-        ke   = - 0.5 * numpy.sum(self.laplacian(X)/self.value(X))
+        ke   = - 0.5 * numpy.sum(self.laplacian(X))
         pot  = 0.5 * self.w * self.w * numpy.sum(X * X)
 
         eloc = ke+pot - 0.5 * self.w * nsites # No zero-point energy
-        eloc -= self.eshift * nsites # subtract the shift energy
 
         return eloc
 
@@ -69,10 +70,6 @@ class HirschSpinDMC(object):
         else:
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
                                     scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
-
-        # eigval, eigvec = scipy.linalg.eigh(system.T[1])
-        # print(eigval)
-        # exit()
 
         if trial.type == 'GHF' and trial.bp_wfn is not None:
             self.BT_BP = scipy.linalg.block_diag(self.bt2, self.bt2)
@@ -113,8 +110,11 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        shift = numpy.sqrt(system.w0*2.0) * system.g
-        self.boson_trial = HarmonicOscillator(system.w0, shift)
+        # shift = numpy.sqrt(system.w0*2.0) * system.g
+        shift = 0.0
+        if verbose:
+            print("# Shift = {}".format(shift))
+        self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
 
         if verbose:
             print ("# Finished setting up propagator.")
@@ -174,7 +174,8 @@ class HirschSpinDMC(object):
         self.kinetic(walker.phi, system, self.bt2)
 
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        # nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        nX = [walker.X, walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
@@ -235,40 +236,12 @@ class HirschSpinDMC(object):
                 walker.weight = 0
                 return
     
-    def propagate_boson(self, walker, system):
-        
-        Ev = 0.5 * system.w0**2 * numpy.sum(walker.X * walker.X)
-        Et = 0.5 * numpy.sum(walker.P * walker.P)
-        Eold = Ev + Et
-        expEv = math.exp(-self.dt * Ev)
-
-
-        dX = math.sqrt(2.0 * math.pi * self.dt) * numpy.random.normal(loc=0.0, scale=self.sqrtdt, size=system.nbasis)
-        Xnew = walker.X + dX
-
-        Pnew = (Xnew - walker.X) / self.dt
-
-        Ev = 0.5 * system.w0**2 * numpy.sum(Xnew * Xnew)
-        Et = 0.5 * numpy.sum(Pnew * Pnew)
-        Enew = Ev + Et
-
-        dE = Enew - Eold
-
-        Pacc = numpy.exp(-self.dt * dE)
-
-        x = numpy.random.rand(1)
-
-        if (x < Pacc):
-            walker.X = Xnew.copy()
-            walker.P = Pnew.copy()
-            walker.weight *= Pacc
-    
     def acceptance(self, posold,posnew,driftold,driftnew, trial):
         
         gfratio=numpy.exp(-numpy.sum( (posold-posnew-driftnew)**2/(2*self.dt) ) 
                        +numpy.sum( (posnew-posold-driftold)**2/(2*self.dt) ) 
                        )
-        
+
         ratio = trial.value(posnew)**2 / trial.value(posold)**2
 
         return ratio*gfratio
@@ -276,27 +249,28 @@ class HirschSpinDMC(object):
     def boson_importance_sampling(self, walker, system, trial, eshift):
         #Drift+diffusion
         driftold = self.dt * self.boson_trial.gradient(walker.X)
+
         elocold = self.boson_trial.local_energy(walker.X)
+        elocold = numpy.real(elocold)
 
         Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
-        Pnew = self.boson_trial.gradient(walker.X) * 1j
-        
         driftnew = self.dt * self.boson_trial.gradient(Xnew)
 
         acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
 
-        nconfig = walker.X.shape[0]
+        nsites = walker.X.shape[0]
 
-        imove = acc > numpy.random.random(nconfig)
+        imove = acc > numpy.random.random(nsites)
         walker.X[imove] = Xnew[imove]
-        lap = self.boson_trial.laplacian(walker.X) / self.boson_trial.value(walker.X)
-        walker.P = lap
+        lap = self.boson_trial.laplacian(walker.X)
+        walker.Lap = lap
         
-        acc_ratio=numpy.sum(imove)/float(nconfig)
+        acc_ratio=numpy.sum(imove)/float(nsites)
 
         #Change weight
-        # eloc = self.boson_trial.local_energy(walker.X)
-        # walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
+        eloc = self.boson_trial.local_energy(walker.X)
+        eloc = numpy.real(eloc)
+        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
         # print("# acc_ratio = {}".format(acc_ratio))
         # print("# eloc = {}".format(eloc))
 
@@ -319,8 +293,6 @@ class HirschSpinDMC(object):
         """
         if abs(walker.weight) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial, eshift)
-        # if abs(walker.weight) > 0:
-        #     self.propagate_boson(walker, system)
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
         if abs(walker.weight) > 0:
@@ -703,3 +675,83 @@ def kinetic_kspace(phi, system, btk):
     else:
         phi[:,:s.nup] = tup
         phi[:,s.nup:] = tdown
+
+def unit_test():
+    import itertools
+    from pauxy.systems.hubbard_holstein import HubbardHolstein
+    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+    from pauxy.trial_wavefunction.uhf import UHF
+    from pauxy.qmc.options import QMCOpts
+    import scipy
+    import numpy
+    import scipy.sparse.linalg
+    options = {
+    "name": "HubbardHolstein",
+    "nup": 1,
+    "ndown": 1,
+    "nx": 2,
+    "ny": 1,
+    "U": 0.0,
+    "t": 1.0,
+    "w0": 1.0,
+    # "lambda": 0.01,
+    # "lambda": 0.5,
+    "g": 0.1,
+    # "U": 0.0,
+    # "w0": 0.5,
+    # "lambda": 1.0,
+    }
+    system = HubbardHolstein (options, verbose=True)
+    trial = UHF(system, False, options)
+    qmc = QMCOpts(options, system)
+    propagator = HirschSpinDMC(system, trial, qmc, verbose=True)
+    nsites = 2
+    Xpos = numpy.random.randn(nsites)
+    # print(Xpos)
+    print("E = {}".format(propagator.boson_trial.local_energy(Xpos)))
+    # print(propagator.boson_trial.xavg)
+    # def __init__(self, system, trial, qmc, options={}, verbose=False):
+
+    # w0 = 1.0
+    # shift = 0.0
+    # wfn = HarmonicOscillator(w=w0, order=0, shift=shift)
+    
+    # nsites = 2
+    # Xpos = numpy.random.randn(nsites)
+    # # print(Xpos)
+    # fx = wfn.value(Xpos)
+    # gx = wfn.gradient(Xpos)
+    # lapx = wfn.laplacian(Xpos)
+
+    # print("analytical = {}".format(gx))
+    # for h in [1e-2, 1e-3, 1e-4, 1e-5]:
+    #     g = numpy.zeros(nsites)
+    #     for isite in range(nsites):
+    #         H = numpy.zeros(nsites)
+    #         H[isite] = h
+    #         xph = Xpos + H
+    #         xmh = Xpos - H
+    #         fxph = wfn.value(xph)
+    #         fxmh = wfn.value(xmh)
+    #         gxph = wfn.gradient(xph)
+    #         gxmh = wfn.gradient(xmh)
+    #         g[isite] = (fxph - fxmh) / (2.0 * h * fx)
+    #     print("{} numerical = {}".format(h,g))
+
+    # print("analytical = {}".format(lapx))
+    # for h in [1e-2, 1e-3, 1e-4, 1e-5]:
+    #     lap = numpy.zeros(nsites)
+    #     for isite in range(nsites):
+    #         H = numpy.zeros(nsites)
+    #         H[isite] = h
+    #         xph = Xpos + H
+    #         xmh = Xpos - H
+    #         fxph = wfn.value(xph)
+    #         fxmh = wfn.value(xmh)
+    #         gxph = wfn.gradient(xph) * wfn.value(xph)
+    #         gxmh = wfn.gradient(xmh) * wfn.value(xmh)
+    #         lap[isite] = (gxph[isite] - gxmh[isite]) / (2.0 * h * fx)
+    #     print("{} numerical = {}".format(h,lap))
+
+if __name__=="__main__":
+    unit_test()
