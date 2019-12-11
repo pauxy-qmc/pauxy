@@ -258,7 +258,6 @@ class Mixed(object):
         if comm.rank == 0:
             gs[ns.eproj] = gs[ns.enumer]
             gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
-            print("gs[ns.weight] = {}".format(gs[ns.weight]))
             gs[ns.ehyb] /= gs[ns.weight]
             gs[ns.ovlp] /= gs[ns.weight]
             eshift = gs[ns.ehyb]
