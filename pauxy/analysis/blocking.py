@@ -281,5 +281,8 @@ def analyse_estimates(files, start_time, multi_sim=False):
     print(basic_av.to_string(index=False, float_format=fmt))
     with h5py.File(outfile, 'w') as fh5:
         fh5['metadata'] = numpy.array(mds).astype('S')
-        fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+        try:
+            fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+        except:
+            print("No integral attribute found")
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
