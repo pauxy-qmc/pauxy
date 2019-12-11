@@ -485,17 +485,20 @@ def unit_test():
     "ndown": 1,
     "nx": 2,
     "ny": 1,
-    "U": 0.0,
+    "U": 4.0,
     "t": 1.0,
-    "w0": 1.0,
-    # "lambda": 0.01,
-    # "lambda": 0.5,
-    "g": 0.2,
+    # "w0": 1.0,
+    # "g": 1.0,
     # "U": 0.0,
-    # "w0": 0.5,
+    "w0": 1.0,
+    "lambda": 0.05,
     # "lambda": 1.0,
     }
     system = HubbardHolstein (options, verbose=True)
+    system0 = Hubbard (options, verbose=True)
+    (eig, evec), H = simple_fci(system0, hamil=True)
+    print(eig)
+    # exit()
     # nbosons = [5, 10, 20]#, 10, 20]
     # nbosons = [5, 10, 15, 20]
     nbosons = [5, 10, 15, 20]
@@ -506,7 +509,8 @@ def unit_test():
     # 
     # nbosons = [5, 10, 20, 40, 60]
     # nbosons = [1, 2]
-
+    eigs = []
+    eigs += [eig[0]]
     for nboson in nbosons:
         print("# nboson = {}".format(nboson))
         (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
@@ -519,9 +523,12 @@ def unit_test():
         # print(H.todense())
         # print("eig = {}".format(eig[0:5]))
         print("eig = {}".format(eig[0]))
+        eigs += [eig[0]]
     alpha = numpy.sqrt(system.w0 * 2.0) * system.g 
     shift = alpha * alpha / (2.0 * system.w0**2) * system.nbasis
     print("shift = {}".format(shift))
+
+    print(eigs)
 
 if __name__=="__main__":
     unit_test()

@@ -21,12 +21,12 @@ class HarmonicOscillator(object):
         result = numpy.prod(self.norm * numpy.exp(- self.w / 2.0 * (X-self.xavg) * (X-self.xavg)))
         return result 
 #-------------------------
-    def gradient(self,X):
+    def gradient(self,X): # grad / value
         # grad = (-self.w * (X-self.xavg)) * self.value(X)
         grad = -self.w * (X-self.xavg)
         return grad
 #-------------------------
-    def laplacian(self,X):
+    def laplacian(self,X): # laplacian / value
         # lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) * self.value(X) - self.w * self.value(X)
         lap = self.w * self.w * (X-self.xavg) * (X-self.xavg) - self.w 
         return lap

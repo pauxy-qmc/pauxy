@@ -471,7 +471,7 @@ def unit_test():
     "nup": 1,
     "ndown": 1,
     "nx": 2,
-    "ny": 2,
+    "ny": 1,
     "U": 4.0
     }
     from pauxy.estimators.ci import simple_fci

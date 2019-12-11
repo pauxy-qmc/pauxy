@@ -46,6 +46,11 @@ class HirschSpin(object):
         self.ffts = options.get('ffts', False)
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
+        if verbose:
+            if (self.free_projection):
+                print ("# Using Free Projection.")
+            else:
+                print ("# Using the Constrained Path Approximation.")
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
@@ -241,6 +246,7 @@ class HirschSpin(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         walker.ot = walker.calc_otrial(trial.psi)
+        walker.greens_function(trial)
 
 # todo: stucture is the same for all continuous HS transformations.
 class HubbardContinuous(object):
