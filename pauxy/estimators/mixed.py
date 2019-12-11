@@ -164,9 +164,10 @@ class Mixed(object):
                     nav = particle_number(one_rdm_from_G(w.G))
                     self.estimates[self.names.nav] += wfac * nav
                 self.estimates[self.names.uweight] += w.unscaled_weight
-                self.estimates[self.names.uweight] += w.weight
+                self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
                 self.estimates[self.names.ovlp] += wfac * abs(w.ot)
+
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -257,6 +258,7 @@ class Mixed(object):
         if comm.rank == 0:
             gs[ns.eproj] = gs[ns.enumer]
             gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
+            print("gs[ns.weight] = {}".format(gs[ns.weight]))
             gs[ns.ehyb] /= gs[ns.weight]
             gs[ns.ovlp] /= gs[ns.weight]
             eshift = gs[ns.ehyb]
