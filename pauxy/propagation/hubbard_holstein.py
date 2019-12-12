@@ -42,8 +42,6 @@ class HarmonicOscillator(object):
 
         return eloc
 
-
-
 class HirschSpinDMC(object):
     """Propagator for discrete HS transformation.
 
@@ -314,6 +312,7 @@ class HirschSpinDMC(object):
 
         kinetic_real(walker.phi, system, self.bt2)
 
+        walker.greens_function(trial)
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
         nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
@@ -332,9 +331,14 @@ class HirschSpinDMC(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-        kinetic_real(walker.phi, system, self.bt2)
-
+        
+        walker.greens_function(trial)
+        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
+
+        kinetic_real(walker.phi, system, self.bt2)
 
         walker.inverse_overlap(trial)
         # Update walker weight
@@ -690,8 +694,8 @@ def unit_test():
     "t": 1.0,
     "w0": 1.0,
     # "lambda": 0.01,
-    # "lambda": 0.5,
-    "g": 0.1,
+    "lambda": 0.5,
+    # "g": 0.1,
     # "U": 0.0,
     # "w0": 0.5,
     # "lambda": 1.0,
