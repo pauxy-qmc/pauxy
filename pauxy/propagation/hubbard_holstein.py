@@ -172,7 +172,8 @@ class HirschSpinDMC(object):
 
         walker.greens_function(trial)
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        # nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        nX = [numpy.diag(walker.X), numpy.diag(walker.X)]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
@@ -313,9 +314,9 @@ class HirschSpinDMC(object):
 
         kinetic_real(walker.phi, system, self.bt2)
 
-        walker.greens_function(trial)
+        # walker.greens_function(trial)
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        nX = [numpy.diag(walker.X), numpy.diag(walker.X)]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
@@ -333,8 +334,8 @@ class HirschSpinDMC(object):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
         
-        walker.greens_function(trial)
-        nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
+        # walker.greens_function(trial)
+        nX = [numpy.diag(walker.X), numpy.diag(walker.X)]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
