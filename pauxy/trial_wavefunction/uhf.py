@@ -47,6 +47,9 @@ class UHF(object):
     def __init__(self, system, cplx, trial, parallel=False, verbose=0):
         if verbose:
             print("# Constructing UHF trial wavefunction")
+        
+        assert(system.name == "Hubbard" or system.name == "HubbardHolstein")
+
         self.verbose = verbose
         init_time = time.time()
         self.name = "UHF"
@@ -60,13 +63,19 @@ class UHF(object):
         # Unpack input options.
         self.ninitial = trial.get('ninitial', 10)
         self.nconv = trial.get('nconv', 5000)
-        self.ueff = trial.get('ueff', 0.4)
+        # What is this random 0.4????
+        # self.ueff = trial.get('ueff', 0.4)
+        self.ueff = trial.get('ueff', system.U)
         self.deps = trial.get('deps', 1e-8)
         self.alpha = trial.get('alpha', 0.5)
         # For interface compatability
         self.coeffs = 1.0
         self.type = 'UHF'
         self.ndets = 1
+        
+        if(verbose >0):
+            print("# ueff = {}".format(self.ueff))
+
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
             self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
                               self.nconv, self.alpha, self.deps, verbose)
@@ -139,12 +148,14 @@ class UHF(object):
                 print("# <S^2> = {: 3f}".format(S2))
 
         system.U = uold
-        print("# Minimum energy found: {: 8f}".format(min(minima)))
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
         S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
-        print("# <S^2> = {: 3f}".format(S2))
+      
+        if (verbose >= 0):
+            print("# Minimum energy found: {: 8f}".format(min(minima)))
+            print("# <S^2> = {: 3f}".format(S2))
 
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
@@ -152,6 +163,82 @@ class UHF(object):
             warnings.warn("Warning: No UHF wavefunction found."
                           "Delta E: %f" % (enew - emin))
             return (trial, numpy.append(e_up, e_down), None, True, None)
+    
+
+    def update_uhf_wfn(self, system, V, deps=1e-8, verbose=0):
+        emin = 0
+        minima = []  # Local minima
+        nup = system.nup
+
+        niup = self.density(self.trial[:,:nup])
+        nidown = self.density(self.trial[:,nup:])
+        niup_old = self.density(self.trial[:,:nup])
+        nidown_old = self.density(self.trial[:,nup:])
+
+        self.trial = self.psi.copy()
+
+        Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
+        Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
+        eold = local_energy(system, numpy.array([Gup, Gdown]))[0].real
+
+        for it in range(0, self.nconv):
+            (niup, nidown, e_up, e_down) = (
+                self.diagonalise_mean_field(system, system.U, niup, nidown, V)
+            )
+            # Construct Green's function to compute the energy.
+            Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
+            Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
+            enew = local_energy(system, numpy.array([Gup, Gdown]))[0].real
+            if verbose > 1:
+                print("# %d %f %f" % (it, enew, eold))
+            sc = self.self_consistent(enew, eold, niup, niup_old, nidown,
+                                      nidown_old, it, deps, verbose)
+            if sc:
+                # Global minimum search.
+                if attempt == 0:
+                    minima.append(enew)
+                    psi_accept = copy.deepcopy(self.trial)
+                    e_accept = numpy.append(e_up, e_down)
+                elif all(numpy.array(minima) - enew > deps):
+                    minima.append(enew)
+                    psi_accept = copy.deepcopy(self.trial)
+                    e_accept = numpy.append(e_up, e_down)
+                break
+            else:
+                mixup = self.mix_density(niup, niup_old, self.alpha)
+                mixdown = self.mix_density(nidown, nidown_old, self.alpha)
+                niup_old = niup
+                nidown_old = nidown
+                niup = mixup
+                nidown = mixdown
+                eold = enew
+        if verbose > 1:
+            print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
+                  " energy found is: {: 8f}".format(attempt, it, eold))
+            MS = numpy.abs(system.nup - system.ndown) / 2.0
+            S2exact = MS * (MS+1.)
+            Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+            S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+            print("# <S^2> = {: 3f}".format(S2))
+
+        MS = numpy.abs(system.nup - system.ndown) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+      
+        if (verbose >= 0):
+            print("# Minimum energy found: {: 8f}".format(min(minima)))
+            print("# <S^2> = {: 3f}".format(S2))
+
+        try:
+            self.psi = self.trial.copy()
+            self.eigs = e_accept.copy()
+            self.emin = min(minima)
+            self.error = False
+            self.nav = [niup, nidown]
+        except UnboundLocalError:
+            warnings.warn("Warning: No UHF wavefunction found."
+                          "Delta E: %f" % (enew - emin))
 
     def initialise(self, nbasis, nup, ndown, cplx):
         (e_up, ev_up) = self.random_starting_point(nbasis)
@@ -194,22 +281,26 @@ class UHF(object):
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
 
-    def diagonalise_mean_field(self, system, ueff, niup, nidown):
+    def diagonalise_mean_field(self, system, ueff, niup, nidown, V = None):
         # mean field Hamiltonians.
-        HMFU = system.T[0] + numpy.diag(ueff*nidown)
-        HMFD = system.T[1] + numpy.diag(ueff*niup)
-
-        # if (system.name == "HubbardHolstein"):
-            # print("HHMODEL")
+        if (V == None):
+            HMFU = system.T[0] + numpy.diag(ueff*nidown)
+            HMFD = system.T[1] + numpy.diag(ueff*niup)
+        else:
+            HMFU = system.T[0] + numpy.diag(ueff*nidown) + V[0]
+            HMFD = system.T[1] + numpy.diag(ueff*niup) + V[1]
 
         (e_up, ev_up) = diagonalise_sorted(HMFU)
         (e_down, ev_down) = diagonalise_sorted(HMFD)
+        
         # Construct new wavefunction given new density.
         self.trial[:,:system.nup] = ev_up[:,:system.nup]
         self.trial[:,system.nup:] = ev_down[:,:system.ndown]
+        
         # Construct corresponding site densities.
         niup = self.density(self.trial[:,:system.nup])
         nidown = self.density(self.trial[:,system.nup:])
+        
         return (niup, nidown, e_up, e_down)
 
     def calculate_energy(self, system):
@@ -231,31 +322,29 @@ def unit_test():
     import scipy.sparse.linalg
     options1 = {
     "name": "Hubbard",
-    # "name": "HubbardHolstein",
     "nup": 7,
     "ndown": 7,
     "nx": 7,
     "ny": 7,
-    "U": 8.0,
+    "U": 4.0,
     "w0": 0.5,
     "lambda": 1.0
     }
     options2 = {
-    # "name": "Hubbard",
     "name": "HubbardHolstein",
     "nup": 7,
     "ndown": 7,
     "nx": 7,
     "ny": 7,
-    "U": 8.0,
+    "U": 4.0,
     "w0": 0.5,
     "lambda": 1.0
     }
     system = Hubbard (options1, verbose=True)
     system = HubbardHolstein (options2, verbose=True)
 
-    uhf_driver = UHF(system, False, options1, parallel=False, verbose=0)
-    uhf_driver = UHF(system, False, options2, parallel=False, verbose=0)
+    uhf_driver = UHF(system, False, options1, parallel=False, verbose=1)
+    uhf_driver = UHF(system, False, options2, parallel=False, verbose=1)
 
 
 
