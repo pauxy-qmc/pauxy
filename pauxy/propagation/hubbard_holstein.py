@@ -181,9 +181,9 @@ class HirschSpinDMC(object):
             V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
             otold= walker.calc_otrial(trial)
             trial.update_uhf_wfn(system, V, verbose=0)
+            walker.inverse_overlap(trial)
             otnew= walker.calc_otrial(trial)
-            oratio_extra = (otold / otnew)
-
+            oratio_extra = (otold / otnew).real
 
         self.kinetic(walker.phi, system, self.bt2)
 
@@ -314,7 +314,9 @@ class HirschSpinDMC(object):
             phiold = self.boson_trial.value(walker.X)
             self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
             phinew = self.boson_trial.value(walker.X)
-            walker.weight *= phiold / phinew
+            oratio_extra = numpy.prod(phiold / phinew)
+            walker.weight *= oratio_extra
+
 
 
     def propagate_walker_free(self, walker, system, trial, eshift):
