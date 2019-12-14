@@ -37,6 +37,9 @@ def parse_args(args):
                         dest='multi_sim', default=False,
                         help='Average over multiple simulations. By default '
                         'an attempt is made to group results by features.')
+    parser.add_argument('-t', '--average-tau', action='store_true',
+                        dest='av_tau', default=False,
+                        help='Compute average of energy as a function of tau.')
     parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
                         default=False, help='Extract correlation functions.')
     parser.add_argument('-f', nargs='+', dest='filenames',
@@ -70,6 +73,6 @@ def main(args):
     else:
         files = options.filenames
     analyse_estimates(files, start_time=options.start_time,
-                      multi_sim=options.multi_sim)
+                      multi_sim=options.multi_sim, av_tau=options.av_tau)
 if __name__ == '__main__':
     main(sys.argv[1:])
