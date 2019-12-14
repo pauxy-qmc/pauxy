@@ -104,27 +104,30 @@ def reblock_mixed(groupby, columns):
     return pd.concat(analysed)
 
 
-def reblock_free_projection(frame):
-    short = frame.drop(['Time', 'Weight', 'ETotal'], axis=1)
+def reblock_free_projection(groupby, columns):
     analysed = []
-    (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
-    reblocked = pd.DataFrame()
-    denom = blocked_data.loc[:,'EDenom']
-    for c in short.columns:
-        if c != 'EDenom':
-            nume = blocked_data.loc[:,c]
-            cov = covariance.xs('EDenom', level=1)[c]
-            ratio = pyblock.error.ratio(nume, denom, cov, data_len)
-            rb = pyblock.pd_utils.reblock_summary(ratio)
-            try:
-                if c == 'ENumer':
-                    c = 'ETotal'
-                reblocked[c] = rb['mean'].values
-                reblocked[c+'_error'] = rb['standard error'].values
-            except KeyError:
-                print("Reblocking of {:4} failed. Insufficient "
-                      "statistics.".format(c))
-    analysed.append(reblocked)
+    for group, frame in groupby:
+        short = frame[['ENumer', 'EDenom']].apply(numpy.real)
+        (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        reblocked = pd.DataFrame()
+        denom = blocked_data.loc[:,'EDenom']
+        for c in short.columns:
+            if c != 'EDenom':
+                nume = blocked_data.loc[:,c]
+                cov = covariance.xs('EDenom', level=1)[c]
+                ratio = pyblock.error.ratio(nume, denom, cov, data_len)
+                rb = pyblock.pd_utils.reblock_summary(ratio)
+                try:
+                    if c == 'ENumer':
+                        c = 'ETotal'
+                    reblocked[c] = rb['mean'].values
+                    reblocked[c+'_error'] = rb['standard error'].values
+                except KeyError:
+                    print("Reblocking of {:4} failed. Insufficient "
+                          "statistics.".format(c))
+        for i, v in enumerate(group):
+            reblocked[columns[i]] = v
+        analysed.append(reblocked)
 
     if len(analysed) == 0:
         return None
@@ -178,19 +181,13 @@ def average_tau(frames):
                   2*covs/(means['ENumer']*means['EDenom']))**0.5
 
     energy_err = abs(energy/sqrtn) * energy_err
-    eproj = means['ETotal']
-    eproj_err = err['ETotal']/numpy.sqrt(data_len)
-    weight = means['Weight']
-    weight_error = err['Weight']
-    numerator = means['ENumer']
-    numerator_error = err['ENumer']
-    results = pd.DataFrame({'ETotal': energy, 'ETotal_error': energy_err,
-                            'Eproj': eproj,
-                            'Eproj_error': eproj_err,
-                            'weight': weight,
-                            'weight_error': weight_error,
-                            'numerator': numerator,
-                            'numerator_error': numerator_error}).reset_index()
+    # eproj = means['ETotal']
+    # eproj_err = err['ETotal']/numpy.sqrt(data_len)
+    # weight = means['Weight']
+    # weight_error = err['Weight']
+    # numerator = means['ENumer']
+    # numerator_error = err['ENumer']
+    results = pd.DataFrame({'ETotal': energy, 'ETotal_error': energy_err})
 
     return results
 
@@ -258,31 +255,43 @@ def analyse_back_prop(files, start_time):
         full.append(res)
     return pd.concat(full).sort_values('tau_bp')
 
-def analyse_estimates(files, start_time, multi_sim=False):
+def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
     mds = []
     basic = []
-    for f in files:
-        md = get_metadata(f)
-        read_rs = get_from_dict(md, ['psi', 'read_rs'])
-        step = get_from_dict(md, ['qmc', 'nsteps'])
-        dt = get_from_dict(md, ['qmc', 'dt'])
-        start = int(start_time/(step*dt)) + 1
-        if read_rs:
-            start = 0
-        data = extract_mixed_estimates(f, start)
-        columns = set_info(data, md)
-        basic.append(data.drop('Iteration', axis=1))
-        mds.append(md)
-    basic = pd.concat(basic).groupby(columns)
-    basic_av = reblock_mixed(basic, columns)
-    base = files[0].split('/')[-1]
-    outfile = 'analysed_' + base
-    fmt = lambda x: "{:13.8f}".format(x)
-    print(basic_av.to_string(index=False, float_format=fmt))
-    with h5py.File(outfile, 'w') as fh5:
-        fh5['metadata'] = numpy.array(mds).astype('S')
-        try:
-            fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
-        except:
-            print("No integral attribute found")
-        fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
+    if av_tau:
+        data = []
+        for f in files:
+            data.append(extract_mixed_estimates(f))
+        full = pd.concat(data).groupby('Iteration')
+        av = average_tau(full)
+        print(av.apply(numpy.real).to_string())
+    else:
+        for f in files:
+            md = get_metadata(f)
+            read_rs = get_from_dict(md, ['psi', 'read_rs'])
+            step = get_from_dict(md, ['qmc', 'nsteps'])
+            dt = get_from_dict(md, ['qmc', 'dt'])
+            fp = get_from_dict(md, ['propagators', 'free_projection'])
+            start = int(start_time/(step*dt)) + 1
+            if read_rs:
+                start = 0
+            data = extract_mixed_estimates(f, start)
+            columns = set_info(data, md)
+            basic.append(data.drop('Iteration', axis=1))
+            mds.append(md)
+        basic = pd.concat(basic).groupby(columns)
+        if fp:
+            basic_av = reblock_free_projection(basic, columns)
+        else:
+            basic_av = reblock_mixed(basic, columns)
+        base = files[0].split('/')[-1]
+        outfile = 'analysed_' + base
+        fmt = lambda x: "{:13.8f}".format(x)
+        print(basic_av.to_string(index=False, float_format=fmt))
+        with h5py.File(outfile, 'w') as fh5:
+            fh5['metadata'] = numpy.array(mds).astype('S')
+            try:
+                fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+            except:
+                print("No integral attribute found")
+            fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
