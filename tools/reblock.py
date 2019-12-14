@@ -31,7 +31,7 @@ def parse_args(args):
 
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--start', type=float, dest='start_time',
-                        default=0, help='Imaginary time after which we '
+                        default=0, help='Imaginary time in a.u. after which we '
                         'gather statistics.  Default: 0')
     parser.add_argument('-l', '--multi-sim', action='store_true',
                         dest='multi_sim', default=False,

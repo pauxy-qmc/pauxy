@@ -108,8 +108,9 @@ class UHF(object):
             niup_old = self.density(self.trial[:,:nup])
             nidown_old = self.density(self.trial[:,nup:])
             for it in range(0, nit_max):
+                V = [numpy.zeros((system.nbasis, system.nbasis)), numpy.zeros((system.nbasis, system.nbasis))]
                 (niup, nidown, e_up, e_down) = (
-                    self.diagonalise_mean_field(system, ueff, niup, nidown)
+                    self.diagonalise_mean_field(system, ueff, niup, nidown, V)
                 )
                 # Construct Green's function to compute the energy.
                 Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
@@ -195,14 +196,9 @@ class UHF(object):
                                       nidown_old, it, deps, verbose)
             if sc:
                 # Global minimum search.
-                if attempt == 0:
-                    minima.append(enew)
-                    psi_accept = copy.deepcopy(self.trial)
-                    e_accept = numpy.append(e_up, e_down)
-                elif all(numpy.array(minima) - enew > deps):
-                    minima.append(enew)
-                    psi_accept = copy.deepcopy(self.trial)
-                    e_accept = numpy.append(e_up, e_down)
+                minima.append(enew)
+                psi_accept = copy.deepcopy(self.trial)
+                e_accept = numpy.append(e_up, e_down)
                 break
             else:
                 mixup = self.mix_density(niup, niup_old, self.alpha)
@@ -212,9 +208,10 @@ class UHF(object):
                 niup = mixup
                 nidown = mixdown
                 eold = enew
+        
         if verbose > 1:
             print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
-                  " energy found is: {: 8f}".format(attempt, it, eold))
+                  " energy found is: {: 8f}".format(0, it, eold))
             MS = numpy.abs(system.nup - system.ndown) / 2.0
             S2exact = MS * (MS+1.)
             Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
@@ -226,7 +223,7 @@ class UHF(object):
         Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
         S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
       
-        if (verbose >= 0):
+        if (verbose > 0):
             print("# Minimum energy found: {: 8f}".format(min(minima)))
             print("# <S^2> = {: 3f}".format(S2))
 
@@ -281,14 +278,10 @@ class UHF(object):
     def mix_density(self, new, old, alpha):
         return (1-alpha)*new + alpha*old
 
-    def diagonalise_mean_field(self, system, ueff, niup, nidown, V = None):
+    def diagonalise_mean_field(self, system, ueff, niup, nidown, V):
         # mean field Hamiltonians.
-        if (V == None):
-            HMFU = system.T[0] + numpy.diag(ueff*nidown)
-            HMFD = system.T[1] + numpy.diag(ueff*niup)
-        else:
-            HMFU = system.T[0] + numpy.diag(ueff*nidown) + V[0]
-            HMFD = system.T[1] + numpy.diag(ueff*niup) + V[1]
+        HMFU = system.T[0] + numpy.diag(ueff*nidown) + V[0]
+        HMFD = system.T[1] + numpy.diag(ueff*niup) + V[1]
 
         (e_up, ev_up) = diagonalise_sorted(HMFU)
         (e_down, ev_down) = diagonalise_sorted(HMFD)
@@ -322,20 +315,20 @@ def unit_test():
     import scipy.sparse.linalg
     options1 = {
     "name": "Hubbard",
-    "nup": 7,
-    "ndown": 7,
-    "nx": 7,
-    "ny": 7,
+    "nup": 1,
+    "ndown": 1,
+    "nx": 4,
+    "ny": 4,
     "U": 4.0,
     "w0": 0.5,
     "lambda": 1.0
     }
     options2 = {
     "name": "HubbardHolstein",
-    "nup": 7,
-    "ndown": 7,
-    "nx": 7,
-    "ny": 7,
+    "nup": 1,
+    "ndown": 1,
+    "nx": 4,
+    "ny": 4,
     "U": 4.0,
     "w0": 0.5,
     "lambda": 1.0
@@ -345,6 +338,19 @@ def unit_test():
 
     uhf_driver = UHF(system, False, options1, parallel=False, verbose=1)
     uhf_driver = UHF(system, False, options2, parallel=False, verbose=1)
+    # print(uhf_driver.psi)
+    tmp = numpy.array(uhf_driver.G)
+    V = numpy.random.rand(*tmp.shape)
+    # print(V.shape)
+    V[0] = 0.5 * (V[0] + V[0].T)
+    V[1] = V[0].copy()
+
+    # def update_uhf_wfn(self, system, V, deps=1e-8, verbose=0):
+    uhf_driver.update_uhf_wfn(system, V, verbose=1)
+    # print(uhf_driver.psi)
+
+
+    # print(V)
 
 
 

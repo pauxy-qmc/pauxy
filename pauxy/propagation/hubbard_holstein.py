@@ -10,7 +10,7 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
 class HarmonicOscillator(object):
-    def __init__(self, w, order=0, shift = 0.0):
+    def __init__(self, w, order, shift):
         self.w = w
         self.order = order
         self.norm = (self.w / math.pi) ** 0.25 # not necessary but we just include...
@@ -81,6 +81,11 @@ class HirschSpinDMC(object):
         self.ffts = options.get('ffts', False)
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
+        
+        self.update_trial = options.get('update_trial', False)
+        if verbose:
+            print("# update_trial = {}".format(self.update_trial))
+
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
@@ -108,7 +113,7 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        shift = numpy.sqrt(system.w0*2.0) * system.g
+        shift = numpy.sqrt(system.w0*2.0) * system.g * numpy.ones(system.nbasis)
         if verbose:
             print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
@@ -155,7 +160,7 @@ class HirschSpinDMC(object):
         """
         walker.greens_function(trial)
     
-    def kinetic_importance_sampling(self, walker, system, trial):
+    def kinetic_importance_sampling(self, walker, system, trial, update):
         r"""Propagate by the kinetic term by direct matrix multiplication.
 
         Parameters
@@ -168,11 +173,21 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
+
+        oratio_extra = 1.0
+
+        if (update):
+            nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
+            V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
+            otold= walker.calc_otrial(trial)
+            trial.update_uhf_wfn(system, V, verbose=0)
+            otnew= walker.calc_otrial(trial)
+            oratio_extra = (otold / otnew)
+
+
         self.kinetic(walker.phi, system, self.bt2)
 
-        walker.greens_function(trial)
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        # nX = [(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X]
         nX = [walker.X, walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
@@ -181,7 +196,7 @@ class HirschSpinDMC(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         ot_new = walker.calc_otrial(trial)
-        ratio = (ot_new/walker.ot)
+        ratio = (ot_new/walker.ot) * oratio_extra
         phase = cmath.phase(ratio)
         if abs(phase) < 0.5*math.pi:
             walker.weight = walker.weight * ratio.real
@@ -266,8 +281,6 @@ class HirschSpinDMC(object):
         eloc = self.boson_trial.local_energy(walker.X)
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
-        # print("# acc_ratio = {}".format(acc_ratio))
-        # print("# eloc = {}".format(eloc))
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
@@ -289,11 +302,20 @@ class HirschSpinDMC(object):
         if abs(walker.weight) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial, eshift)
         if abs(walker.weight) > 0:
-            self.kinetic_importance_sampling(walker, system, trial)
+            self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
-            self.kinetic_importance_sampling(walker, system, trial)
+            self.kinetic_importance_sampling(walker, system, trial, update = False)
+
+        if (self.update_trial):
+            walker.greens_function(trial)
+            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+            phiold = self.boson_trial.value(walker.X)
+            self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            phinew = self.boson_trial.value(walker.X)
+            walker.weight *= phiold / phinew
+
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
@@ -314,10 +336,8 @@ class HirschSpinDMC(object):
 
         kinetic_real(walker.phi, system, self.bt2)
 
-        # walker.greens_function(trial)
         const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        nX = [walker.X, walker.X]
-        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+        Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         delta = self.delta
@@ -334,9 +354,6 @@ class HirschSpinDMC(object):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
         
-        # walker.greens_function(trial)
-        nX = [walker.X, walker.X]
-        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         kinetic_real(walker.phi, system, self.bt2)
@@ -690,7 +707,7 @@ def unit_test():
     "nup": 1,
     "ndown": 1,
     "nx": 2,
-    "ny": 1,
+    "ny": 2,
     "U": 0.0,
     "t": 1.0,
     "w0": 1.0,
@@ -705,7 +722,8 @@ def unit_test():
     trial = UHF(system, False, options)
     qmc = QMCOpts(options, system)
     propagator = HirschSpinDMC(system, trial, qmc, verbose=True)
-    nsites = 2
+    
+    nsites = system.nbasis
     Xpos = numpy.random.randn(nsites)
     # print(Xpos)
     print("E = {}".format(propagator.boson_trial.local_energy(Xpos)))
