@@ -180,7 +180,7 @@ class HirschSpinDMC(object):
             nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
             V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
             otold= walker.calc_otrial(trial)
-            trial.update_uhf_wfn(system, V, verbose=0)
+            trial.update_wfn(system, V, verbose=0)
             walker.inverse_overlap(trial)
             otnew= walker.calc_otrial(trial)
             oratio_extra = (otold / otnew).real
@@ -316,8 +316,6 @@ class HirschSpinDMC(object):
             phinew = self.boson_trial.value(walker.X)
             oratio_extra = numpy.prod(phiold / phinew)
             walker.weight *= oratio_extra
-
-
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
