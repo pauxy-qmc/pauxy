@@ -76,6 +76,27 @@ class FreeElectron(object):
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
 
+    def update_wfn(self, system, V):
+        (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0]+V[0])
+        (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1]+V[1])
+
+        # I think this is slightly cleaner than using two separate
+        # matrices.
+        if self.reference is not None:
+            self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
+            self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
+        else:
+            self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
+            self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+        
+        gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+        gdown = gab(self.psi[:, system.nup:],
+                                           self.psi[:, system.nup:]).T
+        self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
+        self.eigs.sort()
+        self.G = numpy.array([gup, gdown])
+
     def calculate_energy(self, system):
         if self.verbose:
             print ("# Computing trial energy.")

@@ -484,14 +484,15 @@ def unit_test():
     "nup": 1,
     "ndown": 1,
     "nx": 2,
-    "ny": 1,
+    "ny": 2,
     "U": 4.0,
     "t": 1.0,
     # "w0": 1.0,
     # "g": 1.0,
     # "U": 0.0,
     "w0": 1.0,
-    "lambda": 0.05,
+    # "lambda": 0.05,
+    "lambda": 0.5,
     # "lambda": 1.0,
     }
     system = HubbardHolstein (options, verbose=True)

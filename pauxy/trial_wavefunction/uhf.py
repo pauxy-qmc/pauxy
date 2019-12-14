@@ -166,7 +166,7 @@ class UHF(object):
             return (trial, numpy.append(e_up, e_down), None, True, None)
     
 
-    def update_uhf_wfn(self, system, V, deps=1e-8, verbose=0):
+    def update_wfn(self, system, V, deps=1e-8, verbose=0):
         emin = 0
         minima = []  # Local minima
         nup = system.nup
@@ -345,8 +345,8 @@ def unit_test():
     V[0] = 0.5 * (V[0] + V[0].T)
     V[1] = V[0].copy()
 
-    # def update_uhf_wfn(self, system, V, deps=1e-8, verbose=0):
-    uhf_driver.update_uhf_wfn(system, V, verbose=1)
+    # def update_wfn(self, system, V, deps=1e-8, verbose=0):
+    uhf_driver.update_wfn(system, V, verbose=1)
     # print(uhf_driver.psi)
 
 
