@@ -67,8 +67,8 @@ class SingleDetWalker(object):
         
         if system.name == "HubbardHolstein":
             shift = numpy.sqrt(system.w0*2.0) * system.g
-            boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            self.weight *= boson_trial.value(shift) * boson_trial.value(shift)
+            # boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            # self.weight *= boson_trial.value(shift) * boson_trial.value(shift)
             self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
             self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
 
