@@ -85,6 +85,7 @@ class HirschSpinDMC(object):
         if verbose:
             print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        self.eshift_boson = self.boson_trial.local_energy(shift)
 
         if verbose:
             print ("# Finished setting up propagator.")
@@ -227,7 +228,7 @@ class HirschSpinDMC(object):
 
         return ratio*gfratio
     
-    def boson_importance_sampling(self, walker, system, trial, eshift):
+    def boson_importance_sampling(self, walker, system, trial):
         #Drift+diffusion
         driftold = self.dt * trial.gradient(walker.X)
 
@@ -254,7 +255,7 @@ class HirschSpinDMC(object):
         #Change weight
         eloc = trial.local_energy(walker.X)
         eloc = numpy.real(eloc)
-        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
+        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
         # walker.weight = walker.weight * (psinew / psiold) ** 2
 
@@ -298,7 +299,7 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
         if abs(walker.weight) > 0:
-            self.boson_importance_sampling(walker, system, self.boson_trial, eshift)
+            self.boson_importance_sampling(walker, system, self.boson_trial)
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
         if abs(walker.weight) > 0:
