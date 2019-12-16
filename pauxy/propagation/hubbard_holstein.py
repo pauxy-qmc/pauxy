@@ -285,7 +285,7 @@ class HirschSpinDMC(object):
         #Change weight
         pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         pot = pot.real
-        walker.weight *= nmath.exp(-self.dt* pot)
+        walker.weight *= math.exp(-self.dt* pot)
 
         psiold = self.boson_trial.value(walker.X)
 
