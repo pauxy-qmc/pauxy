@@ -6,6 +6,7 @@ from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.walkers.stack import PropagatorStack, FieldConfig
 from pauxy.utils.misc import get_numeric_names
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -65,8 +66,9 @@ class SingleDetWalker(object):
                                          # diagonal=False)
         
         if system.name == "HubbardHolstein":
-            # self.X = numpy.zeros(system.nbasis, dtype=numpy.float64) # site position current time
             shift = numpy.sqrt(system.w0*2.0) * system.g
+            boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            self.weight *= boson_trial.value(shift) * boson_trial.value(shift)
             self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
             self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
 
