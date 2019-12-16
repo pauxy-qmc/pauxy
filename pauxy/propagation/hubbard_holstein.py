@@ -310,14 +310,14 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
 
-        if (self.update_trial):
-            walker.greens_function(trial)
-            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-            phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            phinew = self.boson_trial.value(walker.X) # phi with a new trial
-            oratio_extra = numpy.prod(phinew / phiold)
-            walker.weight *= oratio_extra
+        # if (self.update_trial):
+        #     walker.greens_function(trial)
+        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        #     phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+        #     self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        #     phinew = self.boson_trial.value(walker.X) # phi with a new trial
+        #     oratio_extra = numpy.prod(phinew / phiold)
+        #     walker.weight *= oratio_extra
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
