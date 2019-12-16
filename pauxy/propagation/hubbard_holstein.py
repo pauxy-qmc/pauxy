@@ -256,7 +256,7 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
 
-        walker.weight = walker.weight * (psinew / psiold) ** 2
+        # walker.weight = walker.weight * (psinew / psiold) ** 2
 
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
@@ -305,12 +305,6 @@ class HirschSpinDMC(object):
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
-
-
-        walker.inverse_overlap(trial)
-        # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X) * self.boson_trial.value(walker.X)
-
 
         # if (self.update_trial):
         #     walker.greens_function(trial)
@@ -364,7 +358,7 @@ class HirschSpinDMC(object):
 
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X) * self.boson_trial.value(walker.X)
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
