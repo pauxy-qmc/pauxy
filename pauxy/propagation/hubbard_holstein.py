@@ -200,7 +200,8 @@ class HirschSpinDMC(object):
         phase = cmath.phase(ratio)
         if abs(phase) < 0.5*math.pi:
             walker.weight = walker.weight * ratio.real
-            walker.ot = ot_new
+            phi = self.boson_trial.value(walker.X)
+            walker.ot = ot_new * phi * phi
         else:
             walker.weight = 0.0
 
@@ -261,34 +262,34 @@ class HirschSpinDMC(object):
     
     def boson_importance_sampling(self, walker, system, trial, eshift):
         #Drift+diffusion
-        driftold = self.dt * self.boson_trial.gradient(walker.X)
+        driftold = self.dt * trial.gradient(walker.X)
 
-        elocold = self.boson_trial.local_energy(walker.X)
+        elocold = trial.local_energy(walker.X)
         elocold = numpy.real(elocold)
 
-        psiold = self.boson_trial.value(walker.X)
+        psiold = trial.value(walker.X)
 
         Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
         
-        # walker.X = Xnew.copy()
+        walker.X = Xnew.copy()
 
-        driftnew = self.dt * self.boson_trial.gradient(Xnew)
+        driftnew = self.dt * trial.gradient(Xnew)
 
-        acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
-        if (acc > numpy.random.random(1)):
-            walker.X = Xnew
+        # acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
+        # if (acc > numpy.random.random(1)):
+            # walker.X = Xnew
         
-        lap = self.boson_trial.laplacian(walker.X)
+        lap = trial.laplacian(walker.X)
         walker.Lap = lap
         
-        psinew = self.boson_trial.value(walker.X)
+        psinew = trial.value(walker.X)
         
         #Change weight
-        eloc = self.boson_trial.local_energy(walker.X)
+        eloc = trial.local_energy(walker.X)
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
 
-        # walker.weight *= (psinew / psiold) ** 2
+        walker.weight = walker.weight * (psinew / psiold) ** 2
 
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
