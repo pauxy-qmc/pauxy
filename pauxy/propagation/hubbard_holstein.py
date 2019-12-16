@@ -283,6 +283,11 @@ class HirschSpinDMC(object):
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
 
     def boson_free_propagation(self, walker, system, trial, eshift):
+        #Change weight
+        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        walker.weight *= math.exp(-self.dt* pot)
+
+        psiold = self.boson_trial.value(walker.X)
 
         Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
         walker.X = Xnew.copy()
@@ -290,9 +295,12 @@ class HirschSpinDMC(object):
         lap = self.boson_trial.laplacian(walker.X)
         walker.Lap = lap
 
-        #Change weight
-        pot  = 0.5 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        psinew = self.boson_trial.value(walker.X)
+
+        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         walker.weight *= math.exp(-self.dt* pot)
+
+        walker.weight *= (psinew / psiold)
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
