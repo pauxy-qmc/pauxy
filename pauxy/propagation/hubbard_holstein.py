@@ -298,10 +298,13 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
+        Xprev = walker.X.copy()
+
         if abs(walker.weight) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial)
         if abs(walker.weight) > 0:
-            self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
+            # self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
+            self.kinetic_importance_sampling(walker, system, trial, update = False)
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
@@ -310,7 +313,7 @@ class HirschSpinDMC(object):
         if (self.update_trial):
             walker.greens_function(trial)
             shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-            phiold = self.boson_trial.value(walker.X)
+            phiold = self.boson_trial.value(Xprev)
             self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
             phinew = self.boson_trial.value(walker.X)
             oratio_extra = numpy.prod(phinew / phiold)
