@@ -288,7 +288,7 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
 
-        walker.weight *= (psinew / psiold) ** 2
+        # walker.weight *= (psinew / psiold) ** 2
 
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
