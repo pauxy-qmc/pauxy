@@ -201,8 +201,7 @@ class HirschSpinDMC(object):
         if abs(phase) < 0.5*math.pi:
             walker.weight = walker.weight * ratio.real
             phi = self.boson_trial.value(walker.X)
-            walker.ot = ot_new 
-            # walker.ot = ot_new * phi * phi
+            walker.ot = ot_new * phi * phi
         else:
             walker.weight = 0.0
 
