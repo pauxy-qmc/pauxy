@@ -301,7 +301,7 @@ class HirschSpinDMC(object):
         pot = pot.real
         walker.weight *= math.exp(-self.dt* pot)
 
-        walker.weight *= (psinew / psiold)
+        # walker.weight *= (psinew / psiold)
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
@@ -381,7 +381,7 @@ class HirschSpinDMC(object):
 
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi)
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
