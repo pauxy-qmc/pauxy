@@ -8,7 +8,8 @@ class HarmonicOscillator(object):
     def __init__(self, w, order, shift):
         self.w = w
         self.order = order
-        self.norm = (self.w / math.pi) ** 0.25 # not necessary but we just include...
+        # self.norm = (self.w / math.pi) ** 0.25 # not necessary but we just include...
+        self.norm = 1.0 # not necessary but we just include...
         self.xavg = shift
         # self.eshift = self.xavg**2 * self.w**2 / 2.0
 #-------------------------

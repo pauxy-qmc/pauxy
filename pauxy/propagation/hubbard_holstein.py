@@ -237,6 +237,8 @@ class HirschSpinDMC(object):
 
         psiold = trial.value(walker.X)
 
+        Xprev = walker.X.copy()
+
         Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
         
         walker.X = Xnew.copy()
@@ -257,8 +259,10 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
-        if (self.update_trial):
-            walker.weight *= (psinew / psiold)
+        # print("psinew, psiold = {}, {}, {}".format(psinew, psiold, Xprev))
+
+        # if (self.update_trial):
+        #     walker.weight *= (psinew / psiold)
 
         # walker.weight = walker.weight * (psinew / psiold) ** 2
 
@@ -316,11 +320,21 @@ class HirschSpinDMC(object):
             walker.greens_function(trial)
             shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            phinew = self.boson_trial.value(walker.X) # phi with a new trial
+            shiftprev = self.boson_trial.xavg.copy()
+            new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            phinew = new_trial.value(walker.X) # phi with a new trial
             oratio_extra = phinew / phiold
-            print("oratio_extra = {}".format(oratio_extra))
-            walker.weight *= oratio_extra
+
+            if (oratio_extra > numpy.random.random(1)):
+                self.boson_trial = new_trial
+            # print("oratio_extra, phiold, phinew = {}, {}, {}".format(oratio_extra, phiold, phinew))
+            # if (oratio_extra > 2.0):
+            #     print("shiftprev = {}".format(shiftprev))
+            #     print("shift = {}".format(shift))
+            #     print("phiold = {}".format(phiold))
+            #     print("phinew = {}".format(phinew))
+            #     exit()
+            # walker.weight *= oratio_extra
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
