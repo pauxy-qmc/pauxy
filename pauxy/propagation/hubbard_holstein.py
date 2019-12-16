@@ -358,7 +358,8 @@ class HirschSpinDMC(object):
 
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X) * self.boson_trial.value(walker.X)
+        # walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X) * self.boson_trial.value(walker.X)
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
