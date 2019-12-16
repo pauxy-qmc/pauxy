@@ -256,7 +256,7 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*eshift))
 
-        # walker.weight = walker.weight * (psinew / psiold) ** 2
+        walker.weight = walker.weight * (psinew / psiold) ** 2
 
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
@@ -306,14 +306,20 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
 
-        if (self.update_trial):
-            walker.greens_function(trial)
-            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-            phiold = self.boson_trial.value(walker.X)
-            self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            phinew = self.boson_trial.value(walker.X)
-            oratio_extra = numpy.prod(phiold / phinew)
-            walker.weight *= oratio_extra
+
+        walker.inverse_overlap(trial)
+        # Update walker weight
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X) * self.boson_trial.value(walker.X)
+
+
+        # if (self.update_trial):
+        #     walker.greens_function(trial)
+        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        #     phiold = self.boson_trial.value(walker.X)
+        #     self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        #     phinew = self.boson_trial.value(walker.X)
+        #     oratio_extra = numpy.prod(phiold / phinew)
+        #     walker.weight *= oratio_extra
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
