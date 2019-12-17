@@ -286,14 +286,15 @@ class HirschSpinDMC(object):
         # Xprev = walker.X.copy()
 
         if abs(walker.weight) > 0:
-            self.boson_importance_sampling(walker, system, self.boson_trial)
-        if abs(walker.weight) > 0:
             # self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
             self.kinetic_importance_sampling(walker, system, trial, update = False)
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
+        
+        if abs(walker.weight.real) > 0:
+            self.boson_importance_sampling(walker, system, self.boson_trial)
 
         if (self.update_trial):
             walker.greens_function(trial)
