@@ -325,7 +325,10 @@ class HirschSpinDMC(object):
 
         psiold = self.boson_trial.value(walker.X)
 
-        Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
+        # Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt, size=(system.nbasis))
+        Xnew = walker.X + dX
+
         walker.X = Xnew.copy()
 
         lap = self.boson_trial.laplacian(walker.X)
@@ -336,7 +339,7 @@ class HirschSpinDMC(object):
         pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         pot = pot.real
         walker.weight *= math.exp(-self.dt* pot)
-        walker.weight *= (psinew / psiold)
+        # walker.weight *= (psinew / psiold)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
@@ -381,8 +384,7 @@ class HirschSpinDMC(object):
 
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi)
-        # walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
