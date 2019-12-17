@@ -295,24 +295,25 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
 
-        # if (self.update_trial):
-        #     walker.greens_function(trial)
-        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-        #     phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-        #     shiftprev = self.boson_trial.xavg.copy()
-        #     new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-        #     phinew = new_trial.value(walker.X) # phi with a new trial
-        #     oratio_extra = phinew / phiold
+        if (self.update_trial):
+            walker.greens_function(trial)
+            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+            phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+            shiftprev = self.boson_trial.xavg.copy()
+            new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            phinew = new_trial.value(walker.X) # phi with a new trial
+            oratio_extra = phinew / phiold
+            # self.boson_trial = new_trial
 
-        #     if (oratio_extra > numpy.random.random(1)):
-        #         self.boson_trial = new_trial
+            if (oratio_extra > numpy.random.random(1)):
+                self.boson_trial = new_trial
             # print("oratio_extra, phiold, phinew = {}, {}, {}".format(oratio_extra, phiold, phinew))
             # if (oratio_extra > 2.0):
-            #     print("shiftprev = {}".format(shiftprev))
-            #     print("shift = {}".format(shift))
-            #     print("phiold = {}".format(phiold))
-            #     print("phinew = {}".format(phinew))
-            #     exit()
+                # print("shiftprev = {}".format(shiftprev))
+                # print("shift = {}".format(shift))
+                # print("phiold = {}".format(phiold))
+                # print("phinew = {}".format(phinew))
+                # exit()
             # walker.weight *= oratio_extra
     
     def boson_free_propagation(self, walker, system, trial, eshift):

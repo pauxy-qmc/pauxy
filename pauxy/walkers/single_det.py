@@ -85,7 +85,8 @@ class SingleDetWalker(object):
                 u = numpy.random.random(1)
                 if (u < pacc):
                     self.X = posnew.copy()
-            self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
+            # self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
+            self.Lap = trial.laplacian(self.X)
 
         try:
             excite = trial.excite_ia
