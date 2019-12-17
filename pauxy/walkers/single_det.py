@@ -1,5 +1,6 @@
 import copy
 import numpy
+import numpy.random
 import scipy.linalg
 from pauxy.estimators.mixed import local_energy, local_energy_hh
 from pauxy.trial_wavefunction.free_electron import FreeElectron
@@ -67,9 +68,23 @@ class SingleDetWalker(object):
         
         if system.name == "HubbardHolstein":
             shift = numpy.sqrt(system.w0*2.0) * system.g
-            # boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            # self.weight *= boson_trial.value(shift) * boson_trial.value(shift)
             self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
+
+            trial = HarmonicOscillator(w=system.w0, order=0, shift = shift)
+            sqtau = numpy.sqrt(0.005)
+            nstep = 100
+            for istep in range(nstep):
+                chi = numpy.random.randn(system.nbasis)# Random move
+                # propose a move
+                posnew = self.X + sqtau * chi
+                # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                wfold = trial.value(self.X)
+                wfnew = trial.value(posnew)
+                pacc = wfnew*wfnew/(wfold*wfold) 
+                # get indices of accepted moves
+                u = numpy.random.random(1)
+                if (u < pacc):
+                    self.X = posnew.copy()
             self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
 
         try:

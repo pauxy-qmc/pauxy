@@ -266,27 +266,6 @@ class HirschSpinDMC(object):
 
         # walker.weight = walker.weight * (psinew / psiold) ** 2
 
-    def boson_free_propagation(self, walker, system, trial, eshift):
-        #Change weight
-        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
-
-        psiold = self.boson_trial.value(walker.X)
-
-        Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
-        walker.X = Xnew.copy()
-
-        lap = self.boson_trial.laplacian(walker.X)
-        walker.Lap = lap
-
-        psinew = self.boson_trial.value(walker.X)
-
-        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
-        walker.weight *= (psinew / psiold)
-
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
 
@@ -316,17 +295,17 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
 
-        if (self.update_trial):
-            walker.greens_function(trial)
-            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-            phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            shiftprev = self.boson_trial.xavg.copy()
-            new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            phinew = new_trial.value(walker.X) # phi with a new trial
-            oratio_extra = phinew / phiold
+        # if (self.update_trial):
+        #     walker.greens_function(trial)
+        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        #     phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+        #     shiftprev = self.boson_trial.xavg.copy()
+        #     new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        #     phinew = new_trial.value(walker.X) # phi with a new trial
+        #     oratio_extra = phinew / phiold
 
-            if (oratio_extra > numpy.random.random(1)):
-                self.boson_trial = new_trial
+        #     if (oratio_extra > numpy.random.random(1)):
+        #         self.boson_trial = new_trial
             # print("oratio_extra, phiold, phinew = {}, {}, {}".format(oratio_extra, phiold, phinew))
             # if (oratio_extra > 2.0):
             #     print("shiftprev = {}".format(shiftprev))
@@ -335,6 +314,27 @@ class HirschSpinDMC(object):
             #     print("phinew = {}".format(phinew))
             #     exit()
             # walker.weight *= oratio_extra
+    
+    def boson_free_propagation(self, walker, system, trial, eshift):
+        #Change weight
+        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot = pot.real
+        walker.weight *= math.exp(-self.dt* pot)
+
+        psiold = self.boson_trial.value(walker.X)
+
+        Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
+        walker.X = Xnew.copy()
+
+        lap = self.boson_trial.laplacian(walker.X)
+        walker.Lap = lap
+
+        psinew = self.boson_trial.value(walker.X)
+
+        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot = pot.real
+        walker.weight *= math.exp(-self.dt* pot)
+        walker.weight *= (psinew / psiold)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
