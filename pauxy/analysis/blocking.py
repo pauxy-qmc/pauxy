@@ -279,11 +279,22 @@ def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
             columns = set_info(data, md)
             basic.append(data.drop('Iteration', axis=1))
             mds.append(md)
+
+        new_columns = []
+        for c in columns:
+            if (c == "E_T"):
+                continue
+            else:
+                new_columns += [c]
+        columns = new_columns
         basic = pd.concat(basic).groupby(columns)
+
         if fp:
             basic_av = reblock_free_projection(basic, columns)
         else:
             basic_av = reblock_mixed(basic, columns)
+        print(basic_av)
+        exit()
         base = files[0].split('/')[-1]
         outfile = 'analysed_' + base
         fmt = lambda x: "{:13.8f}".format(x)

@@ -66,7 +66,6 @@ def main(args):
     -------
     None.
     """
-
     options = parse_args(args)
     if '*' in options.filenames[0]:
         files = glob.glob(options.filenames[0])
