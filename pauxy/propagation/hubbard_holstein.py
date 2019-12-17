@@ -81,7 +81,8 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        shift = numpy.sqrt(system.w0*2.0) * system.g * numpy.ones(system.nbasis)
+        const = options.get('shift', numpy.sqrt(system.w0*2.0) * system.g)
+        shift = numpy.ones(system.nbasis) * const
         if verbose:
             print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
@@ -239,12 +240,13 @@ class HirschSpinDMC(object):
 
         Xprev = walker.X.copy()
 
-        Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt, size=(system.nbasis))
+        # Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
+        Xnew = walker.X + dX + driftold
         
         walker.X = Xnew.copy()
 
-        driftnew = self.dt * trial.gradient(Xnew)
-
+        # driftnew = self.dt * trial.gradient(Xnew)
         # acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
         # if (acc > numpy.random.random(1)):
             # walker.X = Xnew

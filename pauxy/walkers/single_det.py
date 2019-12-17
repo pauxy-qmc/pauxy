@@ -67,12 +67,12 @@ class SingleDetWalker(object):
                                          # diagonal=False)
         
         if system.name == "HubbardHolstein":
-            shift = numpy.sqrt(system.w0*2.0) * system.g
+            shift = walker_opts.get('shift', numpy.sqrt(system.w0*2.0) * system.g)
             self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
 
             trial = HarmonicOscillator(w=system.w0, order=0, shift = shift)
             sqtau = numpy.sqrt(0.005)
-            nstep = 100
+            nstep = 250
             for istep in range(nstep):
                 chi = numpy.random.randn(system.nbasis)# Random move
                 # propose a move
@@ -85,7 +85,6 @@ class SingleDetWalker(object):
                 u = numpy.random.random(1)
                 if (u < pacc):
                     self.X = posnew.copy()
-            # self.Lap = -system.w0 * numpy.ones(system.nbasis, dtype=numpy.complex128) # site laplacian current time
             self.Lap = trial.laplacian(self.X)
 
         try:
