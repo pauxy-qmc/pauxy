@@ -296,8 +296,7 @@ def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
             basic_av = reblock_free_projection(basic, columns)
         else:
             basic_av = reblock_mixed(basic, columns)
-        print(basic_av)
-        exit()
+
         base = files[0].split('/')[-1]
         outfile = 'analysed_' + base
         fmt = lambda x: "{:13.8f}".format(x)
