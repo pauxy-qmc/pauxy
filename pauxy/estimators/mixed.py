@@ -72,6 +72,9 @@ class Mixed(object):
         self.eval_energy = mixed.get('evaluate_energy', True)
         self.calc_one_rdm = mixed.get('one_rdm', False)
         self.calc_two_rdm = mixed.get('two_rdm', None)
+        
+        self.calc_holstein = mixed.get('evaluate_holstein', False)
+
         self.energy_eval_freq = mixed.get('energy_eval_freq', None)
         if self.energy_eval_freq is None:
             self.energy_eval_freq = qmc.nsteps
@@ -105,6 +108,12 @@ class Mixed(object):
             dms_size += self.two_rdm.size
         else:
             self.two_rdm = None
+
+        if self.calc_holstein:
+            # self.rho = numpy.zeros((2, system.nbasis), dtype)
+            # self.X = numpy.zeros((system.nbasis), dtype = numpy.float64)
+            dms_size += 2 * system.nbasis + system.nbasis
+
         self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
         self.names = get_estimator_enum(self.thermal)
         self.estimates[self.names.time] = time.time()
@@ -218,14 +227,29 @@ class Mixed(object):
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
                 self.estimates[self.names.ehyb] += w.weight * w.hybrid_energy
+                
+                start = self.names.time+1
+                end = start
                 if self.calc_one_rdm:
-                    start = self.names.time+1
-                    end = self.names.time+1+w.G.size
+                    # start = self.names.time+1
+                    end = start+w.G.size
                     self.estimates[start:end] += w.weight*w.G.flatten().real
+
                 if self.calc_two_rdm is not None:
                     start = end
                     end = end + self.two_rdm.size
                     self.estimates[start:end] += w.weight*self.two_rdm.flatten().real
+                
+                if self.calc_holstein:
+                    start = end
+                    end = end + system.nbasis
+                    self.estimates[start:end] += w.weight*numpy.diag(w.G[0]).flatten().real
+                    start = end
+                    end = end + system.nbasis
+                    self.estimates[start:end] += w.weight*numpy.diag(w.G[1]).flatten().real
+                    start = end
+                    end = end + system.nbasis
+                    self.estimates[start:end] += w.weight*w.X.real
 
     def print_step(self, comm, nprocs, step, nsteps=None, free_projection=False):
         """Print mixed estimates to file.
@@ -271,15 +295,38 @@ class Mixed(object):
             if self.verbose:
                 print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
             self.output.push([step]+list(gs[:ns.time+1]), 'energies')
+            start = self.nreg
+            end = self.nreg
             if self.calc_one_rdm:
-                start = self.nreg
-                end = self.nreg+self.G.size
+                end = start+self.G.size
                 rdm = gs[start:end].reshape(self.G.shape)
                 self.output.push(rdm/gs[ns.weight], 'one_rdm')
+            
             if self.calc_two_rdm:
-                start = self.nreg + self.G.size
-                rdm = gs[start:].reshape(self.two_rdm.shape)
+                start = end
+                end = start + self.two_rdm.size
+                rdm = gs[start:end].reshape(self.two_rdm.shape)
                 self.output.push(rdm/gs[ns.weight], 'two_rdm')
+            
+            if self.calc_holstein:
+                nbsf = self.G.shape[-1]
+                start = end
+                end = start + nbsf
+                rhoa = gs[start:end]
+                start = end
+                end = start + nbsf
+                rhob = gs[start:end]
+                
+                rho = numpy.array([rhoa, rhob])
+
+                self.output.push(rho/gs[ns.weight], 'rho')
+
+                start = end
+                end = start + nbsf
+                X = gs[start:end]
+                self.output.push(X/gs[ns.weight], 'X')
+
+
             self.output.increment()
         self.zero()
 

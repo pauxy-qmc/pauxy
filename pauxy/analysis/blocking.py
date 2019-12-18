@@ -12,7 +12,7 @@ from pauxy.analysis.extraction import (
         extract_mixed_estimates,
         extract_data,
         get_metadata, set_info,
-        extract_rdm
+        extract_rdm, extract_mixed_rdm
         )
 from pauxy.utils.misc import get_from_dict
 
@@ -151,7 +151,10 @@ def reblock_local_energy(filename, skip=0):
 
 def average_rdm(files, skip=1, est_type='back_propagated', rdm_type='one_rdm', ix=None):
 
-    rdm_series = extract_rdm(files, est_type=est_type, rdm_type=rdm_type, ix=ix)
+    if (est_type == 'back_propagated'):
+        rdm_series = extract_rdm(files, est_type=est_type, rdm_type=rdm_type, ix=ix)
+    elif (est_type == 'basic'):
+        rdm_series = extract_mixed_rdm(files, est_type=est_type, rdm_type=rdm_type)
 
     rdm_av = rdm_series[skip:].mean(axis=0)
     rdm_err = rdm_series[skip:].std(axis=0, ddof=1) / len(rdm_series)**0.5

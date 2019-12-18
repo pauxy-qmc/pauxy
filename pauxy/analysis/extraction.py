@@ -33,6 +33,7 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
         splits = get_param(filename, ['estimators', 'estimators',
                                       'back_prop', 'splits'])
         ix = splits[0][-1]
+
     denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
     one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix), raw=True)
     fp = get_param(filename, ['propagators','free_projection'])
@@ -46,6 +47,19 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
             return one_rdm / denom[:,None]
         else:
             return one_rdm / denom
+
+def extract_mixed_rdm(filename, est_type='basic', rdm_type='one_rdm'):
+    rdmtot = []
+
+    one_rdm = extract_data(filename, est_type, rdm_type, raw=True)
+    
+    fp = get_param(filename, ['propagators','free_projection'])
+    if fp:
+        print("# Warning analysis of FP RDM not implemented.")
+        return one_rdm
+    else:
+        return one_rdm
+
 
 def set_info(frame, md):
     system = md.get('system')
