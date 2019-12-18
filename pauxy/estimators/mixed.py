@@ -110,8 +110,8 @@ class Mixed(object):
             self.two_rdm = None
 
         if self.calc_holstein:
-            # self.rho = numpy.zeros((2, system.nbasis), dtype)
-            # self.X = numpy.zeros((system.nbasis), dtype = numpy.float64)
+            self.rho = numpy.zeros((2, system.nbasis), dtype = numpy.float64)
+            self.X = numpy.zeros((system.nbasis), dtype = numpy.float64)
             dms_size += 2 * system.nbasis + system.nbasis
 
         self.estimates = numpy.zeros(self.nreg+dms_size, dtype=dtype)
@@ -289,8 +289,10 @@ class Mixed(object):
             eshift = 0
         if self.thermal and comm.rank == 0:
             gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
+        
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift
+
         if comm.rank == 0:
             if self.verbose:
                 print(format_fixed_width_floats([step]+list(gs[:ns.time+1].real)))
@@ -319,15 +321,34 @@ class Mixed(object):
                 
                 rho = numpy.array([rhoa, rhob])
 
-                self.output.push(rho/gs[ns.weight], 'rho')
+                rho = rho / gs[ns.weight]
+                rho /= nsteps
+                rho = numpy.real(rho)
+
+                self.output.push(rho, 'rho')
 
                 start = end
                 end = start + nbsf
-                X = gs[start:end]
-                self.output.push(X/gs[ns.weight], 'X')
+                X = gs[start:end] / gs[ns.weight]
+                X /= nsteps
 
+                X = numpy.real(X)
+
+                self.output.push(X, 'X')
 
             self.output.increment()
+        else:
+            if self.calc_holstein:
+                rho = numpy.zeros_like(self.rho)
+                X = numpy.zeros_like(self.X)
+        
+
+        if self.calc_holstein:
+            rho = comm.bcast(rho, root=0)
+            self.rho = rho.copy()
+            X = comm.bcast(X, root=0)
+            self.X = X.copy()
+
         self.zero()
 
     def print_key(self, eol='', encode=False):
@@ -393,6 +414,16 @@ class Mixed(object):
             Walker averaged hybrid energy.
         """
         return self.eshift.real
+
+    def get_holstein(self):
+        """Get holstein estimators
+
+        Returns
+        -------
+        rho : numpy.array
+        X   : numpy.array
+        """
+        return (self.rho, self.X)
 
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""

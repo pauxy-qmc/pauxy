@@ -198,11 +198,17 @@ class AFQMC(object):
         self.setup_timers()
         (etot, e1b, e2b) = self.psi.walkers[0].local_energy(self.system)
         eshift = 0
+
         self.propagators.mean_local_energy = eshift.real
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,
                                                    self.propagators.free_projection)
+        
+        if self.estimators.estimators['mixed'].calc_holstein:
+            rho = numpy.zeros((2, self.system.nbasis), dtype = numpy.float64)
+            X = numpy.zeros((self.system.nbasis), dtype = numpy.float64)
+            (rho, X) = self.estimators.estimators['mixed'].get_holstein()
         # Print out zeroth step for convenience.
         if verbose:
             self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
@@ -216,9 +222,12 @@ class AFQMC(object):
                 self.tortho += time.time() - start
             start = time.time()
             for w in self.psi.walkers:
-                if abs(w.weight) > 1e-8:
+                if abs(w.weight) > 1e-8 and not self.estimators.estimators['mixed'].calc_holstein:
                     self.propagators.propagate_walker(w, self.system,
                                                       self.trial, eshift)
+                if abs(w.weight) > 1e-8 and self.estimators.estimators['mixed'].calc_holstein:
+                    self.propagators.propagate_walker(w, self.system,
+                                                      self.trial, eshift, rho=rho, X = X)
                 if (abs(w.weight) > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
             self.tprop += time.time() - start
@@ -239,6 +248,10 @@ class AFQMC(object):
                 eshift = self.estimators.estimators['mixed'].get_shift()
             else:
                 eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
+            
+            if self.estimators.estimators['mixed'].calc_holstein:
+                (rho, X) = self.estimators.estimators['mixed'].get_holstein()
+
             self.tstep += time.time() - start_step
 
     def finalise(self, verbose=False):

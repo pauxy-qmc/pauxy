@@ -261,7 +261,7 @@ class HirschSpinDMC(object):
         else:
             walker.weight = 0.0
 
-    def propagate_walker_constrained(self, walker, system, trial, eshift):
+    def propagate_walker_constrained(self, walker, system, trial, eshift, rho, X):
         r"""Wrapper function for propagation using discrete transformation
 
         The discrete transformation allows us to split the application of the
@@ -287,9 +287,10 @@ class HirschSpinDMC(object):
             self.kinetic_importance_sampling(walker, system, trial, update = False)
         if abs(walker.weight.real) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial)
-
+        # print("rho = {}".format(rho))
+        # print("X = {}".format(X))
         if (self.update_trial):
-            nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
+            nX = numpy.array([numpy.diag(X), numpy.diag(X)])
             V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
             otold= walker.calc_otrial(trial)
             trial.update_wfn(system, V, verbose=0)
@@ -302,13 +303,14 @@ class HirschSpinDMC(object):
                 walker.ot *= oratio_extra 
             else:
                 walker.weight = 0.0
-        #     walker.greens_function(trial)
-        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-        #     phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-        #     shiftprev = self.boson_trial.xavg.copy()
-        #     new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-        #     phinew = new_trial.value(walker.X) # phi with a new trial
-        #     oratio_extra = phinew / phiold
+
+            # walker.greens_function(trial)
+            # shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+            # phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+            # shiftprev = self.boson_trial.xavg.copy()
+            # new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+            # phinew = new_trial.value(walker.X) # phi with a new trial
+            # oratio_extra = phinew / phiold
             # walker.weight *= oratio_extra
     
     def boson_free_propagation(self, walker, system, trial, eshift):
