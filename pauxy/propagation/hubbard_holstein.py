@@ -130,50 +130,6 @@ class HirschSpinDMC(object):
         """
         walker.greens_function(trial)
     
-    def kinetic_importance_sampling(self, walker, system, trial, update):
-        r"""Propagate by the kinetic term by direct matrix multiplication.
-
-        Parameters
-        ----------
-        walker : :class:`pauxy.walker`
-            Walker object to be updated. On output we have acted on phi by
-            B_{T/2} and updated the weight appropriately. Updates inplace.
-        system : :class:`pauxy.system.System`
-            System object.
-        trial : :class:`pauxy.trial_wavefunctioin.Trial`
-            Trial wavefunction object.
-        """
-
-        oratio_extra = 1.0
-
-        # if (update):
-        #     nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
-        #     V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
-        #     otold= walker.calc_otrial(trial)
-        #     trial.update_wfn(system, V, verbose=0)
-        #     walker.inverse_overlap(trial)
-        #     otnew= walker.calc_otrial(trial)
-        #     oratio_extra = (otold / otnew).real
-
-        self.kinetic(walker.phi, system, self.bt2)
-
-        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
-        nX = [walker.X, walker.X]
-        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
-
-        # Update inverse overlap
-        walker.inverse_overlap(trial)
-        # Update walker weight
-        ot_new = walker.calc_otrial(trial)
-        ratio = (ot_new/walker.ot) * oratio_extra
-        phase = cmath.phase(ratio)
-        if abs(phase) < 0.5*math.pi:
-            walker.weight = walker.weight * ratio.real
-            walker.ot = ot_new
-        else:
-            walker.weight = 0.0
-
     def two_body(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
@@ -261,12 +217,49 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
-        # print("psinew, psiold = {}, {}, {}".format(psinew, psiold, Xprev))
+    def kinetic_importance_sampling(self, walker, system, trial, update):
+        r"""Propagate by the kinetic term by direct matrix multiplication.
 
-        # if (self.update_trial):
-        #     walker.weight *= (psinew / psiold)
+        Parameters
+        ----------
+        walker : :class:`pauxy.walker`
+            Walker object to be updated. On output we have acted on phi by
+            B_{T/2} and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
+        """
 
-        # walker.weight = walker.weight * (psinew / psiold) ** 2
+        oratio_extra = 1.0
+
+        # if (update):
+        #     nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
+        #     V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
+        #     otold= walker.calc_otrial(trial)
+        #     trial.update_wfn(system, V, verbose=0)
+        #     walker.inverse_overlap(trial)
+        #     otnew= walker.calc_otrial(trial)
+        #     oratio_extra = (otold / otnew).real
+
+        self.kinetic(walker.phi, system, self.bt2)
+
+        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        nX = [walker.X, walker.X]
+        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
+        # Update inverse overlap
+        walker.inverse_overlap(trial)
+        # Update walker weight
+        ot_new = walker.calc_otrial(trial)
+        ratio = (ot_new/walker.ot) * oratio_extra
+        phase = cmath.phase(ratio)
+        if abs(phase) < 0.5*math.pi:
+            walker.weight = walker.weight * ratio.real
+            walker.ot = ot_new
+        else:
+            walker.weight = 0.0
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
@@ -285,38 +278,37 @@ class HirschSpinDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-        # Xprev = walker.X.copy()
 
         if abs(walker.weight) > 0:
-            # self.kinetic_importance_sampling(walker, system, trial, update = self.update_trial)
             self.kinetic_importance_sampling(walker, system, trial, update = False)
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
-        
         if abs(walker.weight.real) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial)
 
         if (self.update_trial):
-            walker.greens_function(trial)
-            shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-            phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            shiftprev = self.boson_trial.xavg.copy()
-            new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
-            phinew = new_trial.value(walker.X) # phi with a new trial
-            oratio_extra = phinew / phiold
-            # self.boson_trial = new_trial
-
-            if (oratio_extra > numpy.random.random(1)):
-                self.boson_trial = new_trial
-            # print("oratio_extra, phiold, phinew = {}, {}, {}".format(oratio_extra, phiold, phinew))
-            # if (oratio_extra > 2.0):
-                # print("shiftprev = {}".format(shiftprev))
-                # print("shift = {}".format(shift))
-                # print("phiold = {}".format(phiold))
-                # print("phinew = {}".format(phinew))
-                # exit()
+            nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
+            V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
+            otold= walker.calc_otrial(trial)
+            trial.update_wfn(system, V, verbose=0)
+            walker.inverse_overlap(trial)
+            otnew= walker.calc_otrial(trial)
+            oratio_extra = (otold / otnew).real
+            phase = cmath.phase(oratio_extra)
+            if abs(phase) < 0.5*math.pi:
+                walker.weight = walker.weight * oratio_extra
+                walker.ot *= oratio_extra 
+            else:
+                walker.weight = 0.0
+        #     walker.greens_function(trial)
+        #     shift = numpy.sqrt(system.w0*2.0) * system.g * (numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
+        #     phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+        #     shiftprev = self.boson_trial.xavg.copy()
+        #     new_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        #     phinew = new_trial.value(walker.X) # phi with a new trial
+        #     oratio_extra = phinew / phiold
             # walker.weight *= oratio_extra
     
     def boson_free_propagation(self, walker, system, trial, eshift):
@@ -327,7 +319,6 @@ class HirschSpinDMC(object):
 
         psiold = self.boson_trial.value(walker.X)
 
-        # Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape)
         dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt, size=(system.nbasis))
         Xnew = walker.X + dX
 
@@ -341,7 +332,6 @@ class HirschSpinDMC(object):
         pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         pot = pot.real
         walker.weight *= math.exp(-self.dt* pot)
-        # walker.weight *= (psinew / psiold)
 
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
