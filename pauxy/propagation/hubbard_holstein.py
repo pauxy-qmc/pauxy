@@ -261,7 +261,7 @@ class HirschSpinDMC(object):
         else:
             walker.weight = 0.0
 
-    def propagate_walker_constrained(self, walker, system, trial, eshift, rho, X):
+    def propagate_walker_constrained(self, walker, system, trial, eshift, rho=None, X=None):
         r"""Wrapper function for propagation using discrete transformation
 
         The discrete transformation allows us to split the application of the
