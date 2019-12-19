@@ -74,6 +74,15 @@ class FreeElectron(object):
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+
+        if (system.name == "HubbardHolstein"):
+            shift = numpy.ones(system.nbasis) * numpy.sqrt(system.w0*2.0) * system.g
+            nX = numpy.array([numpy.diag(shift), numpy.diag(shift)])
+            V = - system.g * numpy.sqrt(system.w0 * 2.0) * nX
+            self.update_wfn(system, V, verbose=0) # trial update
+            if verbose:
+                print ("# Updated free_electron.")
+
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
 

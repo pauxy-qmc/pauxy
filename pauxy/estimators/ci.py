@@ -127,17 +127,17 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
     Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
 
-    for isite in range(system.nbasis):
-        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
-        for i, di in enumerate(dets):
-            for d in di:
-                ii, spin_ii = map_orb(d, system.nbasis)
-                if (ii == isite):
-                    rhoi[i,i] += 1.0
-        rho = scipy.sparse.kron(Ib, rhoi)
-        nocc1 =  eigvec[:,0].T.conj().dot(rho.dot(eigvec[:,0]))
-        nocc2 =  eigvec[:,1].T.conj().dot(rho.dot(eigvec[:,1]))
-        print("i, nocc1, nocc2 = {}, {}, {}".format(isite, nocc1, nocc2))
+    # for isite in range(system.nbasis):
+    #     rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+    #     for i, di in enumerate(dets):
+    #         for d in di:
+    #             ii, spin_ii = map_orb(d, system.nbasis)
+    #             if (ii == isite):
+    #                 rhoi[i,i] += 1.0
+    #     rho = scipy.sparse.kron(Ib, rhoi)
+    #     nocc1 =  eigvec[:,0].T.conj().dot(rho.dot(eigvec[:,0]))
+    #     nocc2 =  eigvec[:,1].T.conj().dot(rho.dot(eigvec[:,1]))
+        # print("i, nocc1, nocc2 = {}, {}, {}".format(isite, nocc1, nocc2))
 
     # for isite in range(system.nbasis):
     #     bi = scipy.sparse.csr_matrix((nperms, nperms))
