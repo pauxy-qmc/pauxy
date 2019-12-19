@@ -6,6 +6,7 @@ import numpy
 import warnings
 import uuid
 from math import exp
+import cmath
 import copy
 import h5py
 from pauxy.estimators.handler import Estimators
@@ -230,6 +231,30 @@ class AFQMC(object):
                                                       self.trial, eshift, rho=rho, X = X)
                 if (abs(w.weight) > w.total_weight * 0.10) and step > 1:
                     w.weight = w.total_weight * 0.10
+            
+            if self.estimators.estimators['mixed'].calc_holstein and self.propagators.update_trial:
+                if comm.rank == 0:
+                    nX = numpy.array([numpy.diag(X), numpy.diag(X)])
+                    V = - self.system.g * cmath.sqrt(self.system.w0 * 2.0) * nX
+                    # otold= walker.calc_otrial(self.trial)
+                    self.trial.update_wfn(self.system, V, verbose=0) # trial update
+                else:
+                    self.trial = None
+                
+                self.trial = comm.bcast(self.trial, root=0)
+                
+                for w in self.psi.walkers:
+                    w.inverse_overlap(self.trial)
+                    otold = w.ot
+                    otnew= w.calc_otrial(self.trial)
+                    oratio_extra = (otnew / otold).real
+                    phase = cmath.phase(oratio_extra)
+                    if abs(phase) < 0.5*cmath.pi:
+                        w.weight = w.weight * oratio_extra
+                        w.ot *= oratio_extra 
+                    else:
+                        w.weight = 0.0
+
             self.tprop += time.time() - start
             if step % self.qmc.npop_control == 0:
                 start = time.time()
