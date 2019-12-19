@@ -207,7 +207,7 @@ class Generic(object):
         else:
             self.hs_pot = self.hs_pot.reshape(M,M,self.nfields)
         start = time.time()
-        # rup = numpy.einsum('ia,ikn->akn',
+        # rrup = numpy.einsum('ia,ikn->akn',
                            # trial.psi[:,:na].conj(),
                            # self.hs_pot,
                            # optimize='greedy')
@@ -217,10 +217,10 @@ class Generic(object):
                            # optimize='greedy')
         rup = numpy.tensordot(trial.psi[:,:na].conj(),
                               self.hs_pot,
-                              axes=((0),(1)))
+                              axes=((0),(0)))
         rdn = numpy.tensordot(trial.psi[:,na:].conj(),
                               self.hs_pot,
-                              axes=((0),(1)))
+                              axes=((0),(0)))
         trot = time.time() - start
         # This is much faster than einsum.
         # for l in range(self.nchol):
