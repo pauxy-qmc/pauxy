@@ -281,7 +281,7 @@ class HirschSpinDMC(object):
 
         if (self.update_trial):
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w**2)
+            shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift) # trial updaate
             phinew = self.boson_trial.value(walker.X) # phi with a new trial
             oratio_extra = phinew / phiold
