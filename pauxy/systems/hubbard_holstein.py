@@ -81,6 +81,8 @@ class HubbardHolstein(object):
         self.g = inputs.get('g', None)
         
         if (self.g == None):
+            # This is assuming self.m = 1 / self.w0
+            # to include mass see 10.1103/PhysRevLett.97.056402
             self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
 
         if verbose:
@@ -485,7 +487,7 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [0.5]
+    lmbdas = [1.0]
     w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # w0s = [0.5]
 
@@ -509,6 +511,7 @@ def unit_test():
             system0 = Hubbard (options, verbose=True)
             (eig, evec), H = simple_fci(system0, hamil=True)
             # nbosons = [5, 10, 15, 20, 25]
+            # nbosons = [5, 10, 15]
             nbosons = [20]
             eigs = []
             eigs += [eig[0]]

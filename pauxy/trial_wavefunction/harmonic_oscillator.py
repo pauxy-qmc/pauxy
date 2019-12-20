@@ -15,7 +15,7 @@ class HarmonicOscillator(object):
         # self.eshift = self.xavg**2 * self.w**2 / 2.0
 #-------------------------
     def value(self,X): # X : lattice configuration
-        result = numpy.prod(self.norm * numpy.exp(- self.m * self.w / 2.0 * (X-self.xavg) * (X-self.xavg)))
+        result = numpy.prod(self.norm * numpy.exp(- (self.m * self.w / 2.0) * (X-self.xavg) * (X-self.xavg)))
         return result 
 #-------------------------
     def gradient(self,X): # grad / value
