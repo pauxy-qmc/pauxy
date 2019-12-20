@@ -196,7 +196,7 @@ class HirschSpinDMC(object):
 
         Xprev = walker.X.copy()
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt, size=(system.nbasis))
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
         # Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
         Xnew = walker.X + dX + driftold
         
@@ -298,13 +298,13 @@ class HirschSpinDMC(object):
     
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
-        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         pot = pot.real
         walker.weight *= math.exp(-self.dt* pot)
 
         psiold = self.boson_trial.value(walker.X)
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt, size=(system.nbasis))
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
         Xnew = walker.X + dX
 
         walker.X = Xnew.copy()
@@ -314,7 +314,7 @@ class HirschSpinDMC(object):
 
         psinew = self.boson_trial.value(walker.X)
 
-        pot  = 0.25 * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
         pot = pot.real
         walker.weight *= math.exp(-self.dt* pot)
 

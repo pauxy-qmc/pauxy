@@ -47,12 +47,12 @@ def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
     pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal())
 
     
-    pe_ph = 0.5 * system.w0 ** 2 * numpy.sum(X * X)
-    ke_ph = -0.5 * numpy.sum(Lap) - 0.5 * system.w0 * system.nbasis
+    pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(X * X)
+
+    ke_ph = -0.5 * numpy.sum(Lap) / system.m - 0.5 * system.w0 * system.nbasis
     
     rho = G[0].diagonal() + G[1].diagonal()
-    e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.dot(rho, X)
-    # e_eph = - system.g * cmath.sqrt(system.w0 * 2.0) * numpy.sum(X)
+    e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, X)
 
 
     etot = ke + pe + pe_ph + ke_ph + e_eph
@@ -60,18 +60,6 @@ def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
     Eph = ke_ph + pe_ph
     Eel = ke + pe
     Eeb = e_eph
-
-    # print("# etot = {}".format(etot))
-    # print("# (etot, ke+ke_ph, pe+pe_ph+e_eph) = {}".format((etot, ke+ke_ph, pe+pe_ph+e_eph)))
-
-    # print("# Eel, Eph, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eph, Eeb, Eel+Eph+Eeb))
-    # print("# ke_ph, pe_ph, e_ph = {}, {}, {}".format(ke_ph, pe_ph, ke_ph+pe_ph))
-    # print("# Eeb = {}".format(Eeb))
-    # print("# Eph, Eeb = {}, {}".format(Eph, Eeb))
-
-    # if (numpy.abs(etot + 4.0) > 1e-6):
-    #     print ("# (etot, ke+ke_ph, pe+pe_ph+e_eph) = {}".format((etot, ke+ke_ph, pe+pe_ph+e_eph)))
-    #     print("# Eel, Eph, Eeb, etot = {}, {}, {}, {}".format(Eel, Eph, Eeb, etot))
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
