@@ -244,7 +244,7 @@ class HirschSpinDMC(object):
 
         self.kinetic(walker.phi, system, self.bt2)
 
-        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
         nX = [walker.X, walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
@@ -337,7 +337,7 @@ class HirschSpinDMC(object):
 
         kinetic_real(walker.phi, system, self.bt2)
 
-        const = system.g * cmath.sqrt(system.w0 * 2.0) * self.dt / 2.0
+        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
         Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
