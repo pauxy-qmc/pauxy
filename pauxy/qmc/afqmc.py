@@ -235,7 +235,7 @@ class AFQMC(object):
             if self.estimators.estimators['mixed'].calc_holstein and self.propagators.update_trial:
                 if comm.rank == 0:
                     nX = numpy.array([numpy.diag(X), numpy.diag(X)])
-                    V = - self.system.g * cmath.sqrt(self.system.w0 * 2.0) * nX
+                    V = - self.system.g * cmath.sqrt(self.system.m * self.system.w0 * 2.0) * nX
                     # otold= walker.calc_otrial(self.trial)
                     self.trial.update_wfn(self.system, V, verbose=0) # trial update
                 else:
