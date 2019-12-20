@@ -67,10 +67,10 @@ class SingleDetWalker(object):
                                          # diagonal=False)
         
         if system.name == "HubbardHolstein":
-            shift = walker_opts.get('shift', numpy.sqrt(system.w0*2.0) * system.g)
+            shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g)
             self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
 
-            trial = HarmonicOscillator(w=system.w0, order=0, shift = shift)
+            trial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
             sqtau = numpy.sqrt(0.005)
             nstep = 250
             for istep in range(nstep):

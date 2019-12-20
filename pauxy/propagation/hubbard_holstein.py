@@ -81,11 +81,11 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        const = options.get('shift', numpy.sqrt(system.w0*2.0) * system.g)
+        const = options.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g)
         shift = numpy.ones(system.nbasis) * const
         if verbose:
             print("# Shift = {}".format(shift))
-        self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift)
+        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
 
         if verbose:
@@ -290,8 +290,8 @@ class HirschSpinDMC(object):
 
         if (self.update_trial):
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            shift = numpy.sqrt(system.w0*2.0) * system.g * (rho[0]+ rho[1])
-            self.boson_trial = HarmonicOscillator(system.w0, order = 0, shift=shift) # trial updaate
+            shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1])
+            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift) # trial updaate
             phinew = self.boson_trial.value(walker.X) # phi with a new trial
             oratio_extra = phinew / phiold
             walker.weight *= oratio_extra

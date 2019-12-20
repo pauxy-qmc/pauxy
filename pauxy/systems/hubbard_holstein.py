@@ -55,6 +55,7 @@ class HubbardHolstein(object):
         self.t = inputs.get('t', 1.0)
         self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)
+        self.m = inputs.get('m', 1.0) # mass
 
         self.U = inputs['U']
         self.nx = inputs['nx']
@@ -87,7 +88,7 @@ class HubbardHolstein(object):
             print("# nx, ny = {},{}".format(self.nx, self.ny))
             print("# nbasis = {}".format(self.nbasis))
             print("# t, U = {}, {}".format(self.t, self.U))
-            print("# w0, g, lambda = {}, {}, {}".format(self.w0, self.g, self.lmbda))
+            print("# m, w0, g, lambda = {}, {}, {}, {}".format(self.m, self.w0, self.g, self.lmbda))
             # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
             # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
 
@@ -479,57 +480,61 @@ def unit_test():
     import scipy
     import numpy
     import scipy.sparse.linalg
-    options = {
-    "name": "HubbardHolstein",
-    "nup": 1,
-    "ndown": 1,
-    "nx": 2,
-    "ny": 2,
-    "U": 4.0,
-    "t": 1.0,
-    # "w0": 1.0,
-    # "g": 1.0,
-    # "U": 0.0,
-    "w0": 1.0,
-    # "lambda": 0.05,
-    "lambda": 0.5,
-    # "lambda": 1.0,
-    }
-    system = HubbardHolstein (options, verbose=True)
-    system0 = Hubbard (options, verbose=True)
-    (eig, evec), H = simple_fci(system0, hamil=True)
-    print(eig)
-    # exit()
-    # nbosons = [5, 10, 20]#, 10, 20]
-    # nbosons = [5, 10, 15, 20]
-    nbosons = [5, 10, 15, 20]
-    # nbosons = [2]
-    # eig = [-2.81790701 -2.56972224 -2.56972224 -2.49849154 -2.28210542]
-    # eig = [-2.83425305 -2.63010139 -2.63010139 -2.57878648 -2.36224815]
+    import pandas as pd
 
-    # 
-    # nbosons = [5, 10, 20, 40, 60]
-    # nbosons = [1, 2]
-    eigs = []
-    eigs += [eig[0]]
-    for nboson in nbosons:
-        print("# nboson = {}".format(nboson))
-        (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
-        # print(H.todense())
-        # sH = scipy.sparse.csr_matrix(H)
-        # seig, sevec = scipy.sparse.linalg.eigsh(H, k=100)
-        # eig, evec = scipy.linalg.eigh(H, turbo=True)
-        # print(seig)
-        # return scipy.sparse.linalg.eigsh(Htot, k=6), Htot
-        # print(H.todense())
-        # print("eig = {}".format(eig[0:5]))
-        print("eig = {}".format(eig[0]))
-        eigs += [eig[0]]
-    alpha = numpy.sqrt(system.w0 * 2.0) * system.g 
-    shift = alpha * alpha / (2.0 * system.w0**2) * system.nbasis
-    print("shift = {}".format(shift))
+    # lmbdas = [0.5, 0.3, 0.8, 1.0]
+    # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
+    # lmbdas = [0.8,1.0]
+    lmbdas = [0.5]
+    w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
+    # w0s = [0.5]
 
-    print(eigs)
+    df = pd.DataFrame()
+
+    for il, lmbda in enumerate(lmbdas):
+        for iw0, w0 in enumerate(w0s):
+            print ("w0 = {}".format(w0))
+            options = {
+            "name": "HubbardHolstein",
+            "nup": 1,
+            "ndown": 1,
+            "nx": 4,
+            "ny": 1,
+            "U": 4.0,
+            "t": 1.0,
+            "w0": w0,
+            "lambda": lmbda,
+            }
+            system = HubbardHolstein (options, verbose=True)
+            system0 = Hubbard (options, verbose=True)
+            (eig, evec), H = simple_fci(system0, hamil=True)
+            # nbosons = [5, 10, 15, 20, 25]
+            nbosons = [20]
+            eigs = []
+            eigs += [eig[0]]
+            for nboson in nbosons:
+                # print("# nboson = {}".format(nboson))
+                (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
+                # print("eig = {}".format(eig[0]))
+                eigs += [eig[0]]
+            nbosons = [0] + nbosons
+            
+            w = [w0 for i in range(len(nbosons))]
+            l = [lmbda for i in range(len(nbosons))]
+            # if (iw0 == 0):
+                # df = pd.DataFrame({"lambda":l, "w0":w, "nbosons":nbosons, 
+                #                  "E":eigs})
+            # else:
+            df0 = pd.DataFrame({"lambda":lmbda, "w0":w0, "nbosons":nbosons, 
+                             "E":eigs})
+            df = df.append(df0)
+
+            print(df.to_string(index=False))
+            # alpha = numpy.sqrt(system.w0 * 2.0) * system.g 
+            # shift = alpha * alpha / (2.0 * system.w0**2) * system.nbasis
+            # print("shift = {}".format(shift))
+
+            # print(eigs)
 
 if __name__=="__main__":
     unit_test()
