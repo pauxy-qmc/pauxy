@@ -187,7 +187,7 @@ class HirschSpinDMC(object):
     
     def boson_importance_sampling(self, walker, system, trial):
         #Drift+diffusion
-        driftold = self.dt * trial.gradient(walker.X)
+        driftold = (self.dt / system.m) * trial.gradient(walker.X)
 
         elocold = trial.local_energy(walker.X)
         elocold = numpy.real(elocold)
@@ -232,15 +232,6 @@ class HirschSpinDMC(object):
         """
 
         oratio_extra = 1.0
-
-        # if (update):
-        #     nX = numpy.array([(walker.G[0].diagonal()) * walker.X, (walker.G[1].diagonal()) * walker.X])
-        #     V = - system.g * cmath.sqrt(system.w0 * 2.0) * nX
-        #     otold= walker.calc_otrial(trial)
-        #     trial.update_wfn(system, V, verbose=0)
-        #     walker.inverse_overlap(trial)
-        #     otnew= walker.calc_otrial(trial)
-        #     oratio_extra = (otold / otnew).real
 
         self.kinetic(walker.phi, system, self.bt2)
 

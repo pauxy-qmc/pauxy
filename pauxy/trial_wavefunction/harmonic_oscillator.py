@@ -33,7 +33,7 @@ class HarmonicOscillator(object):
         nsites = X.shape[0]
 
         ke   = - 0.5 * numpy.sum(self.laplacian(X)) / self.m
-        pot  = 0.5 * self.w * self.w * numpy.sum(X * X) * self.m
+        pot  = 0.5 * self.m * self.w * self.w * numpy.sum(X * X)
 
         eloc = ke+pot - 0.5 * self.w * nsites # No zero-point energy
 
