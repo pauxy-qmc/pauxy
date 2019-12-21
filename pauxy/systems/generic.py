@@ -178,8 +178,8 @@ class Generic(object):
         except:
             print("# Unknown Hamiltonian file format.")
         if ((nup != self.nup) or ndown != self.ndown):
-            print("Number of electrons is inconsistent")
-            print("%d %d vs. %d %d"%(nup, ndown, self.nup, self.ndown))
+            print("# Warning: Number of electrons differs from integral file.")
+            print("# file: %d %d vs. input: %d %d"%(nup, ndown, self.nup, self.ndown))
         return h1e, chol_vecs, ecore
 
     def construct_h1e_mod(self):
