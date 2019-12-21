@@ -55,6 +55,8 @@ class UEG(object):
             print("# Number of spin-up electrons: {:d}".format(self.nup))
             print("# Number of spin-down electrons: {:d}".format(self.ndown))
             print("# rs: {:6.4e}".format(self.rs))
+            if self.mu is not None:
+                print("# mu: {:6.4e}".format(self.mu))
 
         self.thermal = inputs.get('thermal', False)
         if self.thermal and verbose:
