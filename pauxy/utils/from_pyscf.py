@@ -176,15 +176,17 @@ def generate_integrals(mol, hcore, X, chol_cut=1e-5, verbose=False, cas=None):
 
 def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
     # 1. Construct one-body hamiltonian
+    print(ecore, type(h1e), type(chol))
     nbasis = h1e.shape[-1]
     chol = chol.reshape((-1,nbasis,nbasis))
     system = dotdict({'H1': numpy.array([h1e,h1e]),
                       'chol_vecs': chol,
-                      'ecore': ecore})
+                      'ecore': ecore,
+                      'nbasis': nbasis})
     psi = numpy.identity(nbasis)[:,:nc]
     Gcore = gab(psi,psi)
     ecore = local_energy_generic_cholesky(system, [Gcore,Gcore])[0]
-    (hc_a, hc_b) = core_contribution_cholesky(system, [Gcore,Gcore])
+    (hc_a, hc_b) = core_contribution_cholesky(system.chol_vecs, [Gcore,Gcore])
     h1e = numpy.array([h1e,h1e])
     h1e[0] = h1e[0] + 2*hc_a
     h1e[1] = h1e[1] + 2*hc_b
