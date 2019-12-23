@@ -146,9 +146,10 @@ class ThermalAFQMC(object):
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
             if comm.rank == 0:
-                print("# WARNING: Not enough walkers for selected core count."
-                      "There must be at least one walker per core set in the "
-                      "input file. Setting one walker per core.")
+                print("# WARNING: Not enough walkers for selected core count.")
+                print("# There must be at least one walker per core set in the "
+                      "input file.")
+                print("# Setting one walker per core.")
             self.qmc.nwalkers = 1
             self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         wlk_opts = get_input_value(options, 'walkers', default={},
