@@ -38,7 +38,7 @@ def analyse_energy(files):
             for (k, v) in zip(full.keys, i):
                 averaged[k] = v
             analysed.append(averaged)
-    return (pd.concat(analysed).reset_index(drop=True))
+    return (pd.concat(analysed).reset_index(drop=True).sort_values(by=keys))
 
 def nav_mu(mu, coeffs):
     return numpy.polyval(coeffs, mu)
