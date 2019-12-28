@@ -5,7 +5,8 @@ import time
 import scipy.linalg
 from pauxy.utils.misc import dotdict
 from pauxy.utils.io import (
-        dump_qmcpack_cholesky,
+        write_qmcpack_sparse,
+        write_qmcpack_dense,
         write_qmcpack_wfn
         )
 from pauxy.estimators.greens_function import gab
@@ -19,10 +20,10 @@ from pyscf.pbc.gto import cell
 from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
 
-def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
+def dump_pauxy(chkfile=None, mol=None, mf=None, hamil_file='afqmc.h5',
                verbose=True, wfn_file='afqmc.h5',
                chol_cut=1e-5, sparse_zero=1e-16, cas=None,
-               ortho_ao=True):
+               ortho_ao=True, sparse=False):
     scf_data = load_from_pyscf_chkfile(chkfile)
     mol = scf_data['mol']
     hcore = scf_data['hcore']
@@ -39,18 +40,26 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, outfile='afqmc.h5',
     # Why did I transpose everything?
     # QMCPACK expects [M^2, N_chol]
     # Internally store [N_chol, M^2]
-    chol = chol.T
-    chol = scipy.sparse.csr_matrix(chol)
-    mem = 64*chol.nnz/(1024.0**3)
-    if verbose:
-        print(" # Total number of non-zero elements in sparse cholesky ERI"
-               " tensor: %d"%chol.nnz)
-        nelem = chol.shape[0]*chol.shape[1]
-        print(" # Sparsity of ERI Cholesky tensor: "
-               "%f"%(1-float(chol.nnz)/nelem))
-        print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
-    dump_qmcpack_cholesky([hcore,hcore], chol, nelec, nbasis, enuc,
-                          filename=outfile)
+    chol = chol.T.copy()
+    if sparse:
+        chol = scipy.sparse.csr_matrix(chol)
+        mem = 64*chol.nnz/(1024.0**3)
+        if verbose:
+            print(" # Total number of non-zero elements in sparse cholesky ERI"
+                   " tensor: %d"%chol.nnz)
+            nelem = chol.shape[0]*chol.shape[1]
+            print(" # Sparsity of ERI Cholesky tensor: "
+                   "%f"%(1-float(chol.nnz)/nelem))
+            print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
+        write_qmcpack_sparse(hcore, chol, nelec, nbasis, enuc,
+                             filename=hamil_file, real_chol=True,
+                             verbose=verbose, ortho=oao)
+    else:
+        print(" # Writing integrals in dense format.")
+        write_qmcpack_dense(hcore, chol, nelec,
+                            nbasis, enuc,
+                            filename=hamil_file,
+                            ortho=oao, real_chol=True)
     write_wfn_mol(scf_data, ortho_ao, wfn_file, mode='a')
 
 def write_wfn_mol(scf_data, ortho_ao, filename, wfn=None,

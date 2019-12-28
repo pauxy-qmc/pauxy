@@ -8,8 +8,9 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import (
         from_qmcpack_cholesky,
-        dump_qmcpack_cholesky,
-        from_qmcpack_dense
+        from_qmcpack_dense,
+        write_qmcpack_sparse,
+        write_qmcpack_dense,
         )
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
@@ -87,7 +88,7 @@ class Generic(object):
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
-        self.sparse = inputs.get('sparse', True)
+        self.sparse = inputs.get('sparse', False)
         self.half_rotated_integrals = inputs.get('integral_tensor', False)
         self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
@@ -365,6 +366,12 @@ class Generic(object):
         return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
 
     def write_integrals(self, filename='hamil.h5'):
-        dump_qmcpack_cholesky(self.H1, self.chol_vecs,
-                              self.nelec, self.nbasis,
-                              e0=self.ecore, filename=filename)
+        if self.sparse:
+            write_qmcpack_sparse(self.H1[0], self.chol_vecs,
+                                 self.nelec, self.nbasis,
+                                 e0=self.ecore, filename=filename)
+        else:
+            write_qmcpack_dense(self.H1[0], self.chol_vecs,
+                                self.nelec, self.nbasis,
+                                e0=self.ecore, filename=filename,
+                                real_ints=not self.cplx_chol)
