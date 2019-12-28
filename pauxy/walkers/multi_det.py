@@ -24,7 +24,7 @@ class MultiDetWalker(object):
     """
 
     def __init__(self, walker_opts, system, trial, index=0,
-                 weights='zeros', verbose=False):
+                 weights='zeros', verbose=False, nprop_tot=None, nbp=None):
         if verbose:
             print("# Setting up MultiDetWalker object.")
         self.weight = walker_opts.get('weight', 1.0)
@@ -76,6 +76,12 @@ class MultiDetWalker(object):
         # Historic wavefunction for ITCF.
         # self.phi_bp = copy.deepcopy(trial.psi)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
+        if nbp is not None:
+            self.field_configs = FieldConfig(system.nfields,
+                                             nprop_tot, nbp,
+                                             numpy.complex128)
+        else:
+            self.field_configs = None
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -215,8 +221,11 @@ class MultiDetWalker(object):
             else:
                 buff[s:s+1] = data
                 s += 1
-        stack_buff = self.stack.get_buffer()
-        return numpy.concatenate((buff,stack_buff))
+        if self.field_configs is not None:
+            stack_buff = self.field_configs.get_buffer()
+            return numpy.concatenate((buff,stack_buff))
+        else:
+            return buff
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -226,7 +235,6 @@ class MultiDetWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.stack.set_buffer(buff[self.buff_size:])
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
@@ -237,3 +245,5 @@ class MultiDetWalker(object):
                 self.__dict__[d] = buff[s]
                 dsize = 1
             s += dsize
+        if self.field_configs is not None:
+            self.field_configs.set_buffer(buff[self.buff_size:])
