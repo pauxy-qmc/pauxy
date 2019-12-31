@@ -1,4 +1,5 @@
 import numpy
+import os
 import pytest
 from pauxy.systems.ueg import UEG
 from pauxy.propagation.planewave import PlaneWave
@@ -33,3 +34,12 @@ def test_pw():
     xi = numpy.random.rand(system.nfields)
     vhs = prop.construct_VHS(system, xi-fb)
     assert numpy.linalg.norm(vhs) == pytest.approx(0.1467322554815581)
+
+def teardown_module():
+    cwd = os.getcwd()
+    files = ['hamil.h5']
+    for f in files:
+        try:
+            os.remove(cwd+'/'+f)
+        except OSError:
+            pass
