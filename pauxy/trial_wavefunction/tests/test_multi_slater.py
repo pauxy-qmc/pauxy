@@ -11,7 +11,7 @@ from pauxy.utils.io import (
         read_qmcpack_wfn_hdf,
         write_qmcpack_wfn,
         read_phfmol,
-        dump_qmcpack_cholesky
+        write_qmcpack_sparse
         )
 from pauxy.utils.misc import dotdict
 from pauxy.utils.testing import get_random_wavefunction
