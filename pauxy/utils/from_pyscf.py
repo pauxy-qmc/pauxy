@@ -42,15 +42,7 @@ def dump_pauxy(chkfile=None, mol=None, mf=None, hamil_file='afqmc.h5',
     # Internally store [N_chol, M^2]
     chol = chol.T.copy()
     if sparse:
-        chol = scipy.sparse.csr_matrix(chol)
-        mem = 64*chol.nnz/(1024.0**3)
-        if verbose:
-            print(" # Total number of non-zero elements in sparse cholesky ERI"
-                   " tensor: %d"%chol.nnz)
-            nelem = chol.shape[0]*chol.shape[1]
-            print(" # Sparsity of ERI Cholesky tensor: "
-                   "%f"%(1-float(chol.nnz)/nelem))
-            print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
+        print(" # Writing integrals in sparse format.")
         write_qmcpack_sparse(hcore, chol, nelec, nbasis, enuc,
                              filename=hamil_file, real_chol=True,
                              verbose=verbose, ortho=oao)

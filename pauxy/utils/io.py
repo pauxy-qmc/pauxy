@@ -78,10 +78,10 @@ def to_sparse(vals, offset=0, cutoff=1e-8):
     vals = numpy.array(vals[nz], dtype=numpy.complex128)
     return ix, vals
 
-def write_qmcpack_sparse(hcore, chol, nelec, nmo, e0=0.0, filename='hamiltonian.h5',
+def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonian.h5',
                  real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
     with h5py.File(filename, 'w') as fh5:
-        fh5['Hamiltonian/Energies'] = numpy.array([e0,0])
+        fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
             fh5['Hamiltonian/hcore'] = hcore
         else:
@@ -126,7 +126,7 @@ def write_qmcpack_sparse(hcore, chol, nelec, nmo, e0=0.0, filename='hamiltonian.
 def from_qmcpack_complex(data, shape):
     return data.view(numpy.complex128).ravel().reshape(shape)
 
-def from_qmcpack_cholesky(filename):
+def from_qmcpack_sparse(filename):
     with h5py.File(filename, 'r') as fh5:
         enuc = fh5['Hamiltonian/Energies'][:][0]
         dims = fh5['Hamiltonian/dims'][:]
@@ -163,7 +163,7 @@ def from_qmcpack_cholesky(filename):
             row_ix[s:s+bs] = ixs[::2]
             col_ix[s:s+bs] = ixs[1::2]
             if real_ints:
-                vals[s:s+bs] = fh5['Hamiltonian/Factorized/vals_%i'%ic][:].ravel()
+                vals[s:s+bs] = numpy.real(fh5['Hamiltonian/Factorized/vals_%i'%ic][:]).ravel()
             else:
                 vals[s:s+bs] = fh5['Hamiltonian/Factorized/vals_%i'%ic][:].view(numpy.complex128).ravel()
             s += bs
@@ -179,8 +179,8 @@ def write_qmcpack_dense(hcore, chol, nelec, nmo, enuc=0.0,
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
-            fh5['Hamiltonian/hcore'] = hcore
-            fh5['Hamiltonian/DenseFactorized/L'] = chol
+            fh5['Hamiltonian/hcore'] = numpy.real(hcore)
+            fh5['Hamiltonian/DenseFactorized/L'] = numpy.real(chol)
         else:
             fh5['Hamiltonian/hcore'] = to_qmcpack_complex(hcore.astype(numpy.complex128))
             fh5['Hamiltonian/DenseFactorized/L'] = to_qmcpack_complex(chol.astype(numpy.complex128))
@@ -199,9 +199,9 @@ def from_qmcpack_dense(filename):
         real_ints = False
         try:
             hcore = fh5['Hamiltonian/hcore'][:]
-            hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
+            hcore = from_qmcpack_complex(hcore, (nmo,nmo))
             chol = fh5['Hamiltonian/DenseFactorized/L'][:]
-            chol = hcore.view(numpy.complex128)
+            chol = from_qmcpack_complex(chol, (nmo*nmo,-1))
         except ValueError:
             # Real format.
             hcore = fh5['Hamiltonian/hcore'][:]
@@ -407,11 +407,11 @@ def read_qmcpack_nomsd_hdf5(wgroup):
     wfn = numpy.zeros((nci,nmo,na+nb), dtype=numpy.complex128)
     for idet in range(nci):
         ix = 2*idet if uhf else idet
-        pa = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(idet)])
+        pa = orbs_from_dset(wgroup['PsiT_{:d}/'.format(idet)])
         wfn[idet,:,:na] = pa
         if uhf:
             ix = 2*idet + 1
-            wfn[idet,:,na:] = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(ix)])
+            wfn[idet,:,na:] = orbs_from_dset(wgroup['PsiT_{:d}/'.format(ix)])
         else:
             wfn[idet,:,na:] = pa
     return (coeffs,wfn), psi0
@@ -580,7 +580,7 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     # Reading 1D array currently in qmcpack.
     fh5['occs'] = occs.ravel()
 
-def from_qmcpack_sparse(dset):
+def orbs_from_dset(dset):
     """Will read actually A^{H} but return A.
     """
     dims = dset['dims'][:]

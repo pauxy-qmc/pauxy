@@ -424,9 +424,9 @@ class UEG(object):
         return (rho_q, iA, iB)
 
     def write_integrals(self, filename='hamil.h5'):
-        write_qmcpack_sparse(self.H1[0], 2*scipy.sparse.csr_matrix(self.chol_vecs),
+        write_qmcpack_sparse(self.H1[0], 2*self.chol_vecs.toarray(),
                              self.nelec, self.nbasis,
-                             e0=0.0, filename=filename)
+                             enuc=0.0, filename=filename)
 
     def hijkl(self,i,j,k,l):
         """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2
