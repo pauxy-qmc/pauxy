@@ -40,13 +40,15 @@ def test_read():
     nmo = 13
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
-    from pauxy.utils.io import dump_qmcpack_cholesky
-    dump_qmcpack_cholesky([h1e,h1e], chol, nelec, nmo, e0=enuc, filename='hamil.h5')
+    from pauxy.utils.io import write_qmcpack_dense
+    chol_ = chol.reshape((-1,nmo*nmo)).T.copy()
+    write_qmcpack_dense(h1e, chol_, nelec, nmo,
+                        enuc=enuc, filename='hamil.h5',
+                        real_chol=False)
     options = {'nup': nelec[0], 'ndown': nelec[1], 'integrals': 'hamil.h5'}
     sys = Generic(inputs=options)
-    eri = sys.chol_vecs
-    assert numpy.linalg.norm(chol-eri) == pytest.approx(0.0)
-
+    schol = sys.chol_vecs
+    assert numpy.linalg.norm(chol-schol) == pytest.approx(0.0)
 
 def teardown_module():
     cwd = os.getcwd()
