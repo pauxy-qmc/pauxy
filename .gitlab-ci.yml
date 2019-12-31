@@ -14,15 +14,6 @@ test python3.7:
   only:
   - master
 
-test python2.7:
-  image: python:2.7
-  script:
-  - pip install -r requirements.txt
-  - python setup.py build_ext --inplace
-  - python -m pytest -v
-  only:
-  - master
-
 test with_pyscf:
   image: python:3.7
   script:
