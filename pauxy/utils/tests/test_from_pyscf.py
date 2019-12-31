@@ -14,7 +14,7 @@ except (ImportError, OSError):
 from pauxy.utils.io import (
         write_input,
         read_qmcpack_wfn_hdf,
-        from_qmcpack_cholesky
+        from_qmcpack_sparse
         )
 
 @pytest.mark.skipif(no_pyscf, reason="pyscf not found.")
@@ -23,7 +23,6 @@ def test_from_pyscf():
     mf = scf.RHF(atom)
     mf.kernel()
     h1e, chol, nelec, enuc = integrals_from_scf(mf, verbose=0, chol_cut=1e-5)
-    print(chol.shape, nelec, enuc)
     assert chol.shape[0] == 15
     assert chol.shape[1] == 25
     assert nelec == (5,5)
@@ -47,9 +46,9 @@ def test_pyscf_to_pauxy():
     mf = scf.RHF(atom)
     mf.chkfile = 'scf.chk'
     mf.kernel()
-    dump_pauxy(chkfile='scf.chk', outfile='afqmc.h5')
+    dump_pauxy(chkfile='scf.chk', hamil_file='afqmc.h5', sparse=True)
     wfn = read_qmcpack_wfn_hdf('afqmc.h5')
-    h1e, chol, ecore, nmo, na, nb = from_qmcpack_cholesky('afqmc.h5')
+    h1e, chol, ecore, nmo, na, nb = from_qmcpack_sparse('afqmc.h5')
     write_input('input.json', 'afqmc.h5', 'afqmc.h5')
 
 @pytest.mark.skipif(no_pyscf, reason="pyscf not found.")
