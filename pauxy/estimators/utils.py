@@ -1,7 +1,5 @@
 import numpy
 import scipy
-from scipy.fftpack.helper import next_fast_len
-from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
 import h5py
 try:
     import pyfftw
@@ -9,8 +7,11 @@ except ImportError:
     pass
 import numpy
 import scipy
-from scipy.fftpack.helper import next_fast_len
-from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
+try:
+    from scipy.fftpack.helper import next_fast_len
+    from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
+except ImportError:
+    from scipy.fft._helper import next_fast_len, _init_nd_shape_and_axes_sorted
 
 # Stolen from scipy
 def scipy_fftconvolve(in1, in2, mesh1 = None, mesh2 = None, mode="full", axes=None):
