@@ -5,7 +5,7 @@ import scipy.sparse
 import pauxy.utils
 import math
 import time
-from pauxy.utils.io import dump_qmcpack_cholesky
+from pauxy.utils.io import write_qmcpack_sparse
 
 
 class UEG(object):
@@ -426,9 +426,9 @@ class UEG(object):
         return (rho_q, iA, iB)
 
     def write_integrals(self, filename='hamil.h5'):
-        dump_qmcpack_cholesky(self.H1, 2*scipy.sparse.csr_matrix(self.chol_vecs),
-                              self.nelec, self.nbasis,
-                              e0=0.0, filename=filename)
+        write_qmcpack_sparse(self.H1[0], 2*self.chol_vecs.toarray(),
+                             self.nelec, self.nbasis,
+                             enuc=0.0, filename=filename)
 
     def hijkl(self,i,j,k,l):
         """Compute <ij|kl> = (ik|jl) = 1/Omega * 4pi/(kk-ki)**2

@@ -1,7 +1,5 @@
 import numpy
 import scipy
-from scipy.fftpack.helper import next_fast_len
-from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
 import h5py
 try:
     import pyfftw
@@ -9,8 +7,7 @@ except ImportError:
     pass
 import numpy
 import scipy
-from scipy.fftpack.helper import next_fast_len
-from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
+from scipy.fft._helper import next_fast_len, _init_nd_shape_and_axes
 
 # Stolen from scipy
 def scipy_fftconvolve(in1, in2, mesh1 = None, mesh2 = None, mode="full", axes=None):
@@ -325,3 +322,42 @@ class H5EstimatorHelper(object):
 
     def reset(self):
         self.index = 0
+
+def _init_nd_shape_and_axes_sorted(x, shape, axes):
+    """Handle and sort shape and axes arguments for n-dimensional transforms.
+
+    This is identical to `_init_nd_shape_and_axes`, except the axes are
+    returned in sorted order and the shape is reordered to match.
+
+    Parameters
+    ----------
+    x : array_like
+        The input array.
+    shape : int or array_like of ints or None
+        The shape of the result.  If both `shape` and `axes` (see below) are
+        None, `shape` is ``x.shape``; if `shape` is None but `axes` is
+        not None, then `shape` is ``scipy.take(x.shape, axes, axis=0)``.
+        If `shape` is -1, the size of the corresponding dimension of `x` is
+        used.
+    axes : int or array_like of ints or None
+        Axes along which the calculation is computed.
+        The default is over all axes.
+        Negative indices are automatically converted to their positive
+        counterpart.
+
+    Returns
+    -------
+    shape : array
+        The shape of the result. It is a 1D integer array.
+    axes : array
+        The shape of the result. It is a 1D integer array.
+
+    """
+    noaxes = axes is None
+    shape, axes = _init_nd_shape_and_axes(x, shape, axes)
+
+    if not noaxes:
+        shape = shape[axes.argsort()]
+        axes.sort()
+
+    return shape, axes

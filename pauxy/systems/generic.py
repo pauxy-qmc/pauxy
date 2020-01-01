@@ -7,9 +7,10 @@ import time
 from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import (
-        from_qmcpack_cholesky,
-        dump_qmcpack_cholesky,
-        from_qmcpack_dense
+        from_qmcpack_sparse,
+        from_qmcpack_dense,
+        write_qmcpack_sparse,
+        write_qmcpack_dense,
         )
 from pauxy.estimators.generic import (
         local_energy_generic, core_contribution,
@@ -87,7 +88,7 @@ class Generic(object):
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
         self.cutoff = inputs.get('sparse_cutoff', None)
-        self.sparse = inputs.get('sparse', True)
+        self.sparse = inputs.get('sparse', False)
         self.half_rotated_integrals = inputs.get('integral_tensor', False)
         self._opt = self.sparse
         self.cplx_chol = inputs.get('complex_cholesky', False)
@@ -109,6 +110,15 @@ class Generic(object):
         else:
             start = time.time()
             h1e, self.chol_vecs, self.ecore = self.read_integrals()
+            if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
+                self.cplx_chol = True
+                if verbose:
+                    print("# Found complex integrals.")
+                    print("# Using Hermitian Cholesky decomposition.")
+            else:
+                if verbose:
+                    print("# Using real symmetric Cholesky decomposition.")
+                self.cplx_chol = False
             if verbose:
                 print("# Time to read integrals: {:.6f} "
                        "s".format(time.time()-start))
@@ -167,7 +177,7 @@ class Generic(object):
     def read_integrals(self):
         try:
             (h1e, schol_vecs, ecore, nbasis, nup, ndown) = (
-                    from_qmcpack_cholesky(self.integral_file)
+                    from_qmcpack_sparse(self.integral_file)
                     )
             chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
         except KeyError:
@@ -365,6 +375,12 @@ class Generic(object):
         return numpy.dot(self.chol_vecs[:,i,k], self.chol_vecs[:,j,l])
 
     def write_integrals(self, filename='hamil.h5'):
-        dump_qmcpack_cholesky(self.H1, self.chol_vecs,
-                              self.nelec, self.nbasis,
-                              e0=self.ecore, filename=filename)
+        if self.sparse:
+            write_qmcpack_sparse(self.H1[0], self.chol_vecs,
+                                 self.nelec, self.nbasis,
+                                 ecuc=self.ecore, filename=filename)
+        else:
+            write_qmcpack_dense(self.H1[0], self.chol_vecs,
+                                self.nelec, self.nbasis,
+                                enuc=self.ecore, filename=filename,
+                                real_chol=not self.cplx_chol)

@@ -14,6 +14,7 @@ from pauxy.utils.testing import (
         )
 from pauxy.walkers.multi_det import MultiDetWalker
 
+@pytest.mark.unit
 def test_walker_overlap():
     system = dotdict({'nup': 5, 'ndown': 5, 'nbasis': 10,
                       'nelec': (5,5), 'ne': 10})
@@ -68,6 +69,7 @@ def test_walker_overlap():
         assert numpy.linalg.norm(gb-walker.Gi[idet,1]) == pytest.approx(0)
     assert ovlp_sum == pytest.approx(walker.ovlp)
 
+@pytest.mark.unit
 def test_walker_energy():
     numpy.random.seed(7)
     nelec = (2,2)
