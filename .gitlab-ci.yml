@@ -10,7 +10,7 @@ test python3.6:
   script:
   - pip install -r requirements.txt
   - python setup.py build_ext --inplace
-  - python -m pytest -v
+  - pytest
   only:
   - master
 
@@ -19,7 +19,7 @@ test python3.7:
   script:
   - pip install -r requirements.txt
   - python setup.py build_ext --inplace
-  - python -m pytest -v
+  - pytest
   only:
   - master
 
@@ -29,6 +29,6 @@ test with_pyscf:
   - pip install -r requirements.txt
   - pip install pyscf
   - python setup.py build_ext --inplace
-  - python -m pytest -v
+  - pytest
   only:
   - master
