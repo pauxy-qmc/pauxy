@@ -403,7 +403,7 @@ def read_qmcpack_nomsd_hdf5(wgroup):
     if uhf:
         psi0[:,na:] = psi0b.copy()
     else:
-        psi0[:,na:] = psi0a.copy()
+        psi0[:,na:] = psi0a[:,:nb].copy()
     wfn = numpy.zeros((nci,nmo,na+nb), dtype=numpy.complex128)
     for idet in range(nci):
         ix = 2*idet if uhf else idet
@@ -413,7 +413,7 @@ def read_qmcpack_nomsd_hdf5(wgroup):
             ix = 2*idet + 1
             wfn[idet,:,na:] = orbs_from_dset(wgroup['PsiT_{:d}/'.format(ix)])
         else:
-            wfn[idet,:,na:] = pa
+            wfn[idet,:,na:] = pa[:,:nb]
     return (coeffs,wfn), psi0
 
 def read_qmcpack_phmsd_hdf5(wgroup):
