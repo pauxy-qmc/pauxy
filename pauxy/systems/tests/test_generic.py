@@ -6,6 +6,7 @@ from pauxy.systems.generic import Generic
 from pauxy.utils.testing import generate_hamiltonian
 
 
+@pytest.mark.unit
 def test_real():
     numpy.random.seed(7)
     nmo = 17
@@ -17,6 +18,7 @@ def test_real():
     assert numpy.trace(h1e) == pytest.approx(9.38462274882365)
 
 
+@pytest.mark.unit
 def test_complex():
     numpy.random.seed(7)
     nmo = 17
@@ -27,6 +29,7 @@ def test_complex():
     assert sys.ndown == 3
     assert sys.nbasis == 17
 
+@pytest.mark.unit
 def test_write():
     numpy.random.seed(7)
     nmo = 13
@@ -35,6 +38,7 @@ def test_write():
     sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
     sys.write_integrals()
 
+@pytest.mark.unit
 def test_read():
     numpy.random.seed(7)
     nmo = 13

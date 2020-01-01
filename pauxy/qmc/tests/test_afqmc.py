@@ -13,6 +13,7 @@ from pauxy.systems.ueg import UEG
 from pauxy.utils.testing import generate_hamiltonian
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 
+@pytest.mark.driver
 def test_constructor():
     options = {
             'verbosity': 0,
@@ -44,6 +45,7 @@ def test_constructor():
     assert afqmc.trial.energy.real == pytest.approx(1.7796083856572522)
 
 
+@pytest.mark.driver
 def test_ueg():
     options = {
             'verbosity': 0,
@@ -88,6 +90,7 @@ def test_ueg():
     assert ehy.real == pytest.approx(2.41659997842609)
     assert ehy.imag == pytest.approx(-0.395817411848255)
 
+@pytest.mark.driver
 def test_hubbard():
     options = {
             'verbosity': 0,
@@ -177,6 +180,7 @@ def test_hubbard_complex():
     data = extract_mixed_estimates('estimates.0.h5')
     assert numpy.mean(data.ETotal.values[:-1].real) == pytest.approx(-15.14323385684513)
 
+@pytest.mark.driver
 def test_generic():
     nmo = 11
     nelec = (3,3)
@@ -215,6 +219,7 @@ def test_generic():
     data = extract_mixed_estimates('estimates.0.h5')
     assert numpy.mean(data.ETotal.values[:-1].real) == pytest.approx(1.5485077038208)
 
+@pytest.mark.driver
 def test_generic_single_det():
     nmo = 11
     nelec = (3,3)
@@ -261,11 +266,11 @@ def test_generic_single_det():
     assert rdm[0,1].trace() == pytest.approx(nelec[1])
     assert rdm[11,0,1,3].real == pytest.approx(-0.121883381144845)
 
-# def teardown_module(self):
-    # cwd = os.getcwd()
-    # files = ['estimates.0.h5']
-    # for f in files:
-        # try:
-            # os.remove(cwd+'/'+f)
-        # except OSError:
-            # pass
+def teardown_module(self):
+    cwd = os.getcwd()
+    files = ['estimates.0.h5']
+    for f in files:
+        try:
+            os.remove(cwd+'/'+f)
+        except OSError:
+            pass

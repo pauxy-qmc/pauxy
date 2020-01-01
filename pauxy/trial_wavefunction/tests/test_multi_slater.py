@@ -19,6 +19,7 @@ from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.walkers.multi_det import MultiDetWalker
 
+@pytest.mark.unit
 def test_nomsd():
     system = UEG({'nup': 7, 'ndown': 7, 'rs': 5, 'ecut': 4,
                   'thermal': True})

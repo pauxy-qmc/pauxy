@@ -8,6 +8,7 @@ from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.utils.misc import dotdict
 
 
+@pytest.mark.unit
 def test_pw():
     options = {'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 2,
                'write_integrals': True}

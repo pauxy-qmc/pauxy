@@ -12,6 +12,7 @@ from pauxy.utils.testing import (
         get_random_nomsd
         )
 
+@pytest.mark.unit
 def test_local_energy_opt():
     numpy.random.seed(7)
     nmo = 24
@@ -27,6 +28,7 @@ def test_local_energy_opt():
     assert e[1] == pytest.approx(23.0173528796140)
     assert e[2] == pytest.approx(-2.3347281779866)
 
+@pytest.mark.unit
 def test_local_energy_cholesky():
     numpy.random.seed(7)
     nmo = 24
@@ -41,6 +43,7 @@ def test_local_energy_cholesky():
     assert e[1] == pytest.approx(23.0173528796140)
     assert e[2] == pytest.approx(-2.3347281779866)
 
+@pytest.mark.unit
 def test_local_energy_cholesky_opt():
     numpy.random.seed(7)
     nmo = 24
