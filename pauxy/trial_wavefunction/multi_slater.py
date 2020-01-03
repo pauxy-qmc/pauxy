@@ -25,6 +25,9 @@ class MultiSlater(object):
         rediag = get_input_value(options, 'recompute_ci',
                                  default=False, alias=['rediag'],
                                  verbose=verbose)
+        self.half_rot = get_input_value(options, 'half_rotate',
+                                        default=False, alias=['rotate'],
+                                        verbose=verbose)
         if len(wfn) == 3:
             # CI type expansion.
             self.from_phmsd(system, wfn, orbs)
@@ -47,6 +50,8 @@ class MultiSlater(object):
         else:
             self.G = None
             self.GH = None
+        if self.half_rot:
+            self.half_rotate(system)
         if rediag:
             if self.verbose:
                 print("# Recomputing CI coefficients.")
@@ -126,12 +131,16 @@ class MultiSlater(object):
             for i, di in enumerate(self.psi):
                 for j, dj in enumerate(self.psi):
                     if j >= i:
-                        ga, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
-                        gb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
+                        ga, gha, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
+                        gb, ghb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
                         G = numpy.array([ga,gb])
+                        Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
-                        H[i,j] = ovlp * local_energy(system, G, opt=False)[0]
-                        S[i,j] = ovlp
+                        print(i, j, ovlp)
+                        if abs(ovlp) > 1e-8:
+                            H[i,j] = ovlp * local_energy(system, G, Ghalf=Ghalf,
+                                    rchol=self.rot_chol[i])[0]
+                            S[i,j] = ovlp
             e, ev = scipy.linalg.eigh(H, S, lower=False)
         if self.verbose > 1:
             print("Old and New CI coefficients: ")
@@ -171,3 +180,27 @@ class MultiSlater(object):
             wfn = (self.coeffs, self.psi)
         write_qmcpack_wfn(filename, wfn, 'uhf', self._nelec, self._nbasis,
                           init=init)
+
+    def half_rotate(self, system):
+        # Half rotated cholesky vectors (by trial wavefunction).
+        M = system.nbasis
+        na = system.nup
+        nb = system.ndown
+        if self.verbose:
+            print("# Constructing half rotated Cholesky vectors.")
+        if system.sparse:
+            hs_pot = system.chol_vecs.toarray().reshape(M,M,system.nfields)
+        else:
+            hs_pot = system.chol_vecs.reshape(M,M,system.nfields)
+        start = time.time()
+        self.rot_chol = []
+        for i, psi in enumerate(self.psi):
+            if self.verbose:
+                print("# Rotating Cholesky for determinant {}".format(i))
+            rup = numpy.tensordot(psi[:,:na].conj(),
+                                  hs_pot,
+                                  axes=((0),(0)))
+            rdn = numpy.tensordot(psi[:,na:].conj(),
+                                  hs_pot,
+                                  axes=((0),(0)))
+            self.rot_chol.append([rup.reshape(M*na,-1), rdn.reshape((M*nb,-1))])
