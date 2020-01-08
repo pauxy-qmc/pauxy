@@ -136,11 +136,12 @@ class MultiSlater(object):
                         G = numpy.array([ga,gb])
                         Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
-                        print(i, j, ovlp)
-                        if abs(ovlp) > 1e-8:
+                        if abs(ovlp) > 1e-12:
                             H[i,j] = ovlp * local_energy(system, G, Ghalf=Ghalf,
-                                    rchol=self.rot_chol[i])[0]
+                                                         rchol=self.rot_chol[i])[0]
                             S[i,j] = ovlp
+                            H[j,i] = numpy.conjugate(H[i,j])
+                            S[j,i] = numpy.conjugate(S[i,j])
             e, ev = scipy.linalg.eigh(H, S, lower=False)
         if self.verbose > 1:
             print("Old and New CI coefficients: ")
@@ -188,19 +189,20 @@ class MultiSlater(object):
         nb = system.ndown
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
-        if system.sparse:
-            hs_pot = system.chol_vecs.toarray().reshape(M,M,system.nfields)
-        else:
-            hs_pot = system.chol_vecs.reshape(M,M,system.nfields)
+
+        chol = system.chol_vecs.reshape((-1,M*M)).T.reshape((M,M,-1))
         start = time.time()
         self.rot_chol = []
         for i, psi in enumerate(self.psi):
+            start = time.time()
             if self.verbose:
                 print("# Rotating Cholesky for determinant {}".format(i))
             rup = numpy.tensordot(psi[:,:na].conj(),
-                                  hs_pot,
+                                  chol,
                                   axes=((0),(0)))
             rdn = numpy.tensordot(psi[:,na:].conj(),
-                                  hs_pot,
+                                  chol,
                                   axes=((0),(0)))
             self.rot_chol.append([rup.reshape(M*na,-1), rdn.reshape((M*nb,-1))])
+            if self.verbose:
+                print("# Time to half rotate {}".format(time.time()-start))
