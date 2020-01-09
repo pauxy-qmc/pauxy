@@ -140,6 +140,15 @@ class Estimators(object):
         for k, e in self.estimators.items():
             e.print_step(comm, nprocs, step, nsteps=nsteps, free_projection=free_projection)
 
+    def zero(self):
+        """Zero out QMC estimates.
+
+        Parameters
+        ----------
+        """
+        for k, e in self.estimators.items():
+            e.zero()
+
     def update(self, system, qmc, trial, psi, step, free_projection=False):
         """Update estimators
 

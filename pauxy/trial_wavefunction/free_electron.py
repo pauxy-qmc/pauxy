@@ -86,6 +86,13 @@ class FreeElectron(object):
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
 
+    def update_greens_function(self, system, verbose=0):
+        gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+        gdown = gab(self.psi[:, system.nup:],
+                                           self.psi[:, system.nup:]).T
+        self.G = numpy.array([gup, gdown])
+
     def update_wfn(self, system, V, verbose=0):
         (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0]+V[0])
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1]+V[1])

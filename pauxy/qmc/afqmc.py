@@ -199,6 +199,8 @@ class AFQMC(object):
         self.setup_timers()
         (etot, e1b, e2b) = self.psi.walkers[0].local_energy(self.system)
         eshift = 0
+        # eshift = self.estimators.estimators['mixed'].get_shift()
+        
 
         self.propagators.mean_local_energy = eshift.real
         # Calculate estimates for initial distribution of walkers.
@@ -213,6 +215,8 @@ class AFQMC(object):
         # Print out zeroth step for convenience.
         if verbose:
             self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
+        else:
+            self.estimators.zero()
 
         for step in range(1, self.qmc.total_steps + 1):
             start_step = time.time()
@@ -236,7 +240,6 @@ class AFQMC(object):
                 if comm.rank == 0:
                     nX = numpy.array([numpy.diag(X), numpy.diag(X)])
                     V = - self.system.g * cmath.sqrt(self.system.m * self.system.w0 * 2.0) * nX
-                    # otold= walker.calc_otrial(self.trial)
                     self.trial.update_wfn(self.system, V, verbose=0) # trial update
                 else:
                     self.trial = None
@@ -266,6 +269,7 @@ class AFQMC(object):
                                    self.trial, self.psi, step,
                                    self.propagators.free_projection)
             self.testim += time.time() - start
+
             self.estimators.print_step(comm, comm.size, step)
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
@@ -278,6 +282,7 @@ class AFQMC(object):
                 (rho, X) = self.estimators.estimators['mixed'].get_holstein()
 
             self.tstep += time.time() - start_step
+
 
     def finalise(self, verbose=False):
         """Tidy up.

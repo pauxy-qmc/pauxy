@@ -81,10 +81,13 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        const = options.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g / (system.m * system.w0**2))
-        shift = numpy.ones(system.nbasis) * const
+        rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
+        shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        shift = numpy.real(shift)
         if verbose:
             print("# Shift = {}".format(shift))
+
+        print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
 
@@ -270,22 +273,42 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
 
+        # print("walker.weight1 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
+        # print("walker.weight2 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
+        # print("walker.weight3 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial, update = False)
+        # print("walker.weight4 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial)
 
+        # print("walker.ot = {}".format(walker.ot))
+        # print("walker.weight5 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
+
         if (self.update_trial):
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
+            # print("self.boson_trial.xavg = {}".format(self.boson_trial.xavg))
+            # print("walker.X = {}".format(walker.X))
             shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift) # trial updaate
+            # print(walker.X)
             phinew = self.boson_trial.value(walker.X) # phi with a new trial
+            # print("phinew = {}".format(phinew))
+            # print("phiold = {}".format(phiold))
             oratio_extra = phinew / phiold
             walker.weight *= oratio_extra
+
+        # print("walker.weight6 = {}".format(walker.weight))
+        # print("walker.ot = {}".format(walker.ot))
     
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
