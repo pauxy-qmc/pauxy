@@ -87,7 +87,6 @@ class HirschSpinDMC(object):
         if verbose:
             print("# Shift = {}".format(shift))
 
-        print("# Shift = {}".format(shift))
         self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
 
