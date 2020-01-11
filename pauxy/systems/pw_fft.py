@@ -13,7 +13,7 @@ try:
     from pauxy.estimators.ueg_kernels  import  vq
     from pauxy.estimators.ueg_kernels  import  mod_one_body
 except ImportError:
-    print("ueg_kernels doesn't exist")
+    # print("ueg_kernels doesn't exist")
     pass
 
 

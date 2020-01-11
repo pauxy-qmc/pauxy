@@ -1,13 +1,13 @@
 try:
     from pauxy.estimators.ueg_kernels  import  exchange_greens_function_per_qvec
 except ImportError:
-    print("exchange_greens_function_per_qvec doesn't exist")
+    # print("exchange_greens_function_per_qvec doesn't exist")
     pass
 
 try:
     from pauxy.estimators.ueg_kernels  import  exchange_greens_function_fft
 except ImportError:
-    print("exchange_greens_function_fft doesn't exist")
+    # print("exchange_greens_function_fft doesn't exist")
     pass
 
 import time
