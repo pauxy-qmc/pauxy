@@ -91,9 +91,6 @@ class ThermalAFQMC(object):
             print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
-        if verbose is not None:
-            self.verbosity = verbose
-            verbose = verbose > 0
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
             get_sha1 = options.get('get_sha1', True)
