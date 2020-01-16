@@ -185,6 +185,8 @@ class Generic(object):
                     from_qmcpack_dense(self.integral_file)
                     )
             chol_vecs = chol_vecs.T.reshape((-1,nbasis,nbasis))
+        except OSError:
+            print("# Unknown Hamiltonian file {}.".format(self.integral_file))
         except:
             print("# Unknown Hamiltonian file format.")
         if ((nup != self.nup) or ndown != self.ndown):

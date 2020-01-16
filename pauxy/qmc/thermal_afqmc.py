@@ -83,6 +83,7 @@ class ThermalAFQMC(object):
             verbose = verbose > 0 and comm.rank == 0
         else:
             self.verbosity = 0
+            verbose = False
         qmc_opts = get_input_value(options, 'qmc', default={},
                                    alias=['qmc_options'],
                                    verbose=self.verbosity>1)
@@ -90,9 +91,6 @@ class ThermalAFQMC(object):
             print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
-        if verbose is not None:
-            self.verbosity = verbose
-            verbose = verbose > 0
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
             get_sha1 = options.get('get_sha1', True)
@@ -145,11 +143,11 @@ class ThermalAFQMC(object):
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
-            if comm.rank == 0:
+            if comm.rank == 0 and verbose:
                 print("# WARNING: Not enough walkers for selected core count.")
-                print("# There must be at least one walker per core set in the "
+                print("#          There must be at least one walker per core set in the "
                       "input file.")
-                print("# Setting one walker per core.")
+                print("#          Setting one walker per core.")
             self.qmc.nwalkers = 1
             self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         wlk_opts = get_input_value(options, 'walkers', default={},
@@ -180,8 +178,9 @@ class ThermalAFQMC(object):
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            if verbose:
+                self.estimators.estimators['mixed'].print_key()
+                self.estimators.estimators['mixed'].print_header()
 
     def run(self, walk=None, comm=None, verbose=None):
         """Perform AFQMC simulation on state object using open-ended random walk.

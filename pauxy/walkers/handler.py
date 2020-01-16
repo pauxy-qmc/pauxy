@@ -4,6 +4,7 @@ import h5py
 import math
 import numpy
 import scipy.linalg
+import sys
 import time
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
@@ -214,6 +215,7 @@ class Walkers(object):
                 print("# Warning: Total weight is {:13.8e}: "
                       .format(total_weight))
                 print("# Something is seriously wrong.")
+            sys.exit()
         self.set_total_weight(total_weight)
         # Todo: Just standardise information we want to send between routines.
         for w in self.walkers:
