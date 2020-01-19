@@ -87,10 +87,12 @@ def reblock_mixed(groupby, columns):
     for group, frame in groupby:
         short = frame.reset_index().drop(columns+['index', 'Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        print("data_len, blocked_data = {}, {}".format(data_len, blocked_data.shape))
         reblocked = pd.DataFrame()
         for c in short.columns:
             try:
                 rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
+                print(rb.to_string())
                 reblocked[c] = rb['mean'].values
                 reblocked[c+'_error'] = rb['standard error'].values
             except KeyError:
@@ -109,6 +111,7 @@ def reblock_free_projection(groupby, columns):
     for group, frame in groupby:
         short = frame[['ENumer', 'EDenom']].apply(numpy.real)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        print("data_len, blocked_data = {}, {}".format(data_len, blocked_data.shape))
         reblocked = pd.DataFrame()
         denom = blocked_data.loc[:,'EDenom']
         for c in short.columns:
@@ -117,6 +120,7 @@ def reblock_free_projection(groupby, columns):
                 cov = covariance.xs('EDenom', level=1)[c]
                 ratio = pyblock.error.ratio(nume, denom, cov, data_len)
                 rb = pyblock.pd_utils.reblock_summary(ratio)
+                print(rb.to_string())
                 try:
                     if c == 'ENumer':
                         c = 'ETotal'
