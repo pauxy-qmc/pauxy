@@ -101,7 +101,12 @@ class Generic(object):
             print("# Number of electrons: (%d, %d)"%(self.nup, self.ndown))
             print("# Approximate memory required by Cholesky vectors %f GB"%mem)
         self.nchol = self.chol_vecs.shape[-1]
-        self.h1e_mod = h1e_mod
+        if h1e_mod is not None:
+            self.h1e_mod = h1e_mod
+        else:
+            h1e_mod = numpy.zeros(self.H1.shape, dtype=self.H1.dtype)
+            construct_h1e_mod(chol, self.H1, h1e_mod)
+            self.h1e_mod = h1e_mod
         self.ktwist = numpy.array([None])
         # For consistency
         self.vol = 1.0

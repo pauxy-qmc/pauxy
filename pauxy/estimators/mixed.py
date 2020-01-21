@@ -456,20 +456,12 @@ def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     for i, (Bi, ci) in enumerate(zip(psi, coeffs)):
         for j, (Aj, cj) in enumerate(zip(psi, coeffs)):
             # construct "local" green's functions for each component of A
-            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            Gup, GHup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, GHdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
             ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
             weight = (ci.conj()*cj) * ovlp
             G = numpy.array([Gup, Gdn])
             e = numpy.array(local_energy(system, G, opt=False))
-            if (i == 0 and j == 1) or (i == 1 and j == 0):
-                Gup, inv_O_up = gab_mod_ovlp(Aj[:,:nup],Bi[:,:nup])
-                Gdn, inv_O_dn = gab_mod_ovlp(Aj[:,nup:], Bi[:,nup:])
-                G = numpy.array([Gup, Gdn])
-                e2 = numpy.array(local_energy(system, G, opt=False))
-
-            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
             if store:
                 H[i,j] = ovlp*e[0]
                 S[i,j] = ovlp
