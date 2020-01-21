@@ -77,7 +77,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
     elif options['name'] == 'free_electron':
         trial = FreeElectron(system, options, verbose)
     elif options['name'] == 'UHF':
-        trial = UHF(system, options, parallel, verbose)
+        trial = UHF(system, options, verbose)
     else:
         print("Unknown trial wavefunction type.")
         sys.exit()
