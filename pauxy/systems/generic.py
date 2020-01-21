@@ -294,7 +294,7 @@ class Generic(object):
     def hijkl(self, i, j, k, l):
         ik = i*self.nbasis + k
         jl = j*self.nbasis + l
-        return numpy.dot(self.chol_vecs[ik,:], self.chol_3ix[jl,:])
+        return numpy.dot(self.chol_vecs[ik,:], self.chol_vecs[jl,:])
 
     def write_integrals(self, filename='hamil.h5'):
         if self.sparse:
