@@ -144,11 +144,11 @@ class GenericContinuous(object):
         """
         G = walker.Gmod
         if system.sparse:
-            self.vbias = G[0].ravel() * system.rot_hs_pot[0]
-            self.vbias += G[1].ravel() * system.rot_hs_pot[1]
+            self.vbias = G[0].ravel() * trial.rot_hs_pot(spin=0)
+            self.vbias += G[1].ravel() * trial.rot_hs_pot(spin=0)
         else:
-            self.vbias = numpy.dot(system.rot_hs_pot[0].T, G[0].ravel())
-            self.vbias += numpy.dot(system.rot_hs_pot[1].T, G[1].ravel())
+            self.vbias = numpy.dot(trial.rot_hs_pot(spin=0).T, G[0].ravel())
+            self.vbias += numpy.dot(trial.rot_hs_pot(spin=1).T, G[1].ravel())
         return - self.sqrt_dt * (1j*self.vbias-self.mf_shift)
 
     def construct_force_bias_multi_det(self, system, walker, trial):
@@ -199,7 +199,8 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     B : :class:`numpy.ndarray`
         Full propagator matrix.
     """
-    VHS = 1j*dt**0.5*numpy.einsum('l,lpq->pq', config, system.chol_vecs)
+    nbsf = system.nbasis
+    VHS = 1j*dt**0.5*system.hs_pot.dot(config).reshape(nbsf, nbsf)
     EXP_VHS = exponentiate_matrix(VHS)
     Bup = BT2[0].dot(EXP_VHS).dot(BT2[0])
     Bdown = BT2[1].dot(EXP_VHS).dot(BT2[1])
