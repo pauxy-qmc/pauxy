@@ -55,9 +55,10 @@ class MultiSlater(object):
         self.error = False
         self.initialisation_time = time.time() - init_time
         self._nalpha = system.nup
+        self._nbeta = system.ndown
         self._nelec = system.nelec
         self._nbasis = system.nbasis
-        self.rchol = None
+        self._rchol = None
         write_wfn = options.get('write_wavefunction', False)
         if write_wfn:
             self.write_wavefunction()
@@ -130,8 +131,8 @@ class MultiSlater(object):
                         Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                         if abs(ovlp) > 1e-12:
-                            if self.rchol is not None:
-                                rchol = self.rchol[i*m*(na+nb):(i+1)*m*(na+nb)]
+                            if self._rchol is not None:
+                                rchol = self.rchol(i)
                             else:
                                 rchol = None
                             H[i,j] = ovlp * local_energy(system, G,
@@ -197,7 +198,7 @@ class MultiSlater(object):
             shape = (self.ndets*(M*(na+nb)), nchol)
         else:
             shape = None
-        self.rchol = get_shared_array(comm, shape, numpy.complex128)
+        self._rchol = get_shared_array(comm, shape, numpy.complex128)
         if comm is None or comm.rank == 0:
             for i, psi in enumerate(self.psi):
                 start_time = time.time()
@@ -208,10 +209,77 @@ class MultiSlater(object):
                 rup = numpy.tensordot(psi[:,:na].conj(),
                                       chol,
                                       axes=((0),(0)))
-                self.rchol[start:start+M*na] = rup[:].reshape((-1,nchol))
+                self._rchol[start:start+M*na] = rup[:].reshape((-1,nchol))
                 rdn = numpy.tensordot(psi[:,na:].conj(),
                                       chol,
                                       axes=((0),(0)))
-                self.rchol[start+M*na:start+M*(na+nb)] = rdn[:].reshape((-1,nchol))
+                self._rchol[start+M*na:start+M*(na+nb)] = rdn[:].reshape((-1,nchol))
                 if self.verbose:
                     print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+        self._rot_hs_pot = self._rchol
+
+    def rot_chol(self, idet=0, spin=None):
+        """Helper function"""
+        if spin is None:
+            stride = self._nbasis * (self._nalpha + self._nbeta)
+            return self._rchol[idet*stride:(idet+1)*stride]
+        else:
+            stride = self._nbasis * (self._nalpha + self._nbeta)
+            alpha = self._nbasis * self._nalpha
+            if spin == 0:
+                return self._rchol[idet*stride:idet*stride+alpha]
+            else:
+                beta = self._nbasis * self._nbeta
+                return self._rchol[idet*stride+alpha:idet*stride+alpha+beta]
+
+    def rot_hs_pot(self, idet=0, spin=None):
+        """Helper function"""
+        if spin is None:
+            stride = self._nbasis * (self._nalpha + self._nbeta)
+            return self._rot_hs_pot[idet*stride:(idet+1)*stride]
+        else:
+            stride = self._nbasis * (self._nalpha + self._nbeta)
+            alpha = self._nbasis * self._nalpha
+            if spin == 0:
+                return self._rot_hs_pot[idet*stride:idet*stride+alpha]
+            else:
+                beta = self._nbasis * self._nbeta
+                return self._rot_hs_pot[idet*stride+alpha:idet*stride+alpha+beta]
+
+    # TODO: Implement
+    # def half_rotate_cplx(self, system, comm=None):
+        # # Half rotated cholesky vectors (by trial wavefunction).
+        # M = system.nbasis
+        # na = system.nup
+        # nb = system.ndown
+        # nchol = system.chol_vecs.shape[-1]
+        # if self.verbose:
+            # print("# Constructing half rotated Cholesky vectors.")
+
+        # if isinstance(system.chol_vecs, numpy.ndarray):
+            # chol = system.chol_vecs.reshape((M,M,-1))
+        # else:
+            # chol = system.chol_vecs.toarray().reshape((M,M,-1))
+        # if comm is None or comm.rank == 0:
+            # shape = (self.ndets*(M*(na+nb)), nchol)
+        # else:
+            # shape = None
+        # self.rchol = get_shared_array(comm, shape, numpy.complex128)
+        # if comm is None or comm.rank == 0:
+            # for i, psi in enumerate(self.psi):
+                # start_time = time.time()
+                # if self.verbose:
+                    # print("# Rotating Cholesky for determinant {} of "
+                          # "{}.".format(i+1,self.ndets))
+                # start = i*M*(na+nb)
+                # rup = numpy.tensordot(psi[:,:na].conj(),
+                                      # chol,
+                                      # axes=((0),(0)))
+                # self.rchol[start:start+M*na] = rup[:].reshape((-1,nchol))
+                # rdn = numpy.tensordot(psi[:,na:].conj(),
+                                      # chol,
+                                      # axes=((0),(0)))
+                # self.rchol[start+M*na:start+M*(na+nb)] = rdn[:].reshape((-1,nchol))
+                # if self.verbose:
+                    # print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+            # self.rot_hs_pot = self.rchol
