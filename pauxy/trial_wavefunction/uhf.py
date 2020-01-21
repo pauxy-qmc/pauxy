@@ -65,7 +65,7 @@ class UHF(object):
         self.type = 'UHF'
         self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
-            self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
+            self.find_uhf_wfn(system, self.ueff, self.ninitial,
                               self.nconv, self.alpha, self.deps, verbose)
         )
         if self.error and not parallel:
@@ -79,7 +79,7 @@ class UHF(object):
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit,
+    def find_uhf_wfn(self, system, ueff, ninit,
                      nit_max, alpha, deps=1e-8, verbose=0):
         emin = 0
         uold = system.U
@@ -90,7 +90,7 @@ class UHF(object):
         for attempt in range(0, ninit):
             # Set up initial (random) guess for the density.
             (self.trial, eold) = self.initialise(system.nbasis, system.nup,
-                                            system.ndown, cplx)
+                                            system.ndown)
             niup = self.density(self.trial[:,:nup])
             nidown = self.density(self.trial[:,nup:])
             niup_old = self.density(self.trial[:,:nup])
@@ -139,16 +139,12 @@ class UHF(object):
                           "Delta E: %f" % (enew - emin))
             return (trial, numpy.append(e_up, e_down), None, True, None)
 
-    def initialise(self, nbasis, nup, ndown, cplx):
+    def initialise(self, nbasis, nup, ndown):
         (e_up, ev_up) = self.random_starting_point(nbasis)
         (e_down, ev_down) = self.random_starting_point(nbasis)
 
-        if cplx:
-            trial_type = complex
-        else:
-            trial_type = float
         trial = numpy.zeros(shape=(nbasis, nup+ndown),
-                            dtype=trial_type)
+                            dtype=numpy.complex128)
         trial[:,:nup] = ev_up[:,:nup]
         trial[:,nup:] = ev_down[:,:ndown]
         eold = sum(e_up[:nup]) + sum(e_down[:ndown])
