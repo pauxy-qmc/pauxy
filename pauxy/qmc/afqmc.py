@@ -107,7 +107,8 @@ class AFQMC(object):
                                        default={},
                                        alias=['system'],
                                        verbose=self.verbosity>1)
-            self.system = get_system(sys_opts, verbose=verbose, comm=comm)
+            self.system = get_system(sys_opts, verbose=verbose,
+                                     comm=self.shared_comm)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -130,12 +131,6 @@ class AFQMC(object):
             else:
                 self.trial = None
             self.trial = comm.bcast(self.trial, root=0)
-        if self.system.name == "Generic":
-            if self.trial.ndets == 1:
-                if self.system.cplx_chol:
-                    self.system.construct_integral_tensors_cplx(self.trial)
-                else:
-                    self.system.construct_integral_tensors_real(self.trial)
         if comm.rank == 0:
             self.trial.calculate_energy(self.system)
         prop_opt = options.get('propagator', {})

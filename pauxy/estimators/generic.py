@@ -45,7 +45,7 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     e2b = euu + edd + eos #eud + edu
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
-def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
+def local_energy_generic_cholesky_opt(system, G, Ghalf, rchol):
     r"""Calculate local for generic two-body hamiltonian.
 
     This uses the cholesky decomposed two-electron integrals.
@@ -64,20 +64,15 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     """
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
-    if rchol is None:
-        rchol = system.rchol_vecs
-    nalpha, nbeta= system.nup, system.ndown
+    nalpha, nbeta = system.nup, system.ndown
     nbasis = system.nbasis
     Ga, Gb = Ghalf[0], Ghalf[1]
-    Xa = rchol[0].T.dot(Ga.ravel())
-    Xb = rchol[1].T.dot(Gb.ravel())
+    Xa = rchol[:nalpha*nbasis].T.dot(Ga.ravel())
+    Xb = rchol[nalpha*nbasis:].T.dot(Gb.ravel())
     ecoul = numpy.dot(Xa,Xa)
     ecoul += numpy.dot(Xb,Xb)
     ecoul += 2*numpy.dot(Xa,Xb)
-    if system.sparse:
-        rchol_a, rchol_b = [rchol[0].toarray(), rchol[1].toarray()]
-    else:
-        rchol_a, rchol_b = rchol[0], rchol[1]
+    rchol_a, rchol_b = rchol[:nalpha*nbasis], rchol[nalpha*nbasis:]
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
     Ta = numpy.tensordot(Ga, rchol_a.reshape((nalpha,nbasis,-1)), axes=((1),(1)))

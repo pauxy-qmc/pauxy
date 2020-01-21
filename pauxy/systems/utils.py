@@ -27,9 +27,12 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
             print("# Number of electrons not specified.")
             sys.exit()
         nelec = (nup, ndown)
-        hcore, chol, enuc, h1e_mod  = get_generic_integrals(filename, comm=comm)
-        system = Generic(h1e=hcore, chol=chol, ecore=enuc, h1e_mod=h1e_mod,
-                         nelec=nelec, verbose=verbose)
+        hcore, chol, h1e_mod, enuc = get_generic_integrals(filename,
+                                                           comm=comm,
+                                                           verbose=verbose)
+        system = Generic(h1e=hcore, chol=chol, ecore=enuc,
+                         h1e_mod=h1e_mod, nelec=nelec,
+                         verbose=verbose)
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:
@@ -37,8 +40,10 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
 
     return system
 
-def get_generic_integrals(filename, comm=None):
+def get_generic_integrals(filename, comm=None, verbose=False):
     shmem = have_shared_mem(comm)
+    if verbose:
+        print("# Have shared memory: {}".format(shmem))
     if shmem:
         if comm.rank == 0:
             hcore, chol, enuc = read_integrals(filename)
@@ -63,14 +68,15 @@ def get_generic_integrals(filename, comm=None):
         if comm.rank == 0:
             chol_shmem[:] = chol[:]
         comm.Barrier()
-        h1e_mod_shmem = get_shared_array(comm, hcore_shmem.shape, dtype)
-        if comm.rank == 0:
-            construct_h1e_mod(chol_shmem, hcore_shmem, h1e_mod_shmem)
-        comm.Barrier()
+        # h1e_mod_shmem = get_shared_array(comm, hcore_shmem.shape, dtype)
+        # if comm.rank == 0:
+            # construct_h1e_mod(chol_shmem, hcore_shmem, h1e_mod_shmem)
+        # comm.Barrier()
+        h1e_mod_shmem = None
         return hcore_shmem, chol_shmem, h1e_mod_shmem, enuc
     else:
         hcore, chol, enuc = read_integrals(filename, sparse)
         h1 = numpy.array([hcore, hcore])
         h1e_mod = numpy.zeros(h1.shape, dtype=h1.dtype)
         construct_h1e_mod(chol, h1, h1e_mod)
-        return hcore, chol, enuc, h1e_mod
+        return h1, chol, h1e_mod, enuc

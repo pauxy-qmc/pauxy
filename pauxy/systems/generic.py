@@ -81,18 +81,18 @@ class Generic(object):
         self.nelec = nelec
         self.ne = self.nup + self.ndown
         self.mu = mu
-        if chol is not None:
-            self.chol_vecs = chol
-            if isinstance(self.chol_vecs.dtype, numpy.complex128):
-                if verbose:
-                    print("# Found complex integrals.")
-                    print("# Using Hermitian Cholesky decomposition.")
-            else:
-                if verbose:
-                    print("# Using real Cholesky decomposition.")
-                self.cplx_chol = False
+        self.ecore = ecore
+        self.chol_vecs = chol
+        if isinstance(self.chol_vecs.dtype, numpy.complex128):
+            if verbose:
+                print("# Found complex integrals.")
+                print("# Using Hermitian Cholesky decomposition.")
+        else:
+            if verbose:
+                print("# Using real Cholesky decomposition.")
+            self.cplx_chol = False
         self.H1 = h1e
-        self.nbasis = h1e.shape[0]
+        self.nbasis = h1e.shape[-1]
         self._alt_convention = False
         mem = self.chol_vecs.nbytes / (1024.0**3)
         self.sparse = False
@@ -321,7 +321,7 @@ def read_integrals(integral_file):
 def construct_h1e_mod(chol, h1e, h1e_mod):
     # Subtract one-body bit following reordering of 2-body operators.
     # Eqn (17) of [Motta17]_
-    nbasis = h1e.shape[-1] 
+    nbasis = h1e.shape[-1]
     chol_3 = chol.reshape((nbasis, nbasis, -1))
     v0 = 0.5 * numpy.einsum('ikn,jkn->ij', chol_3, chol_3, optimize='optimal')
     h1e_mod[0,:,:] = h1e[0] - v0
