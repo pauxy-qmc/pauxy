@@ -6,8 +6,7 @@ from pauxy.utils.io import read_qmcpack_wfn
 
 class HartreeFock(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False,
-                 orbs=None):
+    def __init__(self, system, trial, verbose=False, orbs=None):
         self.verbose = verbose
         if verbose:
             print ("# Parsing Hartree--Fock trial wavefunction input options.")

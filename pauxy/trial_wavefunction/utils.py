@@ -8,7 +8,7 @@ from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.utils.io import read_qmcpack_wfn_hdf, get_input_value
 
 def get_trial_wavefunction(system, options={}, mf=None,
-                           parallel=False, verbose=0):
+                           comm=None, verbose=0):
     """Wrapper to select trial wavefunction class.
 
     Parameters
@@ -50,30 +50,34 @@ def get_trial_wavefunction(system, options={}, mf=None,
             for x in read:
                 wfn.append(x[:ndets])
         else:
-            wfn = read
-        trial = MultiSlater(system, wfn, options=options,
-                            parallel=parallel, verbose=verbose,
-                            init=psi0)
-    elif options['name'] == 'MultiSlater':
-        if verbose:
-            print("# Guessing RHF trial wavefunction.")
-        na = system.nup
-        nb = system.ndown
-        wfn = numpy.zeros((1,system.nbasis,system.nup+system.ndown),
-                          dtype=numpy.complex128)
-        coeffs = numpy.array([1.0+0j])
-        I = numpy.identity(system.nbasis, dtype=numpy.complex128)
-        wfn[0,:,:na] = I[:,:na]
-        wfn[0,:,na:] = I[:,:nb]
-        trial = MultiSlater(system, (coeffs,wfn), options=options,
-                            parallel=parallel, verbose=verbose)
+            if verbose:
+                print("# Guessing RHF trial wavefunction.")
+            na = system.nup
+            nb = system.ndown
+            wfn = numpy.zeros((1,system.nbasis,system.nup+system.ndown),
+                              dtype=numpy.complex128)
+            coeffs = numpy.array([1.0+0j])
+            I = numpy.identity(system.nbasis, dtype=numpy.complex128)
+            wfn[0,:,:na] = I[:,:na]
+            wfn[0,:,na:] = I[:,:nb]
+            wfn = (coeffs, wfn)
+        trial = MultiSlater(system, wfn, options=options, verbose=verbose)
+        if system.name == 'Generic':
+            trial.half_rotate(system, comm)
+        rediag = options.get('recompute_ci', False)
+        if rediag:
+            if comm.rank == 0:
+                coeffs = trial.recompute_ci_coeffs(system)
+            else:
+                coeffs = None
+            coeffs = comm.bcast(coeffs, root=0)
+            trial.coeffs = coeffs
     elif options['name'] == 'hartree_fock':
-        trial = HartreeFock(system, True, options,
-                            parallel=parallel, verbose=verbose)
+        trial = HartreeFock(system, options, verbose=verbose)
     elif options['name'] == 'free_electron':
-        trial = FreeElectron(system, True, options, parallel, verbose)
+        trial = FreeElectron(system, options, verbose)
     elif options['name'] == 'UHF':
-        trial = UHF(system, True, options, parallel, verbose)
+        trial = UHF(system, options, parallel, verbose)
     else:
         print("Unknown trial wavefunction type.")
         sys.exit()

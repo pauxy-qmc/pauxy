@@ -10,11 +10,12 @@ from pauxy.utils.io import (
         get_input_value,
         write_qmcpack_wfn
         )
+from pauxy.utils.mpi import get_shared_array
 
 class MultiSlater(object):
 
     def __init__(self, system, wfn, nbasis=None, options={},
-                 init=None, parallel=False, verbose=False, orbs=None):
+                 init=None, verbose=False, orbs=None):
         self.verbose = verbose
         if verbose:
             print ("# Parsing MultiSlater trial wavefunction input options.")
@@ -22,12 +23,6 @@ class MultiSlater(object):
         self.name = "MultiSlater"
         self.type = "MultiSlater"
         # TODO : Fix for MSD.
-        rediag = get_input_value(options, 'recompute_ci',
-                                 default=False, alias=['rediag'],
-                                 verbose=verbose)
-        self.half_rot = get_input_value(options, 'half_rotate',
-                                        default=False, alias=['rotate'],
-                                        verbose=verbose)
         if len(wfn) == 3:
             # CI type expansion.
             self.from_phmsd(system, wfn, orbs)
@@ -44,18 +39,12 @@ class MultiSlater(object):
             print("# Trial wavefunction shape: {}".format(self.psi.shape))
         self.ndets = len(self.coeffs)
         if self.ndets == 1:
-            self.psi = self.psi[0]
-            self.G, self.GH = gab_spin(self.psi, self.psi,
+            # self.psi = self.psi[0]
+            self.G, self.GH = gab_spin(self.psi[0], self.psi[0],
                                        system.nup, system.ndown)
         else:
             self.G = None
             self.GH = None
-        if self.half_rot:
-            self.half_rotate(system)
-        if rediag:
-            if self.verbose:
-                print("# Recomputing CI coefficients.")
-            self.recompute_ci_coeffs(system)
         if init is not None:
             self.init = init
         else:
@@ -119,6 +108,9 @@ class MultiSlater(object):
     def recompute_ci_coeffs(self, system):
         H = numpy.zeros((self.ndets, self.ndets), dtype=numpy.complex128)
         S = numpy.zeros((self.ndets, self.ndets), dtype=numpy.complex128)
+        m = system.nbasis
+        na = system.nup
+        nb = system.ndown
         if self.ortho_expansion:
             for i in range(self.ndets):
                 for j in range(i,self.ndets):
@@ -137,8 +129,10 @@ class MultiSlater(object):
                         Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                         if abs(ovlp) > 1e-12:
-                            H[i,j] = ovlp * local_energy(system, G, Ghalf=Ghalf,
-                                                         rchol=self.rot_chol[i])[0]
+                            rchol = self.rot_chol[i*m*(na+nb):(i+1)*m*(na+nb)]
+                            H[i,j] = ovlp * local_energy(system, G,
+                                                         Ghalf=Ghalf,
+                                                         rchol=rchol)[0]
                             S[i,j] = ovlp
                             H[j,i] = numpy.conjugate(H[i,j])
                             S[j,i] = numpy.conjugate(S[i,j])
@@ -147,7 +141,7 @@ class MultiSlater(object):
             print("Old and New CI coefficients: ")
             for co,cn in zip(self.coeffs,ev[:,0]):
                 print("{} {}".format(co, cn))
-        self.coeffs = numpy.array(ev[:,0], dtype=numpy.complex128)
+        return numpy.array(ev[:,0], dtype=numpy.complex128)
 
     def contract_one_body(self, ints):
         numer = 0.0
@@ -182,27 +176,35 @@ class MultiSlater(object):
         write_qmcpack_wfn(filename, wfn, 'uhf', self._nelec, self._nbasis,
                           init=init)
 
-    def half_rotate(self, system):
+    def half_rotate(self, system, comm):
         # Half rotated cholesky vectors (by trial wavefunction).
         M = system.nbasis
         na = system.nup
         nb = system.ndown
+        nchol = system.chol_vecs.shape[-1]
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
 
-        chol = system.chol_vecs.reshape((-1,M*M)).T.reshape((M,M,-1))
-        start = time.time()
-        self.rot_chol = []
-        for i, psi in enumerate(self.psi):
-            start = time.time()
-            if self.verbose:
-                print("# Rotating Cholesky for determinant {}".format(i))
-            rup = numpy.tensordot(psi[:,:na].conj(),
-                                  chol,
-                                  axes=((0),(0)))
-            rdn = numpy.tensordot(psi[:,na:].conj(),
-                                  chol,
-                                  axes=((0),(0)))
-            self.rot_chol.append([rup.reshape(M*na,-1), rdn.reshape((M*nb,-1))])
-            if self.verbose:
-                print("# Time to half rotate {}".format(time.time()-start))
+        chol = system.chol_vecs.reshape((M,M,-1))
+        if comm.rank == 0:
+            shape = (self.ndets*(M*(na+nb)), nchol)
+        else:
+            shape = None
+        self.rchol = get_shared_array(comm, shape, numpy.complex128)
+        if comm.rank == 0:
+            for i, psi in enumerate(self.psi):
+                start_time = time.time()
+                if self.verbose:
+                    print("# Rotating Cholesky for determinant {} of "
+                          "{}.".format(i+1,self.ndets))
+                start = i*M*(na+nb)
+                rup = numpy.tensordot(psi[:,:na].conj(),
+                                      chol,
+                                      axes=((0),(0)))
+                self.rchol[start:start+M*na] = rup[:].reshape((-1,nchol))
+                rdn = numpy.tensordot(psi[:,na:].conj(),
+                                      chol,
+                                      axes=((0),(0)))
+                self.rchol[start+M*na:start+M*na+M*nb] = rdn[:].reshape((-1,nchol))
+                if self.verbose:
+                    print("# Time to half rotate {} seconds.".format(time.time()-start_time))

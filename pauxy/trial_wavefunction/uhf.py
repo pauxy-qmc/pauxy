@@ -44,7 +44,7 @@ class UHF(object):
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=0):
+    def __init__(self, system, trial, verbose=0):
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -53,10 +53,7 @@ class UHF(object):
         self.type = "UHF"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'trial')
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        self.trial_type = complex
         # Unpack input options.
         self.ninitial = trial.get('ninitial', 10)
         self.nconv = trial.get('nconv', 5000)
