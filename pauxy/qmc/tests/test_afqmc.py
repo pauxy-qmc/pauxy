@@ -38,7 +38,7 @@ def test_constructor():
         'ndown': 7,
         }
     system = UEG(model)
-    trial = HartreeFock(system, True, {})
+    trial = HartreeFock(system, {})
     comm = MPI.COMM_WORLD
     afqmc = AFQMC(comm=comm, options=options, system=system, trial=trial)
     afqmc.finalise(verbose=0)
@@ -136,6 +136,7 @@ def test_hubbard():
     # old code seemed to ommit last value. Discard to avoid updating benchmark.
     assert numpy.mean(data.ETotal.values[:-1]) == pytest.approx(-14.974806533852874)
 
+@pytest.mark.driver
 def test_hubbard_complex():
     options = {
             'verbosity': 0,
@@ -204,7 +205,9 @@ def test_generic():
         }
     numpy.random.seed(7)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
     comm = MPI.COMM_WORLD
     afqmc = AFQMC(comm=comm, system=sys, options=options)
     afqmc.run(comm=comm, verbose=0)
@@ -232,7 +235,7 @@ def test_generic_single_det():
                 'rng_seed': 8,
             },
             'trial': {
-                'name': 'hartree_fock'
+                'name': 'MultiSlater'
             },
             'estimator': {
                 'back_propagated': {
@@ -247,7 +250,9 @@ def test_generic_single_det():
     numpy.random.seed(7)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
     sys_opts = {'sparse': True}
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc, inputs=sys_opts)
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
     comm = MPI.COMM_WORLD
     afqmc = AFQMC(comm=comm, system=sys, options=options)
     afqmc.run(comm=comm, verbose=0)
