@@ -359,7 +359,7 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
+def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -385,10 +385,10 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
-        if system.half_rotated_integrals:
+        if half_rot_ints:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            if Ghalf is not None:
+            if Ghalf is not None and rchol is not None:
                 return local_energy_generic_cholesky_opt(system, G,
                                                          Ghalf=Ghalf,
                                                          rchol=rchol)
@@ -461,7 +461,7 @@ def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
             ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
             weight = (ci.conj()*cj) * ovlp
             G = numpy.array([Gup, Gdn])
-            e = numpy.array(local_energy(system, G, opt=False))
+            e = numpy.array(local_energy(system, G))
             if store:
                 H[i,j] = ovlp*e[0]
                 S[i,j] = ovlp
