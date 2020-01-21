@@ -57,6 +57,7 @@ class MultiSlater(object):
         self._nalpha = system.nup
         self._nelec = system.nelec
         self._nbasis = system.nbasis
+        self.rchol = None
         write_wfn = options.get('write_wavefunction', False)
         if write_wfn:
             self.write_wavefunction()
@@ -129,7 +130,10 @@ class MultiSlater(object):
                         Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                         if abs(ovlp) > 1e-12:
-                            rchol = self.rot_chol[i*m*(na+nb):(i+1)*m*(na+nb)]
+                            if self.rchol is not None:
+                                rchol = self.rchol[i*m*(na+nb):(i+1)*m*(na+nb)]
+                            else:
+                                rchol = None
                             H[i,j] = ovlp * local_energy(system, G,
                                                          Ghalf=Ghalf,
                                                          rchol=rchol)[0]
@@ -160,8 +164,8 @@ class MultiSlater(object):
                 else:
                     di = self.psi[i]
                     dj = self.psi[j]
-                    ga, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
-                    gb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
+                    ga, gha, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
+                    gb, ghb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
                     ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                     tij = numpy.dot(ints.ravel(), ga.ravel()+gb.ravel())
                     numer += cfac * ovlp * tij
@@ -176,7 +180,7 @@ class MultiSlater(object):
         write_qmcpack_wfn(filename, wfn, 'uhf', self._nelec, self._nbasis,
                           init=init)
 
-    def half_rotate(self, system, comm):
+    def half_rotate(self, system, comm=None):
         # Half rotated cholesky vectors (by trial wavefunction).
         M = system.nbasis
         na = system.nup
@@ -185,13 +189,16 @@ class MultiSlater(object):
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
 
-        chol = system.chol_vecs.reshape((M,M,-1))
-        if comm.rank == 0:
+        if isinstance(system.chol_vecs, numpy.ndarray):
+            chol = system.chol_vecs.reshape((M,M,-1))
+        else:
+            chol = system.chol_vecs.toarray().reshape((M,M,-1))
+        if comm is None or comm.rank == 0:
             shape = (self.ndets*(M*(na+nb)), nchol)
         else:
             shape = None
         self.rchol = get_shared_array(comm, shape, numpy.complex128)
-        if comm.rank == 0:
+        if comm is None or comm.rank == 0:
             for i, psi in enumerate(self.psi):
                 start_time = time.time()
                 if self.verbose:
@@ -205,6 +212,6 @@ class MultiSlater(object):
                 rdn = numpy.tensordot(psi[:,na:].conj(),
                                       chol,
                                       axes=((0),(0)))
-                self.rchol[start+M*na:start+M*na+M*nb] = rdn[:].reshape((-1,nchol))
+                self.rchol[start+M*na:start+M*(na+nb)] = rdn[:].reshape((-1,nchol))
                 if self.verbose:
                     print("# Time to half rotate {} seconds.".format(time.time()-start_time))
