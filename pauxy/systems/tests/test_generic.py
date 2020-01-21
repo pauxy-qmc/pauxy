@@ -14,7 +14,9 @@ def test_real():
     nmo = 17
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
     assert sys.nup == 4
     assert sys.ndown == 3
     assert numpy.trace(h1e) == pytest.approx(9.38462274882365)
@@ -26,7 +28,9 @@ def test_complex():
     nmo = 17
     nelec = (5,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
     assert sys.nup == 5
     assert sys.ndown == 3
     assert sys.nbasis == 17
@@ -37,7 +41,9 @@ def test_write():
     nmo = 13
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
-    sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
     sys.write_integrals()
 
 @pytest.mark.unit
