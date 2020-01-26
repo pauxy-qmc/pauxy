@@ -219,7 +219,7 @@ class HirschSpinDMC(object):
         eloc = numpy.real(eloc)
         walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
-    def kinetic_importance_sampling(self, walker, system, trial, update):
+    def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
 
         Parameters
@@ -233,8 +233,6 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
 
-        oratio_extra = 1.0
-
         self.kinetic(walker.phi, system, self.bt2)
 
         const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
@@ -246,7 +244,7 @@ class HirschSpinDMC(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         ot_new = walker.calc_otrial(trial)
-        ratio = (ot_new/walker.ot) * oratio_extra
+        ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
         if abs(phase) < 0.5*math.pi:
             walker.weight = walker.weight * ratio.real
@@ -275,7 +273,7 @@ class HirschSpinDMC(object):
         # print("walker.weight1 = {}".format(walker.weight))
         # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
-            self.kinetic_importance_sampling(walker, system, trial, update = False)
+            self.kinetic_importance_sampling(walker, system, trial)
         # print("walker.weight2 = {}".format(walker.weight))
         # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
@@ -283,7 +281,7 @@ class HirschSpinDMC(object):
         # print("walker.weight3 = {}".format(walker.weight))
         # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
-            self.kinetic_importance_sampling(walker, system, trial, update = False)
+            self.kinetic_importance_sampling(walker, system, trial)
         # print("walker.weight4 = {}".format(walker.weight))
         # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
