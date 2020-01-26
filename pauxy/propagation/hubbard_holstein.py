@@ -11,7 +11,7 @@ from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
 
 class HirschSpinDMC(object):
-    """Propagator for discrete HS transformation.
+    """Propagator for discrete HS transformation plus phonon propagation.
 
     Parameters
     ----------
@@ -50,6 +50,7 @@ class HirschSpinDMC(object):
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         
+        self.lang_firsov = options.get('lang_firsov', False)
         self.update_trial = options.get('update_trial', False)
         if verbose:
             print("# update_trial = {}".format(self.update_trial))
@@ -86,6 +87,13 @@ class HirschSpinDMC(object):
         shift = numpy.real(shift)
         if verbose:
             print("# Shift = {}".format(shift))
+        
+        self.alpha = 0.0
+        if (self.lang_firsov):
+            self.alpha = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
+            const = self.alpha * self.alpha * system.w0 / 2.0 - system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
+            tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
+            self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
 
         self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
@@ -199,16 +207,10 @@ class HirschSpinDMC(object):
         Xprev = walker.X.copy()
 
         dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
-        # Xnew = walker.X + self.sqrtdt * numpy.random.randn(*walker.X.shape) + driftold
         Xnew = walker.X + dX + driftold
         
         walker.X = Xnew.copy()
 
-        # driftnew = (self.dt / system.m) * trial.gradient(Xnew)
-        # acc = self.acceptance(walker.X ,Xnew, driftold, driftnew, trial)
-        # if (acc > numpy.random.random(1)):
-            # walker.X = Xnew
-        
         lap = trial.laplacian(walker.X)
         walker.Lap = lap
         
@@ -235,9 +237,14 @@ class HirschSpinDMC(object):
 
         self.kinetic(walker.phi, system, self.bt2)
 
-        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
+        const = (self.alpha -system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
         nX = [walker.X, walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+
+        if (self.lang_firsov):
+            Veph[0] += self.bt2_lf[0]
+            Veph[1] += self.bt2_lf[1]
+
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         # Update inverse overlap
@@ -270,42 +277,22 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
 
-        # print("walker.weight1 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
-        # print("walker.weight2 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight) > 0:
             self.two_body(walker, system, trial)
-        # print("walker.weight3 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
-        # print("walker.weight4 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
         if abs(walker.weight.real) > 0:
             self.boson_importance_sampling(walker, system, self.boson_trial)
 
-        # print("walker.ot = {}".format(walker.ot))
-        # print("walker.weight5 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
-
         if (self.update_trial):
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
-            # print("self.boson_trial.xavg = {}".format(self.boson_trial.xavg))
-            # print("walker.X = {}".format(walker.X))
             shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift) # trial updaate
-            # print(walker.X)
             phinew = self.boson_trial.value(walker.X) # phi with a new trial
-            # print("phinew = {}".format(phinew))
-            # print("phiold = {}".format(phiold))
             oratio_extra = phinew / phiold
             walker.weight *= oratio_extra
-
-        # print("walker.weight6 = {}".format(walker.weight))
-        # print("walker.ot = {}".format(walker.ot))
     
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
