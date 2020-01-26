@@ -60,6 +60,16 @@ class FreeElectron(object):
             else:
                 self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
                 self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+                
+                nocca = system.nup
+                noccb = system.ndown
+                nvira = system.nbasis-system.nup
+                nvirb = system.nbasis-system.ndown
+                self.virt = numpy.zeros((system.nbasis, nvira+nvirb))
+
+                self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
+                self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
         gdown = gab(self.psi[:, system.nup:],
@@ -105,6 +115,13 @@ class FreeElectron(object):
         else:
             self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
             self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+            nocca = system.nup
+            noccb = system.ndown
+            nvira = system.nbasis-system.nup
+            nvirb = system.nbasis-system.ndown
+
+            self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
+            self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
         
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
