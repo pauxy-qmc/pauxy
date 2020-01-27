@@ -55,17 +55,33 @@ class HirschSpinDMC(object):
         if verbose:
             print("# update_trial = {}".format(self.update_trial))
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+
+        
+        self.alpha = 0.0
+        if (self.lang_firsov):
+            self.alpha = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
+            const = self.alpha * self.alpha * system.w0 / 2.0 - system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
+            tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
+            self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
+        if verbose:
+            print("# lang_firsov = {}".format(self.lang_firsov))
+
+        Ueff = U + self.alpha**2 * system.w0 - 2.0 * system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
+
+        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+        
+        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
         self.dt = qmc.dt
         self.sqrtdt = math.sqrt(qmc.dt)
         self.delta = self.auxf - 1
+
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
+
         if trial.name == 'multi_determinant':
             if trial.type == 'GHF':
                 self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
@@ -87,13 +103,6 @@ class HirschSpinDMC(object):
         shift = numpy.real(shift)
         if verbose:
             print("# Shift = {}".format(shift))
-        
-        self.alpha = 0.0
-        if (self.lang_firsov):
-            self.alpha = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
-            const = self.alpha * self.alpha * system.w0 / 2.0 - system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
-            tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
-            self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
 
         self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
