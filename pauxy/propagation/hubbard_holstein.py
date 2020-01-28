@@ -55,24 +55,23 @@ class HirschSpinDMC(object):
         if verbose:
             print("# update_trial = {}".format(self.update_trial))
 
-
+        self.gamma_lf = options.get('gamma', 0.0) # Lang-Firsov Gamma
+        # if (self.lang_firsov):
+        #     self.gamma_lf = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
+        #     const = self.gamma_lf * self.gamma_lf * system.w0 / 2.0 - system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
+        #     tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
+        #     self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
         
-        self.alpha = 0.0
-        if (self.lang_firsov):
-            self.alpha = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
-            const = self.alpha * self.alpha * system.w0 / 2.0 - system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
-            tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
-            self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
         if verbose:
             print("# lang_firsov = {}".format(self.lang_firsov))
 
-        Ueff = U + self.alpha**2 * system.w0 - 2.0 * system.g * self.alpha * numpy.sqrt(2.0 * system.m * system.w0)
+        # Ueff = U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
+        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.dt = qmc.dt
         self.sqrtdt = math.sqrt(qmc.dt)
         self.delta = self.auxf - 1
@@ -246,13 +245,9 @@ class HirschSpinDMC(object):
 
         self.kinetic(walker.phi, system, self.bt2)
 
-        const = (self.alpha -system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
+        const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
         nX = [walker.X, walker.X]
         Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
-
-        if (self.lang_firsov):
-            Veph[0] += self.bt2_lf[0]
-            Veph[1] += self.bt2_lf[1]
 
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
