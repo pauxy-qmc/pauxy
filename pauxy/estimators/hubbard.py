@@ -25,12 +25,12 @@ def local_energy_hubbard(system, G, Ghalf=None):
     return (ke + pe, ke, pe)
 
 def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
-    r"""Calculate local energy of walker for the Hubbard model.
+    r"""Calculate local energy of walker for the Hubbard-Hostein model.
 
     Parameters
     ----------
-    system : :class:`Hubbard`
-        System information for the Hubbard model.
+    system : :class:`HubbardHolstein`
+        System information for the HubbardHolstein model.
     G : :class:`numpy.ndarray`
         Walker's "Green's function"
 
