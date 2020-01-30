@@ -1,5 +1,6 @@
 import cmath
 import numpy
+from pauxy.system.hubbard_holstein import kinetic_lang_firsov
 
 def local_energy_hubbard(system, G, Ghalf=None):
     r"""Calculate local energy of walker for the Hubbard model.
@@ -53,6 +54,48 @@ def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
     
     rho = G[0].diagonal() + G[1].diagonal()
     e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, X)
+
+
+    etot = ke + pe + pe_ph + ke_ph + e_eph
+
+    Eph = ke_ph + pe_ph
+    Eel = ke + pe
+    Eeb = e_eph
+
+    return (etot, ke+pe, ke_ph+pe_ph+e_eph)
+
+def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
+    r"""Calculate local energy of walker for the Hubbard-Hostein model.
+
+    Parameters
+    ----------
+    system : :class:`HubbardHolstein`
+        System information for the HubbardHolstein model.
+    G : :class:`numpy.ndarray`
+        Walker's "Green's function"
+
+    Returns
+    -------
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
+    """
+    T = kinetic_lang_firsov(system.t, P, system.nx, system.ny, system.ktwist)
+
+    ke = numpy.sum(T[0] * G[0] + T[1] * G[1])
+
+    Ueff = U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+    if system.symmetric:
+        pe = -0.5*Ueff*(G[0].trace() + G[1].trace())
+
+    pe = Ueff * numpy.dot(G[0].diagonal(), G[1].diagonal())
+
+    pe_ph = - 0.5 * system.w0 ** 2 * system.m * numpy.sum(Lap)
+    ke_ph = 0.5 * numpy.sum(P*P) / system.m - 0.5 * system.w0 * system.nbasis
+    
+    rho = G[0].diagonal() + G[1].diagonal()
+    
+    # e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, X)
+    e_eph = 0.0
 
 
     etot = ke + pe + pe_ph + ke_ph + e_eph

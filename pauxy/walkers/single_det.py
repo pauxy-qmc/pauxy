@@ -7,7 +7,7 @@ from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.walkers.stack import PropagatorStack, FieldConfig
 from pauxy.utils.misc import get_numeric_names
-from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
 
 class SingleDetWalker(object):
     """UHF style walker.
@@ -44,30 +44,35 @@ class SingleDetWalker(object):
                                  dtype=trial.psi.dtype)]
 
         if system.name == "HubbardHolstein":
-            rho = [self.G[0].diagonal(), self.G[1].diagonal()]
-            shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
-            shift = shift.real
-            # shift = numpy.ones(system.nbasis) * const.real
+            if (system.lang_firsov):
+                self.P = numpy.zeros(system.nbasis) # we work in the momentum space for lang_firsov
+                tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
+                self.Lap = tmptrial.laplacian(self.X)
+            else:
+                rho = [self.G[0].diagonal(), self.G[1].diagonal()]
+                shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
+                shift = shift.real
 
-            self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
+                self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
 
-            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
-            sqtau = numpy.sqrt(0.005)
-            nstep = 250
-            # simple VMC
-            for istep in range(nstep):
-                chi = numpy.random.randn(system.nbasis)# Random move
-                # propose a move
-                posnew = self.X + sqtau * chi
-                # calculate Metropolis-Rosenbluth-Teller acceptance probability
-                wfold = tmptrial.value(self.X)
-                wfnew = tmptrial.value(posnew)
-                pacc = wfnew*wfnew/(wfold*wfold) 
-                # get indices of accepted moves
-                u = numpy.random.random(1)
-                if (u < pacc):
-                    self.X = posnew.copy()
-            self.Lap = tmptrial.laplacian(self.X)
+                tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+
+                sqtau = numpy.sqrt(0.005)
+                nstep = 250
+                # simple VMC
+                for istep in range(nstep):
+                    chi = numpy.random.randn(system.nbasis)# Random move
+                    # propose a move
+                    posnew = self.X + sqtau * chi
+                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                    wfold = tmptrial.value(self.X)
+                    wfnew = tmptrial.value(posnew)
+                    pacc = wfnew*wfnew/(wfold*wfold) 
+                    # get indices of accepted moves
+                    u = numpy.random.random(1)
+                    if (u < pacc):
+                        self.X = posnew.copy()
+                self.Lap = tmptrial.laplacian(self.X)
 
         self.greens_function(trial)
         self.total_weight = 0.0
@@ -269,10 +274,10 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
 
-        if (trial.name == "lang_firsov"):
-            Dvec = trial.compute_Dvec(self)
-            psi0 = trial.psi.copy()
-            trial.psi = numpy.einsum("m,mi->mi",Dvec, trial.psi)
+        # if (trial.name == "lang_firsov"):
+        #     Dvec = trial.compute_Dvec(self)
+        #     psi0 = trial.psi.copy()
+        #     trial.psi = numpy.einsum("m,mi->mi",Dvec, trial.psi)
 
         ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
         # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
@@ -284,8 +289,8 @@ class SingleDetWalker(object):
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
         
-        if (trial.name == "lang_firsov"):
-            trial.psi = psi0.copy()
+        # if (trial.name == "lang_firsov"):
+            # trial.psi = psi0.copy()
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.
@@ -318,7 +323,10 @@ class SingleDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         if (system.name == "HubbardHolstein"):
-            return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Gmod)
+            if (system.lang_firsov)
+                return local_energy_hh(system, self.G, self.P, self.Lap, Ghalf=self.Gmod)
+            else:
+                return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Gmod)
         else:
             return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 

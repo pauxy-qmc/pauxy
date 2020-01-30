@@ -440,8 +440,10 @@ class Mixed(object):
 
 def local_energy_hh(system, G, X, Lap, Ghalf=None):
     if system.name == "HubbardHolstein":
-        (e1, e2, e3) = local_energy_hubbard_holstein(system, G, X, Lap, Ghalf)
-        # print("(e1, e2, e3) = ", (e1, e2, e3))
+        if (system.lang_firsov):
+            (e1, e2, e3) = local_energy_hubbard_holstein_momentum(system, G, X, Lap, Ghalf)
+        else:
+            (e1, e2, e3) = local_energy_hubbard_holstein(system, G, X, Lap, Ghalf)
         return (e1, e2, e3)
     else:
         print("SOMETHING IS VERY WRONG... WHY ARE YOU CALLING HUBBARD-HOSTEIN FUNCTION?")

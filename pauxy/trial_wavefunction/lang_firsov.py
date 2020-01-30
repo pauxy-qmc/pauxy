@@ -204,15 +204,13 @@ class LangFirsov(object):
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
 
-        # self.gamma = 0.0
         self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
         self.shift = numpy.zeros(system.nbasis)
-        self.run_variational(system)
-        self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
-        # self.gamma = 0.0
         
         self.initialisation_time = time.time() - init_time
         self.init = self.psi.copy()
+
+        self.calculate_energy(system)
 
         print("# Lang-Firsov gamma = {}".format(self.gamma))
         print("# Lang-Firsov shift = {}".format(self.shift))
@@ -489,10 +487,26 @@ class LangFirsov(object):
     def calculate_energy(self, system):
         if self.verbose:
             print ("# Computing trial energy.")
-        (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
-        if self.verbose:
-            print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
-                   %(self.energy.real, self.e1b.real, self.e2b.real))
+        sqrttwomw = numpy.sqrt(system.m * system.w0*2.0)
+        alpha = self.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
+        phi = self.shift * numpy.sqrt(system.m * system.w0 / 2.0)
+
+        nia = numpy.diag(self.G[0])
+        nib = numpy.diag(self.G[1])
+        ni = nia + nib
+
+        Eph = system.w0 * numpy.sum(phi*phi)
+        Eeph = (self.gamma * system.w0 - system.g * sqrttwomw) * numpy.sum (2.0 * phi / sqrttwomw * ni)
+        Eeph += (self.gamma**2 * system.w0 / 2.0 - system.g * self.gamma * sqrttwomw) * numpy.sum(ni)
+
+        Eee = (system.U + self.gamma**2 * system.w0 - 2.0 * system.g * self.gamma * sqrttwomw) * numpy.sum(nia * nib)
+
+        Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * self.G[0] + system.T[1] * self.G[1])
+        self.energy = Eph + Eeph + Eee + Ekin
+        # (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
+        # if self.verbose:
+        #     print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
+        #            %(self.energy.real, self.e1b.real, self.e2b.real))
 
 
 def unit_test():
@@ -512,7 +526,7 @@ def unit_test():
     "name": "HubbardHolstein",
     "nup": 1,
     "ndown": 1,
-    "nx": 2,
+    "nx": 4,
     "ny": 1,
     "U": 4.0,
     "w0": 0.1,

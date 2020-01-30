@@ -43,8 +43,6 @@ class HubbardHolstein(object):
         Number of single-particle basis functions.
     T : numpy.array
         Hopping matrix
-    gamma : numpy.array
-        Super matrix (not currently implemented).
     """
 
     def __init__(self, inputs, verbose=False):
@@ -85,14 +83,20 @@ class HubbardHolstein(object):
             # to include mass see 10.1103/PhysRevLett.97.056402
             self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
 
+        self.lang_firsov = options.get('lang_firsov', False)
+
+        self.gamma = 0.0
+
+        if (self.lang_firsov):
+            self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+        
         if verbose:
             print("# d = {}".format(d))
             print("# nx, ny = {},{}".format(self.nx, self.ny))
             print("# nbasis = {}".format(self.nbasis))
             print("# t, U = {}, {}".format(self.t, self.U))
             print("# m, w0, g, lambda = {}, {}, {}, {}".format(self.m, self.w0, self.g, self.lmbda))
-            # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
-            # print("# t, U, w0, lambda, g = {},{},{},{},{}".format(self.t, self.U, self.w0, self.lmbda, self.g))
+            print("# lang_firsov = {}".format(self.lang_firsov))
 
         self.nactive = self.nbasis
         self.nfv = 0
@@ -246,6 +250,66 @@ def kinetic(t, nbasis, nx, ny, ks):
                 else:
                     phase = 1.0
                 T[i, j] += -t * phase
+
+    # This only works because the diagonal of T is zero.
+    return numpy.array([T+T.conj().T, T+T.conj().T])
+
+def kinetic_lang_firsov(t, P, nx, ny, ks):
+    """Kinetic part of the Hamiltonian in our one-electron basis.
+
+    Parameters
+    ----------
+    t : float
+        Hopping parameter
+    P : numpy.array
+        momentum vector
+    nx : int
+        Number of x lattice sites.
+    ny : int
+        Number of y lattice sites.
+    ks : numpy.array
+         k-twist
+    
+    Returns
+    -------
+    T : numpy.array
+        Hopping Hamiltonian matrix.
+    """
+
+    nbasis = P.shape[0]
+
+    T = numpy.zeros((nbasis, nbasis), dtype=numpy.complex128)
+
+    for i in range(0, nbasis):
+        xy1 = decode_basis(nx, ny, i)
+        for j in range(i+1, nbasis):
+            xy2 = decode_basis(nx, ny, j)
+            dij = abs(xy1-xy2)
+
+            exppij = numpy.exp(1j * system.gamma * (P[i]-P[j]))
+
+            if sum(dij) == 1:
+                T[i, j] = -t * exppij
+            # Take care of periodic boundary conditions
+            # there should be a less stupid way of doing this.
+            if ny == 1 and dij == [nx-1]:
+                if ks.all() is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
+                else:
+                    phase = 1.0
+                T[i,j] += -t * exppij * phase
+            elif (dij==[nx-1, 0]).all():
+                if ks.all() is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
+                else:
+                    phase = 1.0
+                T[i, j] += -t * exppij * phase
+            elif (dij==[0, ny-1]).all():
+                if ks.all() is not None:
+                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
+                else:
+                    phase = 1.0
+                T[i, j] += -t * exppij * phase
 
     # This only works because the diagonal of T is zero.
     return numpy.array([T+T.conj().T, T+T.conj().T])

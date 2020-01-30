@@ -8,7 +8,9 @@ from pauxy.utils.fft import fft_wavefunction, ifft_wavefunction
 from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
-from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
+
+from pauxy.system.hubbard_holstein import kinetic_lang_firsov
 
 class HirschSpinDMC(object):
     """Propagator for discrete HS transformation plus phonon propagation.
@@ -50,28 +52,21 @@ class HirschSpinDMC(object):
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         
-        self.lang_firsov = options.get('lang_firsov', False)
+        self.lang_firsov = system.lang_firsov
         self.update_trial = options.get('update_trial', False)
         if verbose:
             print("# update_trial = {}".format(self.update_trial))
 
-        self.gamma_lf = options.get('gamma', 0.0) # Lang-Firsov Gamma
-        # if (self.lang_firsov):
-        #     self.gamma_lf = system.g * numpy.sqrt(2. * system.m * system.w0) / system.w0
-        #     const = self.gamma_lf * self.gamma_lf * system.w0 / 2.0 - system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
-        #     tmp = numpy.exp(-0.5*qmc.dt*const) * numpy.eye(system.nbasis)
-        #     self.bt2_lf = numpy.array([numpy.diag(tmp),numpy.diag(tmp)])
-        
-        if verbose:
-            print("# lang_firsov = {}".format(self.lang_firsov))
+        # self.gamma_lf = system.gamma
+        if (self.lang_firsov):
+            self.onebody_lf = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+        Ueff = U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
-        # Ueff = U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
-
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
         self.dt = qmc.dt
         self.sqrtdt = math.sqrt(qmc.dt)
         self.delta = self.auxf - 1
@@ -103,7 +98,10 @@ class HirschSpinDMC(object):
         if verbose:
             print("# Shift = {}".format(shift))
 
-        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+        if (self.lang_firsov):
+            self.boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)
+        else:
+            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
         self.eshift_boson = self.boson_trial.local_energy(shift)
 
         if verbose:
@@ -204,30 +202,55 @@ class HirschSpinDMC(object):
         return ratio*gfratio
     
     def boson_importance_sampling(self, walker, system, trial):
-        #Drift+diffusion
-        driftold = (self.dt / system.m) * trial.gradient(walker.X)
+        if (self.lang_firsov):
+            mw2 = system.m * system.w0 **2
+            #Drift+diffusion
+            driftold = (self.dt * mw2) * trial.gradient(walker.P)
 
-        elocold = trial.local_energy(walker.X)
-        elocold = numpy.real(elocold)
+            elocold = trial.local_energy(walker.P)
+            elocold = numpy.real(elocold)
 
-        psiold = trial.value(walker.X)
+            psiold = trial.value(walker.P)
 
-        Xprev = walker.X.copy()
+            dP = numpy.random.normal(loc = 0.0, scale = self.sqrtdt*numpy.sqrt(mw2), size=(system.nbasis))
+            Pnew = walker.P + dP + driftold
+            
+            walker.P = Pnew.copy()
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
-        Xnew = walker.X + dX + driftold
-        
-        walker.X = Xnew.copy()
+            lap = trial.laplacian(walker.P)
+            walker.Lap = lap
+            
+            psinew = trial.value(walker.P)
+            
+            #Change weight
+            eloc = trial.local_energy(walker.P)
+            eloc = numpy.real(eloc)
+            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
+        else:
+            #Drift+diffusion
+            driftold = (self.dt / system.m) * trial.gradient(walker.X)
 
-        lap = trial.laplacian(walker.X)
-        walker.Lap = lap
-        
-        psinew = trial.value(walker.X)
-        
-        #Change weight
-        eloc = trial.local_energy(walker.X)
-        eloc = numpy.real(eloc)
-        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
+            elocold = trial.local_energy(walker.X)
+            elocold = numpy.real(elocold)
+
+            psiold = trial.value(walker.X)
+
+            Xprev = walker.X.copy()
+
+            dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
+            Xnew = walker.X + dX + driftold
+            
+            walker.X = Xnew.copy()
+
+            lap = trial.laplacian(walker.X)
+            walker.Lap = lap
+            
+            psinew = trial.value(walker.X)
+            
+            #Change weight
+            eloc = trial.local_energy(walker.X)
+            eloc = numpy.real(eloc)
+            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
@@ -243,13 +266,24 @@ class HirschSpinDMC(object):
             Trial wavefunction object.
         """
 
-        self.kinetic(walker.phi, system, self.bt2)
+        if (self.lang_firsov):
+            T = kinetic_lang_firsov(system.t, walker.P, system.nx, system.ny, system.ktwist)
+            T[0] = T[0] + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = T[1] + numpy.eye(system.nbasis) * self.onebody_lf
+            
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
+                                    scipy.linalg.expm(-0.5*self.dt*T[1])])
+            
+            self.kinetic(walker.phi, system, self.bt2)
 
-        const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
-        nX = [walker.X, walker.X]
-        Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+        else:
+            self.kinetic(walker.phi, system, self.bt2)
 
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
+            const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
+            nX = [walker.X, walker.X]
+            Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         # Update inverse overlap
         walker.inverse_overlap(trial)
