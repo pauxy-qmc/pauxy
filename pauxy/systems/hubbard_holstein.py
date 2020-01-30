@@ -55,7 +55,7 @@ class HubbardHolstein(object):
         self.t = inputs.get('t', 1.0)
         self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)
-        self.m = inputs.get('m', 1.0) # mass
+        self.m = inputs.get('m', 1.0/self.w0) # mass
 
         self.U = inputs['U']
         self.nx = inputs['nx']
@@ -487,8 +487,9 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [1.0]
-    w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
+    lmbdas = [5.0]
+    # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
+    w0s = [0.1]
     # w0s = [0.5]
 
     df = pd.DataFrame()
@@ -502,17 +503,18 @@ def unit_test():
             "ndown": 1,
             "nx": 4,
             "ny": 1,
-            "U": 4.0,
+            "U": 0.0,
             "t": 1.0,
             "w0": w0,
-            "lambda": lmbda,
+            # "lambda": lmbda,
+            "g": lmbda,
             }
             system = HubbardHolstein (options, verbose=True)
             system0 = Hubbard (options, verbose=True)
             (eig, evec), H = simple_fci(system0, hamil=True)
             # nbosons = [5, 10, 15, 20, 25]
-            # nbosons = [5, 10, 15]
-            nbosons = [20]
+            nbosons = [5, 10, 15, 17, 20]
+            # nbosons = [20]
             eigs = []
             eigs += [eig[0]]
             for nboson in nbosons:

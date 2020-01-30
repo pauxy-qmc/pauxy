@@ -42,6 +42,33 @@ class SingleDetWalker(object):
                                  dtype=trial.psi.dtype),
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
+
+        if system.name == "HubbardHolstein":
+            rho = [self.G[0].diagonal(), self.G[1].diagonal()]
+            shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
+            shift = shift.real
+            # shift = numpy.ones(system.nbasis) * const.real
+
+            self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
+
+            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+            sqtau = numpy.sqrt(0.005)
+            nstep = 250
+            # simple VMC
+            for istep in range(nstep):
+                chi = numpy.random.randn(system.nbasis)# Random move
+                # propose a move
+                posnew = self.X + sqtau * chi
+                # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                wfold = tmptrial.value(self.X)
+                wfnew = tmptrial.value(posnew)
+                pacc = wfnew*wfnew/(wfold*wfold) 
+                # get indices of accepted moves
+                u = numpy.random.random(1)
+                if (u < pacc):
+                    self.X = posnew.copy()
+            self.Lap = tmptrial.laplacian(self.X)
+
         self.greens_function(trial)
         self.total_weight = 0.0
         self.ot = 1.0
@@ -66,32 +93,6 @@ class SingleDetWalker(object):
                                          # BT=None, BTinv=None,
                                          # diagonal=False)
         
-        if system.name == "HubbardHolstein":
-            rho = [self.G[0].diagonal(), self.G[1].diagonal()]
-            shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
-            shift = shift.real
-            # shift = numpy.ones(system.nbasis) * const.real
-
-            self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
-
-            trial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
-            sqtau = numpy.sqrt(0.005)
-            nstep = 250
-            # simple VMC
-            for istep in range(nstep):
-                chi = numpy.random.randn(system.nbasis)# Random move
-                # propose a move
-                posnew = self.X + sqtau * chi
-                # calculate Metropolis-Rosenbluth-Teller acceptance probability
-                wfold = trial.value(self.X)
-                wfnew = trial.value(posnew)
-                pacc = wfnew*wfnew/(wfold*wfold) 
-                # get indices of accepted moves
-                u = numpy.random.random(1)
-                if (u < pacc):
-                    self.X = posnew.copy()
-            self.Lap = trial.laplacian(self.X)
-
         try:
             excite = trial.excite_ia
         except AttributeError:
@@ -268,6 +269,11 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
 
+        if (trial.name == "lang_firsov"):
+            Dvec = trial.compute_Dvec(self)
+            psi0 = trial.psi.copy()
+            trial.psi = numpy.einsum("m,mi->mi",Dvec, trial.psi)
+
         ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
         # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
@@ -277,6 +283,9 @@ class SingleDetWalker(object):
             ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
+        
+        if (trial.name == "lang_firsov"):
+            trial.psi = psi0.copy()
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.

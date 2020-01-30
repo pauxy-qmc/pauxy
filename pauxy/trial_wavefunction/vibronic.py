@@ -68,14 +68,14 @@ def objective_function (x, system, psi):
 
 
 w0 = 0.1
-l = 1.0
+l = 10.0
          # Current function value: -16.500000
 
 options = {
 "name": "HubbardHolstein",
 "nup": 1,
 "ndown": 1,
-"nx": 4,
+"nx": 2,
 "ny": 1,
 "t": 1.0,
 "U": 4.0,
@@ -125,7 +125,7 @@ x[:system.nbasis] = shift + numpy.random.randn(shift.shape[0])
 x[system.nbasis:] = psi.psi.ravel() + numpy.random.randn(system.nbasis*(system.nup+system.ndown))
 # x[:system.nbasis] = shift 
 # x[system.nbasis:] = psi.psi.ravel()
-res = minimize(objective_function, x, args=(system, psi), method='BFGS', options={'disp':True, 'gtol':1e-8, 'tol':1e-10})
+res = minimize(objective_function, x, args=(system, psi), method='BFGS', options={'disp':True, 'gtol':1e-10})
 xshift = res.x[:system.nbasis]
 
 C = res.x[system.nbasis:system.nbasis + system.nbasis*(system.nup+system.ndown)].copy()
