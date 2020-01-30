@@ -107,6 +107,12 @@ class Walkers(object):
             dtype = complex
         else:
             dtype = int
+
+        if (system.name == "HubbardHolstein"):
+            self.holstein = True
+        else:
+            self.holstein = False
+
         self.pcont_method = get_input_value(walker_opts, 'population_control',
                                             default='comb')
         self.min_weight = walker_opts.get('min_weight', 0.1)
@@ -397,7 +403,12 @@ class Walkers(object):
 
     def get_write_buffer(self, i):
         w = self.walkers[i]
-        buff = numpy.concatenate([[w.weight], [w.phase], [w.ot], w.phi.ravel()])
+        
+        if (self.holstein):
+            buff = numpy.concatenate([[w.weight], [w.phase], [w.ot], w.phi.ravel(), w.X.ravel()])
+        else:
+            buff = numpy.concatenate([[w.weight], [w.phase], [w.ot], w.phi.ravel()])
+
         return buff
 
     def set_walker_from_buffer(self, i, buff):
@@ -405,14 +416,17 @@ class Walkers(object):
         w.weight = buff[0]
         w.phase = buff[1]
         w.ot = buff[2]
-        w.phi = buff[3:].reshape(self.walkers[i].phi.shape)
+        nelem = numpy.prod(self.walkers[i].phi.shape)
+        w.phi = buff[3:3+nelem].reshape(self.walkers[i].phi.shape)
+        if (self.holstein):
+            w.X = buff[3+nelem:]
 
     def write_walkers(self, comm):
         start = time.time()
         with h5py.File(self.write_file,'r+',driver='mpio',comm=comm) as fh5:
             for (i,w) in enumerate(self.walkers):
                 ix = i + self.nwalkers*comm.rank
-                buff = self.get_write_buffer(i)
+                # buff = self.get_write_buffer(i)
                 fh5['walker_%d'%ix][:] = self.get_write_buffer(i)
         if comm.rank == 0:
             print(" # Writing walkers to file.")
