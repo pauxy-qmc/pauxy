@@ -56,7 +56,7 @@ Requirements
 * cython (>= 0.29.2)
 
 To run the tests you will need pytest and pandas.  To perform error analysis you will also
-need `testcode <https://github.com/jsspencer/pyblock>`
+need `pyblock <https://github.com/jsspencer/pyblock>`
 
 
 Running the Test Suite
@@ -67,7 +67,7 @@ To the tests you can do:
 
 ::
 
-    $ python -u -m pytest -v
+    $ pytest
 
 These tests should all pass.
 

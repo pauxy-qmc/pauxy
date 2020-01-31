@@ -11,6 +11,7 @@ from pauxy.utils.testing import generate_hamiltonian
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 
 
+@pytest.mark.driver
 def test_ueg():
     options = {
             'get_sha1': False,

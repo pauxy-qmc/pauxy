@@ -6,7 +6,7 @@ from pauxy.systems.generic import Generic
 from pauxy.utils.from_pyscf import generate_integrals
 from pauxy.utils.io import (
         write_qmcpack_wfn,
-        dump_qmcpack_cholesky,
+        write_qmcpack_dense,
         write_input
         )
 
@@ -25,9 +25,8 @@ print(ehf, e_tot)
 # Rotate by casscf mo coeffs.
 h1e, chol, nelec, enuc = generate_integrals(mol, mf.get_hcore(), mo,
                                             chol_cut=1e-5, verbose=True)
-chol = scipy.sparse.csr_matrix(chol.T.copy())
-dump_qmcpack_cholesky(numpy.array([h1e,h1e]), chol, nelec,
-                      h1e.shape[-1], e0=enuc, filename='afqmc.h5')
+write_qmcpack_dense(h1e, chol.T.copy(), nelec,
+                    h1e.shape[-1], enuc=enuc, filename='afqmc.h5')
 coeff, occa, occb = zip(*fci.addons.large_ci(fcivec, M, (3,3),
                                          tol=0.1, return_strs=False))
 core = [i for i in range(mc.ncore)]
