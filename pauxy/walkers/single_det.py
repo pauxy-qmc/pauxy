@@ -43,6 +43,25 @@ class SingleDetWalker(object):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
 
+        self.greens_function(trial)
+        self.total_weight = 0.0
+        self.ot = 1.0
+        # interface consistency
+        self.ots = numpy.zeros(1, dtype=numpy.complex128)
+        self.E_L = local_energy(system, self.G, self.Gmod)[0].real
+        # walkers overlap at time tau before backpropagation occurs
+        self.ot_bp = 1.0
+        # walkers weight at time tau before backpropagation occurs
+        self.weight_bp = self.weight
+        # Historic wavefunction for back propagation.
+        self.phi_old = copy.deepcopy(self.phi)
+        self.hybrid_energy = 0.0
+        # Historic wavefunction for ITCF.
+        self.phi_right = copy.deepcopy(self.phi)
+        self.weights = numpy.array([1.0])
+        # Number of propagators to store for back propagation / ITCF.
+        num_propg = walker_opts.get('num_propg', 1)
+
         if system.name == "HubbardHolstein":
             if (system.lang_firsov):
                 self.P = numpy.zeros(system.nbasis) # we work in the momentum space for lang_firsov
@@ -51,10 +70,9 @@ class SingleDetWalker(object):
                 self.Lap = tmptrial.laplacian(self.P)
             else:
                 rho = [self.G[0].diagonal(), self.G[1].diagonal()]
-                shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
-                shift = shift.real
 
-                self.X = shift * numpy.ones(system.nbasis, dtype=numpy.float64) # site position current time
+                shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+                self.X = numpy.real(shift).copy()
 
                 tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
 
@@ -75,24 +93,6 @@ class SingleDetWalker(object):
                         self.X = posnew.copy()
                 self.Lap = tmptrial.laplacian(self.X)
 
-        self.greens_function(trial)
-        self.total_weight = 0.0
-        self.ot = 1.0
-        # interface consistency
-        self.ots = numpy.zeros(1, dtype=numpy.complex128)
-        self.E_L = local_energy(system, self.G, self.Gmod)[0].real
-        # walkers overlap at time tau before backpropagation occurs
-        self.ot_bp = 1.0
-        # walkers weight at time tau before backpropagation occurs
-        self.weight_bp = self.weight
-        # Historic wavefunction for back propagation.
-        self.phi_old = copy.deepcopy(self.phi)
-        self.hybrid_energy = 0.0
-        # Historic wavefunction for ITCF.
-        self.phi_right = copy.deepcopy(self.phi)
-        self.weights = numpy.array([1.0])
-        # Number of propagators to store for back propagation / ITCF.
-        num_propg = walker_opts.get('num_propg', 1)
         # if system.name == "Generic":
             # self.stack = PropagatorStack(self.stack_size, num_propg,
                                          # system.nbasis, trial.psi.dtype,
