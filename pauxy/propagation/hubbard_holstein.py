@@ -10,7 +10,7 @@ from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
 
-from pauxy.system.hubbard_holstein import kinetic_lang_firsov
+from pauxy.systems.hubbard_holstein import kinetic_lang_firsov
 
 class HirschSpinDMC(object):
     """Propagator for discrete HS transformation plus phonon propagation.
@@ -57,10 +57,12 @@ class HirschSpinDMC(object):
         if verbose:
             print("# update_trial = {}".format(self.update_trial))
 
-        # self.gamma_lf = system.gamma
+        self.gamma_lf = system.gamma
+        
         if (self.lang_firsov):
             self.onebody_lf = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-        Ueff = U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
+
+        Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
         self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
@@ -267,7 +269,7 @@ class HirschSpinDMC(object):
         """
 
         if (self.lang_firsov):
-            T = kinetic_lang_firsov(system.t, walker.P, system.nx, system.ny, system.ktwist)
+            T = kinetic_lang_firsov(system.t, system.gamma, walker.P, system.nx, system.ny, system.ktwist)
             T[0] = T[0] + numpy.eye(system.nbasis) * self.onebody_lf
             T[1] = T[1] + numpy.eye(system.nbasis) * self.onebody_lf
             

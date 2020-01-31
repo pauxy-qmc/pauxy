@@ -46,8 +46,9 @@ class SingleDetWalker(object):
         if system.name == "HubbardHolstein":
             if (system.lang_firsov):
                 self.P = numpy.zeros(system.nbasis) # we work in the momentum space for lang_firsov
+                shift = numpy.zeros(system.nbasis)
                 tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
-                self.Lap = tmptrial.laplacian(self.X)
+                self.Lap = tmptrial.laplacian(self.P)
             else:
                 rho = [self.G[0].diagonal(), self.G[1].diagonal()]
                 shift = walker_opts.get('shift', numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2))
@@ -323,7 +324,7 @@ class SingleDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         if (system.name == "HubbardHolstein"):
-            if (system.lang_firsov)
+            if (system.lang_firsov):
                 return local_energy_hh(system, self.G, self.P, self.Lap, Ghalf=self.Gmod)
             else:
                 return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Gmod)

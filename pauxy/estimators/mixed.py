@@ -15,7 +15,7 @@ try:
     from pauxy.estimators.pw_fft import local_energy_pw_fft
 except ImportError as e:
     print(e)
-from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf, local_energy_hubbard_holstein
+from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf, local_energy_hubbard_holstein, local_energy_hubbard_holstein_momentum
 from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,

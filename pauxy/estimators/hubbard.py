@@ -1,6 +1,6 @@
 import cmath
 import numpy
-from pauxy.system.hubbard_holstein import kinetic_lang_firsov
+from pauxy.systems.hubbard_holstein import kinetic_lang_firsov
 
 def local_energy_hubbard(system, G, Ghalf=None):
     r"""Calculate local energy of walker for the Hubbard model.
@@ -79,11 +79,11 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
     (E_L(phi), T, V): tuple
         Local, kinetic and potential energies of given walker phi.
     """
-    T = kinetic_lang_firsov(system.t, P, system.nx, system.ny, system.ktwist)
+    T = kinetic_lang_firsov(system.t, system.gamma, P, system.nx, system.ny, system.ktwist)
 
     ke = numpy.sum(T[0] * G[0] + T[1] * G[1])
 
-    Ueff = U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
     if system.symmetric:
         pe = -0.5*Ueff*(G[0].trace() + G[1].trace())
 

@@ -83,12 +83,12 @@ class HubbardHolstein(object):
             # to include mass see 10.1103/PhysRevLett.97.056402
             self.g = sqrt(float(d) * 2.0 * self.lmbda * self.t * self.w0)
 
-        self.lang_firsov = options.get('lang_firsov', False)
+        self.lang_firsov = inputs.get('lang_firsov', False)
 
         self.gamma = 0.0
 
         if (self.lang_firsov):
-            self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+            self.gamma = self.g * numpy.sqrt(2.0 * self.m / self.w0)
         
         if verbose:
             print("# d = {}".format(d))
@@ -254,7 +254,7 @@ def kinetic(t, nbasis, nx, ny, ks):
     # This only works because the diagonal of T is zero.
     return numpy.array([T+T.conj().T, T+T.conj().T])
 
-def kinetic_lang_firsov(t, P, nx, ny, ks):
+def kinetic_lang_firsov(t, gamma, P, nx, ny, ks):
     """Kinetic part of the Hamiltonian in our one-electron basis.
 
     Parameters
@@ -286,7 +286,7 @@ def kinetic_lang_firsov(t, P, nx, ny, ks):
             xy2 = decode_basis(nx, ny, j)
             dij = abs(xy1-xy2)
 
-            exppij = numpy.exp(1j * system.gamma * (P[i]-P[j]))
+            exppij = numpy.exp(1j * gamma * (P[i]-P[j]))
 
             if sum(dij) == 1:
                 T[i, j] = -t * exppij

@@ -63,7 +63,7 @@ class HarmonicOscillatorMomentum(object):
 
         nsites = P.shape[0]
 
-        ke   = (1.0/(2.0*m)) * numpy.sum (P * P)
+        ke   = (1.0/(2.0*self.m)) * numpy.sum (P * P)
         pot  = - 0.5 * self.m * self.w * self.w * numpy.sum(self.laplacian(P))
         eloc = ke+pot - 0.5 * self.w * nsites # No zero-point energy
 
