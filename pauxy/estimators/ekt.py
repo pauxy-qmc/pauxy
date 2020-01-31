@@ -88,6 +88,12 @@ def gen_fock_1h(h1, cholvec, rdm1a, rdm1b):
     # 1. Form X[t,n] = \sum_{ik} L[n,i,k] P[t,i,k]
     Xa = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1a.ravel())
     Xb = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1b.ravel())
+    Ta = numpy.einsum('nql,pl->pqn', cholvec, rdm1a)
+    # for n in range(nchol):
+        # for i in range(nmo):
+            # for j in range(nmo):
+                # if abs(Ta[i,j,n]) > 1e-6:
+                    # print("{} {} {} {}".format(n,i,j,Ta[i,j,n].real))
     # 2. Form Xchol[q,l] = \sum_n X[n] L[n,q,l]
     Xachol = numpy.tensordot(Xa, cholvec, axes=([0],[0]))
     Xbchol = numpy.tensordot(Xb, cholvec, axes=([0],[0]))
@@ -96,6 +102,10 @@ def gen_fock_1h(h1, cholvec, rdm1a, rdm1b):
     Ja += - numpy.dot(rdm1a, Xbchol.T)
     Jb = - numpy.dot(rdm1b, Xachol.T)
     Jb += - numpy.dot(rdm1b, Xbchol.T)
+    # JJ = -2*numpy.einsum('pqn,n->pq', Ta, Xa)
+    # Ja = JJ
+    # print(JJ[0,0], Ja[0,0])
+    # print("DELTA: ", numpy.linalg.norm(JJ-Ja))
 
 
     # Exchange:
