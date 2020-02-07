@@ -203,12 +203,10 @@ class HirschSpin(object):
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
                 if (self.charge):
-                    walker.weight *= self.charge_factor2[xi]
+                    walker.weight *= self.charge_factor2[xi] * self.charge_factor
             else:
                 walker.weight = 0
                 return
-        if (self.charge):
-            walker.weight *= self.charge_factor
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
