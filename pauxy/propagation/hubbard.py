@@ -184,6 +184,8 @@ class HirschSpin(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            if (self.charge):
+                probs = probs * self.charge_factor
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
@@ -201,16 +203,13 @@ class HirschSpin(object):
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
 
-                # if (self.charge):
-                #     probs *= self.charge_factor[xi]
-                    
                 walker.update_overlap(probs, xi, trial.coeffs)
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
                 
-                if (self.charge):
-                    walker.weight = walker.weight * self.charge_factor[xi]
+                # if (self.charge):
+                #     walker.weight = walker.weight * self.charge_factor[xi]
 
             else:
                 walker.weight = 0
