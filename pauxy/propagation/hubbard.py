@@ -65,6 +65,8 @@ class HirschSpin(object):
         else:
             self.charge = True
             self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
+            self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
+            self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*numpy.abs(system.U)) # field-independent 
             if verbose:
                 print("# Attractive U detected; charge decomposition is used")
                 print("# charge_factor = {}".format(self.charge_factor))
@@ -185,7 +187,7 @@ class HirschSpin(object):
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
             if (self.charge):
-                probs = probs * self.charge_factor
+                probs = probs * self.fd_charge_factor
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
@@ -207,10 +209,10 @@ class HirschSpin(object):
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
+            
+            if (self.charge):
+                walker.weight *= self.fi_charge_factor
                 
-                # if (self.charge):
-                #     walker.weight = walker.weight * self.charge_factor[xi]
-
             else:
                 walker.weight = 0
                 return
