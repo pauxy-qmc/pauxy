@@ -190,6 +190,7 @@ class HirschSpin(object):
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             if (self.charge):
+                walker.weight = walker.weight * self.fi_charge_factor
                 phaseless_ratio = phaseless_ratio * self.fd_charge_factor
 
             norm = sum(phaseless_ratio)
@@ -211,10 +212,7 @@ class HirschSpin(object):
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
-            
-            if (self.charge):
-                walker.weight = walker.weight * self.fi_charge_factor
-                
+                    
             else:
                 walker.weight = 0
                 return
