@@ -67,7 +67,7 @@ class HirschSpin(object):
                 print("# Attractive U detected; charge decomposition is used")
             # field by spin
             # self.charge_factor = numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
-            self.charge_factor = [numpy.exp(-self.gamma), numpy.exp(self.gamma)] * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
             self.auxf = numpy.array([[numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)],
                                     [numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)]])
             # self.auxf = self.auxf * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
