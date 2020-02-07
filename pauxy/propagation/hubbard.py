@@ -190,8 +190,7 @@ class HirschSpin(object):
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             if (self.charge):
-                walker.weight = walker.weight * self.fi_charge_factor
-                phaseless_ratio = phaseless_ratio * self.fd_charge_factor
+                walker.weight = walker.weight * self.charge_factor
 
             norm = sum(phaseless_ratio)
             r = numpy.random.random()
