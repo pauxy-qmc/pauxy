@@ -54,21 +54,25 @@ class HirschSpin(object):
 
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*numpy.abs(system.U)))
         if (system.U > 0):
-            print("# Repulsive U detected; spin decomposition is used")
+            if verbose:
+                print("# Repulsive U detected; spin decomposition is used")
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         else:
-            print("# Attractive U detected; charge decomposition is used")
+            if verbose:
+                print("# Attractive U detected; charge decomposition is used")
             # field by spin
-            # self.auxf = numpy.array([[numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)],
-            #                         [numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)]])
-            # self.auxf = self.auxf * numpy.exp(0.25*qmc.dt*numpy.abs(system.U))
-            self.auxf = numpy.array([[numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)],
-                                    [numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.25*qmc.dt*numpy.abs(system.U))
+            self.auxf = numpy.array([[numpy.exp(self.gamma) * numpy.exp(-0.5*self.gamma), numpy.exp(self.gamma) * numpy.exp(0.5*self.gamma)],
+                                    [numpy.exp(-self.gamma) * numpy.exp(-0.5*self.gamma), numpy.exp(-self.gamma)* numpy.exp(0.5*self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(0.25*qmc.dt*numpy.abs(system.U))
+            # self.auxf = numpy.array([[numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)],
+            #                         [numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)]])
+            # self.auxf = self.auxf * numpy.exp(-0.25*qmc.dt*numpy.abs(system.U))
+
         self.delta = self.auxf - 1
+
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
