@@ -200,6 +200,10 @@ class HirschSpin(object):
                 vtdown = walker.phi[i+soffset,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i+soffset,nup:] = walker.phi[i+soffset,nup:] + vtdown
+
+                if (self.charge):
+                    probs *= self.charge_factor[xi]
+
                 walker.update_overlap(probs, xi, trial.coeffs)
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
