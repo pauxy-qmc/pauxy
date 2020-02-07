@@ -54,6 +54,7 @@ class HirschSpin(object):
 
         self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*numpy.abs(system.U)))
         if (system.U > 0):
+            self.charge = False
             if verbose:
                 print("# Repulsive U detected; spin decomposition is used")
             # field by spin
@@ -61,17 +62,15 @@ class HirschSpin(object):
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         else:
+            self.charge = True
             if verbose:
                 print("# Attractive U detected; charge decomposition is used")
             # field by spin
-            # self.auxf = numpy.array([[numpy.exp(0.5*self.gamma), numpy.exp(self.gamma) * numpy.exp(-0.5*self.gamma)],
-            #                         [numpy.exp(-0.5*self.gamma), numpy.exp(-self.gamma)* numpy.exp(0.5*self.gamma)]])
+            self.charge_factor = numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
+            self.charge_factor2 = [numpy.exp(-self.gamma), numpy.exp(self.gamma)]
             self.auxf = numpy.array([[numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)],
                                     [numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)]])
             self.auxf = self.auxf * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
-            # self.auxf = numpy.array([[numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)],
-            #                         [numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)]])
-            # self.auxf = self.auxf * numpy.exp(-0.25*qmc.dt*numpy.abs(system.U))
 
         self.delta = self.auxf - 1
 
@@ -203,9 +202,13 @@ class HirschSpin(object):
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
+                if (self.charge):
+                    walker.weight *= self.charge_factor2[xi]
             else:
                 walker.weight = 0
                 return
+        if (self.charge):
+            walker.weight *= self.charge_factor
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
