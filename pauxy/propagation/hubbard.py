@@ -262,6 +262,10 @@ class HirschSpin(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                
+                if (self.charge):
+                    walker.weight *= self.charge_factor[xi]
+
         kinetic_real(walker.phi, system, self.bt2)
         walker.inverse_overlap(trial)
         # Update walker weight

@@ -468,11 +468,11 @@ def unit_test():
     import itertools
     options = {
     "name": "Hubbard",
-    "nup": 1,
-    "ndown": 1,
+    "nup": 2,
+    "ndown": 2,
     "nx": 2,
-    "ny": 1,
-    "U": 4.0
+    "ny": 2,
+    "U": -4.0
     }
     from pauxy.estimators.ci import simple_fci
     system = Hubbard (options, verbose=True)
