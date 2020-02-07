@@ -68,7 +68,7 @@ class HirschSpin(object):
             #                         [numpy.exp(-0.5*self.gamma), numpy.exp(-self.gamma)* numpy.exp(0.5*self.gamma)]])
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.25*qmc.dt*numpy.abs(system.U))
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
             # self.auxf = numpy.array([[numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)],
             #                         [numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)]])
             # self.auxf = self.auxf * numpy.exp(-0.25*qmc.dt*numpy.abs(system.U))
