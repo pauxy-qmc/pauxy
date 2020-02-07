@@ -62,8 +62,8 @@ class HirschSpin(object):
             print("# Attractive U detected; charge decomposition is used")
             self.auxf = numpy.array([[numpy.exp(0.5*self.gamma), numpy.exp(0.5*self.gamma)],
                                     [numpy.exp(-0.5*self.gamma), numpy.exp(-0.5*self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
-        self.Delta = self.auxf - 1
+            self.auxf = self.auxf * numpy.exp(0.25*qmc.dt*numpy.abs(system.U))
+        self.delta = self.auxf - 1
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
@@ -165,6 +165,7 @@ class HirschSpin(object):
             Trial wavefunction object.
         """
         # Construct random auxilliary field.
+        delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
         for i in range(0, system.nbasis):
