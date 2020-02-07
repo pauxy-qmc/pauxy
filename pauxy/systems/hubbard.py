@@ -470,8 +470,8 @@ def unit_test():
     "name": "Hubbard",
     "nup": 2,
     "ndown": 2,
-    "nx": 2,
-    "ny": 2,
+    "nx": 4,
+    "ny": 1,
     "U": -4.0
     }
     from pauxy.estimators.ci import simple_fci

@@ -64,9 +64,11 @@ class HirschSpin(object):
         
         else:
             self.charge = True
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
             if verbose:
                 print("# Attractive U detected; charge decomposition is used")
-            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
+                print("# charge_factor = {}".format(self.charge_factor))
+
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
@@ -202,8 +204,10 @@ class HirschSpin(object):
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
+                
                 if (self.charge):
-                    walker.weight *= self.charge_factor[xi]
+                    walker.weight = walker.weight * self.charge_factor[xi]
+
             else:
                 walker.weight = 0
                 return
