@@ -9,6 +9,10 @@ from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
+def arccosh(y): # it works even when y is complex
+    gamma = cmath.log(y - cmath.sqrt(y*y-1))
+    return gamma
+
 class HirschSpin(object):
     """Propagator for discrete HS transformation.
 
@@ -52,23 +56,24 @@ class HirschSpin(object):
             else:
                 print ("# Using the Constrained Path Approximation.")
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*numpy.abs(system.U)))
-        if (system.U > 0):
-            self.charge = False
+        self.charge = options.get('charge', False)
+
+        if (not self.charge):
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*system.U))
             if verbose:
-                print("# Repulsive U detected; spin decomposition is used")
+                print("# Spin decomposition is used")
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         
         else:
-            self.charge = True
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*system.U))
             self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
             self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
-            self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*numpy.abs(system.U)) # field-independent 
+            self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*system.U) # field-independent 
             if verbose:
-                print("# Attractive U detected; charge decomposition is used")
+                print("# Charge decomposition is used")
                 print("# charge_factor = {}".format(self.charge_factor))
 
             # field by spin
@@ -790,3 +795,10 @@ def kinetic_kspace(phi, system, btk):
     else:
         phi[:,:s.nup] = tup
         phi[:,s.nup:] = tdown
+
+
+def unit_test():
+    print(arccosh(0.1))
+
+if __name__=="__main__":
+    unit_test()
