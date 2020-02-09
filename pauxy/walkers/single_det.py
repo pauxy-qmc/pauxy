@@ -64,7 +64,8 @@ class SingleDetWalker(object):
 
         if system.name == "HubbardHolstein":
             if (system.lang_firsov):
-                self.P = numpy.zeros(system.nbasis) # we work in the momentum space for lang_firsov
+                # self.P = numpy.ones(system.nbasis) * system.g * numpy.sqrt(2.0 * system.m / system.w0)# we work in the momentum space for lang_firsov
+                self.P = numpy.zeros(system.nbasis)
                 shift = numpy.zeros(system.nbasis)
                 tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
                 self.Lap = tmptrial.laplacian(self.P)
