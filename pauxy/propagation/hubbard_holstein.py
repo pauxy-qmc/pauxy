@@ -69,7 +69,8 @@ class HirschSpinDMC(object):
         Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
 
-        print("# Ueff = {}".format(Ueff))
+        if verbose:
+            print("# Ueff = {}".format(Ueff))
 
         self.charge = options.get('charge', False)
 
@@ -121,8 +122,11 @@ class HirschSpinDMC(object):
                 self.kinetic = kinetic_real
 
         rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
-        shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        shift = numpy.real(shift)
+        if (self.lang_firsov):
+            shift = numpy.real(numpy.zeros_like(rho[0]))
+        else:
+            shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+            shift = numpy.real(shift)
         if verbose:
             print("# Shift = {}".format(shift))
 

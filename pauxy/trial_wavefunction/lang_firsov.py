@@ -110,6 +110,7 @@ def objective_function_rotation (x, system, psi, c0):
     Eee = (system.U + gamma**2 * system.w0 - 2.0 * system.g * gamma * sqrttwomw) * numpy.sum(nia * nib)
 
     Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * psi.G[0] + system.T[1] * psi.G[1])
+    # Ekin = numpy.sum(system.T[0] * psi.G[0] + system.T[1] * psi.G[1])
     etot = Eph + Eeph + Eee + Ekin
     return etot.real
 
@@ -497,27 +498,34 @@ class LangFirsov(object):
 
         Eph = system.w0 * numpy.sum(phi*phi)
         Eeph = (self.gamma * system.w0 - system.g * sqrttwomw) * numpy.sum (2.0 * phi / sqrttwomw * ni)
+        # print("Eeph1 = {}".format(Eeph))
         Eeph += (self.gamma**2 * system.w0 / 2.0 - system.g * self.gamma * sqrttwomw) * numpy.sum(ni)
+        # print("Eeph2 = {}".format(Eeph))
 
         Eee = (system.U + self.gamma**2 * system.w0 - 2.0 * system.g * self.gamma * sqrttwomw) * numpy.sum(nia * nib)
 
         Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * self.G[0] + system.T[1] * self.G[1])
+        # Ekin = numpy.sum(system.T[0] * self.G[0] + system.T[1] * self.G[1])
         self.energy = Eph + Eeph + Eee + Ekin
-        # (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
-        # if self.verbose:
-        #     print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
-        #            %(self.energy.real, self.e1b.real, self.e2b.real))
+        # print("self.G[1] = {}".format(self.G[1]))
+        # print("self.T[1] = {}".format(system.T[1]))
+
+        # print("alpha = {}".format(alpha))
+        # print("Eph = {}".format(Eph))
+        # print("Eeph = {}".format(Eeph))
+        # print("Eee = {}".format(Eee))
+        # print("Ekin = {}".format(Ekin))
 
 
 def unit_test():
     import itertools
     from pauxy.systems.hubbard import Hubbard
-    from pauxy.estimators.hubbard import local_energy_hubbard_holstein
+    from pauxy.estimators.hubbard import local_energy_hubbard_holstein, local_energy_hubbard_holstein_momentum
     from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
     from pauxy.systems.hubbard_holstein import HubbardHolstein
     from pauxy.walkers.single_det import SingleDetWalker
     from pauxy.trial_wavefunction.free_electron import FreeElectron
-    from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+    from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
     import scipy
     import numpy
     import scipy.sparse.linalg
@@ -526,11 +534,13 @@ def unit_test():
     "name": "HubbardHolstein",
     "nup": 1,
     "ndown": 1,
-    "nx": 4,
+    "nx": 2,
     "ny": 1,
-    "U": 4.0,
-    "w0": 0.1,
-    "lambda": 1.0
+    "t": 1.0,
+    "U": 400.0,
+    "w0": 10.0,
+    "lambda": 100.0,
+    "lang_firsov":True
     }
 
     system = HubbardHolstein (options, verbose=True)
@@ -540,16 +550,18 @@ def unit_test():
     walker = SingleDetWalker(options, system, lf_driver)
 
     G = lf_driver.G.copy()
-    Lap = lf_driver.laplacian(walker)
-    etot = local_energy_hubbard_holstein(system, G, walker.X, Lap)[0]
+    # Lap = lf_driver.laplacian(walker)
+    boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=lf_driver.shift)
+    Lap = boson_trial.laplacian(walker.P)
 
+    etot = local_energy_hubbard_holstein_momentum(system, G, walker.P, Lap)[0]
     print("etot = {}".format(etot))
     
-    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=lf_driver.shift)
-    Lap = boson_trial.laplacian(walker.X)
-    etot = local_energy_hubbard_holstein(system, G, walker.X, Lap)[0]
+    # boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=lf_driver.shift)
+    # Lap = boson_trial.laplacian(walker.X)
+    # etot = local_energy_hubbard_holstein(system, G, walker.X, Lap)[0]
 
-    print("etot = {}".format(etot))
+    # print("etot = {}".format(etot))
 
 
 
