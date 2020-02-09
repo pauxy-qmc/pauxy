@@ -83,7 +83,9 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
 
     ke = numpy.sum(T[0] * G[0] + T[1] * G[1])
 
-    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+    sqrttwomw = numpy.sqrt(2.0 * system.m * system.w0)
+
+    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * sqrttwomw
     if system.symmetric:
         pe = -0.5*Ueff*(G[0].trace() + G[1].trace())
 
@@ -94,16 +96,14 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
     
     rho = G[0].diagonal() + G[1].diagonal()
     
-    # e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, X)
-    e_eph = 0.0
-
+    e_eph = (system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * sqrttwomw) * numpy.sum(rho)
 
     etot = ke + pe + pe_ph + ke_ph + e_eph
 
     Eph = ke_ph + pe_ph
     Eel = ke + pe
     Eeb = e_eph
-
+    # print ("(etot, ke+pe, ke_ph+pe_ph+e_eph) = ", (etot, ke+pe, ke_ph+pe_ph+e_eph))
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
 
