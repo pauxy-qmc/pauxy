@@ -71,6 +71,8 @@ class HirschSpinDMC(object):
 
         print("# Ueff = {}".format(Ueff))
 
+        self.charge = options.get('charge', False)
+
         if (not self.charge):
             self.gamma = arccosh(numpy.exp(0.5*qmc.dt*system.U))
             if verbose:
@@ -419,6 +421,9 @@ class HirschSpinDMC(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                if (self.charge):
+                    walker.weight *= self.charge_factor[xi]
+
         
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 
