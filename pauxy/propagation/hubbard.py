@@ -79,7 +79,7 @@ class HirschSpin(object):
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
 
         self.delta = self.auxf - 1
 
@@ -187,6 +187,10 @@ class HirschSpin(object):
         delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
+
+        # bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
+        # bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
+
         for i in range(0, system.nbasis):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
