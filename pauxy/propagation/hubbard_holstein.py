@@ -12,6 +12,10 @@ from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, Har
 
 from pauxy.systems.hubbard_holstein import kinetic_lang_firsov
 
+def arccosh(y): # it works even when y is complex
+    gamma = cmath.log(y - cmath.sqrt(y*y-1))
+    return gamma
+
 class HirschSpinDMC(object):
     """Propagator for discrete HS transformation plus phonon propagation.
 
@@ -64,11 +68,31 @@ class HirschSpinDMC(object):
 
         Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+
+        print("# Ueff = {}".format(Ueff))
+
+        if (not self.charge):
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            if verbose:
+                print("# Spin decomposition is used")
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+        else:
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*system.U))
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*system.U)
+            if verbose:
+                print("# Charge decomposition is used")
+                print("# charge_factor = {}".format(self.charge_factor))
+
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+
+
         self.dt = qmc.dt
         self.sqrtdt = math.sqrt(qmc.dt)
         self.delta = self.auxf - 1
@@ -169,6 +193,9 @@ class HirschSpinDMC(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            if (self.charge):
+                probs *= self.charge_factor
+
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
