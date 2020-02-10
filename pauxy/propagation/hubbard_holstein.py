@@ -369,27 +369,48 @@ class HirschSpinDMC(object):
             walker.weight *= oratio_extra
     
     def boson_free_propagation(self, walker, system, trial, eshift):
-        #Change weight
-        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
+        if (self.lang_firsov):
 
-        psiold = self.boson_trial.value(walker.X)
+            kin  = 0.25 * (1./system.m) * numpy.sum(walker.P * walker.P)
+            kin = kin.real
+            walker.weight *= math.exp(-self.dt* kin)
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
-        Xnew = walker.X + dX
+            mw2 = system.m * system.w0 **2
 
-        walker.X = Xnew.copy()
+            dP = numpy.random.normal(loc = 0.0, scale = self.sqrtdt*numpy.sqrt(mw2), size=(system.nbasis))
+            Pnew = walker.P + dP 
+            
+            walker.P = Pnew.copy()
 
-        lap = self.boson_trial.laplacian(walker.X)
-        walker.Lap = lap
+            lap = trial.laplacian(walker.P)
+            walker.Lap = lap
+            
+            #Change weight
+            kin  = 0.25 * (1./system.m) * numpy.sum(walker.P * walker.P)
+            kin = kin.real
+            walker.weight *= math.exp(-self.dt* kin)
+        else:
+            #Change weight
+            pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+            pot = pot.real
+            walker.weight *= math.exp(-self.dt* pot)
 
-        psinew = self.boson_trial.value(walker.X)
+            psiold = self.boson_trial.value(walker.X)
 
-        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
+            dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
+            Xnew = walker.X + dX
 
+            walker.X = Xnew.copy()
+
+            lap = self.boson_trial.laplacian(walker.X)
+            walker.Lap = lap
+
+            psinew = self.boson_trial.value(walker.X)
+
+            pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+            pot = pot.real
+            walker.weight *= math.exp(-self.dt* pot)
+    
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
 

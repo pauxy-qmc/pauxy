@@ -98,7 +98,8 @@ class HubbardHolstein(object):
         if (self.lang_firsov):
             self.gamma = self.g * numpy.sqrt(2.0 * self.m / self.w0)
             Ueff = self.U + self.gamma**2 * self.w0 - 2.0 * self.g * self.gamma * numpy.sqrt(2.0 * self.m * self.w0)
-            print("# Ueff = {}".format(Ueff))
+            if verbose:
+                print("# Ueff = {}".format(Ueff))
 
         self.nactive = self.nbasis
         self.nfv = 0
