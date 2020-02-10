@@ -91,6 +91,8 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
 
     pe = Ueff * numpy.dot(G[0].diagonal(), G[1].diagonal())
 
+    # print("# Ueff = {}".format(Ueff))
+
     pe_ph = - 0.5 * system.w0 ** 2 * system.m * numpy.sum(Lap)
     ke_ph = 0.5 * numpy.sum(P*P) / system.m - 0.5 * system.w0 * system.nbasis
     
@@ -103,6 +105,9 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
     Eph = ke_ph + pe_ph
     Eel = ke + pe
     Eeb = e_eph
+
+    # print("ke, pe, e_eph, eph = {}, {}, {}, {}".format(ke, pe, e_eph, Eph))
+
     # print ("(etot, ke+pe, ke_ph+pe_ph+e_eph) = ", (etot, ke+pe, ke_ph+pe_ph+e_eph))
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 

@@ -70,8 +70,8 @@ class HirschSpin(object):
         else:
             self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*system.U))
             self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*system.U)
-            self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
-            self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*system.U) # field-independent 
+            # self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
+            # self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*system.U) # field-independent 
             if verbose:
                 print("# Charge decomposition is used")
                 print("# charge_factor = {}".format(self.charge_factor))

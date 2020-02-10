@@ -92,7 +92,6 @@ def objective_function_rotation (x, system, psi, c0):
     psi.update_electronic_greens_function(system)
 
 #   HACK
-    # phi = numpy.zeros_like(phi)
 
     ni = numpy.diag(psi.G[0]+psi.G[1])
     nia = numpy.diag(psi.G[0])
@@ -114,6 +113,66 @@ def objective_function_rotation (x, system, psi, c0):
     etot = Eph + Eeph + Eee + Ekin
     return etot.real
 
+def objective_function_rotation_only (x, system, psi, c0):
+
+    nbsf = system.nbasis
+    nocca = system.nup
+    noccb = system.ndown
+    nvira = system.nbasis - nocca
+    nvirb = system.nbasis - noccb
+    
+    nova = nocca*nvira
+    novb = noccb*nvirb
+    
+    daia = x[0:0+nova] 
+    daib = x[0+nova:0+nova+novb]
+
+    daia = daia.reshape((nvira, nocca))
+    daib = daib.reshape((nvirb, noccb))
+
+    Ua = numpy.zeros((nbsf, nbsf))
+    Ub = numpy.zeros((nbsf, nbsf))
+
+    Ua[nocca:nbsf,:nocca] = daia.copy()
+    Ua[:nocca, nocca:nbsf] = -daia.T.copy()
+
+    Ub[noccb:nbsf,:noccb] = daib.copy()
+    Ub[:noccb, noccb:nbsf] = -daib.T.copy()
+
+    C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+    C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+
+    Ua = expm(Ua)
+    Ub = expm(Ub)
+
+    Ca = C0a.dot(Ua)
+    Cb = C0b.dot(Ub)
+
+    psi.psi[:,:nocca] = Ca[:,:nocca].copy()
+    psi.psi[:,nocca:] = Cb[:,:noccb].copy()
+
+    psi.update_electronic_greens_function(system)
+
+    ni = numpy.diag(psi.G[0]+psi.G[1])
+    nia = numpy.diag(psi.G[0])
+    nib = numpy.diag(psi.G[1])
+
+    sqrttwomw = numpy.sqrt(system.m * system.w0*2.0)
+    phi = numpy.zeros(nbsf)
+
+    gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+
+    alpha = gamma * numpy.sqrt(system.m * system.w0 / 2.0)
+
+    Eph = system.w0 * numpy.sum(phi*phi)
+    Eeph = (gamma * system.w0 - system.g * sqrttwomw) * numpy.sum (2.0 * phi / sqrttwomw * ni)
+    Eeph += (gamma**2 * system.w0 / 2.0 - system.g * gamma * sqrttwomw) * numpy.sum(ni)
+
+    Eee = (system.U + gamma**2 * system.w0 - 2.0 * system.g * gamma * sqrttwomw) * numpy.sum(nia * nib)
+
+    Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * psi.G[0] + system.T[1] * psi.G[1])
+    etot = Eph + Eeph + Eee + Ekin
+    return etot.real
 class LangFirsov(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
@@ -209,16 +268,16 @@ class LangFirsov(object):
         self.eigs.sort()
 
         self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
-        # self.run_variational(system)
+        self.run_variational(system)
+
+        print("# Variational Lang-Firsov Energy = {}".format(self.energy))
+
         self.shift = numpy.zeros(system.nbasis)
-        
-        const = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-        V = [const * numpy.eye(system.nbasis), const * numpy.eye(system.nbasis)]
-        self.update_wfn(system, V)
         
         self.initialisation_time = time.time() - init_time
         self.init = self.psi.copy()
 
+        self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
         self.calculate_energy(system)
 
         print("# Lang-Firsov gamma = {}".format(self.gamma))
@@ -241,15 +300,8 @@ class LangFirsov(object):
         nova = nocca*nvira
         novb = noccb*nvirb
 #         
-        x = numpy.zeros(system.nbasis + nova+novb + 1)
-        
-        rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
-        self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        nX = numpy.array([numpy.diag(self.shift), numpy.diag(self.shift)], dtype=numpy.float64)
-        V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
-        self.update_wfn(system, V)
-#         
-#         
+        # x = numpy.zeros(system.nbasis + nova+novb + 1)
+        x = numpy.zeros(nova+novb)
         Ca = numpy.zeros((nbsf,nbsf))
         Ca[:,:nocca] = self.psi[:,:nocca]
         Ca[:,nocca:] = self.virt[:,:nvira]
@@ -261,21 +313,23 @@ class LangFirsov(object):
         c0[:nbsf*nbsf] = Ca.ravel()
         c0[nbsf*nbsf:] = Cb.ravel()
 #       
+        self.shift = numpy.zeros(nbsf)
         self.calculate_energy(system)
-        # print("self.shift = {}".format(self.shift))
+
         for i in range (10): # Try 10 times
-            res = minimize(objective_function_rotation, x, args=(system, self, c0), method='BFGS', options={'disp':False})
+            res = minimize(objective_function_rotation_only, x, args=(system, self, c0), method='BFGS', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
-                self.shift = res.x[:system.nbasis] / numpy.sqrt(system.m * system.w0 / 2.0)
-                self.gamma = res.x[-1]
-            x[:system.nbasis] = self.shift + numpy.random.randn(self.shift.shape[0])
-            x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb)
-            x[-1] = numpy.random.randn(1)
+                # self.shift = res.x[:system.nbasis] / numpy.sqrt(system.m * system.w0 / 2.0)
+                # self.gamma = res.x[-1]
+            # x[:system.nbasis] = self.shift + numpy.random.randn(self.shift.shape[0])
+            # x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb)
+            # x[-1] = numpy.random.randn(1)
+            x[0:0+nova+novb] = numpy.random.randn(nova+novb)
 
-        daia = res.x[nbsf:nbsf+nova] 
-        daib = res.x[nbsf+nova:nbsf+nova+novb]
+        daia = res.x[0:0+nova] 
+        daib = res.x[0+nova:0+nova+novb]
 
         daia = daia.reshape((nvira, nocca))
         daib = daib.reshape((nvirb, noccb))
@@ -335,6 +389,10 @@ class LangFirsov(object):
         
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
+
+
+        h1 = system.T[0] + V[0]
+
         if (system.ndown == 0):
             gdown = numpy.zeros_like(gup)
         else:
@@ -559,44 +617,11 @@ def unit_test():
     G = lf_driver.G.copy()
     boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=lf_driver.shift)
     Lap = boson_trial.laplacian(walker.P)
-    grad = boson_trial.gradient(walker.P)
-    X = grad * 1.j
-
-    nX = numpy.array([numpy.diag(X), numpy.diag(X)], dtype=numpy.complex128)
-    V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
-    lf_driver.update_wfn(system, V)
-
-    print(lf_driver.G[0])
-
-
+    
+    # print(walker.P)
+    # print(G[0])
     etot = local_energy_hubbard_holstein_momentum(system, G, walker.P, Lap)[0]
     print("etot = {}".format(etot))
-
-
-    sqtau = numpy.sqrt(0.005)
-    nstep = 250
-    P = numpy.zeros_like(X)
-    # # simple VMC
-    for istep in range(nstep):
-        chi = numpy.random.randn(system.nbasis)# Random move
-        # propose a move
-        momnew = P + sqtau * chi
-        # calculate Metropolis-Rosenbluth-Teller acceptance probability
-        wfold = boson_trial.value(P)
-        wfnew = boson_trial.value(momnew)
-        pacc = wfnew*wfnew/(wfold*wfold) 
-        # get indices of accepted moves
-        u = numpy.random.random(1)
-        if (u < pacc):
-            P = momnew.copy()
-
-        Lap = boson_trial.laplacian(P)
-        etot = local_energy_hubbard_holstein_momentum(system, G, P, Lap)[0]
-    #     print("# Eloc = {}".format(etot))
-    print("# P = {}".format(P))
-    etot = local_energy_hubbard_holstein_momentum(system, G, P, Lap)[0]
-    print("# Eloc = {}".format(etot))
-
 
 if __name__=="__main__":
     unit_test()

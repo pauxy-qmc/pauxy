@@ -231,7 +231,7 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
     Ib = scipy.sparse.eye(nperms)
 
 
-    hel = scipy.sparse.csr_matrix((ndets,ndets))
+    h1el = scipy.sparse.csr_matrix((ndets,ndets))
     for isite in range(system.nbasis):
         rhoi = scipy.sparse.csr_matrix((ndets, ndets))
         for i, di in enumerate(dets):
@@ -240,9 +240,29 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
                 if (ii == isite):
                     rhoi[i,i] += 1.0
         const = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-        hel += const * scipy.sparse.csr_matrix(rhoi)
+        h1el += const * scipy.sparse.csr_matrix(rhoi)
 
-    He = scipy.sparse.kron(Ib, hel)
+
+    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+
+    h2el = scipy.sparse.csr_matrix((ndets,ndets))
+    for isite in range(system.nbasis):
+        rhoiup = scipy.sparse.csr_matrix((ndets, ndets))
+        rhoidown = scipy.sparse.csr_matrix((ndets, ndets))
+        
+        for i, di in enumerate(dets):
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == isite and spin_ii ==0):
+                    rhoiup[i,i] += 1.0
+                if (ii == isite and spin_ii ==1):
+                    rhoidown[i,i] += 1.0
+
+        h2el += Ueff * scipy.sparse.csr_matrix(rhoiup) * scipy.sparse.csr_matrix(rhoidown)
+
+    H1e = scipy.sparse.kron(Ib, h1el)
+    H2e = scipy.sparse.kron(Ib, h2el)
+    He = H1e + H2e
     
     # print("# finshed forming he")
 
@@ -328,8 +348,9 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
 
 
                 expij = scipy.sparse.linalg.expm(scipy.sparse.csr_matrix(pi-pj) * const)
-                identity = expij.T.dot(expij)
-
+                # print("expij = {}".format(expij.todense()))
+                # print("hel = {}".format(hel.todense()))
+                # print("scipy.sparse.kron(expij, hel) = {}".format(scipy.sparse.kron(expij, hel)))
                 # print(identity)
 
                 Heb += scipy.sparse.kron(expij, hel)
@@ -337,6 +358,7 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
     Heb = Heb + Heb.T
 
     # print("# finshed forming Heb")
+    # print("# Heb = {}".format(Heb.todense()))
 
     
     Hb = scipy.sparse.kron(hb, Iel)
@@ -351,10 +373,13 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
     eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=1, which='SA')
 
     Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
+    E1el = eigvec[:,0].T.conj().dot(H1e.dot(eigvec[:,0]))
+    E2el = eigvec[:,0].T.conj().dot(H2e.dot(eigvec[:,0]))
     Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
     Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
 
     print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eb, Eeb, Eel+Eb+Eeb))
+    print("# E1el, E2el = {}, {}".format(E1el, E2el))
 
     for isite in range(system.nbasis):
         bi = scipy.sparse.csr_matrix((nperms, nperms))

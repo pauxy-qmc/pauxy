@@ -470,17 +470,16 @@ def unit_test():
     "name": "Hubbard",
     "nup": 2,
     "ndown": 2,
-    "nx": 4,
-    "ny": 1,
-    "U": -4.0
+    "nx": 2,
+    "ny": 2,
+    "U": -0.5
     }
     from pauxy.estimators.ci import simple_fci
     system = Hubbard (options, verbose=True)
     (eig, evec), H = simple_fci(system, hamil=True)
     # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
     print(eig)
-    # print(dets)
-    # oa, ob = zip(*itertools.product(oa,ob))
+    print(system.T)
 
 if __name__=="__main__":
     unit_test()
