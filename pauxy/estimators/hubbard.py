@@ -79,13 +79,19 @@ def local_energy_hubbard_holstein_momentum(system, G, P, Lap, Ghalf=None):
     (E_L(phi), T, V): tuple
         Local, kinetic and potential energies of given walker phi.
     """
-    T = kinetic_lang_firsov(system.t, system.gamma, P, system.nx, system.ny, system.ktwist)
+    # T = kinetic_lang_firsov(system.t, system.gamma, P, system.nx, system.ny, system.ktwist)
+
+    Dp = numpy.array([numpy.exp(1j*system.gamma*P[i]) for i in range(system.nbasis)])
+    T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+    T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj()))
+    T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj()))
 
     ke = numpy.sum(T[0] * G[0] + T[1] * G[1])
 
     sqrttwomw = numpy.sqrt(2.0 * system.m * system.w0)
 
     Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * sqrttwomw
+
     if system.symmetric:
         pe = -0.5*Ueff*(G[0].trace() + G[1].trace())
 

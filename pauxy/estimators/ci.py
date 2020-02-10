@@ -192,7 +192,7 @@ def simple_lang_firsov_unitary(system, nboson_max = 1, gen_dets=False, occs=None
 
 
 def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=False):
-    assert (system.U == 0.0)
+    # assert (system.U == 0.0)
     """Very dumb FCI routine."""
     orbs = numpy.arange(system.nbasis)
 

@@ -302,9 +302,10 @@ class HirschSpinDMC(object):
         """
 
         if (self.lang_firsov):
-            T = kinetic_lang_firsov(system.t, system.gamma, walker.P, system.nx, system.ny, system.ktwist)
-            T[0] = T[0] + numpy.eye(system.nbasis) * self.onebody_lf
-            T[1] = T[1] + numpy.eye(system.nbasis) * self.onebody_lf
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
             
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
                                     scipy.linalg.expm(-0.5*self.dt*T[1])])
@@ -406,11 +407,22 @@ class HirschSpinDMC(object):
         """
         self.boson_free_propagation(walker, system, self.boson_trial, eshift)
 
-        kinetic_real(walker.phi, system, self.bt2)
+        if (self.lang_firsov):
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
+                                    scipy.linalg.expm(-0.5*self.dt*T[1])])
+            
+            self.kinetic(walker.phi, system, self.bt2)
+        else:
+            kinetic_real(walker.phi, system, self.bt2)
 
-        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
-        Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
+            const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
+            Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         delta = self.delta
         nup = system.nup
@@ -429,13 +441,28 @@ class HirschSpinDMC(object):
                     walker.weight *= self.charge_factor[xi]
 
         
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
+        if (self.lang_firsov):
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
+                                    scipy.linalg.expm(-0.5*self.dt*T[1])])
+            
+            self.kinetic(walker.phi, system, self.bt2)
+        else:
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
 
-        kinetic_real(walker.phi, system, self.bt2)
+            kinetic_real(walker.phi, system, self.bt2)
 
         walker.inverse_overlap(trial)
+        
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+        if (self.lang_firsov):
+            walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.P)
+        else:
+            walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
