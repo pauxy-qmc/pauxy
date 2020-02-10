@@ -75,17 +75,17 @@ class HirschSpinDMC(object):
         self.charge = options.get('charge', False)
 
         if (not self.charge):
-            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
             if verbose:
                 print("# Spin decomposition is used")
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
         
         else:
-            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*system.U))
-            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*system.U)
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*Ueff))
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
             if verbose:
                 print("# Charge decomposition is used")
                 print("# charge_factor = {}".format(self.charge_factor))
@@ -93,7 +93,7 @@ class HirschSpinDMC(object):
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
 
 
         self.dt = qmc.dt
