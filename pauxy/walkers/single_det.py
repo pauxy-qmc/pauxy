@@ -64,9 +64,28 @@ class SingleDetWalker(object):
 
         if system.name == "HubbardHolstein":
             if (system.lang_firsov):
-                self.P = numpy.zeros(system.nbasis) # we work in the momentum space for lang_firsov
+                # self.P = numpy.ones(system.nbasis) * system.g * numpy.sqrt(2.0 * system.m / system.w0)# we work in the momentum space for lang_firsov
+                self.P = numpy.zeros(system.nbasis)
+                
                 shift = numpy.zeros(system.nbasis)
                 tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
+                
+                sqtau = numpy.sqrt(0.005)
+                nstep = 250
+                # simple VMC
+                for istep in range(nstep):
+                    chi = numpy.random.randn(system.nbasis)# Random move
+                    # propose a move
+                    posnew = self.P + sqtau * chi
+                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                    wfold = tmptrial.value(self.P)
+                    wfnew = tmptrial.value(posnew)
+                    pacc = (wfnew*wfnew)/(wfold*wfold) 
+                    # get indices of accepted moves
+                    u = numpy.random.random(1)
+                    if (u < pacc):
+                        self.P = posnew.copy()
+
                 self.Lap = tmptrial.laplacian(self.P)
             else:
                 rho = [self.G[0].diagonal(), self.G[1].diagonal()]

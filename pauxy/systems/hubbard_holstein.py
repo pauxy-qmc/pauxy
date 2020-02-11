@@ -85,11 +85,6 @@ class HubbardHolstein(object):
 
         self.lang_firsov = inputs.get('lang_firsov', False)
 
-        self.gamma = 0.0
-
-        if (self.lang_firsov):
-            self.gamma = self.g * numpy.sqrt(2.0 * self.m / self.w0)
-        
         if verbose:
             print("# d = {}".format(d))
             print("# nx, ny = {},{}".format(self.nx, self.ny))
@@ -97,6 +92,14 @@ class HubbardHolstein(object):
             print("# t, U = {}, {}".format(self.t, self.U))
             print("# m, w0, g, lambda = {}, {}, {}, {}".format(self.m, self.w0, self.g, self.lmbda))
             print("# lang_firsov = {}".format(self.lang_firsov))
+
+        self.gamma = 0.0
+
+        if (self.lang_firsov):
+            self.gamma = self.g * numpy.sqrt(2.0 * self.m / self.w0)
+            Ueff = self.U + self.gamma**2 * self.w0 - 2.0 * self.g * self.gamma * numpy.sqrt(2.0 * self.m * self.w0)
+            if verbose:
+                print("# Ueff = {}".format(Ueff))
 
         self.nactive = self.nbasis
         self.nfv = 0
@@ -542,7 +545,7 @@ def get_strip(cfunc, cfunc_err, ix, nx, ny, stag=False):
 def unit_test():
     import itertools
     from pauxy.systems.hubbard import Hubbard
-    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci, simple_lang_firsov, simple_lang_firsov_unitary
     import scipy
     import numpy
     import scipy.sparse.linalg
@@ -551,7 +554,7 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [5.0]
+    lmbdas = [1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     w0s = [0.1]
     # w0s = [0.5]
@@ -565,25 +568,37 @@ def unit_test():
             "name": "HubbardHolstein",
             "nup": 1,
             "ndown": 1,
-            "nx": 4,
+            "nx": 2,
             "ny": 1,
             "U": 0.0,
             "t": 1.0,
             "w0": w0,
-            # "lambda": lmbda,
-            "g": lmbda,
+            "lambda": lmbda,
+            "lang_firsov":True
+            # "g": lmbda,
             }
             system = HubbardHolstein (options, verbose=True)
             system0 = Hubbard (options, verbose=True)
             (eig, evec), H = simple_fci(system0, hamil=True)
-            # nbosons = [5, 10, 15, 20, 25]
-            nbosons = [5, 10, 15, 17, 20]
+            # print("H w/o boson = {}".format(H))
+
+            # nbosons = [0]
+            nbosons = [5, 10, 15, 17, 20, 30, 35, 40, 60, 80, 100, 120]
+            # nbosons = [5, 10, 15,30, 60, 80, 90, 100, 120, 150, 180, 200, 220]
+            # nbosons = [5, 10, 15,30, 60, 80, 90, 100]
+            # nbosons = [1, 2, 3]
+            # nbosons = [0, 10, 20, 40, 60]
+            # nbosons = [5, 10, 20, 30, 35, 40, 60, 80, 100, 120]
+            # nbosons = [10, 20, 40]
+            # nbosons = [4]
             # nbosons = [20]
             eigs = []
             eigs += [eig[0]]
             for nboson in nbosons:
                 # print("# nboson = {}".format(nboson))
                 (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
+                # (eig, evec), H = simple_lang_firsov(system, nboson_max=nboson, hamil=True)
+                # (eig, evec), H = simple_lang_firsov_unitary(system, nboson_max=nboson, hamil=True)
                 # print("eig = {}".format(eig[0]))
                 eigs += [eig[0]]
             nbosons = [0] + nbosons

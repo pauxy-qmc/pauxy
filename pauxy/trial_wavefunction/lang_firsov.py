@@ -91,16 +91,16 @@ def objective_function_rotation (x, system, psi, c0):
 
     psi.update_electronic_greens_function(system)
 
+#   HACK
+
     ni = numpy.diag(psi.G[0]+psi.G[1])
     nia = numpy.diag(psi.G[0])
     nib = numpy.diag(psi.G[1])
 
     sqrttwomw = numpy.sqrt(system.m * system.w0*2.0)
     
-    # gamma = x[-1]
-    # gamma = 0.0
-    gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
-    
+    # gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+    gamma = x[-1]
     alpha = gamma * numpy.sqrt(system.m * system.w0 / 2.0)
 
     Eph = system.w0 * numpy.sum(phi*phi)
@@ -113,6 +113,66 @@ def objective_function_rotation (x, system, psi, c0):
     etot = Eph + Eeph + Eee + Ekin
     return etot.real
 
+def objective_function_rotation_only (x, system, psi, c0):
+
+    nbsf = system.nbasis
+    nocca = system.nup
+    noccb = system.ndown
+    nvira = system.nbasis - nocca
+    nvirb = system.nbasis - noccb
+    
+    nova = nocca*nvira
+    novb = noccb*nvirb
+    
+    daia = x[0:0+nova] 
+    daib = x[0+nova:0+nova+novb]
+
+    daia = daia.reshape((nvira, nocca))
+    daib = daib.reshape((nvirb, noccb))
+
+    Ua = numpy.zeros((nbsf, nbsf))
+    Ub = numpy.zeros((nbsf, nbsf))
+
+    Ua[nocca:nbsf,:nocca] = daia.copy()
+    Ua[:nocca, nocca:nbsf] = -daia.T.copy()
+
+    Ub[noccb:nbsf,:noccb] = daib.copy()
+    Ub[:noccb, noccb:nbsf] = -daib.T.copy()
+
+    C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+    C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+
+    Ua = expm(Ua)
+    Ub = expm(Ub)
+
+    Ca = C0a.dot(Ua)
+    Cb = C0b.dot(Ub)
+
+    psi.psi[:,:nocca] = Ca[:,:nocca].copy()
+    psi.psi[:,nocca:] = Cb[:,:noccb].copy()
+
+    psi.update_electronic_greens_function(system)
+
+    ni = numpy.diag(psi.G[0]+psi.G[1])
+    nia = numpy.diag(psi.G[0])
+    nib = numpy.diag(psi.G[1])
+
+    sqrttwomw = numpy.sqrt(system.m * system.w0*2.0)
+    phi = numpy.zeros(nbsf)
+
+    gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+
+    alpha = gamma * numpy.sqrt(system.m * system.w0 / 2.0)
+
+    Eph = system.w0 * numpy.sum(phi*phi)
+    Eeph = (gamma * system.w0 - system.g * sqrttwomw) * numpy.sum (2.0 * phi / sqrttwomw * ni)
+    Eeph += (gamma**2 * system.w0 / 2.0 - system.g * gamma * sqrttwomw) * numpy.sum(ni)
+
+    Eee = (system.U + gamma**2 * system.w0 - 2.0 * system.g * gamma * sqrttwomw) * numpy.sum(nia * nib)
+
+    Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * psi.G[0] + system.T[1] * psi.G[1])
+    etot = Eph + Eeph + Eee + Ekin
+    return etot.real
 class LangFirsov(object):
 
     def __init__(self, system, cplx, trial, parallel=False, verbose=False):
@@ -191,10 +251,15 @@ class LangFirsov(object):
 
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
-                                           self.psi[:, system.nup:]).T
+        if (system.ndown > 0):
+            gdown = gab(self.psi[:, system.nup:],
+                                               self.psi[:, system.nup:]).T
+        else:
+            gdown = numpy.zeros_like(gup)
 
         self.G = numpy.array([gup, gdown])
+
+        self.variational = trial.get('variational',False)
 
         # For interface compatability
         self.coeffs = 1.0
@@ -205,11 +270,16 @@ class LangFirsov(object):
         self.eigs.sort()
 
         self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
+        self.run_variational(system)
+
+        print("# Variational Lang-Firsov Energy = {}".format(self.energy))
+
         self.shift = numpy.zeros(system.nbasis)
         
         self.initialisation_time = time.time() - init_time
         self.init = self.psi.copy()
 
+        self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
         self.calculate_energy(system)
 
         print("# Lang-Firsov gamma = {}".format(self.gamma))
@@ -232,15 +302,12 @@ class LangFirsov(object):
         nova = nocca*nvira
         novb = noccb*nvirb
 #         
-        x = numpy.zeros(system.nbasis + nova+novb + 1)
-        
-        rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
-        self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        nX = numpy.array([numpy.diag(self.shift), numpy.diag(self.shift)], dtype=numpy.float64)
-        V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
-        self.update_wfn(system, V)
-#         
-#         
+        if (self.variational):
+            offset = nbsf
+            x = numpy.zeros(system.nbasis + nova+novb + 1)
+        else:
+            offset = 0
+            x = numpy.zeros(nova+novb)
         Ca = numpy.zeros((nbsf,nbsf))
         Ca[:,:nocca] = self.psi[:,:nocca]
         Ca[:,nocca:] = self.virt[:,:nvira]
@@ -252,21 +319,31 @@ class LangFirsov(object):
         c0[:nbsf*nbsf] = Ca.ravel()
         c0[nbsf*nbsf:] = Cb.ravel()
 #       
-        self.calculate_energy(system)
-        print("self.shift = {}".format(self.shift))
+        self.shift = numpy.zeros(nbsf)
+        self.energy = 1e6
+
+
         for i in range (10): # Try 10 times
-            res = minimize(objective_function_rotation, x, args=(system, self, c0), method='BFGS', options={'disp':False})
+            if (self.variational):
+                res = minimize(objective_function_rotation, x, args=(system, self, c0), method='L-BFGS-B', options={'disp':False})
+            else:
+                res = minimize(objective_function_rotation_only, x, args=(system, self, c0), method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
-                self.shift = res.x[:system.nbasis] / numpy.sqrt(system.m * system.w0 / 2.0)
-                self.gamma = res.x[-1]
-            x[:system.nbasis] = self.shift + numpy.random.randn(self.shift.shape[0])
-            x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb)
-            x[-1] = numpy.random.randn(1)
+                if (self.variational):
+                    self.shift = res.x[:system.nbasis] / numpy.sqrt(system.m * system.w0 / 2.0)
+                    self.gamma = res.x[-1]
 
-        daia = res.x[nbsf:nbsf+nova] 
-        daib = res.x[nbsf+nova:nbsf+nova+novb]
+            if (self.variational):
+                x[:system.nbasis] = self.shift + numpy.random.randn(self.shift.shape[0])
+                x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb)
+                x[-1] = numpy.random.randn(1)
+            else:
+                x[offset:offset+nova+novb] = numpy.random.randn(nova+novb)
+
+        daia = res.x[offset:offset+nova] 
+        daib = res.x[offset+nova:offset+nova+novb]
 
         daia = daia.reshape((nvira, nocca))
         daib = daib.reshape((nvirb, noccb))
@@ -297,7 +374,10 @@ class LangFirsov(object):
     def update_electronic_greens_function(self, system, verbose=0):
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
+        if (system.ndown == 0):
+            gdown = numpy.zeros_like(gup)
+        else:
+            gdown = gab(self.psi[:, system.nup:],
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
 
@@ -323,7 +403,14 @@ class LangFirsov(object):
         
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
+
+
+        h1 = system.T[0] + V[0]
+
+        if (system.ndown == 0):
+            gdown = numpy.zeros_like(gup)
+        else:
+            gdown = gab(self.psi[:, system.nup:],
                                            self.psi[:, system.nup:]).T
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
@@ -492,7 +579,10 @@ class LangFirsov(object):
         phi = self.shift * numpy.sqrt(system.m * system.w0 / 2.0)
 
         nia = numpy.diag(self.G[0])
-        nib = numpy.diag(self.G[1])
+        if (system.ndown == 0):
+            nib = numpy.zeros_like(nia)
+        else:
+            nib = numpy.diag(self.G[1])
         ni = nia + nib
 
         Eph = system.w0 * numpy.sum(phi*phi)
@@ -502,22 +592,21 @@ class LangFirsov(object):
         Eee = (system.U + self.gamma**2 * system.w0 - 2.0 * system.g * self.gamma * sqrttwomw) * numpy.sum(nia * nib)
 
         Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * self.G[0] + system.T[1] * self.G[1])
+
+
         self.energy = Eph + Eeph + Eee + Ekin
-        # (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
-        # if self.verbose:
-        #     print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
-        #            %(self.energy.real, self.e1b.real, self.e2b.real))
+        print("# Eee, Ekin, Eph, Eeph = {}, {}, {}, {}".format(Eee, Ekin, Eph, Eeph))
 
 
 def unit_test():
     import itertools
     from pauxy.systems.hubbard import Hubbard
-    from pauxy.estimators.hubbard import local_energy_hubbard_holstein
+    from pauxy.estimators.hubbard import local_energy_hubbard_holstein, local_energy_hubbard_holstein_momentum
     from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
-    from pauxy.systems.hubbard_holstein import HubbardHolstein
+    from pauxy.systems.hubbard_holstein import HubbardHolstein, kinetic_lang_firsov
     from pauxy.walkers.single_det import SingleDetWalker
     from pauxy.trial_wavefunction.free_electron import FreeElectron
-    from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+    from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
     import scipy
     import numpy
     import scipy.sparse.linalg
@@ -528,9 +617,12 @@ def unit_test():
     "ndown": 1,
     "nx": 4,
     "ny": 1,
+    "t": 1.0,
     "U": 4.0,
     "w0": 0.1,
-    "lambda": 1.0
+    "lambda": 10.0,
+    "lang_firsov":True,
+    "variational":True
     }
 
     system = HubbardHolstein (options, verbose=True)
@@ -538,19 +630,53 @@ def unit_test():
     lf_driver = LangFirsov(system, False, options, parallel=False, verbose=1)
 
     walker = SingleDetWalker(options, system, lf_driver)
-
-    G = lf_driver.G.copy()
-    Lap = lf_driver.laplacian(walker)
-    etot = local_energy_hubbard_holstein(system, G, walker.X, Lap)[0]
-
-    print("etot = {}".format(etot))
     
-    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=lf_driver.shift)
-    Lap = boson_trial.laplacian(walker.X)
-    etot = local_energy_hubbard_holstein(system, G, walker.X, Lap)[0]
+    G = lf_driver.G.copy()
 
-    print("etot = {}".format(etot))
 
+    shift = numpy.zeros(system.nbasis, dtype = numpy.complex128)
+    boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)
+
+    # walker.P = 1j * system.gamma * numpy.ones(system.nbasis)
+    walker.P = numpy.zeros(system.nbasis)
+
+    Lap = boson_trial.laplacian(walker.P)
+    
+    # print(walker.P)
+    # print("G[0] = {}".format(numpy.trace(G[0])))
+    # print("G[1] = {}".format(numpy.trace(G[1])))
+    # return (etot, ke+pe, ke_ph+pe_ph+e_eph)
+    etot, eel, eph = local_energy_hubbard_holstein_momentum(system, G, walker.P, Lap)
+    print("etot, eel, eph = {}, {}, {}".format(etot.real, eel.real, eph))
+
+
+    # sqtau = numpy.sqrt(0.01)
+    # nstep = 20
+    # nblocks = 80000
+    # energies = []
+    # P = walker.P.copy()
+
+    # for iblock in range(nblocks):
+    #     # simple VMC
+    #     for istep in range(nstep):
+    #         chi = numpy.random.randn(system.nbasis)# Random move
+    #         # propose a move
+    #         posnew = P + sqtau * chi
+    #         # calculate Metropolis-Rosenbluth-Teller acceptance probability
+    #         wfold = boson_trial.value(P)
+    #         wfnew = boson_trial.value(posnew)
+    #         pacc = (wfnew*wfnew)/(wfold*wfold) 
+    #         # get indices of accepted moves
+    #         u = numpy.random.random(1)
+    #         if (u < pacc):
+    #             P = posnew.copy()
+    #             Lap = boson_trial.laplacian(P)
+
+    #     etot = local_energy_hubbard_holstein_momentum(system, G, P, Lap)[0]
+    #     energies += [etot.real]
+
+    # energies = numpy.array(energies)
+    # print(numpy.mean(energies), numpy.std(numpy.real(energies))/numpy.sqrt(nblocks), numpy.std(numpy.imag(energies))/numpy.sqrt(nblocks))
 
 
 if __name__=="__main__":

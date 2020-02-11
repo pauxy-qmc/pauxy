@@ -9,6 +9,10 @@ from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
+def arccosh(y): # it works even when y is complex
+    gamma = cmath.log(y - cmath.sqrt(y*y-1))
+    return gamma
+
 class HirschSpin(object):
     """Propagator for discrete HS transformation.
 
@@ -52,29 +56,30 @@ class HirschSpin(object):
             else:
                 print ("# Using the Constrained Path Approximation.")
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*numpy.abs(system.U)))
-        if (system.U > 0):
-            self.charge = False
+        self.charge = options.get('charge', False)
+
+        if (not self.charge):
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*system.U))
             if verbose:
-                print("# Repulsive U detected; spin decomposition is used")
+                print("# Spin decomposition is used")
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         
         else:
-            self.charge = True
-            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(-0.5*qmc.dt*numpy.abs(system.U))
-            self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
-            self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*numpy.abs(system.U)) # field-independent 
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*system.U))
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*system.U)
+            # self.fd_charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) # field-dependent
+            # self.fi_charge_factor = numpy.exp(-0.5*qmc.dt*system.U) # field-independent 
             if verbose:
-                print("# Attractive U detected; charge decomposition is used")
+                print("# Charge decomposition is used")
                 print("# charge_factor = {}".format(self.charge_factor))
 
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(0.5*qmc.dt*numpy.abs(system.U))
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
 
         self.delta = self.auxf - 1
 
@@ -182,10 +187,16 @@ class HirschSpin(object):
         delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
+
+        # bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
+        # bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
+
         for i in range(0, system.nbasis):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            if (self.charge):
+                probs *= self.charge_factor
 
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
@@ -208,9 +219,6 @@ class HirschSpin(object):
                 if walker.field_configs is not None:
                     walker.field_configs.push(xi)
                 walker.update_inverse_overlap(trial, vtup, vtdown, i)
-            
-                if (self.charge):
-                    walker.weight = walker.weight * self.charge_factor[xi]
                 
             else:
                 walker.weight = 0
@@ -790,3 +798,10 @@ def kinetic_kspace(phi, system, btk):
     else:
         phi[:,:s.nup] = tup
         phi[:,s.nup:] = tdown
+
+
+def unit_test():
+    print(arccosh(0.1))
+
+if __name__=="__main__":
+    unit_test()

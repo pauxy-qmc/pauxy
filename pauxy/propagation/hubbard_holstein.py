@@ -12,6 +12,10 @@ from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, Har
 
 from pauxy.systems.hubbard_holstein import kinetic_lang_firsov
 
+def arccosh(y): # it works even when y is complex
+    gamma = cmath.log(y - cmath.sqrt(y*y-1))
+    return gamma
+
 class HirschSpinDMC(object):
     """Propagator for discrete HS transformation plus phonon propagation.
 
@@ -64,11 +68,34 @@ class HirschSpinDMC(object):
 
         Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
 
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*Ueff))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+
+        if verbose:
+            print("# Ueff = {}".format(Ueff))
+
+        self.charge = options.get('charge', False)
+
+        if (not self.charge):
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
+            if verbose:
+                print("# Spin decomposition is used")
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
         
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+        else:
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*Ueff))
+            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
+            if verbose:
+                print("# Charge decomposition is used")
+                print("# charge_factor = {}".format(self.charge_factor))
+
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+
+
         self.dt = qmc.dt
         self.sqrtdt = math.sqrt(qmc.dt)
         self.delta = self.auxf - 1
@@ -95,8 +122,11 @@ class HirschSpinDMC(object):
                 self.kinetic = kinetic_real
 
         rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
-        shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        shift = numpy.real(shift)
+        if (self.lang_firsov):
+            shift = numpy.real(numpy.zeros_like(rho[0]))
+        else:
+            shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+            shift = numpy.real(shift)
         if verbose:
             print("# Shift = {}".format(shift))
 
@@ -169,6 +199,9 @@ class HirschSpinDMC(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            if (self.charge):
+                probs *= self.charge_factor
+
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
@@ -269,9 +302,10 @@ class HirschSpinDMC(object):
         """
 
         if (self.lang_firsov):
-            T = kinetic_lang_firsov(system.t, system.gamma, walker.P, system.nx, system.ny, system.ktwist)
-            T[0] = T[0] + numpy.eye(system.nbasis) * self.onebody_lf
-            T[1] = T[1] + numpy.eye(system.nbasis) * self.onebody_lf
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
             
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
                                     scipy.linalg.expm(-0.5*self.dt*T[1])])
@@ -293,10 +327,17 @@ class HirschSpinDMC(object):
         ot_new = walker.calc_otrial(trial)
         ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
+
         if abs(phase) < 0.5*math.pi:
-            walker.weight = walker.weight * ratio.real
+            (magn, phase) = cmath.polar(ratio)
+
+            cosine_fac = max(0, math.cos(phase))
+            walker.weight *= magn * cosine_fac            
+            # walker.weight = walker.weight * ratio.real
             walker.ot = ot_new
+            
         else:
+            walker.ot = ot_new
             walker.weight = 0.0
 
     def propagate_walker_constrained(self, walker, system, trial, eshift, rho=None, X=None):
@@ -335,27 +376,48 @@ class HirschSpinDMC(object):
             walker.weight *= oratio_extra
     
     def boson_free_propagation(self, walker, system, trial, eshift):
-        #Change weight
-        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
+        if (self.lang_firsov):
 
-        psiold = self.boson_trial.value(walker.X)
+            kin  = 0.25 * (1./system.m) * numpy.sum(walker.P * walker.P)
+            kin = kin.real
+            walker.weight *= math.exp(-self.dt* kin)
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
-        Xnew = walker.X + dX
+            mw2 = system.m * system.w0 **2
 
-        walker.X = Xnew.copy()
+            dP = numpy.random.normal(loc = 0.0, scale = self.sqrtdt*numpy.sqrt(mw2), size=(system.nbasis))
+            Pnew = walker.P + dP 
+            
+            walker.P = Pnew.copy()
 
-        lap = self.boson_trial.laplacian(walker.X)
-        walker.Lap = lap
+            lap = trial.laplacian(walker.P)
+            walker.Lap = lap
+            
+            #Change weight
+            kin  = 0.25 * (1./system.m) * numpy.sum(walker.P * walker.P)
+            kin = kin.real
+            walker.weight *= math.exp(-self.dt* kin)
+        else:
+            #Change weight
+            pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+            pot = pot.real
+            walker.weight *= math.exp(-self.dt* pot)
 
-        psinew = self.boson_trial.value(walker.X)
+            psiold = self.boson_trial.value(walker.X)
 
-        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
-        pot = pot.real
-        walker.weight *= math.exp(-self.dt* pot)
+            dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
+            Xnew = walker.X + dX
 
+            walker.X = Xnew.copy()
+
+            lap = self.boson_trial.laplacian(walker.X)
+            walker.Lap = lap
+
+            psinew = self.boson_trial.value(walker.X)
+
+            pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+            pot = pot.real
+            walker.weight *= math.exp(-self.dt* pot)
+    
     def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
 
@@ -373,11 +435,22 @@ class HirschSpinDMC(object):
         """
         self.boson_free_propagation(walker, system, self.boson_trial, eshift)
 
-        kinetic_real(walker.phi, system, self.bt2)
+        if (self.lang_firsov):
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
+                                    scipy.linalg.expm(-0.5*self.dt*T[1])])
+            
+            self.kinetic(walker.phi, system, self.bt2)
+        else:
+            kinetic_real(walker.phi, system, self.bt2)
 
-        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
-        Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
+            const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
+            Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         delta = self.delta
         nup = system.nup
@@ -392,14 +465,39 @@ class HirschSpinDMC(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-        
-        kinetic_real(walker.phi, system, Veph, H1diag=True)
+                if (self.charge):
+                    walker.weight *= self.charge_factor[xi]
 
-        kinetic_real(walker.phi, system, self.bt2)
+        
+        if (self.lang_firsov):
+            Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])
+            T = numpy.zeros_like(system.T, dtype=numpy.complex128)
+            T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
+            
+            self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
+                                    scipy.linalg.expm(-0.5*self.dt*T[1])])
+            
+            self.kinetic(walker.phi, system, self.bt2)
+        else:
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
+
+            kinetic_real(walker.phi, system, self.bt2)
 
         walker.inverse_overlap(trial)
+        
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+        if (self.lang_firsov):
+            walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.P)
+        else:
+            walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+
+        walker.greens_function(trial)
+        # Constant terms are included in the walker's weight.
+        # (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
+        # walker.weight *= magn
+        # walker.phase *= cmath.exp(1j*dtheta)
+
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
