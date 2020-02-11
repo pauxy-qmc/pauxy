@@ -172,12 +172,14 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
 
-        self.inv_ovlp[0] = (
-            sherman_morrison(self.inv_ovlp[0], trial.psi[i,:nup].conj(), vtup)
-        )
-        self.inv_ovlp[1] = (
-            sherman_morrison(self.inv_ovlp[1], trial.psi[i,nup:].conj(), vtdown)
-        )
+        if (nup> 0):
+            self.inv_ovlp[0] = (
+                sherman_morrison(self.inv_ovlp[0], trial.psi[i,:nup].conj(), vtup)
+            )
+        if (ndown> 0):
+            self.inv_ovlp[1] = (
+                sherman_morrison(self.inv_ovlp[1], trial.psi[i,nup:].conj(), vtdown)
+            )
 
     def calc_otrial(self, trial):
         """Caculate overlap with trial wavefunction.

@@ -554,10 +554,10 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [1.0]
+    lmbdas = [10.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
-    w0s = [0.1]
-    # w0s = [0.5]
+    # w0s = [100.0]
+    w0s = [1.0]
 
     df = pd.DataFrame()
 
@@ -567,30 +567,33 @@ def unit_test():
             options = {
             "name": "HubbardHolstein",
             "nup": 1,
-            "ndown": 1,
+            "ndown": 0,
             "nx": 2,
             "ny": 1,
-            "U": 0.0,
+            "U": 4.0,
             "t": 1.0,
             "w0": w0,
             "lambda": lmbda,
             "lang_firsov":True
-            # "g": lmbda,
             }
+
             system = HubbardHolstein (options, verbose=True)
             system0 = Hubbard (options, verbose=True)
-            (eig, evec), H = simple_fci(system0, hamil=True)
-            # print("H w/o boson = {}".format(H))
 
-            # nbosons = [0]
-            nbosons = [5, 10, 15, 17, 20, 30, 35, 40, 60, 80, 100, 120]
-            # nbosons = [5, 10, 15,30, 60, 80, 90, 100, 120, 150, 180, 200, 220]
-            # nbosons = [5, 10, 15,30, 60, 80, 90, 100]
-            # nbosons = [1, 2, 3]
-            # nbosons = [0, 10, 20, 40, 60]
-            # nbosons = [5, 10, 20, 30, 35, 40, 60, 80, 100, 120]
-            # nbosons = [10, 20, 40]
-            # nbosons = [4]
+            # Ueff = system0.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+            # d = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+            # system0.H1[0] = numpy.zeros_like(system0.T[0])
+            # system0.H1[1] = numpy.zeros_like(system0.T[1])
+            # system0.H1[0] = numpy.array(system0.T[0] + numpy.diag(numpy.eye(system.nbasis)*d))
+            # system0.H1[1] = numpy.array(system0.T[1] + numpy.diag(numpy.eye(system.nbasis)*d))
+            # system0.U = Ueff
+
+            (eig, evec), H = simple_fci(system0, hamil=True)
+
+            # print("eig = {}".format(eig[0]))
+            # exit()
+            # print("H w/o boson = {}".format(H))
+            nbosons = [5,10,20,30,35, 40,80]
             # nbosons = [20]
             eigs = []
             eigs += [eig[0]]
@@ -599,6 +602,7 @@ def unit_test():
                 (eig, evec), H = simple_fci_bose_fermi(system, nboson_max=nboson, hamil=True)
                 # (eig, evec), H = simple_lang_firsov(system, nboson_max=nboson, hamil=True)
                 # (eig, evec), H = simple_lang_firsov_unitary(system, nboson_max=nboson, hamil=True)
+                # print(H)
                 # print("eig = {}".format(eig[0]))
                 eigs += [eig[0]]
             nbosons = [0] + nbosons

@@ -139,17 +139,17 @@ def objective_function_rotation_only (x, system, psi, c0):
     Ub[noccb:nbsf,:noccb] = daib.copy()
     Ub[:noccb, noccb:nbsf] = -daib.T.copy()
 
-    C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
-    C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+    if (nocca > 0):
+        C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+        Ua = expm(Ua)
+        Ca = C0a.dot(Ua)
+        psi.psi[:,:nocca] = Ca[:,:nocca].copy()
 
-    Ua = expm(Ua)
-    Ub = expm(Ub)
-
-    Ca = C0a.dot(Ua)
-    Cb = C0b.dot(Ub)
-
-    psi.psi[:,:nocca] = Ca[:,:nocca].copy()
-    psi.psi[:,nocca:] = Cb[:,:noccb].copy()
+    if (noccb > 0):
+        C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+        Ub = expm(Ub)
+        Cb = C0b.dot(Ub)
+        psi.psi[:,nocca:] = Cb[:,:noccb].copy()
 
     psi.update_electronic_greens_function(system)
 
@@ -297,17 +297,33 @@ class LangFirsov(object):
         nocca = system.nup
         noccb = system.ndown
         nvira = system.nbasis - nocca
-        nvirb = system.nbasis - noccb
+        nvirb = system.nbasis - noccb   
 #         
         nova = nocca*nvira
         novb = noccb*nvirb
 #         
         if (self.variational):
             offset = nbsf
-            x = numpy.zeros(system.nbasis + nova+novb + 1)
+            x = numpy.zeros(system.nbasis + nova + novb + 1)
         else:
             offset = 0
             x = numpy.zeros(nova+novb)
+
+
+        if (x.shape[0] == 0):
+            gup = numpy.zeros((nbsf, nbsf))
+            for i in range(nocca):
+                gup[i,i] = 1.0
+            gdown = numpy.zeros((nbsf, nbsf))
+            for i in range(noccb):
+                gdown[i,i] = 1.0
+            self.G = numpy.array([gup, gdown])
+            self.shift = numpy.zeros(nbsf)
+            self.calculate_energy(system)
+            return
+
+            # self.psi[:,:nocca] = 
+
         Ca = numpy.zeros((nbsf,nbsf))
         Ca[:,:nocca] = self.psi[:,:nocca]
         Ca[:,nocca:] = self.virt[:,:nvira]
@@ -315,14 +331,17 @@ class LangFirsov(object):
         Cb[:,:noccb] = self.psi[:,nocca:]
         Cb[:,noccb:] = self.virt[:,nvira:]
 #         
-        c0 = numpy.zeros(nbsf*nbsf*2)
-        c0[:nbsf*nbsf] = Ca.ravel()
-        c0[nbsf*nbsf:] = Cb.ravel()
+        if (system.ndown > 0):
+            c0 = numpy.zeros(nbsf*nbsf*2)
+            c0[:nbsf*nbsf] = Ca.ravel()
+            c0[nbsf*nbsf:] = Cb.ravel()
+        else:
+            c0 = numpy.zeros(nbsf*nbsf)
+            c0[:nbsf*nbsf] = Ca.ravel()
 #       
         self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
-
-
+        
         for i in range (10): # Try 10 times
             if (self.variational):
                 res = minimize(objective_function_rotation, x, args=(system, self, c0), method='L-BFGS-B', options={'disp':False})
@@ -357,14 +376,15 @@ class LangFirsov(object):
         Ub[noccb:nbsf,:noccb] = daib.copy()
         Ub[:noccb, noccb:nbsf] = -daib.T.copy()
 
-        C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
-        C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+        if (nocca > 0):
+            C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+            Ua = expm(Ua)
+            Ca = C0a.dot(Ua)
 
-        Ua = expm(Ua)
-        Ub = expm(Ub)
-
-        Ca = C0a.dot(Ua)
-        Cb = C0b.dot(Ub)
+        if (noccb > 0):
+            C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+            Ub = expm(Ub)
+            Cb = C0b.dot(Ub)
 
         self.psi[:,:nocca] = Ca[:,:nocca]
         self.psi[:,nocca:] = Cb[:,:noccb]
@@ -614,13 +634,13 @@ def unit_test():
     options = {
     "name": "HubbardHolstein",
     "nup": 1,
-    "ndown": 1,
-    "nx": 4,
+    "ndown": 0,
+    "nx": 1,
     "ny": 1,
     "t": 1.0,
     "U": 4.0,
     "w0": 0.1,
-    "lambda": 10.0,
+    "lambda": 0.5,
     "lang_firsov":True,
     "variational":True
     }

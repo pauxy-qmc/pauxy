@@ -153,14 +153,18 @@ class HirschSpinDMC(object):
         nup : int
             Number of up electrons.
         """
+
+        ndown = walker.phi.shape[1] - nup
+
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
         q = numpy.dot(walker.inv_ovlp[0], vup)
         walker.G[0][i,i] = numpy.dot(uup, q)
         vdown = trial.psi.conj()[i,nup:]
         udown = walker.phi[i,nup:]
-        q = numpy.dot(walker.inv_ovlp[1], vdown)
-        walker.G[1][i,i] = numpy.dot(udown, q)
+        if (ndown > 0):
+            q = numpy.dot(walker.inv_ovlp[1], vdown)
+            walker.G[1][i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
