@@ -124,6 +124,7 @@ def simple_lang_firsov_unitary(system, nboson_max = 1, gen_dets=False, occs=None
     Htot = He + Hb + Heb
 
     U = scipy.sparse.csr_matrix((ndets*nperms, ndets*nperms))
+    pini = scipy.sparse.csr_matrix((ndets*nperms, ndets*nperms))
 
     for isite in range(system.nbasis):
         rhoi = scipy.sparse.csr_matrix((ndets, ndets))
@@ -148,34 +149,29 @@ def simple_lang_firsov_unitary(system, nboson_max = 1, gen_dets=False, occs=None
                     bi[i,j+offset_i] = 1.0 * factor
 
         Hb = scipy.sparse.kron(hb, Iel)
-        
         pi = bi.T - bi
+        pini += scipy.sparse.kron(pi, rhoi)
 
-        const = system.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
-        pi_tot = scipy.sparse.kron(pi, Iel)
-        ni_tot = scipy.sparse.kron(Ib, rhoi)
 
-        exp_nipi = scipy.sparse.linalg.expm(-const*pi_tot.multiply(ni_tot))
+    const = system.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
+    U = scipy.sparse.linalg.expm(-const*pini)
 
-        U += exp_nipi
-
-    U /= 2.0
-
-    identity = U.T.dot(U)
-    # print("identity = {}".format(identity))
-
-    # print("Htot before = {}".format(Htot.todense()))
     Htot = U.T.dot(Htot).dot(U)
-    # print("Htot after = {}".format(Htot.todense()))
+
+    # Htot = Htot[:ndets, :ndets]
+    # He = He[:ndets, :ndets]
+    # Hb = Hb[:ndets, :ndets]
+    # Heb = Heb[:ndets, :ndets]
 
     print("# finshed forming Htot")
-    print("# He nnz = {} out of total {}".format(He.nnz,ndets*nperms*ndets*nperms))
-    print("# Hb nnz = {} out of total {}".format(Hb.nnz,ndets*nperms*ndets*nperms))
-    print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
-    print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
+    # print("# He nnz = {} out of total {}".format(He.nnz,ndets*nperms*ndets*nperms))
+    # print("# Hb nnz = {} out of total {}".format(Hb.nnz,ndets*nperms*ndets*nperms))
+    # print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
+    # print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
 
-    # eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=5, which='SA')
     eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=1, which='SA')
+
+    eigvec = U.dot(eigvec)
 
     Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
     Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
@@ -216,6 +212,7 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
     else:
         oa, ob = occs
 
+
     # convert to spin orbitals
     dets = [[j for j in a] + [i+system.nbasis for i in c] for (a,c) in zip(oa,ob)]
     dets = [numpy.sort(d) for d in dets]
@@ -230,53 +227,10 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
     Iel = scipy.sparse.eye(ndets)
     Ib = scipy.sparse.eye(nperms)
 
-
-    h1el = scipy.sparse.csr_matrix((ndets,ndets))
-    for isite in range(system.nbasis):
-        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
-        for i, di in enumerate(dets):
-            for d in di:
-                ii, spin_ii = map_orb(d, system.nbasis)
-                if (ii == isite):
-                    rhoi[i,i] += 1.0
-        const = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-        h1el += const * scipy.sparse.csr_matrix(rhoi)
-
-
-    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-
-    h2el = scipy.sparse.csr_matrix((ndets,ndets))
-    for isite in range(system.nbasis):
-        rhoiup = scipy.sparse.csr_matrix((ndets, ndets))
-        rhoidown = scipy.sparse.csr_matrix((ndets, ndets))
-        
-        for i, di in enumerate(dets):
-            for d in di:
-                ii, spin_ii = map_orb(d, system.nbasis)
-                if (ii == isite and spin_ii ==0):
-                    rhoiup[i,i] += 1.0
-                if (ii == isite and spin_ii ==1):
-                    rhoidown[i,i] += 1.0
-
-        h2el += Ueff * scipy.sparse.csr_matrix(rhoiup) * scipy.sparse.csr_matrix(rhoidown)
-
-    H1e = scipy.sparse.kron(Ib, h1el)
-    H2e = scipy.sparse.kron(Ib, h2el)
-    He = H1e + H2e
+    # term1
+    # Kinetic energy coupled to boson
     
-    # print("# finshed forming he")
-
-    hb = scipy.sparse.csr_matrix((nperms, nperms))
-
-    for i in range(nperms):
-        p = numpy.asarray(perms[i])
-        nocc = numpy.sum(p)
-        hb[i,i] = system.w0 * nocc
-
-    # print("# finshed forming hb")
-
-
-    Heb = scipy.sparse.csr_matrix(Htot.shape)
+    Heb = scipy.sparse.csr_matrix(Htot.shape, dtype = numpy.complex128)
     for isite in range(system.nbasis):
         bi = scipy.sparse.csr_matrix((nperms, nperms))
         for i, iperm in enumerate(perms):
@@ -315,14 +269,10 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
                             factor = math.sqrt(numpy.array(iperm)[jsite]+1)
                             bj[i,j+offset_i] = 1.0 * factor
         
-                pi = bi.T - bi
-                pj = bj.T - bj
+                pi = (bi.T - bi) * 1.j
+                pj = (bj.T - bj) * 1.j
 
                 # print("pi = {}".format(pi.todense()))
-
-                const = system.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
-                expij = scipy.sparse.linalg.expm(scipy.sparse.csr_matrix(pi-pj) * const)
-
                 hel = scipy.sparse.csr_matrix((ndets,ndets))
                 for idet in range(ndets):
                     di = dets[idet]
@@ -346,42 +296,23 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
                             else:
                                 hel[idet,jdet] = system.T[si][i,a]
 
+                const = 1.j * system.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
+                pij = pi-pj
 
-                expij = scipy.sparse.linalg.expm(scipy.sparse.csr_matrix(pi-pj) * const)
-                # print("expij = {}".format(expij.todense()))
-                # print("hel = {}".format(hel.todense()))
-                # print("scipy.sparse.kron(expij, hel) = {}".format(scipy.sparse.kron(expij, hel)))
-                # print(identity)
+                expij = scipy.sparse.linalg.expm(pij * const)
 
                 Heb += scipy.sparse.kron(expij, hel)
     
-    Heb = Heb + Heb.T
-
-    # print("# finshed forming Heb")
-    # print("# Heb = {}".format(Heb.todense()))
-
-    
-    Hb = scipy.sparse.kron(hb, Iel)
-    Htot = He + Hb + Heb
-
-    # print("# finshed forming Htot")
-    # print("# He nnz = {} out of total {}".format(He.nnz,ndets*nperms*ndets*nperms))
-    # print("# Hb nnz = {} out of total {}".format(Hb.nnz,ndets*nperms*ndets*nperms))
-    # print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
-    # print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
-
-    eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=1, which='SA')
-
-    Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
-    E1el = eigvec[:,0].T.conj().dot(H1e.dot(eigvec[:,0]))
-    E2el = eigvec[:,0].T.conj().dot(H2e.dot(eigvec[:,0]))
-    Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
-    Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
-
-    print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eb, Eeb, Eel+Eb+Eeb))
-    print("# E1el, E2el = {}, {}".format(E1el, E2el))
+    Heb = Heb + Heb.T.conj()
 
     for isite in range(system.nbasis):
+        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+        for i, di in enumerate(dets):
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == isite):
+                    rhoi[i,i] += 1.0
+        
         bi = scipy.sparse.csr_matrix((nperms, nperms))
         for i, iperm in enumerate(perms):
             ni = numpy.sum(iperm)
@@ -396,15 +327,98 @@ def simple_lang_firsov(system, nboson_max = 1, gen_dets=False, occs=None, hamil=
                     factor = math.sqrt(numpy.array(iperm)[isite]+1)
                     bi[i,j+offset_i] = 1.0 * factor
 
-        nib = bi.T.dot(bi)
-        ni = scipy.sparse.kron(nib, Iel)
+        xi = bi + bi.T
 
-        nocc1 =  eigvec[:,0].T.conj().dot(ni.dot(eigvec[:,0]))
-        print("i, nocc1 = {}, {}".format(isite, nocc1))
+        srhoi = scipy.sparse.csr_matrix(rhoi)
+        sxi = scipy.sparse.csr_matrix(xi)
+        const = system.gamma * system.w0 - system.g * numpy.sqrt(2.0 * system.m * system.w0)
+        Heb += const * scipy.sparse.kron(sxi, srhoi)
+
+    # print("# finshed forming Heb")
+
+
+    h1el = scipy.sparse.csr_matrix((ndets,ndets))
+    for isite in range(system.nbasis):
+        rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+        for i, di in enumerate(dets):
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == isite):
+                    rhoi[i,i] += 1.0
+        const = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+        h1el += const * rhoi
+
+
+    Ueff = system.U + system.gamma**2 * system.w0 - 2.0 * system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+
+    h2el = scipy.sparse.csr_matrix((ndets,ndets))
+    for isite in range(system.nbasis):
+        rhoiup = scipy.sparse.csr_matrix((ndets, ndets))
+        rhoidown = scipy.sparse.csr_matrix((ndets, ndets))
+        
+        for i, di in enumerate(dets):
+            for d in di:
+                ii, spin_ii = map_orb(d, system.nbasis)
+                if (ii == isite and spin_ii ==0):
+                    rhoiup[i,i] += 1.0
+                if (ii == isite and spin_ii ==1):
+                    rhoidown[i,i] += 1.0
+
+        h2el += Ueff * rhoiup.dot(rhoidown)
+
+    H1e = scipy.sparse.kron(Ib, h1el)
+    H2e = scipy.sparse.kron(Ib, h2el)
+    He = H1e + H2e
+
+    hb = scipy.sparse.csr_matrix((nperms, nperms))
+
+    for i in range(nperms):
+        p = numpy.asarray(perms[i])
+        nocc = numpy.sum(p)
+        hb[i,i] = system.w0 * nocc
+
+    Hb = scipy.sparse.kron(hb, Iel)
+    
+    Htot = He + Hb + Heb
+
+    # print("# finshed forming Htot")
+    # print("# He nnz = {} out of total {}".format(He.nnz,ndets*nperms*ndets*nperms))
+    # print("# Hb nnz = {} out of total {}".format(Hb.nnz,ndets*nperms*ndets*nperms))
+    # print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
+    # print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
+    eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=1, which='SA')
+
+    Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
+    E1el = eigvec[:,0].T.conj().dot(H1e.dot(eigvec[:,0]))
+    E2el = eigvec[:,0].T.conj().dot(H2e.dot(eigvec[:,0]))
+    Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))
+    Eeb = eigvec[:,0].T.conj().dot(Heb.dot(eigvec[:,0]))
+
+    print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel.real, Eb.real, Eeb.real, Eel.real+Eb.real+Eeb.real))
+    # print("# E1el, E2el = {}, {}".format(E1el, E2el))
+
+    # for isite in range(system.nbasis):
+    #     bi = scipy.sparse.csr_matrix((nperms, nperms))
+    #     for i, iperm in enumerate(perms):
+    #         ni = numpy.sum(iperm)
+    #         offset_i = numpy.sum(blkboson[:ni+1]) # block size sum
+    #         if (ni == nboson_max):
+    #             continue
+
+    #         for j, jperm in enumerate(perms[offset_i:offset_i+blkboson[ni+1]]):
+    #             diff = numpy.array(iperm) - numpy.array(jperm)
+    #             ndiff = numpy.sum(numpy.abs(diff))
+    #             if (ndiff == 1 and diff[isite] == -1):
+    #                 factor = math.sqrt(numpy.array(iperm)[isite]+1)
+    #                 bi[i,j+offset_i] = 1.0 * factor
+
+    #     nib = bi.T.dot(bi)
+    #     ni = scipy.sparse.kron(nib, Iel)
+
+    #     nocc1 =  eigvec[:,0].T.conj().dot(ni.dot(eigvec[:,0]))
+    #     print("i, nocc1 = {}, {}".format(isite, nocc1))
         # nocc2 =  eigvec[:,1].T.conj().dot(ni.dot(eigvec[:,1]))
         # print("i, nocc1, nocc2 = {}, {}, {}".format(isite, nocc1, nocc2))
-
-
 
     if gen_dets:
         return (eigval, eigvec), (dets,numpy.array(oa),numpy.array(ob))
@@ -529,7 +543,9 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     print("# Heb nnz = {} out of total {}".format(Heb.nnz,ndets*nperms*ndets*nperms))
     print("# Htot nnz = {} out of total {}".format(Htot.nnz,ndets*nperms*ndets*nperms))
 
-    eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=5, which='SA')
+    # nroots = numpy.min([5, ndets*nperms])
+
+    eigval, eigvec = scipy.sparse.linalg.eigsh(Htot, k=1, which='SA')
 
     Eel = eigvec[:,0].T.conj().dot(He.dot(eigvec[:,0]))
     Eb = eigvec[:,0].T.conj().dot(Hb.dot(eigvec[:,0]))

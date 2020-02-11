@@ -327,10 +327,17 @@ class HirschSpinDMC(object):
         ot_new = walker.calc_otrial(trial)
         ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
+
         if abs(phase) < 0.5*math.pi:
-            walker.weight = walker.weight * ratio.real
+            (magn, phase) = cmath.polar(ratio)
+
+            cosine_fac = max(0, math.cos(dtheta))
+            walker.weight *= magn * cosine_fac            
+            # walker.weight = walker.weight * ratio.real
             walker.ot = ot_new
+            
         else:
+            walker.ot = ot_new
             walker.weight = 0.0
 
     def propagate_walker_constrained(self, walker, system, trial, eshift, rho=None, X=None):
@@ -484,6 +491,13 @@ class HirschSpinDMC(object):
             walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.P)
         else:
             walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
+
+        walker.greens_function(trial)
+        # Constant terms are included in the walker's weight.
+        # (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
+        # walker.weight *= magn
+        # walker.phase *= cmath.exp(1j*dtheta)
+
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
