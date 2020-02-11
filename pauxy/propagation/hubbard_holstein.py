@@ -333,11 +333,11 @@ class HirschSpinDMC(object):
         phase = cmath.phase(ratio)
 
         if abs(phase) < 0.5*math.pi:
-            (magn, phase) = cmath.polar(ratio)
+            # walker.weight = walker.weight * ratio.real
 
+            (magn, phase) = cmath.polar(ratio)
             cosine_fac = max(0, math.cos(phase))
             walker.weight *= magn * cosine_fac            
-            # walker.weight = walker.weight * ratio.real
             walker.ot = ot_new
             
         else:

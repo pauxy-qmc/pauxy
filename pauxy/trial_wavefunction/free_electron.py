@@ -70,9 +70,13 @@ class FreeElectron(object):
                 self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
                 self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
 
-        gup = gab(self.psi[:, :system.nup],
+        gup = gdown = None
+
+        if (system.nup>0):
+            gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
+        if (system.ndown>0):
+            gdown = gab(self.psi[:, system.nup:],
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
         # For interface compatability
