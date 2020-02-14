@@ -144,7 +144,7 @@ class HirschSpinDMC(object):
             self.boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)
         else:
             if (self.sorella):
-                w0 = system.w * numpy.sqrt(1.0 - system.g**2 / (system.U * system.w0))
+                w0 = system.w0 * numpy.sqrt(1.0 - system.g**2 / (system.U * system.w0))
             self.boson_trial = HarmonicOscillator(m = system.m, w = w0, order = 0, shift=shift)
 
         self.eshift_boson = self.boson_trial.local_energy(shift)
