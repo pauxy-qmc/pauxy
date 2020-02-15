@@ -1,0 +1,504 @@
+import itertools
+import cmath
+from pauxy.systems.hubbard import Hubbard
+from pauxy.trial_wavefunction.free_electron import FreeElectron
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
+from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+from pauxy.estimators.hubbard import local_energy_hubbard_holstein, local_energy_hubbard
+from pauxy.systems.hubbard_holstein import HubbardHolstein
+from pauxy.utils.linalg import reortho
+
+from pauxy.estimators.greens_function import gab_spin
+
+import time
+from pauxy.utils.io import read_fortran_complex_numbers
+from pauxy.utils.linalg import diagonalise_sorted
+from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.greens_function import gab
+
+
+from pauxy.estimators.greens_function import gab_spin
+
+import scipy
+from scipy.linalg import expm
+import numpy
+import scipy.sparse.linalg
+from scipy.optimize import minimize
+
+from jax.config import config
+config.update("jax_enable_x64", True)
+import jax
+import jax.numpy as np
+import jax.scipy.linalg as LA
+import math
+
+def gab(A, B):
+    r"""One-particle Green's function.
+
+    This actually returns 1-G since it's more useful, i.e.,
+
+    .. math::
+        \langle \phi_A|c_i^{\dagger}c_j|\phi_B\rangle =
+        [B(A^{\dagger}B)^{-1}A^{\dagger}]_{ji}
+
+    where :math:`A,B` are the matrices representing the Slater determinants
+    :math:`|\psi_{A,B}\rangle`.
+
+    For example, usually A would represent (an element of) the trial wavefunction.
+
+    .. warning::
+        Assumes A and B are not orthogonal.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        Matrix representation of the bra used to construct G.
+    B : :class:`numpy.ndarray`
+        Matrix representation of the ket used to construct G.
+
+    Returns
+    -------
+    GAB : :class:`numpy.ndarray`
+        (One minus) the green's function.
+    """
+    # Todo: check energy evaluation at later point, i.e., if this needs to be
+    # transposed. Shouldn't matter for Hubbard model.
+    inv_O = np.linalg.inv((A.conj().T).dot(B))
+    GAB = B.dot(inv_O.dot(A.conj().T))
+    return GAB
+
+def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
+    r"""Calculate local energy of walker for the Hubbard-Hostein model.
+
+    Parameters
+    ----------
+    system : :class:`HubbardHolstein`
+        System information for the HubbardHolstein model.
+    G : :class:`numpy.ndarray`
+        Walker's "Green's function"
+
+    Returns
+    -------
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
+    """
+    ke = np.sum(system.T[0] * G[0] + system.T[1] * G[1])
+
+    if system.symmetric:
+        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
+
+    pe = system.U * np.dot(G[0].diagonal(), G[1].diagonal())
+
+    
+    pe_ph = 0.5 * system.w0 ** 2 * system.m * np.sum(X * X)
+
+    ke_ph = -0.5 * np.sum(Lap) / system.m - 0.5 * system.w0 * system.nbasis
+    
+    rho = G[0].diagonal() + G[1].diagonal()
+    e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * np.dot(rho, X)
+
+    etot = ke + pe + pe_ph + ke_ph + e_eph
+
+    Eph = ke_ph + pe_ph
+    Eel = ke + pe
+    Eeb = e_eph
+
+    return (etot, ke+pe, ke_ph+pe_ph+e_eph)
+
+def gradient(x, system, c0, psi):
+    grad = numpy.array(jax.grad(objective_function)(x, system, c0, psi))
+    return grad
+
+def hessian(x, system, c0, psi):
+    H = numpy.array(jax.hessian(objective_function)(x, system, c0, psi))
+    return H
+
+def hessian_product(x, p, system, c0, psi):
+    h = 1e-5
+    xph = x + p * h
+    xmh = x - p * h
+    gph = gradient(xph, system, c0, psi)
+    gmh = gradient(xmh, system, c0, psi)
+
+    Hx = (gph - gmh) / (2.0 * h)
+    return Hx
+
+def objective_function (x, system, c0, psi, use_jax=True):
+    shift = x[0:system.nbasis]
+
+    nbsf = system.nbasis
+    nocca = system.nup
+    noccb = system.ndown
+    nvira = system.nbasis - nocca
+    nvirb = system.nbasis - noccb
+    
+    nova = nocca*nvira
+    novb = noccb*nvirb
+    
+    daia = np.array(x[nbsf:nbsf+nova] )
+    daib = np.array(x[nbsf+nova:nbsf+nova+novb])
+
+    daia = daia.reshape((nvira, nocca))
+    daib = daib.reshape((nvirb, noccb))
+
+    if (use_jax):
+        theta_a = np.zeros((nbsf, nbsf))
+        theta_b = np.zeros((nbsf, nbsf))
+
+        theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
+        theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
+
+        theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
+        theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
+    else:
+        theta_a = numpy.zeros((nbsf, nbsf))
+        theta_b = numpy.zeros((nbsf, nbsf))
+
+        theta_a[nocca:nbsf,:nocca] = daia
+        theta_a[:nocca, nocca:nbsf] = -daia.T
+
+        theta_b[noccb:nbsf,:noccb] = daib
+        theta_b[:noccb, noccb:nbsf] = -daib.T
+
+    Ua = np.eye(nbsf)
+    tmp = np.eye(nbsf)
+    for i in range(1,6):
+        tmp = np.einsum("ij,jk->ik", theta_a, tmp)
+        Ua += tmp / math.factorial(i)
+
+    C0a = np.array(c0[:nbsf*nbsf].reshape((nbsf,nbsf)))
+    Ca = C0a.dot(Ua)
+    Ga = gab(Ca[:,:nocca], Ca[:,:nocca])
+    
+    if (noccb > 0):
+        C0b = np.array(c0[nbsf*nbsf:].reshape((nbsf,nbsf)))
+        Ub = np.eye(nbsf)
+        tmp = np.eye(nbsf)
+        for i in range(1,6):
+            tmp = np.einsum("ij,jk->ik", theta_b, tmp)
+            Ub += tmp / math.factorial(i)
+        Cb = C0b.dot(Ub)
+        Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
+
+    G = np.array([Ga, Gb])
+    phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
+
+    Lap = phi.laplacian(shift)
+    etot, eel, eph = local_energy_hubbard_holstein_jax(system, G, shift, Lap)
+    # print("etot, eel, eph = {}, {}, {}".format(etot, eel, eph))
+
+
+    return etot.real
+
+
+
+class CoherentState(object):
+
+    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+        self.verbose = verbose
+        if verbose:
+            print ("# Parsing free electron input options.")
+        init_time = time.time()
+        self.name = "coherent_state"
+        self.type = "coherent_state"
+        self.initial_wavefunction = trial.get('initial_wavefunction',
+                                              'coherent_state')
+        if verbose:
+            print ("# Diagonalising one-body Hamiltonian.")
+
+        (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0])
+        (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
+
+        self.reference = trial.get('reference', None)
+        if cplx:
+            self.trial_type = complex
+        else:
+            self.trial_type = float
+        self.read_in = trial.get('read_in', None)
+        self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
+                               dtype=self.trial_type)
+
+        assert (system.name == "HubbardHolstein")
+
+        self.m = system.m
+        self.w0 = system.w0
+
+        self.nocca = system.nup
+        self.noccb = system.ndown
+
+        if self.read_in is not None:
+            if verbose:
+                print ("# Reading trial wavefunction from %s"%(self.read_in))
+            try:
+                self.psi = numpy.load(self.read_in)
+                self.psi = self.psi.astype(self.trial_type)
+            except OSError:
+                if verbose:
+                    print("# Trial wavefunction is not in native numpy form.")
+                    print("# Assuming Fortran GHF format.")
+                orbitals = read_fortran_complex_numbers(self.read_in)
+                tmp = orbitals.reshape((2*system.nbasis, system.ne),
+                                       order='F')
+                ups = []
+                downs = []
+                # deal with potential inconsistency in ghf format...
+                for (i, c) in enumerate(tmp.T):
+                    if all(abs(c[:system.nbasis]) > 1e-10):
+                        ups.append(i)
+                    else:
+                        downs.append(i)
+                self.psi[:, :system.nup] = tmp[:system.nbasis, ups]
+                self.psi[:, system.nup:] = tmp[system.nbasis:, downs]
+        else:
+            # I think this is slightly cleaner than using two separate
+            # matrices.
+            if self.reference is not None:
+                self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
+                self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
+            else:
+                self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
+                self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+                
+                nocca = system.nup
+                noccb = system.ndown
+                nvira = system.nbasis-system.nup
+                nvirb = system.nbasis-system.ndown
+                self.virt = numpy.zeros((system.nbasis, nvira+nvirb))
+
+                self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
+                self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+
+        gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+        if (system.ndown > 0):
+            gdown = gab(self.psi[:, system.nup:],
+                                               self.psi[:, system.nup:]).T
+        else:
+            gdown = numpy.zeros_like(gup)
+
+        self.G = numpy.array([gup, gdown])
+
+        self.variational = trial.get('variational',True)
+
+        # For interface compatability
+        self.coeffs = 1.0
+        self.ndets = 1
+        self.bp_wfn = trial.get('bp_wfn', None)
+        self.error = False
+        self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
+        self.eigs.sort()
+
+        rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
+        shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        nX = numpy.array([numpy.diag(shift), numpy.diag(shift)], dtype=numpy.float64)
+        V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
+        self.update_wfn(system, V)
+
+
+        self.run_variational(system)
+
+        print("# Variational Coherent State Energy = {}".format(self.energy))
+        
+        self.initialisation_time = time.time() - init_time
+        self.init = self.psi.copy()
+
+        self.calculate_energy(system)
+
+        print("# Coherent State shift = {}".format(self.shift))
+        print("# Coherent State energy = {}".format(self.energy))
+
+        if verbose:
+            print ("# Updated coherent.")
+
+        if verbose:
+            print ("# Finished initialising Coherent State trial wavefunction.")
+
+    def run_variational(self, system):
+        nbsf = system.nbasis
+        nocca = system.nup
+        noccb = system.ndown
+        nvira = system.nbasis - nocca
+        nvirb = system.nbasis - noccb   
+#         
+        nova = nocca*nvira
+        novb = noccb*nvirb
+#         
+        x = numpy.zeros(system.nbasis + nova + novb)
+
+
+        if (x.shape[0] == 0):
+            gup = numpy.zeros((nbsf, nbsf))
+            for i in range(nocca):
+                gup[i,i] = 1.0
+            gdown = numpy.zeros((nbsf, nbsf))
+            for i in range(noccb):
+                gdown[i,i] = 1.0
+            self.G = numpy.array([gup, gdown])
+            self.shift = numpy.zeros(nbsf)
+            self.calculate_energy(system)
+            return
+
+        Ca = numpy.zeros((nbsf,nbsf))
+        Ca[:,:nocca] = self.psi[:,:nocca]
+        Ca[:,nocca:] = self.virt[:,:nvira]
+        Cb = numpy.zeros((nbsf,nbsf))
+        Cb[:,:noccb] = self.psi[:,nocca:]
+        Cb[:,noccb:] = self.virt[:,nvira:]
+#         
+        if (system.ndown > 0):
+            c0 = numpy.zeros(nbsf*nbsf*2)
+            c0[:nbsf*nbsf] = Ca.ravel()
+            c0[nbsf*nbsf:] = Cb.ravel()
+        else:
+            c0 = numpy.zeros(nbsf*nbsf)
+            c0[:nbsf*nbsf] = Ca.ravel()
+#       
+        self.shift = numpy.zeros(nbsf)
+        self.energy = 1e6
+
+        xconv = numpy.zeros_like(x)
+        for i in range (10): # Try 10 times
+            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':True})
+            e = res.fun
+            if (e < self.energy):
+                self.energy = res.fun
+                self.shift = self.shift
+                xconv = res.x.copy()
+            else:
+                break
+            x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
+            x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
+        
+        H = hessian(xconv, system, c0, self)
+        e, v = numpy.linalg.eigh(H)
+        print("stability eigvals = {}".format(e))
+
+        self.shift = res.x[:nbsf]
+
+        daia = res.x[nbsf:nbsf+nova] 
+        daib = res.x[nbsf+nova:nbsf+nova+novb]
+
+        daia = daia.reshape((nvira, nocca))
+        daib = daib.reshape((nvirb, noccb))
+
+        theta_a = numpy.zeros((nbsf, nbsf))
+        theta_a[nocca:nbsf,:nocca] = daia.copy()
+        theta_a[:nocca, nocca:nbsf] = -daia.T.copy()
+
+        theta_b = numpy.zeros((nbsf, nbsf))
+        theta_b[noccb:nbsf,:noccb] = daib.copy()
+        theta_b[:noccb, noccb:nbsf] = -daib.T.copy()
+        
+        Ua = numpy.eye(nbsf)
+        tmp = numpy.eye(nbsf)
+        for i in range(1,6):
+            tmp = numpy.einsum("ij,jk->ik", theta_a, tmp)
+            Ua += tmp / math.factorial(i)
+
+        C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+        Ca = C0a.dot(Ua)
+        # if (nocca > 0):
+        #     C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+        #     Ua = expm(Ua)
+        #     Ca = C0a.dot(Ua)
+
+        if (noccb > 0):
+            C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+            Ub = expm(theta_b)
+            Cb = C0b.dot(Ub)
+
+        self.psi[:,:nocca] = Ca[:,:nocca]
+        self.psi[:,nocca:] = Cb[:,:noccb]
+        # print("daia = {}".format(daia))
+        # print("Ca = {}".format(Ca))
+        self.update_electronic_greens_function(system)
+        
+    def update_electronic_greens_function(self, system, verbose=0):
+        gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+        if (system.ndown == 0):
+            gdown = numpy.zeros_like(gup)
+        else:
+            gdown = gab(self.psi[:, system.nup:],
+                                           self.psi[:, system.nup:]).T
+        self.G = numpy.array([gup, gdown])
+
+    def update_wfn(self, system, V, verbose=0):
+        (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0]+V[0])
+        (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1]+V[1])
+
+        # I think this is slightly cleaner than using two separate
+        # matrices.
+        if self.reference is not None:
+            self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
+            self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
+        else:
+            self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
+            self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
+            nocca = system.nup
+            noccb = system.ndown
+            nvira = system.nbasis-system.nup
+            nvirb = system.nbasis-system.ndown
+
+            self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
+            self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+        
+        gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+
+
+        h1 = system.T[0] + V[0]
+
+        if (system.ndown == 0):
+            gdown = numpy.zeros_like(gup)
+        else:
+            gdown = gab(self.psi[:, system.nup:],
+                                           self.psi[:, system.nup:]).T
+        self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
+        self.eigs.sort()
+        self.G = numpy.array([gup, gdown])
+
+    def calculate_energy(self, system):
+        if self.verbose:
+            print ("# Computing trial energy.")
+
+        phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
+        Lap = phi.laplacian(self.shift)
+        etot, eel, eph = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
+        print("etot, eel, eph = {}, {}, {}".format(etot, eel, eph))
+        self.energy = etot
+
+def unit_test():
+    import itertools
+    from pauxy.systems.hubbard import Hubbard
+    from pauxy.estimators.hubbard import local_energy_hubbard_holstein, local_energy_hubbard_holstein_momentum
+    from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
+    from pauxy.systems.hubbard_holstein import HubbardHolstein, kinetic_lang_firsov
+    from pauxy.walkers.single_det import SingleDetWalker
+    from pauxy.trial_wavefunction.free_electron import FreeElectron
+    from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
+    import scipy
+    import numpy
+    import scipy.sparse.linalg
+    
+    options = {
+    "name": "HubbardHolstein",
+    "nup": 4,
+    "ndown": 4,
+    "nx": 10,
+    "ny": 1,
+    "t": 1.0,
+    "U": 4.0,
+    "w0": 0.1,
+    "lambda": 1.0,
+    "lang_firsov":False,
+    "variational":True
+    }
+
+    system = HubbardHolstein (options, verbose=True)
+        
+    driver = CoherentState(system, False, options, parallel=False, verbose=1)
+
+
+if __name__=="__main__":
+    unit_test()

@@ -78,16 +78,14 @@ def objective_function_rotation (x, system, psi, c0):
     Ub[:noccb, noccb:nbsf] = -daib.T.copy()
 
     C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
-    C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
-
     Ua = expm(Ua)
-    Ub = expm(Ub)
-
     Ca = C0a.dot(Ua)
-    Cb = C0b.dot(Ub)
-
     psi.psi[:,:nocca] = Ca[:,:nocca].copy()
-    psi.psi[:,nocca:] = Cb[:,:noccb].copy()
+    if (noccb > 0):
+        C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
+        Ub = expm(Ub)
+        Cb = C0b.dot(Ub)
+        psi.psi[:,nocca:] = Cb[:,:noccb].copy()
 
     psi.update_electronic_greens_function(system)
 
@@ -108,6 +106,10 @@ def objective_function_rotation (x, system, psi, c0):
     Eeph += (gamma**2 * system.w0 / 2.0 - system.g * gamma * sqrttwomw) * numpy.sum(ni)
 
     Eee = (system.U + gamma**2 * system.w0 - 2.0 * system.g * gamma * sqrttwomw) * numpy.sum(nia * nib)
+
+    T = system.T.copy()
+
+    Di = numpy.exp(-0.5*(phi + alpha)**2)
 
     Ekin = numpy.exp (-alpha * alpha) * numpy.sum(system.T[0] * psi.G[0] + system.T[1] * psi.G[1])
     etot = Eph + Eeph + Eee + Ekin
@@ -274,11 +276,11 @@ class LangFirsov(object):
 
         print("# Variational Lang-Firsov Energy = {}".format(self.energy))
 
-        self.shift = numpy.zeros(system.nbasis)
         
         self.initialisation_time = time.time() - init_time
         self.init = self.psi.copy()
 
+        self.shift = numpy.zeros(system.nbasis)
         self.gamma = system.g * numpy.sqrt(2.0 * system.m / system.w0)
         self.calculate_energy(system)
 
@@ -635,12 +637,12 @@ def unit_test():
     "name": "HubbardHolstein",
     "nup": 1,
     "ndown": 0,
-    "nx": 1,
+    "nx": 2,
     "ny": 1,
     "t": 1.0,
     "U": 4.0,
-    "w0": 0.1,
-    "lambda": 0.5,
+    "w0": 1.0,
+    "lambda": 10.0,
     "lang_firsov":True,
     "variational":True
     }

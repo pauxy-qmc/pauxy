@@ -64,17 +64,18 @@ class HirschSpinDMC(object):
         self.gamma_lf = system.gamma
         
         if (self.lang_firsov):
+        
             self.onebody_lf = system.gamma**2 * system.m * system.w0**2 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-
-        Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
-
+            Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
+        
+        else:
+            Ueff = system.U
 
         if verbose:
             print("# Ueff = {}".format(Ueff))
 
         self.sorella = options.get('sorella', False)
         self.charge = options.get('charge', False)
-
 
         if (self.sorella == True):
             self.charge = True
@@ -136,12 +137,15 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
-        if (self.lang_firsov):
-            shift = numpy.real(numpy.zeros_like(rho[0]))
-        else:
-            shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-            shift = numpy.real(shift)
+        # rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
+        # if (self.lang_firsov):
+        #     shift = numpy.real(numpy.zeros_like(rho[0]))
+        # else:
+        #     shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        #     shift = numpy.real(shift)
+        
+        shift = trial.shift.copy()
+
         if verbose:
             print("# Shift = {}".format(shift))
 
@@ -289,7 +293,6 @@ class HirschSpinDMC(object):
             eloc = numpy.real(eloc)
             walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
         else:
-            
             #Drift+diffusion
             driftold = (self.dt / system.m) * trial.gradient(walker.X)
 
@@ -304,8 +307,6 @@ class HirschSpinDMC(object):
             
             elocold = numpy.real(elocold)
 
-            psiold = trial.value(walker.X)
-
             Xprev = walker.X.copy()
 
             dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
@@ -315,8 +316,6 @@ class HirschSpinDMC(object):
 
             lap = trial.laplacian(walker.X)
             walker.Lap = lap
-            
-            psinew = trial.value(walker.X)
             
             #Change weight
             if (self.sorella):

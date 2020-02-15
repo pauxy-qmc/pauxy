@@ -570,7 +570,7 @@ def unit_test():
             "ndown": 0,
             "nx": 2,
             "ny": 1,
-            "U": 4.0,
+            "U": 0.0,
             "t": 1.0,
             "w0": w0,
             "lambda": lmbda,
@@ -593,7 +593,7 @@ def unit_test():
             # print("eig = {}".format(eig[0]))
             # exit()
             # print("H w/o boson = {}".format(H))
-            nbosons = [5,10,20,30,35, 40,80]
+            nbosons = [5,10,20,30,35, 40,80,100]
             # nbosons = [20]
             eigs = []
             eigs += [eig[0]]
