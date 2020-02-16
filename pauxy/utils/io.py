@@ -78,15 +78,19 @@ def to_sparse(vals, offset=0, cutoff=1e-8):
     vals = numpy.array(vals[nz], dtype=numpy.complex128)
     return ix, vals
 
-def dump_qmcpack_cholesky(h1, h2, nelec, nmo, e0=0.0,
-                          filename='hamil.h5', mode='w'):
-    with h5py.File(filename, mode) as fh5:
-        fh5['Hamiltonian/Energies'] = numpy.array([e0.real, e0.imag])
-        hcore = h1[0].astype(numpy.complex128).view(numpy.float64)
-        hcore = hcore.reshape(h1[0].shape+(2,))
-        fh5['Hamiltonian/hcore'] = hcore
-        # fh5['Hamiltonian/hcore'].dims = numpy.array([h1[0].shape[0], h1[0].shape[1]])
-        # Number of non zero elements for two-body
+def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonian.h5',
+                         real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
+    with h5py.File(filename, 'w') as fh5:
+        fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
+        if real_chol:
+            fh5['Hamiltonian/hcore'] = hcore
+        else:
+            shape = hcore.shape
+            hcore = hcore.astype(numpy.complex128).view(numpy.float64)
+            hcore = hcore.reshape(shape+(2,))
+            fh5['Hamiltonian/hcore'] = hcore
+        if ortho is not None:
+            fh5['Hamiltonian/X'] = ortho
         # number of cholesky vectors
         if isinstance(h2, numpy.ndarray):
             h2 = scipy.sparse.csr_matrix(h2.transpose((1,2,0)).reshape((nmo*nmo,-1)))
