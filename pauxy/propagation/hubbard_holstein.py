@@ -146,8 +146,8 @@ class HirschSpinDMC(object):
         
         shift = trial.shift.copy()
 
-        if verbose:
-            print("# Shift = {}".format(shift))
+        # if verbose:
+        #     print("# Shift = {}".format(shift))
 
         if (self.lang_firsov):
             self.boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)

@@ -85,7 +85,7 @@ def set_info(frame, md):
         frame['mu_T'] = trial.get('mu')
         frame['Nav_T'] = trial.get('nav')
     else:
-        frame['E_T'] = trial.get('energy')
+        frame['E_T'] = trial.get('energy',0.0)
     if system['name'] == "UEG":
         frame['rs'] = system.get('rs')
         frame['ecut'] = system.get('ecut')
