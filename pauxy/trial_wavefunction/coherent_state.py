@@ -21,15 +21,17 @@ from pauxy.estimators.greens_function import gab_spin
 
 import scipy
 from scipy.linalg import expm
-import numpy
 import scipy.sparse.linalg
 from scipy.optimize import minimize
-
-from jax.config import config
-config.update("jax_enable_x64", True)
-import jax
-import jax.numpy as np
-import jax.scipy.linalg as LA
+try:
+    from jax.config import config
+    config.update("jax_enable_x64", True)
+    import jax
+    import jax.numpy as np
+    import jax.scipy.linalg as LA
+    import numpy
+except ModuleNotFoundError:
+    import numpy as np
 import math
 
 def gab(A, B):
