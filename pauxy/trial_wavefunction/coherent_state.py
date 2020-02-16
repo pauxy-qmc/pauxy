@@ -483,9 +483,9 @@ def unit_test():
     
     options = {
     "name": "HubbardHolstein",
-    "nup": 4,
-    "ndown": 4,
-    "nx": 10,
+    "nup": 10,
+    "ndown": 10,
+    "nx": 20,
     "ny": 1,
     "t": 1.0,
     "U": 4.0,

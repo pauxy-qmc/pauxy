@@ -157,6 +157,7 @@ class HirschSpinDMC(object):
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
 
         self.eshift_boson = self.boson_trial.local_energy(shift)
+        self.eshift_boson = self.eshift_boson.real
 
         if verbose:
             print ("# Finished setting up propagator.")
