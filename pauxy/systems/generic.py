@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix
 from pauxy.utils.linalg import modified_cholesky
 from pauxy.utils.io import (
         from_qmcpack_cholesky,
-        dump_qmcpack_cholesky,
+        dump_qmcpack,
         from_qmcpack_dense
         )
 from pauxy.estimators.generic import (

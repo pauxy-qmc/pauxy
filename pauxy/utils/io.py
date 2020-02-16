@@ -92,8 +92,8 @@ def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonia
         if ortho is not None:
             fh5['Hamiltonian/X'] = ortho
         # number of cholesky vectors
-        if isinstance(h2, numpy.ndarray):
-            h2 = scipy.sparse.csr_matrix(h2.transpose((1,2,0)).reshape((nmo*nmo,-1)))
+        if isinstance(chol, numpy.ndarray):
+            h2 = scipy.sparse.csr_matrix(chol)
         nchol_vecs = h2.shape[-1]
         ix, vals = to_sparse(h2.toarray())
         fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([len(vals)])

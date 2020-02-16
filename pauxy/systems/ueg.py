@@ -5,7 +5,7 @@ import scipy.sparse
 import pauxy.utils
 import math
 import time
-from pauxy.utils.io import dump_qmcpack_cholesky
+from pauxy.utils.io import dump_qmcpack
 
 
 class UEG(object):
