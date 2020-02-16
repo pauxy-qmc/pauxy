@@ -64,15 +64,21 @@ class HirschSpinDMC(object):
         self.gamma_lf = system.gamma
         
         if (self.lang_firsov):
-            self.onebody_lf = system.gamma**2 * system.w0 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
-
-        Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
-
+        
+            self.onebody_lf = system.gamma**2 * system.m * system.w0**2 / 2.0 - system.g * system.gamma * numpy.sqrt(2.0 * system.m * system.w0)
+            Ueff = system.U + self.gamma_lf**2 * system.w0 - 2.0 * system.g * self.gamma_lf * numpy.sqrt(2.0 * system.m * system.w0)
+        
+        else:
+            Ueff = system.U
 
         if verbose:
             print("# Ueff = {}".format(Ueff))
 
+        self.sorella = options.get('sorella', False)
         self.charge = options.get('charge', False)
+
+        if (self.sorella == True):
+            self.charge = True
 
         if (not self.charge):
             self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
@@ -84,16 +90,26 @@ class HirschSpinDMC(object):
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
         
         else:
-            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*Ueff))
-            self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
             if verbose:
                 print("# Charge decomposition is used")
+            
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*Ueff))
+
+            if (self.sorella):
+                if verbose:
+                    print("# Sorella decomposition is used")
+                self.charge_factor = numpy.array([numpy.exp(-0.5*self.gamma), numpy.exp(0.5*self.gamma)])
+            else:
+                self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
+
+            if verbose:
                 print("# charge_factor = {}".format(self.charge_factor))
 
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+            if (not self.sorella):
+                self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
 
 
         self.dt = qmc.dt
@@ -121,20 +137,27 @@ class HirschSpinDMC(object):
             else:
                 self.kinetic = kinetic_real
 
-        rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
-        if (self.lang_firsov):
-            shift = numpy.real(numpy.zeros_like(rho[0]))
-        else:
-            shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-            shift = numpy.real(shift)
-        if verbose:
-            print("# Shift = {}".format(shift))
+        # rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
+        # if (self.lang_firsov):
+        #     shift = numpy.real(numpy.zeros_like(rho[0]))
+        # else:
+        #     shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        #     shift = numpy.real(shift)
+        
+        shift = trial.shift.copy()
+
+        # if verbose:
+        #     print("# Shift = {}".format(shift))
 
         if (self.lang_firsov):
             self.boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)
         else:
+            # if (self.sorella):
+            #     w0 = system.w0 * numpy.sqrt(1.0 - 2.0 * system.g**2 / (system.U * system.w0))
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+
         self.eshift_boson = self.boson_trial.local_energy(shift)
+        self.eshift_boson = self.eshift_boson.real
 
         if verbose:
             print ("# Finished setting up propagator.")
@@ -153,14 +176,18 @@ class HirschSpinDMC(object):
         nup : int
             Number of up electrons.
         """
+
+        ndown = walker.phi.shape[1] - nup
+
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
         q = numpy.dot(walker.inv_ovlp[0], vup)
         walker.G[0][i,i] = numpy.dot(uup, q)
         vdown = trial.psi.conj()[i,nup:]
         udown = walker.phi[i,nup:]
-        q = numpy.dot(walker.inv_ovlp[1], vdown)
-        walker.G[1][i,i] = numpy.dot(udown, q)
+        if (ndown > 0):
+            q = numpy.dot(walker.inv_ovlp[1], vdown)
+            walker.G[1][i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -201,6 +228,11 @@ class HirschSpinDMC(object):
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
             if (self.charge):
                 probs *= self.charge_factor
+
+            if (self.sorella):
+                const = -self.gamma * system.g * math.sqrt(2.0 * system.m * system.w0) / system. U * walker.X[i]
+                factor = numpy.array([numpy.exp(const), numpy.exp(-const)])
+                probs *= factor
 
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
@@ -265,10 +297,16 @@ class HirschSpinDMC(object):
             #Drift+diffusion
             driftold = (self.dt / system.m) * trial.gradient(walker.X)
 
-            elocold = trial.local_energy(walker.X)
+            if (self.sorella):
+                Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
+                Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
+                lap = trial.laplacian(walker.X)
+                Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
+                elocold = Ev + Ev2 + Ek
+            else:
+                elocold = trial.local_energy(walker.X)
+            
             elocold = numpy.real(elocold)
-
-            psiold = trial.value(walker.X)
 
             Xprev = walker.X.copy()
 
@@ -280,10 +318,16 @@ class HirschSpinDMC(object):
             lap = trial.laplacian(walker.X)
             walker.Lap = lap
             
-            psinew = trial.value(walker.X)
-            
             #Change weight
-            eloc = trial.local_energy(walker.X)
+            if (self.sorella):
+                Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
+                Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
+                lap = trial.laplacian(walker.X)
+                Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
+                eloc = Ev + Ev2 + Ek
+            else:
+                eloc = trial.local_energy(walker.X)
+            
             eloc = numpy.real(eloc)
             walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
@@ -306,7 +350,7 @@ class HirschSpinDMC(object):
             T = numpy.zeros_like(system.T, dtype=numpy.complex128)
             T[0] = numpy.diag(Dp).dot(system.T[0]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
             T[1] = numpy.diag(Dp).dot(system.T[1]).dot(numpy.diag(Dp.T.conj())) + numpy.eye(system.nbasis) * self.onebody_lf
-            
+
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*self.dt*T[0]),
                                     scipy.linalg.expm(-0.5*self.dt*T[1])])
             
@@ -315,11 +359,11 @@ class HirschSpinDMC(object):
         else:
             self.kinetic(walker.phi, system, self.bt2)
 
-            const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
-            nX = [walker.X, walker.X]
-            Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
-
-            kinetic_real(walker.phi, system, Veph, H1diag=True)
+            if (not self.sorella):
+                const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
+                nX = [walker.X, walker.X]
+                Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+                kinetic_real(walker.phi, system, Veph, H1diag=True)
 
         # Update inverse overlap
         walker.inverse_overlap(trial)
@@ -330,12 +374,9 @@ class HirschSpinDMC(object):
 
         if abs(phase) < 0.5*math.pi:
             (magn, phase) = cmath.polar(ratio)
-
             cosine_fac = max(0, math.cos(phase))
             walker.weight *= magn * cosine_fac            
-            # walker.weight = walker.weight * ratio.real
             walker.ot = ot_new
-            
         else:
             walker.ot = ot_new
             walker.weight = 0.0
@@ -467,7 +508,6 @@ class HirschSpinDMC(object):
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
                 if (self.charge):
                     walker.weight *= self.charge_factor[xi]
-
         
         if (self.lang_firsov):
             Dp = numpy.array([numpy.exp(1j*system.gamma*walker.P[i]) for i in range(system.nbasis)])

@@ -70,9 +70,13 @@ class FreeElectron(object):
                 self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
                 self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
 
-        gup = gab(self.psi[:, :system.nup],
+        gup = gdown = numpy.zeros((system.nbasis, system.nbasis))
+
+        if (system.nup>0):
+            gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
+        if (system.ndown>0):
+            gdown = gab(self.psi[:, system.nup:],
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
         # For interface compatability
@@ -86,8 +90,9 @@ class FreeElectron(object):
         self.init = self.psi
 
         if (system.name == "HubbardHolstein"):
-            shift = numpy.ones(system.nbasis) * numpy.sqrt(system.w0*2.0) * system.g
-            nX = numpy.array([numpy.diag(shift), numpy.diag(shift)])
+            rho = [self.G[0].diagonal(), self.G[1].diagonal()]
+            self.shift = numpy.sqrt(system.m*system.w0*2.0) * system.g *(rho[0] + rho[1])
+            nX = numpy.array([numpy.diag(self.shift), numpy.diag(self.shift)])
             V = - system.g * numpy.sqrt(system.w0 * 2.0) * nX
             self.update_wfn(system, V, verbose=0) # trial update
             if verbose:
@@ -120,15 +125,25 @@ class FreeElectron(object):
             nvira = system.nbasis-system.nup
             nvirb = system.nbasis-system.ndown
 
-            self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
-            self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+            self.virt[:, :nvira] = numpy.real(self.eigv_up[:,nocca:nocca+nvira])
+            self.virt[:, nvira:nvira+nvirb] = numpy.real(self.eigv_dn[:,noccb:noccb+nvirb])
         
-        gup = gab(self.psi[:, :system.nup],
-                                         self.psi[:, :system.nup]).T
-        gdown = gab(self.psi[:, system.nup:],
-                                           self.psi[:, system.nup:]).T
+        # gup = gab(self.psi[:, :system.nup],
+        #                                  self.psi[:, :system.nup]).T
+        # gdown = gab(self.psi[:, system.nup:],
+        #                                    self.psi[:, system.nup:]).T
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
+
+        gup = gdown = numpy.zeros((system.nbasis, system.nbasis))
+
+        if (system.nup>0):
+            gup = gab(self.psi[:, :system.nup],
+                                         self.psi[:, :system.nup]).T
+        if (system.ndown>0):
+            gdown = gab(self.psi[:, system.nup:],
+                                           self.psi[:, system.nup:]).T
+
         self.G = numpy.array([gup, gdown])
 
     def calculate_energy(self, system):

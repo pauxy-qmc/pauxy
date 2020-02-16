@@ -67,7 +67,7 @@ class SingleDetWalker(object):
                 # self.P = numpy.ones(system.nbasis) * system.g * numpy.sqrt(2.0 * system.m / system.w0)# we work in the momentum space for lang_firsov
                 self.P = numpy.zeros(system.nbasis)
                 
-                shift = numpy.zeros(system.nbasis)
+                shift = trial.shift.copy()
                 tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
                 
                 sqtau = numpy.sqrt(0.005)
@@ -88,9 +88,9 @@ class SingleDetWalker(object):
 
                 self.Lap = tmptrial.laplacian(self.P)
             else:
-                rho = [self.G[0].diagonal(), self.G[1].diagonal()]
-
-                shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+                shift = trial.shift.copy()
+                # rho = [self.G[0].diagonal(), self.G[1].diagonal()]
+                # shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
                 self.X = numpy.real(shift).copy()
 
                 tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
@@ -172,12 +172,14 @@ class SingleDetWalker(object):
         nup = self.nup
         ndown = self.ndown
 
-        self.inv_ovlp[0] = (
-            sherman_morrison(self.inv_ovlp[0], trial.psi[i,:nup].conj(), vtup)
-        )
-        self.inv_ovlp[1] = (
-            sherman_morrison(self.inv_ovlp[1], trial.psi[i,nup:].conj(), vtdown)
-        )
+        if (nup> 0):
+            self.inv_ovlp[0] = (
+                sherman_morrison(self.inv_ovlp[0], trial.psi[i,:nup].conj(), vtup)
+            )
+        if (ndown> 0):
+            self.inv_ovlp[1] = (
+                sherman_morrison(self.inv_ovlp[1], trial.psi[i,nup:].conj(), vtdown)
+            )
 
     def calc_otrial(self, trial):
         """Caculate overlap with trial wavefunction.

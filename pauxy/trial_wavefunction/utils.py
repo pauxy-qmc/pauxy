@@ -3,6 +3,7 @@ import sys
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.trial_wavefunction.uhf  import UHF
 from pauxy.trial_wavefunction.lang_firsov  import LangFirsov
+from pauxy.trial_wavefunction.coherent_state  import CoherentState
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.trial_wavefunction.multi_determinant import MultiDeterminant
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
@@ -64,6 +65,8 @@ def get_trial_wavefunction(system, options={}, mf=None,
         trial = FreeElectron(system, True, options, parallel, verbose)
     elif options['name'] == 'lang_firsov':
         trial = LangFirsov(system, True, options, parallel, verbose)
+    elif options['name'] == 'coherent_state':
+        trial = CoherentState(system, True, options, parallel, verbose)
     elif options['name'] == 'UHF':
         trial = UHF(system, True, options, parallel, verbose)
     else:
