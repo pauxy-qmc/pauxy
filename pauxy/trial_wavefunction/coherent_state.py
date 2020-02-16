@@ -279,6 +279,7 @@ class CoherentState(object):
         self.G = numpy.array([gup, gdown])
 
         self.variational = trial.get('variational',True)
+        self.spin_projection = trial.get('spin_projection',True)
 
         # For interface compatability
         self.coeffs = 1.0
@@ -299,13 +300,30 @@ class CoherentState(object):
 
         print("# Variational Coherent State Energy = {}".format(self.energy))
         
-        self.initialisation_time = time.time() - init_time
-        self.init = self.psi.copy()
-
         self.calculate_energy(system)
 
-        print("# Coherent State shift = {}".format(self.shift))
         print("# Coherent State energy = {}".format(self.energy))
+
+        self.initialisation_time = time.time() - init_time
+
+        if (self.spin_projection): # natural orbital
+            print("# Spin projection is used")
+            Pcharge = self.G[0] + self.G[1]
+            e, v = numpy.linalg.eigh(Pcharge)
+            self.init = numpy.zeros_like(self.psi)
+
+            idx = e.argsort()[::-1]
+            e = e[idx]
+            v = v[:,idx]
+
+            self.init[:, :system.nup] = v[:, :system.nup].copy()
+            self.init[:, system.nup:] = v[:, :system.ndown].copy()
+
+            # print(e)
+            # print(v)
+        else:
+            self.init = self.psi.copy()
+
 
         if verbose:
             print ("# Updated coherent.")
@@ -358,7 +376,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':True})
+            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
@@ -371,7 +389,7 @@ class CoherentState(object):
         
         H = hessian(xconv, system, c0, self)
         e, v = numpy.linalg.eigh(H)
-        print("stability eigvals = {}".format(e))
+        print("# stability eigvals = {}".format(e[0:2]))
 
         self.shift = res.x[:nbsf]
 
@@ -412,6 +430,15 @@ class CoherentState(object):
         # print("daia = {}".format(daia))
         # print("Ca = {}".format(Ca))
         self.update_electronic_greens_function(system)
+
+
+        MS = numpy.abs(nocca-noccb) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
+        S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij).ravel())
+        print("# <S^2> = {: 3f}".format(S2))
+
+
         
     def update_electronic_greens_function(self, system, verbose=0):
         gup = gab(self.psi[:, :system.nup],
@@ -467,6 +494,9 @@ class CoherentState(object):
         # (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
         # self.energy = etot
         (self.energy, self.e1b, self.e2b) = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
+        self.energy = complex(self.energy)
+        self.e1b = complex(self.e1b)
+        self.e2b = complex(self.e2b)
 
 def unit_test():
     import itertools
@@ -490,7 +520,7 @@ def unit_test():
     "t": 1.0,
     "U": 4.0,
     "w0": 0.1,
-    "lambda": 1.0,
+    "lambda": 0.1,
     "lang_firsov":False,
     "variational":True
     }
