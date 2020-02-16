@@ -464,9 +464,9 @@ class CoherentState(object):
 
         phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
         Lap = phi.laplacian(self.shift)
-        etot, eel, eph = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
-        print("etot, eel, eph = {}, {}, {}".format(etot, eel, eph))
-        self.energy = etot
+        # (self.energy, self.e1b, self.e2b) = local_energy(system, self.G)
+        # self.energy = etot
+        (self.energy, self.e1b, self.e2b) = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
 
 def unit_test():
     import itertools
