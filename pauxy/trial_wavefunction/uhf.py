@@ -221,7 +221,7 @@ class UHF(object):
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
       
         if (verbose > 0):
             print("# Minimum energy found: {: 8f}".format(min(minima)))
@@ -315,29 +315,27 @@ def unit_test():
     import scipy.sparse.linalg
     options1 = {
     "name": "Hubbard",
-    "nup": 1,
-    "ndown": 1,
-    "nx": 4,
-    "ny": 4,
-    "U": 4.0,
-    "w0": 0.5,
-    "lambda": 1.0
+    "nup": 10,
+    "ndown": 10,
+    "nx": 20,
+    "ny": 1,
+    "U": 4.0
     }
-    options2 = {
-    "name": "HubbardHolstein",
-    "nup": 1,
-    "ndown": 1,
-    "nx": 4,
-    "ny": 4,
-    "U": 4.0,
-    "w0": 0.5,
-    "lambda": 1.0
-    }
+    # options2 = {
+    # "name": "HubbardHolstein",
+    # "nup": 1,
+    # "ndown": 1,
+    # "nx": 4,
+    # "ny": 4,
+    # "U": 4.0,
+    # "w0": 0.5,
+    # "lambda": 1.0
+    # }
     system = Hubbard (options1, verbose=True)
-    system = HubbardHolstein (options2, verbose=True)
+    # system = HubbardHolstein (options2, verbose=True)
 
     uhf_driver = UHF(system, False, options1, parallel=False, verbose=1)
-    uhf_driver = UHF(system, False, options2, parallel=False, verbose=1)
+    # uhf_driver = UHF(system, False, options2, parallel=False, verbose=1)
     # print(uhf_driver.psi)
     tmp = numpy.array(uhf_driver.G)
     V = numpy.random.rand(*tmp.shape)
@@ -346,7 +344,7 @@ def unit_test():
     V[1] = V[0].copy()
 
     # def update_wfn(self, system, V, deps=1e-8, verbose=0):
-    uhf_driver.update_wfn(system, V, verbose=1)
+    # uhf_driver.update_wfn(system, V, verbose=1)
     # print(uhf_driver.psi)
 
 
