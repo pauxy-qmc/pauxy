@@ -101,8 +101,9 @@ class UHF(object):
             v = v[:,idx]
             Saa = self.psi[:,:system.nup].T.dot(v[:,:system.nup])
             Sbb = self.psi[:,system.nup:].T.dot(v[:,:system.ndown])
-            print("# Alpha overlap = {}".format(numpy.linalg.det(Saa)))
-            print("# Beta overlap = {}".format(numpy.linalg.det(Sbb)))
+            if(verbose >0):
+                print("# Alpha overlap = {}".format(numpy.linalg.det(Saa)))
+                print("# Beta overlap = {}".format(numpy.linalg.det(Sbb)))
 
             self.init[:, :system.nup] = v[:, :system.nup].copy()
             self.init[:, system.nup:] = v[:, :system.ndown].copy()
@@ -162,14 +163,14 @@ class UHF(object):
                       " energy found is: {: 8f}".format(attempt, it, eold))
                 MS = numpy.abs(system.nup - system.ndown) / 2.0
                 S2exact = MS * (MS+1.)
-                Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+                Sij = psi_accept[:,:nup].T.dot(psi_accept[:,nup:])
                 S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
                 print("# <S^2> = {: 2f}".format(S2))
 
         system.U = uold
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
-        Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
+        Sij = psi_accept[:,:nup].T.dot(psi_accept[:,nup:])
         S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
       
         if (verbose >= 0):
@@ -199,6 +200,9 @@ class UHF(object):
         Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
         Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
         eold = local_energy(system, numpy.array([Gup, Gdown]))[0].real
+
+
+        emin = 1e6
 
         for it in range(0, self.nconv):
             (niup, nidown, e_up, e_down) = (
