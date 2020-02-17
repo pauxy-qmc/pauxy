@@ -31,7 +31,8 @@ try:
     import jax.scipy.linalg as LA
     import numpy
 except ModuleNotFoundError:
-    import numpy as np
+    import numpy
+    np = numpy
 import math
 
 def gab(A, B):
@@ -378,7 +379,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
+            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':self.verbose})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
@@ -437,7 +438,7 @@ class CoherentState(object):
         MS = numpy.abs(nocca-noccb) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
-        S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij).ravel())
+        S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
         print("# <S^2> = {: 3f}".format(S2))
 
 
@@ -515,9 +516,9 @@ def unit_test():
     
     options = {
     "name": "HubbardHolstein",
-    "nup": 10,
-    "ndown": 10,
-    "nx": 20,
+    "nup": 5,
+    "ndown": 5,
+    "nx": 10,
     "ny": 1,
     "t": 1.0,
     "U": 4.0,

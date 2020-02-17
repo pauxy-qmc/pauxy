@@ -215,7 +215,7 @@ class UHF(object):
             MS = numpy.abs(system.nup - system.ndown) / 2.0
             S2exact = MS * (MS+1.)
             Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-            S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+            S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
             print("# <S^2> = {: 3f}".format(S2))
 
         MS = numpy.abs(system.nup - system.ndown) / 2.0
