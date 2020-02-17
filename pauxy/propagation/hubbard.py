@@ -13,7 +13,7 @@ def arccosh(y): # it works even when y is complex
     gamma = cmath.log(y - cmath.sqrt(y*y-1))
     return gamma
 
-class HirschSpin(object):
+class Hirsch(object):
     """Propagator for discrete HS transformation.
 
     Parameters
@@ -241,7 +241,6 @@ class HirschSpin(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-
         if abs(walker.weight) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
         if abs(walker.weight) > 0:

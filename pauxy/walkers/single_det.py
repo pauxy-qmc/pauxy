@@ -45,7 +45,7 @@ class SingleDetWalker(object):
 
         self.greens_function(trial)
         self.total_weight = 0.0
-        self.ot = 1.0
+        self.ot = self.calc_otrial(trial)
         # interface consistency
         self.ots = numpy.zeros(1, dtype=numpy.complex128)
         self.E_L = local_energy(system, self.G, self.Gmod)[0].real

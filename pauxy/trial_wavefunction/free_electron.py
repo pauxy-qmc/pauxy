@@ -128,10 +128,6 @@ class FreeElectron(object):
             self.virt[:, :nvira] = numpy.real(self.eigv_up[:,nocca:nocca+nvira])
             self.virt[:, nvira:nvira+nvirb] = numpy.real(self.eigv_dn[:,noccb:noccb+nvirb])
         
-        # gup = gab(self.psi[:, :system.nup],
-        #                                  self.psi[:, :system.nup]).T
-        # gdown = gab(self.psi[:, system.nup:],
-        #                                    self.psi[:, system.nup:]).T
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
 
