@@ -99,6 +99,10 @@ class UHF(object):
             idx = e.argsort()[::-1]
             e = e[idx]
             v = v[:,idx]
+            Saa = self.psi[:,:system.nup].T.dot(v[:,:system.nup])
+            Sbb = self.psi[:,system.nup:].T.dot(v[:,:system.ndown])
+            print("# Alpha overlap = {}".format(numpy.linalg.det(Saa)))
+            print("# Beta overlap = {}".format(numpy.linalg.det(Sbb)))
 
             self.init[:, :system.nup] = v[:, :system.nup].copy()
             self.init[:, system.nup:] = v[:, :system.ndown].copy()
@@ -160,7 +164,7 @@ class UHF(object):
                 S2exact = MS * (MS+1.)
                 Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
                 S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
-                print("# <S^2> = {: 3f}".format(S2))
+                print("# <S^2> = {: 2f}".format(S2))
 
         system.U = uold
         MS = numpy.abs(system.nup - system.ndown) / 2.0
@@ -170,7 +174,7 @@ class UHF(object):
       
         if (verbose >= 0):
             print("# Minimum energy found: {: 8f}".format(min(minima)))
-            print("# <S^2> = {: 3f}".format(S2))
+            print("# <S^2> = {: 2f}".format(S2))
 
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
@@ -230,7 +234,7 @@ class UHF(object):
             S2exact = MS * (MS+1.)
             Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
             S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij.ravel()*Sij.ravel()))
-            print("# <S^2> = {: 3f}".format(S2))
+            print("# <S^2> = {: 2f}".format(S2))
 
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
@@ -351,11 +355,11 @@ def unit_test():
     uhf_driver = UHF(system, False, options1, parallel=False, verbose=1)
     # uhf_driver = UHF(system, False, options2, parallel=False, verbose=1)
     # print(uhf_driver.psi)
-    tmp = numpy.array(uhf_driver.G)
-    V = numpy.random.rand(*tmp.shape)
+    # tmp = numpy.array(uhf_driver.G)
+    # V = numpy.random.rand(*tmp.shape)
     # print(V.shape)
-    V[0] = 0.5 * (V[0] + V[0].T)
-    V[1] = V[0].copy()
+    # V[0] = 0.5 * (V[0] + V[0].T)
+    # V[1] = V[0].copy()
 
     # def update_wfn(self, system, V, deps=1e-8, verbose=0):
     # uhf_driver.update_wfn(system, V, verbose=1)
