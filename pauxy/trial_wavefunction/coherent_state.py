@@ -321,9 +321,6 @@ class CoherentState(object):
 
             self.init[:, :system.nup] = v[:, :system.nup].copy()
             self.init[:, system.nup:] = v[:, :system.ndown].copy()
-
-            # print(e)
-            # print(v)
         else:
             self.init = self.psi.copy()
 

@@ -89,7 +89,21 @@ class UHF(object):
         self.etrial = local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
-        self.init = self.psi
+
+        self.spin_projection = trial.get('spin_projection',True)
+        if (self.spin_projection): # natural orbital
+            print("# Spin projection is used")
+            Pcharge = self.G[0] + self.G[1]
+            e, v = numpy.linalg.eigh(Pcharge)
+            self.init = numpy.zeros_like(self.psi)
+            idx = e.argsort()[::-1]
+            e = e[idx]
+            v = v[:,idx]
+
+            self.init[:, :system.nup] = v[:, :system.nup].copy()
+            self.init[:, system.nup:] = v[:, :system.ndown].copy()
+        else:
+            self.init = self.psi.copy()
 
     def find_uhf_wfn(self, system, cplx, ueff, ninit,
                      nit_max, alpha, deps=1e-8, verbose=0):
@@ -145,14 +159,14 @@ class UHF(object):
                 MS = numpy.abs(system.nup - system.ndown) / 2.0
                 S2exact = MS * (MS+1.)
                 Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-                S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+                S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
                 print("# <S^2> = {: 3f}".format(S2))
 
         system.U = uold
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij).ravel())
+        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
       
         if (verbose >= 0):
             print("# Minimum energy found: {: 8f}".format(min(minima)))
@@ -215,13 +229,13 @@ class UHF(object):
             MS = numpy.abs(system.nup - system.ndown) / 2.0
             S2exact = MS * (MS+1.)
             Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-            S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+            S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij.ravel()*Sij.ravel()))
             print("# <S^2> = {: 3f}".format(S2))
 
         MS = numpy.abs(system.nup - system.ndown) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.trial[:,:nup].T.dot(self.trial[:,nup:])
-        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+        S2 = S2exact + min(system.nup, system.ndown) - numpy.sum(numpy.abs(Sij.ravel()*Sij.ravel()))
       
         if (verbose > 0):
             print("# Minimum energy found: {: 8f}".format(min(minima)))
