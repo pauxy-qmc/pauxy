@@ -60,6 +60,10 @@ class HubbardHolstein(object):
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.symmetric = inputs.get('symmetric', False)
+
+        self.ypbc = inputs.get('ypbc', True)
+        self.xpbc = inputs.get('xpbc', True)
+
         if self.symmetric:
             # An unusual convention for the sign of the chemical potential is
             # used in Phys. Rev. B 99, 045108 (2018)
@@ -115,7 +119,7 @@ class HubbardHolstein(object):
             self.T = kinetic_pinning_alt(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
-                             self.ny, self.ktwist)
+                             self.ny, self.ktwist, xpbc=self.xpbc, ypbc=self.ypbc)
         self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
         self.P = transform_matrix(self.nbasis, self.kpoints,
@@ -201,7 +205,7 @@ def transform_matrix(nbasis, kpoints, kc, nx, ny):
     return U
 
 
-def kinetic(t, nbasis, nx, ny, ks):
+def kinetic(t, nbasis, nx, ny, ks, xpbc = True, ypbc = True):
     """Kinetic part of the Hamiltonian in our one-electron basis.
 
     Parameters
@@ -235,19 +239,19 @@ def kinetic(t, nbasis, nx, ny, ks):
                 T[i, j] = -t
             # Take care of periodic boundary conditions
             # there should be a less stupid way of doing this.
-            if ny == 1 and dij == [nx-1]:
+            if ny == 1 and dij == [nx-1] and xpbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
                 else:
                     phase = 1.0
                 T[i,j] += -t * phase
-            elif (dij==[nx-1, 0]).all():
+            elif (dij==[nx-1, 0]).all() and xpbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
                 else:
                     phase = 1.0
                 T[i, j] += -t * phase
-            elif (dij==[0, ny-1]).all():
+            elif (dij==[0, ny-1]).all() and ypbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
                 else:
@@ -554,10 +558,10 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [10.0]
+    lmbdas = [0.01]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # w0s = [100.0]
-    w0s = [1.0]
+    w0s = [0.1]
 
     df = pd.DataFrame()
 
@@ -566,15 +570,17 @@ def unit_test():
             print ("w0 = {}".format(w0))
             options = {
             "name": "HubbardHolstein",
-            "nup": 1,
-            "ndown": 0,
+            "nup": 3,
+            "ndown": 3,
             "nx": 2,
-            "ny": 1,
-            "U": 0.0,
+            "ny": 3,
+            "U": 4.0,
             "t": 1.0,
             "w0": w0,
             "lambda": lmbda,
-            "lang_firsov":True
+            "lang_firsov":False,
+            "xpbc" :False,
+            "ypbc" :True
             }
 
             system = HubbardHolstein (options, verbose=True)
@@ -593,7 +599,8 @@ def unit_test():
             # print("eig = {}".format(eig[0]))
             # exit()
             # print("H w/o boson = {}".format(H))
-            nbosons = [5,10,20,30,35, 40,80,100]
+            # nbosons = [5,7,10]
+            nbosons = [2,3]
             # nbosons = [20]
             eigs = []
             eigs += [eig[0]]

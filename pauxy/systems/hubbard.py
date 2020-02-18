@@ -53,6 +53,8 @@ class Hubbard(object):
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
         self.symmetric = inputs.get('symmetric', False)
+        self.ypbc = inputs.get('ypbc', True)
+        self.xpbc = inputs.get('xpbc', True)
         if self.symmetric:
             # An unusual convention for the sign of the chemical potential is
             # used in Phys. Rev. B 99, 045108 (2018)
@@ -82,7 +84,7 @@ class Hubbard(object):
             self.T = kinetic_pinning_alt(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
-                             self.ny, self.ktwist)
+                             self.ny, self.ktwist, xpbc = self.xpbc, ypbc = self.ypbc)
         self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
         self.P = transform_matrix(self.nbasis, self.kpoints,
@@ -183,7 +185,7 @@ def transform_matrix(nbasis, kpoints, kc, nx, ny):
     return U
 
 
-def kinetic(t, nbasis, nx, ny, ks):
+def kinetic(t, nbasis, nx, ny, ks, xpbc = True, ypbc = True):
     """Kinetic part of the Hamiltonian in our one-electron basis.
 
     Parameters
@@ -217,19 +219,19 @@ def kinetic(t, nbasis, nx, ny, ks):
                 T[i, j] = -t
             # Take care of periodic boundary conditions
             # there should be a less stupid way of doing this.
-            if ny == 1 and dij == [nx-1]:
+            if ny == 1 and dij == [nx-1] and xpbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
                 else:
                     phase = 1.0
                 T[i,j] += -t * phase
-            elif (dij==[nx-1, 0]).all():
+            elif (dij==[nx-1, 0]).all() and xpbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
                 else:
                     phase = 1.0
                 T[i, j] += -t * phase
-            elif (dij==[0, ny-1]).all():
+            elif (dij==[0, ny-1]).all() and ypbc:
                 if ks.all() is not None:
                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
                 else:
@@ -468,17 +470,20 @@ def unit_test():
     import itertools
     options = {
     "name": "Hubbard",
-    "nup": 1,
-    "ndown": 1,
+    "nup": 4,
+    "ndown": 4,
     "nx": 2,
-    "ny": 1,
-    "U": 1.0
+    "ny": 4,
+    "U": 4.0,
+    "xpbc":False,
+    "ypbc":True
     }
     from pauxy.estimators.ci import simple_fci
     system = Hubbard (options, verbose=True)
     (eig, evec), H = simple_fci(system, hamil=True)
+    print("eig = {}".format(eig))
     # dets, oa, ob = simple_fci(system, gen_dets=True)[1]
-    print(eig)
+    # print(eig)
     # print(system.T)
 
 if __name__=="__main__":
