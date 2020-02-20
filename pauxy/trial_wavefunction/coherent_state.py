@@ -280,8 +280,8 @@ class CoherentState(object):
             nvirb = system.nbasis-system.ndown
 
             self.virt = numpy.zeros((system.nbasis, nvira+nvirb))
-            self.virt[:,:nvira] = va[:,system.nup:]
-            self.virt[:,nvira:] = vb[:,system.ndown:]
+            self.virt[:,:nvira] = numpy.real(va[:,system.nup:])
+            self.virt[:,nvira:] = numpy.real(vb[:,system.ndown:])
 
             self.G = uhf.G.copy()
             #     noccb = system.ndown
@@ -363,8 +363,7 @@ class CoherentState(object):
         nova = nocca*nvira
         novb = noccb*nvirb
 #         
-        x = numpy.zeros(system.nbasis + nova + novb)
-
+        x = numpy.zeros(system.nbasis + nova + novb, dtype=numpy.float64)
 
         if (x.shape[0] == 0):
             gup = numpy.zeros((nbsf, nbsf))
@@ -379,11 +378,11 @@ class CoherentState(object):
             return
 
         Ca = numpy.zeros((nbsf,nbsf))
-        Ca[:,:nocca] = self.psi[:,:nocca]
-        Ca[:,nocca:] = self.virt[:,:nvira]
+        Ca[:,:nocca] = numpy.real(self.psi[:,:nocca])
+        Ca[:,nocca:] = numpy.real(self.virt[:,:nvira])
         Cb = numpy.zeros((nbsf,nbsf))
-        Cb[:,:noccb] = self.psi[:,nocca:]
-        Cb[:,noccb:] = self.virt[:,nvira:]
+        Cb[:,:noccb] = numpy.real(self.psi[:,nocca:])
+        Cb[:,noccb:] = numpy.real(self.virt[:,nvira:])
 #         
         if (system.ndown > 0):
             c0 = numpy.zeros(nbsf*nbsf*2)
@@ -398,7 +397,8 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
+            #res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
+            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
@@ -409,8 +409,8 @@ class CoherentState(object):
             x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
             x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
         
-        H = hessian(xconv, system, c0, self)
-        e, v = numpy.linalg.eigh(H)
+        #H = hessian(xconv, system, c0, self)
+        #e, v = numpy.linalg.eigh(H)
         #print("# stability eigvals = {}".format(e[0:2]))
 
         self.shift = res.x[:nbsf]
