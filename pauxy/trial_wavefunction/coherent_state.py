@@ -312,13 +312,15 @@ class CoherentState(object):
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
 
-        # rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
-        # shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
+        shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        print("# Initial shift = {}".format(shift[0:3]))
         # nX = numpy.array([numpy.diag(shift), numpy.diag(shift)], dtype=numpy.float64)
         # V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
         # self.update_wfn(system, V)
 
         self.run_variational(system)
+        print("# Optimized shift = {}".format(self.shift[0:3]))
 
         print("# Variational Coherent State Energy = {}".format(self.energy))
         
@@ -396,7 +398,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':self.verbose})
+            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
@@ -409,7 +411,7 @@ class CoherentState(object):
         
         H = hessian(xconv, system, c0, self)
         e, v = numpy.linalg.eigh(H)
-        print("# stability eigvals = {}".format(e[0:2]))
+        #print("# stability eigvals = {}".format(e[0:2]))
 
         self.shift = res.x[:nbsf]
 
