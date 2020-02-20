@@ -109,12 +109,12 @@ def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
-def gradient(x, system, c0, psi):
-    grad = numpy.array(jax.grad(objective_function)(x, system, c0, psi))
+def gradient(x, system, c0, psi,resctricted):
+    grad = numpy.array(jax.grad(objective_function)(x, system, c0, psi,resctricted))
     return grad
 
-def hessian(x, system, c0, psi):
-    H = numpy.array(jax.hessian(objective_function)(x, system, c0, psi))
+def hessian(x, system, c0, psi,resctricted):
+    H = numpy.array(jax.hessian(objective_function)(x, system, c0, psi,resctricted))
     return H
 
 def hessian_product(x, p, system, c0, psi):
@@ -127,7 +127,7 @@ def hessian_product(x, p, system, c0, psi):
     Hx = (gph - gmh) / (2.0 * h)
     return Hx
 
-def objective_function (x, system, c0, psi, use_jax=True):
+def objective_function (x, system, c0, psi, resctricted):
     shift = x[0:system.nbasis]
 
     nbsf = system.nbasis
@@ -145,24 +145,17 @@ def objective_function (x, system, c0, psi, use_jax=True):
     daia = daia.reshape((nvira, nocca))
     daib = daib.reshape((nvirb, noccb))
 
-    if (use_jax):
-        theta_a = np.zeros((nbsf, nbsf))
-        theta_b = np.zeros((nbsf, nbsf))
+    if (resctricted):
+        daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
 
-        theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
-        theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
+    theta_a = np.zeros((nbsf, nbsf))
+    theta_b = np.zeros((nbsf, nbsf))
 
-        theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
-        theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
-    else:
-        theta_a = numpy.zeros((nbsf, nbsf))
-        theta_b = numpy.zeros((nbsf, nbsf))
+    theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
+    theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
 
-        theta_a[nocca:nbsf,:nocca] = daia
-        theta_a[:nocca, nocca:nbsf] = -daia.T
-
-        theta_b[noccb:nbsf,:noccb] = daib
-        theta_b[:noccb, noccb:nbsf] = -daib.T
+    theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
+    theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
 
     Ua = np.eye(nbsf)
     tmp = np.eye(nbsf)
@@ -183,6 +176,8 @@ def objective_function (x, system, c0, psi, use_jax=True):
             Ub += tmp / math.factorial(i)
         Cb = C0b.dot(Ub)
         Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
+
+    # print("Ca, Cb = {}, {}".format(Ca[0], Cb[0]))
 
     G = np.array([Ga, Gb])
     phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
@@ -254,15 +249,8 @@ class CoherentState(object):
                 self.psi[:, :system.nup] = tmp[:system.nbasis, ups]
                 self.psi[:, system.nup:] = tmp[system.nbasis:, downs]
         else:
-            # I think this is slightly cleaner than using two separate
-            # matrices.
-            
             uhf = UHF(system, False, trial, parallel=False, verbose=0)
 
-            # if self.reference is not None:
-                # self.psi[:, :system.nup] = uhf.eigv_up[:, self.reference]
-                # self.psi[:, system.nup:] = uhf.eigv_dn[:, self.reference]
-            # else:
             self.psi[:, :system.nup] = uhf.psi[:, :system.nup]
             self.psi[:, system.nup:] = uhf.psi[:, system.nup:]
 
@@ -284,13 +272,6 @@ class CoherentState(object):
             self.virt[:,nvira:] = numpy.real(vb[:,system.ndown:])
 
             self.G = uhf.G.copy()
-            #     noccb = system.ndown
-            #     nvira = system.nbasis-system.nup
-            #     nvirb = system.nbasis-system.ndown
-            #     self.virt = numpy.zeros((system.nbasis, nvira+nvirb))
-
-            #     self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
-            #     self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
 
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
@@ -303,6 +284,8 @@ class CoherentState(object):
         self.G = numpy.array([gup, gdown])
 
         self.variational = trial.get('variational',True)
+        self.restricted = trial.get('restricted',False)
+        print("# restricted = {}".format(self.restricted))
 
         # For interface compatability
         self.coeffs = 1.0
@@ -315,11 +298,9 @@ class CoherentState(object):
         rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
         self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
         print("# Initial shift = {}".format(self.shift[0:3]))
-        # nX = numpy.array([numpy.diag(shift), numpy.diag(shift)], dtype=numpy.float64)
-        # V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
-        # self.update_wfn(system, V)
 
         self.run_variational(system)
+
         print("# Optimized shift = {}".format(self.shift[0:3]))
 
         print("# Variational Coherent State Energy = {}".format(self.energy))
@@ -382,7 +363,10 @@ class CoherentState(object):
         Cb = numpy.zeros((nbsf,nbsf))
         Cb[:,:noccb] = numpy.real(self.psi[:,nocca:])
         Cb[:,noccb:] = numpy.real(self.virt[:,nvira:])
-#         
+        
+        if (self.restricted):
+            Cb = Ca.copy()
+
         if (system.ndown > 0):
             c0 = numpy.zeros(nbsf*nbsf*2)
             c0[:nbsf*nbsf] = Ca.ravel()
@@ -397,8 +381,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            #res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, hessp=hessian_product, hess=hessian, method='L-BFGS-B', options={'disp':False})
-            res = minimize(objective_function, x, args=(system, c0, self), jac=gradient, method='L-BFGS-B', options={'disp':False})
+            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':True})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
@@ -421,6 +404,9 @@ class CoherentState(object):
         daia = daia.reshape((nvira, nocca))
         daib = daib.reshape((nvirb, noccb))
 
+        if (self.restricted):
+            daib = daia.copy()
+
         theta_a = numpy.zeros((nbsf, nbsf))
         theta_a[nocca:nbsf,:nocca] = daia.copy()
         theta_a[:nocca, nocca:nbsf] = -daia.T.copy()
@@ -429,14 +415,15 @@ class CoherentState(object):
         theta_b[noccb:nbsf,:noccb] = daib.copy()
         theta_b[:noccb, noccb:nbsf] = -daib.T.copy()
         
-        Ua = numpy.eye(nbsf)
-        tmp = numpy.eye(nbsf)
-        for i in range(1,6):
-            tmp = numpy.einsum("ij,jk->ik", theta_a, tmp)
-            Ua += tmp / math.factorial(i)
-
+        # Ua = numpy.eye(nbsf)
+        # tmp = numpy.eye(nbsf)
+        # for i in range(1,6):
+        #     tmp = numpy.einsum("ij,jk->ik", theta_a, tmp)
+        #     Ua += tmp / math.factorial(i)
+        Ua = expm(theta_a)
         C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
         Ca = C0a.dot(Ua)
+
         # if (nocca > 0):
         #     C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
         #     Ua = expm(Ua)
@@ -542,9 +529,10 @@ def unit_test():
     "t": 1.0,
     "U": 0.0,
     "w0": 0.1,
-    "lambda": 0.1,
+    "lambda": 1.0,
     "lang_firsov":False,
-    "variational":True
+    "variational":True,
+    "restricted":False
     }
 
     system = HubbardHolstein (options, verbose=True)
