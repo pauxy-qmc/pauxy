@@ -313,8 +313,8 @@ class CoherentState(object):
         self.eigs.sort()
 
         rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
-        shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        print("# Initial shift = {}".format(shift[0:3]))
+        self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+        print("# Initial shift = {}".format(self.shift[0:3]))
         # nX = numpy.array([numpy.diag(shift), numpy.diag(shift)], dtype=numpy.float64)
         # V = - numpy.real(system.g * cmath.sqrt(system.m * system.w0 * 2.0) * nX)
         # self.update_wfn(system, V)
@@ -364,7 +364,6 @@ class CoherentState(object):
         novb = noccb*nvirb
 #         
         x = numpy.zeros(system.nbasis + nova + novb, dtype=numpy.float64)
-
         if (x.shape[0] == 0):
             gup = numpy.zeros((nbsf, nbsf))
             for i in range(nocca):
@@ -392,7 +391,8 @@ class CoherentState(object):
             c0 = numpy.zeros(nbsf*nbsf)
             c0[:nbsf*nbsf] = Ca.ravel()
 #       
-        self.shift = numpy.zeros(nbsf)
+        x[:system.nbasis] = self.shift.copy() # initial guess
+        # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 
         xconv = numpy.zeros_like(x)
@@ -540,7 +540,7 @@ def unit_test():
     "nx": 20,
     "ny": 1,
     "t": 1.0,
-    "U": 4.0,
+    "U": 0.0,
     "w0": 0.1,
     "lambda": 0.1,
     "lang_firsov":False,
