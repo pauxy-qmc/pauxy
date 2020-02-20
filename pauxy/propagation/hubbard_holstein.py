@@ -145,6 +145,8 @@ class HirschSpinDMC(object):
         #     shift = numpy.real(shift)
         
         shift = trial.shift.copy()
+        if (verbose):
+            print("# Shift in propagation = {}".format(shift[:3]))
 
         # if verbose:
         #     print("# Shift = {}".format(shift))

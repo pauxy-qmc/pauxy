@@ -92,6 +92,7 @@ class FreeElectron(object):
         if (system.name == "HubbardHolstein"):
             rho = [self.G[0].diagonal(), self.G[1].diagonal()]
             self.shift = numpy.sqrt(system.m*system.w0*2.0) * system.g *(rho[0] + rho[1])
+            print("# Shift = {}".format(self.shift[:3]))
             nX = numpy.array([numpy.diag(self.shift), numpy.diag(self.shift)])
             V = - system.g * numpy.sqrt(system.w0 * 2.0) * nX
             self.update_wfn(system, V, verbose=0) # trial update
