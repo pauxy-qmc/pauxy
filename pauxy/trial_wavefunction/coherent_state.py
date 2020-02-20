@@ -381,7 +381,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':True})
+            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy):
                 self.energy = res.fun
