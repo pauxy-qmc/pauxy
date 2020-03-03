@@ -310,11 +310,11 @@ class CoherentState(object):
         print("# Symmetrize Coherent State = {}".format(self.symmetrize))
         if (self.symmetrize):
             self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
-            # Pick only one permanent
-            self.perms = numpy.array([self.perms[0].copy()])
+            # self.perms = numpy.array([self.perms[0].copy()]) # Pick only one permanent
             self.nperms = self.perms.shape[0]
             norm = 1.0 / numpy.sqrt(self.nperms)
             self.coeffs = norm * numpy.ones(self.nperms)
+            print("# Number of permutations = {}".format(self.nperms))
                    
         self.calculate_energy(system)
 
@@ -346,7 +346,7 @@ class CoherentState(object):
 
     def value(self, walker): # value
         if (self.symmetrize):
-            phi = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
+            phi = 0.0
             denom = numpy.sum(walker.weights)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
