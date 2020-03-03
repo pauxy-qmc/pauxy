@@ -354,8 +354,13 @@ class MultiCoherentWalker(object):
             else:
                 buff[s:s+1] = data
                 s += 1
-        stack_buff = self.stack.get_buffer()
-        return numpy.concatenate((buff,stack_buff))
+        if self.field_configs is not None:
+            stack_buff = self.field_configs.get_buffer()
+            return numpy.concatenate((buff,stack_buff))
+        else:
+            return buff
+        # stack_buff = self.stack.get_buffer()
+        # return numpy.concatenate((buff,stack_buff))
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication
@@ -365,7 +370,7 @@ class MultiCoherentWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        self.stack.set_buffer(buff[self.buff_size:])
+        # self.stack.set_buffer(buff[self.buff_size:])
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
@@ -376,3 +381,5 @@ class MultiCoherentWalker(object):
                 self.__dict__[d] = buff[s]
                 dsize = 1
             s += dsize
+        if self.field_configs is not None:
+            self.field_configs.set_buffer(buff[self.buff_size:])

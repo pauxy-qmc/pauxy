@@ -558,7 +558,7 @@ def unit_test():
     # lmbdas = [0.5, 0.3, 0.8, 1.0]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # lmbdas = [0.8,1.0]
-    lmbdas = [0.01]
+    lmbdas = [0.1]
     # w0s = [0.1, 0.2, 0.4, 0.8, 1.0, 1.2, 1.6, 2.0, 4.0]
     # w0s = [100.0]
     w0s = [0.1]
@@ -570,16 +570,16 @@ def unit_test():
             print ("w0 = {}".format(w0))
             options = {
             "name": "HubbardHolstein",
-            "nup": 3,
-            "ndown": 3,
+            "nup": 1,
+            "ndown": 1,
             "nx": 2,
-            "ny": 3,
-            "U": 4.0,
+            "ny": 1,
+            "U": 0.0,
             "t": 1.0,
             "w0": w0,
             "lambda": lmbda,
             "lang_firsov":False,
-            "xpbc" :False,
+            "xpbc" :True,
             "ypbc" :True
             }
 
@@ -600,7 +600,7 @@ def unit_test():
             # exit()
             # print("H w/o boson = {}".format(H))
             # nbosons = [5,7,10]
-            nbosons = [2,3]
+            nbosons = [2,3,10,20,30]
             # nbosons = [20]
             eigs = []
             eigs += [eig[0]]

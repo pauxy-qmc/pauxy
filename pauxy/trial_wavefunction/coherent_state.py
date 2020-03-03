@@ -428,7 +428,7 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':True})
+            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':False})
             e = res.fun
             if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
                 self.energy = res.fun
@@ -438,7 +438,7 @@ class CoherentState(object):
                 break
             x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
             x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
-        
+
         self.shift = res.x[:nbsf]
 
         daia = res.x[nbsf:nbsf+nova] 
