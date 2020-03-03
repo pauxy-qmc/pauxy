@@ -129,8 +129,6 @@ def hessian_product(x, p, system, c0, psi):
 
 def objective_function (x, system, c0, psi, resctricted):
     shift = x[0:system.nbasis]
-    # shift = np.zeros(system.nbasis)
-    # shift = jax.ops.index_update(shift, jax.ops.index[0:system.nbasis], x[0])
 
     nbsf = system.nbasis
     nocca = system.nup
@@ -179,19 +177,13 @@ def objective_function (x, system, c0, psi, resctricted):
         Cb = C0b.dot(Ub)
         Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
 
-    # print("Ca, Cb = {}, {}".format(Ca[0], Cb[0]))
-
     G = np.array([Ga, Gb])
     phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
 
     Lap = phi.laplacian(shift)
     etot, eel, eph = local_energy_hubbard_holstein_jax(system, G, shift, Lap)
-    # print("etot, eel, eph = {}, {}, {}".format(etot, eel, eph))
-
 
     return etot.real
-
-
 
 class CoherentState(object):
 
@@ -252,10 +244,14 @@ class CoherentState(object):
                 self.psi[:, :system.nup] = tmp[:system.nbasis, ups]
                 self.psi[:, system.nup:] = tmp[system.nbasis:, downs]
         else:
-            uhf = UHF(system, False, trial, parallel=False, verbose=0)
+            free_electron = trial.get('free_electron', False)
+            if (free_electron):
+                trial_elec = FreeElectron(system, False, trial, parallel=False, verbose=0)
+            else:
+                trial_elec = UHF(system, False, trial, parallel=False, verbose=0)
 
-            self.psi[:, :system.nup] = uhf.psi[:, :system.nup]
-            self.psi[:, system.nup:] = uhf.psi[:, system.nup:]
+            self.psi[:, :system.nup] = trial_elec.psi[:, :system.nup]
+            self.psi[:, system.nup:] = trial_elec.psi[:, system.nup:]
 
             Pa = self.psi[:, :system.nup].dot(self.psi[:, :system.nup].T)
             Va = (numpy.eye(system.nbasis) - Pa).dot(numpy.eye(system.nbasis))
@@ -274,7 +270,7 @@ class CoherentState(object):
             self.virt[:,:nvira] = numpy.real(va[:,system.nup:])
             self.virt[:,nvira:] = numpy.real(vb[:,system.ndown:])
 
-            self.G = uhf.G.copy()
+            self.G = trial_elec.G.copy()
 
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
@@ -302,13 +298,13 @@ class CoherentState(object):
         self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
         print("# Initial shift = {}".format(self.shift[0:3]))
 
-        self.run_variational(system)
+        if (self.variational):
+            self.run_variational(system)
+            print("# Variational Coherent State Energy = {}".format(self.energy))
 
         print("# Optimized shift = {}".format(self.shift[0:3]))
 
         self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
-
-        print("# Variational Coherent State Energy = {}".format(self.energy))
 
         self.symmetrize = trial.get('symmetrize',False)
         print("# Symmetrize Coherent State = {}".format(self.symmetrize))
@@ -316,7 +312,7 @@ class CoherentState(object):
             self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
             self.nperms = self.perms.shape[0]
             norm = 1.0 / numpy.sqrt(self.nperms)
-            self.coeffs = norm * numpy.eyes(self.nperms)
+            self.coeffs = norm * numpy.ones(self.nperms)
                    
         self.calculate_energy(system)
 
@@ -346,33 +342,9 @@ class CoherentState(object):
         if verbose:
             print ("# Finished initialising Coherent State trial wavefunction.")
 
-    # def value(self, walker):
-    #     if (self.symmetrize):
-    #         value = 0.0
-    #         shift0 = self.shift.copy()
-    #         psi0 = self.psi.copy()
-    #         for perm in self.perms:
-    #             self.shift = shift0[perm]
-    #             self.psi = psi0[perm,:]
-                
-    #             boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
-    #             phi = boson_trial.value(walker.X)
-
-    #             walker.inverse_overlap(self)
-    #             otrial = walker.calc_otrial(self)
-
-    #             value += phi * otrial
-    #         self.shift = shift0.copy()
-    #         self.psi = psi0.copy()
-    #     else:
-    #         result = numpy.prod(numpy.exp(- (self.m * self.w0 / 2.0)\
-    #         * (walker.X-self.shift) * (walker.X-self.shift)))
-
-    #     return result
-
     def gradient(self, walker): # gradient / value
         if (self.symmetrize):
-            grad = numpy.zeros(self.nbasis)
+            grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
             denom = numpy.sum(walker.weights)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
@@ -387,7 +359,7 @@ class CoherentState(object):
 
     def laplacian(self, walker): # gradient / value
         if (self.symmetrize):
-            lap = numpy.zeros(self.nbasis)
+            lap = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
             denom = numpy.sum(walker.weights)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
@@ -401,32 +373,6 @@ class CoherentState(object):
             lap = boson_trial.laplacian(walker.X)
         return lap
 
-    # def laplacian(self, walker): # laplacian / value
-    #     if (self.symmetrize):
-    #         lap = numpy.zeros(self.nbasis)
-    #         shift0 = self.shift.copy()
-    #         psi0 = self.psi.copy()
-    #         for perm in self.perms:
-    #             self.shift = shift0[perm]
-    #             self.psi = psi0[perm,:]
-                
-    #             boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
-    #             d2phi = boson_trial.laplacian(walker.X) * boson_trial.value(walker.X)
-                
-    #             walker.inverse_overlap(self)
-    #             otrial = walker.calc_otrial(self)
-
-    #             lap += d2phi * otrial
-    #         self.shift = shift0.copy()
-    #         self.psi = psi0.copy()
-            
-    #         lap /= self.value(walker)
-
-    #     else:
-    #         lap = self.m * self.m * self.w0 * self.w0 * (walker.X-self.shift)\
-    #         * (walker.X-self.shift) - self.w0 * self.m
-    #     return lap
-    
     def bosonic_local_energy(self, walker):
 
         ke   = - 0.5 * numpy.sum(self.laplacian(walker)) / self.m
@@ -493,10 +439,6 @@ class CoherentState(object):
             x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
             x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
         
-        #H = hessian(xconv, system, c0, self)
-        #e, v = numpy.linalg.eigh(H)
-        #print("# stability eigvals = {}".format(e[0:2]))
-
         self.shift = res.x[:nbsf]
 
         daia = res.x[nbsf:nbsf+nova] 
@@ -516,19 +458,9 @@ class CoherentState(object):
         theta_b[noccb:nbsf,:noccb] = daib.copy()
         theta_b[:noccb, noccb:nbsf] = -daib.T.copy()
         
-        # Ua = numpy.eye(nbsf)
-        # tmp = numpy.eye(nbsf)
-        # for i in range(1,6):
-        #     tmp = numpy.einsum("ij,jk->ik", theta_a, tmp)
-        #     Ua += tmp / math.factorial(i)
         Ua = expm(theta_a)
         C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
         Ca = C0a.dot(Ua)
-
-        # if (nocca > 0):
-        #     C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
-        #     Ua = expm(Ua)
-        #     Ca = C0a.dot(Ua)
 
         if (noccb > 0):
             C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))

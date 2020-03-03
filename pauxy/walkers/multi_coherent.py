@@ -1,9 +1,12 @@
 import copy
 import numpy
 import scipy.linalg
+import random
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.estimators.mixed import local_energy_multi_det_hh
 from pauxy.utils.misc import get_numeric_names
+from pauxy.walkers.stack import PropagatorStack, FieldConfig
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
 
 class MultiCoherentWalker(object):
     """Multi-Vibronic style walker.
@@ -24,7 +27,7 @@ class MultiCoherentWalker(object):
         Initial wavefunction.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0,
+    def __init__(self, walker_opts, system, trial, index=0, nprop_tot = None, nbp = None,
                  weights='zeros', verbose=False):
         if verbose:
             print("# Setting up MultiCoherentWalker object.")
@@ -53,6 +56,40 @@ class MultiCoherentWalker(object):
 
         self.phi_boson = numpy.ones(self.nperms, dtype=dtype)
         self.ots = numpy.zeros(self.nperms, dtype=dtype)
+
+        if system.name == "HubbardHolstein":
+
+            perm = random.choice(trial.perms)
+            # perm = trial.perms[0]
+            shift = trial.shift[perm].copy()
+            self.X = numpy.real(shift).copy()
+
+            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+
+            sqtau = numpy.sqrt(0.005)
+            nstep = 250
+            # simple VMC
+            for istep in range(nstep):
+                chi = numpy.random.randn(system.nbasis)# Random move
+                # propose a move
+                posnew = self.X + sqtau * chi
+                # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                wfold = tmptrial.value(self.X)
+                wfnew = tmptrial.value(posnew)
+                pacc = wfnew*wfnew/(wfold*wfold) 
+                # get indices of accepted moves
+                u = numpy.random.random(1)
+                if (u < pacc):
+                    self.X = posnew.copy()
+            self.Lap = tmptrial.laplacian(self.X)
+            self.Lapi = numpy.zeros(shape = (self.nperms, system.nbasis), dtype=dtype)
+            
+            shift0 = trial.shift.copy()
+            for i, perm in enumerate(trial.perms):
+                shift = shift0[perm].copy()
+                boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+                self.Lapi[i] = boson_trial.laplacian(self.X)
+
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
         self.ot = self.overlap_direct(trial)
@@ -82,36 +119,13 @@ class MultiCoherentWalker(object):
         self.phi_init = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
         # self.phi_bp = copy.deepcopy(trial.psi)
-
-        if system.name == "HubbardHolstein":
-            shift = trial.shift.copy()
-            self.X = numpy.real(shift).copy()
-
-            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
-
-            sqtau = numpy.sqrt(0.005)
-            nstep = 250
-            # simple VMC
-            for istep in range(nstep):
-                chi = numpy.random.randn(system.nbasis)# Random move
-                # propose a move
-                posnew = self.X + sqtau * chi
-                # calculate Metropolis-Rosenbluth-Teller acceptance probability
-                wfold = tmptrial.value(self.X)
-                wfnew = tmptrial.value(posnew)
-                pacc = wfnew*wfnew/(wfold*wfold) 
-                # get indices of accepted moves
-                u = numpy.random.random(1)
-                if (u < pacc):
-                    self.X = posnew.copy()
-            self.Lap = tmptrial.laplacian(self.X)
-            self.Lapi = numpy.zeros(shape = (self.nperms, system.nbasis), dtype=dypte)
-            
-            shift0 = trial.shift.copy()
-            for i, perm in enumerate(trial.perms):
-                shift = shift0[perm].copy()
-                boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
-                self.Lapi[i] = boson_trial.laplacian(walker.X)
+        
+        if nbp is not None:
+            self.field_configs = FieldConfig(system.nfields,
+                                             nprop_tot, nbp,
+                                             numpy.complex128)
+        else:
+            self.field_configs = None
 
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
@@ -280,7 +294,7 @@ class MultiCoherentWalker(object):
 
         for ix, perm in enumerate(trial.perms):
             t = psi0[perm,:].copy()
-            shift = shift0[perm].copy()
+            # shift = shift0[perm].copy()
             # trial.boson_trial.update_shift(shift)
             # self.phi_boson[ix] = trial.boson_trial.value(self.X)
 
@@ -331,6 +345,7 @@ class MultiCoherentWalker(object):
         """
         s = 0
         buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
+        print(self.buff_names)
         for d in self.buff_names:
             data = self.__dict__[d]
             if isinstance(data, (numpy.ndarray)):
