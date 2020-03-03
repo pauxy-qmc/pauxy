@@ -344,6 +344,21 @@ class CoherentState(object):
         if verbose:
             print ("# Finished initialising Coherent State trial wavefunction.")
 
+    def value(self, walker): # value
+        if (self.symmetrize):
+            phi = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
+            denom = numpy.sum(walker.weights)
+            shift0 = self.shift.copy()
+            for i, perm in enumerate(self.perms):
+                shift = shift0[perm].copy()
+                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                phi += boson_trial.value(walker.X) * walker.weights[i]
+            phi /= denom
+        else:
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            phi = boson_trial.value(walker.X)
+        return phi
+
     def gradient(self, walker): # gradient / value
         if (self.symmetrize):
             grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)

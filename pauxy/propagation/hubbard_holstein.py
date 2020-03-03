@@ -290,6 +290,8 @@ class HirschSpinDMC(object):
     
     def boson_importance_sampling(self, walker, system, trial):
 
+        phiold = trial.value(walker)
+
         if (self.lang_firsov):
             boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=trial.shift)
             mw2 = system.m * system.w0 **2
@@ -332,6 +334,8 @@ class HirschSpinDMC(object):
             Xnew = walker.X + dX + driftold
             
             walker.X = Xnew.copy()
+            
+            phinew = trial.value(walker)
 
             lap = trial.laplacian(walker)
             walker.Lap = lap
@@ -347,7 +351,7 @@ class HirschSpinDMC(object):
                 eloc = trial.bosonic_local_energy(walker)
             
             eloc = numpy.real(eloc)
-            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
+            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson)) * (phinew / phiold)
 
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
