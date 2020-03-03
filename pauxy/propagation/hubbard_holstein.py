@@ -351,7 +351,8 @@ class HirschSpinDMC(object):
                 eloc = trial.bosonic_local_energy(walker)
             
             eloc = numpy.real(eloc)
-            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson)) * (phinew / phiold)
+            walker.ot *= (phinew / phiold)
+            walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
 
     def kinetic_importance_sampling(self, walker, system, trial):
         r"""Propagate by the kinetic term by direct matrix multiplication.
