@@ -129,6 +129,8 @@ def hessian_product(x, p, system, c0, psi):
 
 def objective_function (x, system, c0, psi, resctricted):
     shift = x[0:system.nbasis]
+    # shift = np.zeros(system.nbasis)
+    # shift = jax.ops.index_update(shift, jax.ops.index[0:system.nbasis], x[0])
 
     nbsf = system.nbasis
     nocca = system.nup
@@ -222,6 +224,7 @@ class CoherentState(object):
         self.m = system.m
         self.w0 = system.w0
 
+        self.nbasis = system.nbasis
         self.nocca = system.nup
         self.noccb = system.ndown
 
@@ -303,8 +306,18 @@ class CoherentState(object):
 
         print("# Optimized shift = {}".format(self.shift[0:3]))
 
+        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
+
         print("# Variational Coherent State Energy = {}".format(self.energy))
-        
+
+        self.symmetrize = trial.get('symmetrize',False)
+        print("# Symmetrize Coherent State = {}".format(self.symmetrize))
+        if (self.symmetrize):
+            self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
+            self.nperms = self.perms.shape[0]
+            norm = 1.0 / numpy.sqrt(self.nperms)
+            self.coeffs = norm * numpy.eyes(self.nperms)
+                   
         self.calculate_energy(system)
 
         print("# Coherent State energy = {}".format(self.energy))
@@ -327,12 +340,100 @@ class CoherentState(object):
         else:
             self.init = self.psi.copy()
 
-
         if verbose:
             print ("# Updated coherent.")
 
         if verbose:
             print ("# Finished initialising Coherent State trial wavefunction.")
+
+    # def value(self, walker):
+    #     if (self.symmetrize):
+    #         value = 0.0
+    #         shift0 = self.shift.copy()
+    #         psi0 = self.psi.copy()
+    #         for perm in self.perms:
+    #             self.shift = shift0[perm]
+    #             self.psi = psi0[perm,:]
+                
+    #             boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
+    #             phi = boson_trial.value(walker.X)
+
+    #             walker.inverse_overlap(self)
+    #             otrial = walker.calc_otrial(self)
+
+    #             value += phi * otrial
+    #         self.shift = shift0.copy()
+    #         self.psi = psi0.copy()
+    #     else:
+    #         result = numpy.prod(numpy.exp(- (self.m * self.w0 / 2.0)\
+    #         * (walker.X-self.shift) * (walker.X-self.shift)))
+
+    #     return result
+
+    def gradient(self, walker): # gradient / value
+        if (self.symmetrize):
+            grad = numpy.zeros(self.nbasis)
+            denom = numpy.sum(walker.weights)
+            shift0 = self.shift.copy()
+            for i, perm in enumerate(self.perms):
+                shift = shift0[perm].copy()
+                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                grad += boson_trial.gradient(walker.X) * walker.weights[i]
+            grad /= denom
+        else:
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            grad = boson_trial.gradient(walker.X)
+        return grad
+
+    def laplacian(self, walker): # gradient / value
+        if (self.symmetrize):
+            lap = numpy.zeros(self.nbasis)
+            denom = numpy.sum(walker.weights)
+            shift0 = self.shift.copy()
+            for i, perm in enumerate(self.perms):
+                shift = shift0[perm].copy()
+                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                walker.Lapi[i] = boson_trial.laplacian(walker.X)
+                lap += walker.Lapi[i] * walker.weights[i]
+            lap /= denom
+        else:
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            lap = boson_trial.laplacian(walker.X)
+        return lap
+
+    # def laplacian(self, walker): # laplacian / value
+    #     if (self.symmetrize):
+    #         lap = numpy.zeros(self.nbasis)
+    #         shift0 = self.shift.copy()
+    #         psi0 = self.psi.copy()
+    #         for perm in self.perms:
+    #             self.shift = shift0[perm]
+    #             self.psi = psi0[perm,:]
+                
+    #             boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
+    #             d2phi = boson_trial.laplacian(walker.X) * boson_trial.value(walker.X)
+                
+    #             walker.inverse_overlap(self)
+    #             otrial = walker.calc_otrial(self)
+
+    #             lap += d2phi * otrial
+    #         self.shift = shift0.copy()
+    #         self.psi = psi0.copy()
+            
+    #         lap /= self.value(walker)
+
+    #     else:
+    #         lap = self.m * self.m * self.w0 * self.w0 * (walker.X-self.shift)\
+    #         * (walker.X-self.shift) - self.w0 * self.m
+    #     return lap
+    
+    def bosonic_local_energy(self, walker):
+
+        ke   = - 0.5 * numpy.sum(self.laplacian(walker)) / self.m
+        pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
+        eloc = ke+pot - 0.5 * self.w0 * self.nbasis # No zero-point energy
+
+        return eloc
 
     def run_variational(self, system):
         nbsf = system.nbasis
@@ -381,9 +482,9 @@ class CoherentState(object):
 
         xconv = numpy.zeros_like(x)
         for i in range (10): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':False})
+            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, method='L-BFGS-B', options={'disp':True})
             e = res.fun
-            if (e < self.energy):
+            if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
                 self.energy = res.fun
                 self.shift = self.shift
                 xconv = res.x.copy()
@@ -529,7 +630,8 @@ def unit_test():
     "t": 1.0,
     "U": 0.0,
     "w0": 0.1,
-    "lambda": 1.0,
+    # "m": 10.0,
+    "lambda": 0.5,
     "lang_firsov":False,
     "variational":True,
     "restricted":False

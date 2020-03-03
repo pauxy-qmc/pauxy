@@ -121,41 +121,25 @@ class HirschSpinDMC(object):
         else:
             self.propagate_walker = self.propagate_walker_constrained
 
-        if trial.name == 'multi_determinant':
-            if trial.type == 'GHF':
-                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
-                self.kinetic = kinetic_ghf
-                self.update_greens_function = self.update_greens_function_ghf
-            else:
-                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
-                self.kinetic = kinetic_real
+        if (trial.symmetrize):
+            self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
+            self.update_greens_function = self.update_greens_function_mult
         else:
             self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
             self.update_greens_function = self.update_greens_function_uhf
-            if self.ffts:
-                self.kinetic = kinetic_kspace
-            else:
-                self.kinetic = kinetic_real
 
-        # rho = [trial.G[0].diagonal(), trial.G[1].diagonal()]
-        # if (self.lang_firsov):
-        #     shift = numpy.real(numpy.zeros_like(rho[0]))
-        # else:
-        #     shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-        #     shift = numpy.real(shift)
-        
+        if self.ffts:
+            self.kinetic = kinetic_kspace
+        else:
+            self.kinetic = kinetic_real
+
         shift = trial.shift.copy()
         if (verbose):
             print("# Shift in propagation = {}".format(shift[:3]))
 
-        # if verbose:
-        #     print("# Shift = {}".format(shift))
-
         if (self.lang_firsov):
             self.boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=shift)
         else:
-            # if (self.sorella):
-            #     w0 = system.w0 * numpy.sqrt(1.0 - 2.0 * system.g**2 / (system.U * system.w0))
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
 
         self.eshift_boson = self.boson_trial.local_energy(shift)
@@ -190,6 +174,40 @@ class HirschSpinDMC(object):
         if (ndown > 0):
             q = numpy.dot(walker.inv_ovlp[1], vdown)
             walker.G[1][i,i] = numpy.dot(udown, q)
+
+    def update_greens_function_mult(self, walker, trial, i, nup):
+        """Fast update of walker's Green's function for multi RHF/UHF walker.
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walkers.SingleDet`
+            Walker's wavefunction.
+        trial : :class:`pauxy.trial_wavefunction`
+            Trial wavefunction.
+        i : int
+            Basis index.
+        nup : int
+            Number of up electrons.
+        """
+
+        ndown = walker.phi.shape[1] - nup
+
+        for ix, perm in enumerate(trial.perms):
+            psi = trial.psi[perm,:].copy()
+            vup = psi.conj()[i,:nup]
+
+            uup = walker.phi[i,:nup]
+
+            q = numpy.dot(walker.inv_ovlp[0][ix], vup)
+
+            walker.Gi[ix,0,i,i] = numpy.dot(uup, q)
+            
+            vdown = psi.conj()[i,nup:]
+            udown = walker.phi[i,nup:]
+
+            if (ndown > 0):
+                q = numpy.dot(walker.inv_ovlp[1][ix], vdown)
+                walker.Gi[ix,1,i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -271,64 +289,62 @@ class HirschSpinDMC(object):
         return ratio*gfratio
     
     def boson_importance_sampling(self, walker, system, trial):
+
         if (self.lang_firsov):
+            boson_trial = HarmonicOscillatorMomentum(m = system.m, w = system.w0, order = 0, shift=trial.shift)
             mw2 = system.m * system.w0 **2
             #Drift+diffusion
-            driftold = (self.dt * mw2) * trial.gradient(walker.P)
+            driftold = (self.dt * mw2) * boson_trial.gradient(walker.P)
 
-            elocold = trial.local_energy(walker.P)
+            elocold = boson_trial.local_energy(walker.P)
             elocold = numpy.real(elocold)
-
-            psiold = trial.value(walker.P)
 
             dP = numpy.random.normal(loc = 0.0, scale = self.sqrtdt*numpy.sqrt(mw2), size=(system.nbasis))
             Pnew = walker.P + dP + driftold
             
             walker.P = Pnew.copy()
 
-            lap = trial.laplacian(walker.P)
+            lap = boson_trial.laplacian(walker.P)
             walker.Lap = lap
             
-            psinew = trial.value(walker.P)
-            
             #Change weight
-            eloc = trial.local_energy(walker.P)
+            eloc = boson_trial.local_energy(walker.P)
             eloc = numpy.real(eloc)
             walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
         else:
+
+            # boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=trial.shift)
             #Drift+diffusion
-            driftold = (self.dt / system.m) * trial.gradient(walker.X)
+            driftold = (self.dt / system.m) * trial.gradient(walker)
 
             if (self.sorella):
                 Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
                 Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
-                lap = trial.laplacian(walker.X)
+                lap = trial.laplacian(walker)
                 Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
                 elocold = Ev + Ev2 + Ek
             else:
-                elocold = trial.local_energy(walker.X)
+                elocold = trial.bosonic_local_energy(walker)
             
             elocold = numpy.real(elocold)
-
-            Xprev = walker.X.copy()
 
             dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
             Xnew = walker.X + dX + driftold
             
             walker.X = Xnew.copy()
 
-            lap = trial.laplacian(walker.X)
+            lap = trial.laplacian(walker)
             walker.Lap = lap
             
             #Change weight
             if (self.sorella):
                 Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
                 Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
-                lap = trial.laplacian(walker.X)
+                lap = trial.laplacian(walker)
                 Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
                 eloc = Ev + Ev2 + Ek
             else:
-                eloc = trial.local_energy(walker.X)
+                eloc = trial.bosonic_local_energy(walker)
             
             eloc = numpy.real(eloc)
             walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
@@ -371,6 +387,7 @@ class HirschSpinDMC(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         ot_new = walker.calc_otrial(trial)
+        
         ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
 
@@ -408,7 +425,7 @@ class HirschSpinDMC(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
         if abs(walker.weight.real) > 0:
-            self.boson_importance_sampling(walker, system, self.boson_trial)
+            self.boson_importance_sampling(walker, system, trial)
 
         if (self.update_trial):
             phiold = self.boson_trial.value(walker.X) # phi with the previous trial
@@ -585,12 +602,13 @@ def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
         Basis index.
     """
     for (idx, G) in enumerate(walker.Gi):
-        walker.R[idx,0,0] = (1+delta[0][0]*G[0][i,i])
-        walker.R[idx,0,1] = (1+delta[0][1]*G[1][i,i])
-        walker.R[idx,1,0] = (1+delta[1][0]*G[0][i,i])
-        walker.R[idx,1,1] = (1+delta[1][1]*G[1][i,i])
-    spin_prod = numpy.einsum('ikj,ji->ikj',walker.R,walker.ots)
-    R = numpy.einsum('i,ij->j',trial.coeffs,spin_prod[:,:,0]*spin_prod[:,:,1])/walker.ot
+        walker.R[idx,0] = (1+delta[0][0]*G[0][i,i]) * (1+delta[0][1]*G[1][i,i])
+        walker.R[idx,1] = (1+delta[1][0]*G[0][i,i]) * (1+delta[1][1]*G[1][i,i])
+
+    denom = numpy.sum(walker.weights)
+    R = numpy.einsum('i,ix->x', walker.weights, walker.R) / denom
+    # spin_prod = numpy.einsum('ikj,ji->ikj',walker.R,walker.ots)
+    # R = numpy.einsum('i,ij->j',trial.coeffs,spin_prod[:,:,0]*spin_prod[:,:,1])/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_single_det(walker, delta, trial, i):

@@ -7,6 +7,7 @@ import scipy.linalg
 import time
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.walkers.multi_coherent import MultiCoherentWalker
 from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
@@ -91,7 +92,13 @@ class Walkers(object):
                                                   name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
-            self.walkers = [SingleDetWalker(walker_opts, system, trial,
+            if (trial.name == "coherent_state" and trial.symmetrize):
+                self.walkers = [MultiCoherentWalker(walker_opts, system, trial,
+                                            index=w, nprop_tot=nprop_tot,
+                                            nbp=nbp)
+                            for w in range(qmc.nwalkers)]
+            else:
+                self.walkers = [SingleDetWalker(walker_opts, system, trial,
                                             index=w, nprop_tot=nprop_tot,
                                             nbp=nbp)
                             for w in range(qmc.nwalkers)]

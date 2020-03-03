@@ -495,6 +495,16 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None):
         denom += w
     return tuple(energies/denom)
 
+def local_energy_multi_det_hh(system, Gi, weights, X, Lapi, two_rdm=None):
+    weight = 0
+    energies = 0
+    denom = 0
+    for w, G, Lap in zip(weights, Gi, Lapi):
+        # construct "local" green's functions for each component of A
+        energies += w * numpy.array(local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None))
+        denom += w
+    return tuple(energies/denom)
+
 def get_estimator_enum(thermal=False):
     keys = ['uweight', 'weight', 'enumer', 'edenom',
             'eproj', 'e1b', 'e2b', 'ehyb', 'ovlp']

@@ -14,6 +14,9 @@ class HarmonicOscillator(object):
         self.xavg = shift
         # self.eshift = self.xavg**2 * self.w**2 / 2.0
 #-------------------------
+    def update_shift(self,shift): # X : lattice configuration
+        self.xavg = shift.copy()
+#-------------------------
     def value(self,X): # X : lattice configuration
         result = numpy.prod(self.norm * numpy.exp(- (self.m * self.w / 2.0) * (X-self.xavg) * (X-self.xavg)))
         return result 
