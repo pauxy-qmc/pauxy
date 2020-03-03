@@ -35,6 +35,61 @@ class SingleDetWalker(object):
         self.inv_ovlp = [0.0, 0.0]
         self.nup = system.nup
         self.ndown = system.ndown
+        
+        self.phi_boson = None
+        if system.name == "HubbardHolstein":
+            if (system.lang_firsov):
+                # self.P = numpy.ones(system.nbasis) * system.g * numpy.sqrt(2.0 * system.m / system.w0)# we work in the momentum space for lang_firsov
+                self.P = numpy.zeros(system.nbasis)
+                
+                shift = trial.shift.copy()
+                tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
+                
+                sqtau = numpy.sqrt(0.005)
+                nstep = 250
+                # simple VMC
+                for istep in range(nstep):
+                    chi = numpy.random.randn(system.nbasis)# Random move
+                    # propose a move
+                    posnew = self.P + sqtau * chi
+                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                    wfold = tmptrial.value(self.P)
+                    wfnew = tmptrial.value(posnew)
+                    pacc = (wfnew*wfnew)/(wfold*wfold) 
+                    # get indices of accepted moves
+                    u = numpy.random.random(1)
+                    if (u < pacc):
+                        self.P = posnew.copy()
+
+                self.Lap = tmptrial.laplacian(self.P)
+                self.phi_boson = tmptrial.value(self.P)
+            else:
+                shift = trial.shift.copy()
+                # rho = [self.G[0].diagonal(), self.G[1].diagonal()]
+                # shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+                self.X = numpy.real(shift).copy()
+
+                tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+
+                sqtau = numpy.sqrt(0.005)
+                nstep = 250
+                # simple VMC
+                for istep in range(nstep):
+                    chi = numpy.random.randn(system.nbasis)# Random move
+                    # propose a move
+                    posnew = self.X + sqtau * chi
+                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                    wfold = tmptrial.value(self.X)
+                    wfnew = tmptrial.value(posnew)
+                    pacc = wfnew*wfnew/(wfold*wfold) 
+                    # get indices of accepted moves
+                    u = numpy.random.random(1)
+                    if (u < pacc):
+                        self.X = posnew.copy()
+                self.Lap = tmptrial.laplacian(self.X)
+                self.phi_boson = tmptrial.value(self.X)
+
+
         self.inverse_overlap(trial)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
@@ -61,56 +116,6 @@ class SingleDetWalker(object):
         self.weights = numpy.array([1.0])
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
-
-        if system.name == "HubbardHolstein":
-            if (system.lang_firsov):
-                # self.P = numpy.ones(system.nbasis) * system.g * numpy.sqrt(2.0 * system.m / system.w0)# we work in the momentum space for lang_firsov
-                self.P = numpy.zeros(system.nbasis)
-                
-                shift = trial.shift.copy()
-                tmptrial = HarmonicOscillatorMomentum(m=system.m, w=system.w0, order=0, shift = shift)
-                
-                sqtau = numpy.sqrt(0.005)
-                nstep = 250
-                # simple VMC
-                for istep in range(nstep):
-                    chi = numpy.random.randn(system.nbasis)# Random move
-                    # propose a move
-                    posnew = self.P + sqtau * chi
-                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
-                    wfold = tmptrial.value(self.P)
-                    wfnew = tmptrial.value(posnew)
-                    pacc = (wfnew*wfnew)/(wfold*wfold) 
-                    # get indices of accepted moves
-                    u = numpy.random.random(1)
-                    if (u < pacc):
-                        self.P = posnew.copy()
-
-                self.Lap = tmptrial.laplacian(self.P)
-            else:
-                shift = trial.shift.copy()
-                # rho = [self.G[0].diagonal(), self.G[1].diagonal()]
-                # shift = numpy.sqrt(system.m * system.w0*2.0) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
-                self.X = numpy.real(shift).copy()
-
-                tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
-
-                sqtau = numpy.sqrt(0.005)
-                nstep = 250
-                # simple VMC
-                for istep in range(nstep):
-                    chi = numpy.random.randn(system.nbasis)# Random move
-                    # propose a move
-                    posnew = self.X + sqtau * chi
-                    # calculate Metropolis-Rosenbluth-Teller acceptance probability
-                    wfold = tmptrial.value(self.X)
-                    wfnew = tmptrial.value(posnew)
-                    pacc = wfnew*wfnew/(wfold*wfold) 
-                    # get indices of accepted moves
-                    u = numpy.random.random(1)
-                    if (u < pacc):
-                        self.X = posnew.copy()
-                self.Lap = tmptrial.laplacian(self.X)
 
         # if system.name == "Generic":
             # self.stack = PropagatorStack(self.stack_size, num_propg,
@@ -199,7 +204,13 @@ class SingleDetWalker(object):
         ddn = 1.0
         if ndown > 0:
             ddn = scipy.linalg.det(self.inv_ovlp[1])
-        return 1.0 / (dup*ddn)
+
+        ot = 1.0 / (dup*ddn)
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+        return ot
 
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
