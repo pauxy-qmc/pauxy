@@ -310,6 +310,8 @@ class CoherentState(object):
         print("# Symmetrize Coherent State = {}".format(self.symmetrize))
         if (self.symmetrize):
             self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
+            # Pick only one permanent
+            self.perms = numpy.array([self.perms[0].copy()])
             self.nperms = self.perms.shape[0]
             norm = 1.0 / numpy.sqrt(self.nperms)
             self.coeffs = norm * numpy.ones(self.nperms)
