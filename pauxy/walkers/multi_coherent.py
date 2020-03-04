@@ -345,7 +345,6 @@ class MultiCoherentWalker(object):
         """
         s = 0
         buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        print(self.buff_names)
         for d in self.buff_names:
             data = self.__dict__[d]
             if isinstance(data, (numpy.ndarray)):
