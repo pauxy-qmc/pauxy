@@ -105,15 +105,16 @@ def serialise(obj, verbose=0):
                     obj_dict[k] = v.tolist(),
             elif verbose == 2:
                 if len(v.shape) == 1:
-                    if v.dtype == complex:
+                    if v[0] is not None and v.dtype == complex:
                         obj_dict[k] = [[v.real.tolist(), v.imag.tolist()]]
                     else:
                         obj_dict[k] = v.tolist(),
             elif len(v.shape) == 1:
-                if v.dtype == complex:
-                    obj_dict[k] = [[v.real.tolist(), v.imag.tolist()]]
-                else:
-                    obj_dict[k] = v.tolist(),
+                if v[0] is not None and numpy.linalg.norm(v) > 1e-8:
+                    if v.dtype == complex:
+                        obj_dict[k] = [[v.real.tolist(), v.imag.tolist()]]
+                    else:
+                        obj_dict[k] = v.tolist(),
         elif k == 'store':
             if verbose == 1:
                 obj_dict[k] = str(v)

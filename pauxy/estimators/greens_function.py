@@ -111,7 +111,7 @@ def gab_mod_ovlp(A, B):
     inv_O = scipy.linalg.inv(numpy.dot(B.T, A.conj()))
     GHalf = numpy.dot(inv_O, B.T)
     G = numpy.dot(A.conj(), GHalf)
-    return (G, inv_O)
+    return (G, GHalf, inv_O)
 
 
 def gab_multi_det(A, B, coeffs):

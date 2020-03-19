@@ -79,7 +79,7 @@ def to_sparse(vals, offset=0, cutoff=1e-8):
     return ix, vals
 
 def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonian.h5',
-                 real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
+                         real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:

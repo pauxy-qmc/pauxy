@@ -58,6 +58,7 @@ def set_info(frame, md):
     frame['free_projection'] = propg.get('free_projection')
     beta = qmc.get('beta')
     bp = md['estimators']['estimators'].get('back_prop')
+    frame['nbasis'] = system.get('nbasis', 0)
     if bp is not None:
         frame['tau_bp'] = bp['tau_bp']
     if beta is not None:
