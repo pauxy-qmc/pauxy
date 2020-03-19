@@ -129,6 +129,7 @@ def modified_cholesky(M, tol=1e-6, verbose=True, cmax=20):
         Matrix of cholesky vectors.
     """
     # matrix of residuals.
+    assert len(M.shape) == 2
     delta = numpy.copy(M.diagonal())
     nchol_max = int(cmax*M.shape[0]**0.5)
     # index of largest diagonal element of residual matrix.

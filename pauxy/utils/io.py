@@ -176,6 +176,8 @@ def from_qmcpack_sparse(filename):
 def write_qmcpack_dense(hcore, chol, nelec, nmo, enuc=0.0,
                         filename='hamiltonian.h5', real_chol=True,
                         verbose=False, ortho=None):
+    assert len(chol.shape) == 2
+    assert chol.shape[0] == nmo*nmo 
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
