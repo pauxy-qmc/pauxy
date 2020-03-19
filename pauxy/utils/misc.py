@@ -48,6 +48,8 @@ def get_git_revision_hash():
     if suffix:
         return sha1.decode('utf-8') + '-dirty', branch.decode('utf-8')
     else:
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                         cwd=src).strip()
         return sha1.decode('utf-8'), branch.decode('utf_8')
 
 
@@ -248,3 +250,10 @@ def print_sys_info(sha1, branch, uuid, nranks):
                 print("# - mpicc: {:s}".format(mpicc))
         except ModuleNotFoundError:
             print("# Package {:s} not found.".format(lib))
+
+
+def unit_test():
+    print(get_git_revision_hash())
+
+if __name__=="__main__":
+    unit_test()
