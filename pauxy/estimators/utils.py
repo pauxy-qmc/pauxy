@@ -7,7 +7,10 @@ except ImportError:
     pass
 import numpy
 import scipy
-from scipy.fftpack._helper import next_fast_len, _init_nd_shape_and_axes
+try:
+    from scipy.fft._helper import next_fast_len, _init_nd_shape_and_axes
+except ModuleNotFoundError:
+    pass
 
 # Stolen from scipy
 def scipy_fftconvolve(in1, in2, mesh1 = None, mesh2 = None, mode="full", axes=None):
