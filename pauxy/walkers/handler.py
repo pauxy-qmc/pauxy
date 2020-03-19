@@ -99,7 +99,7 @@ class Walkers(object):
             if nbp is not None:
                 if verbose:
                     print("# Performing back propagation.")
-                    print("# Number of steps in imaginary time: {:}.".format(nb))
+                    print("# Number of steps in imaginary time: {:}.".format(nbp))
                 self.buff_size += self.walkers[0].field_configs.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,
                                              dtype=numpy.complex128)
