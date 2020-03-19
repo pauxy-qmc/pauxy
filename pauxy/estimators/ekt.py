@@ -7,7 +7,6 @@ except ImportError:
 
 # Assume it's generic
 def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
-
     nmo = rdm1a.shape[0]
     assert (len(cholvec.shape) == 3)
     assert (cholvec.shape[1] * cholvec.shape[2] == nmo*nmo)
