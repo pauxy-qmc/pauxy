@@ -15,6 +15,7 @@ from pauxy.analysis.extraction import (
         extract_rdm
         )
 from pauxy.utils.misc import get_from_dict
+from pauxy.utils.linalg import get_ortho_ao_mod 
 
 
 def average_single(frame, delete=True):
@@ -149,7 +150,6 @@ def reblock_local_energy(filename, skip=0):
 def average_rdm(files, skip=1, est_type='back_propagated', rdm_type='one_rdm', ix=None):
 
     rdm_series = extract_rdm(files, est_type=est_type, rdm_type=rdm_type, ix=ix)
-
     rdm_av = rdm_series[skip:].mean(axis=0)
     rdm_err = rdm_series[skip:].std(axis=0, ddof=1) / len(rdm_series)**0.5
     return rdm_av, rdm_err
@@ -283,3 +283,25 @@ def analyse_estimates(files, start_time, multi_sim=False):
         fh5['metadata'] = numpy.array(mds).astype('S')
         fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
+
+def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
+    rdm, rdm_err = average_rdm(filename, rdm_type='one_rdm', ix=ix)
+    fock_1h_av, fock_1h_err = average_rdm(filename, rdm_type='fock_1h', ix=ix)
+    fock_1p_av, fock_1p_err = average_rdm(filename, rdm_type='fock_1p', ix=ix)
+    rdm[numpy.abs(rdm) < screen_factor*rdm_err] = 0.0
+    fock_1h_av[numpy.abs(fock_1h_av) < screen_factor*fock_1h_err] = 0.0
+    fock_1p_av[numpy.abs(fock_1p_av) < screen_factor*fock_1p_err] = 0.0
+    # Spin average
+    rdm = rdm[0] + rdm[1]
+    rdm = 0.5 * numpy.real(rdm + rdm.conj().T)
+    rdm1_reg, X = get_ortho_ao_mod(rdm, LINDEP_CUTOFF=cutoff)
+    # 1-hole / IP
+    fockT = numpy.dot(X.conj().T, numpy.dot(fock_1h_av, X))
+    eip, eip_vec = numpy.linalg.eigh(fockT)
+    norb = rdm.shape[-1]
+    I = numpy.eye(norb)
+    gamma = 2.0 * I - rdm.T
+    gamma_reg, X = get_ortho_ao_mod(gamma, LINDEP_CUTOFF=cutoff)
+    fockT = numpy.dot(X.conj().T, numpy.dot(fock_1p_av, X))
+    eea, eea_vec = numpy.linalg.eigh(fockT)
+    return (eip, eip_vec) , (eea, eea_vec)

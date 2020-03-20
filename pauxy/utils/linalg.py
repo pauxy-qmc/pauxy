@@ -187,3 +187,14 @@ def get_orthoAO(S, LINDEP_CUTOFF=1e-14):
     sdiag, Us = numpy.linalg.eigh(S)
     X = Us[:,sdiag>LINDEP_CUTOFF] / numpy.sqrt(sdiag[sdiag>LINDEP_CUTOFF])
     return X
+
+def get_ortho_ao_mod(S, LINDEP_CUTOFF=1e-14, verbose=False):
+    sdiag, Us = numpy.linalg.eigh(S)
+    if (verbose):
+        print("sdiag = {}".format(sdiag))
+    sdiag[sdiag<LINDEP_CUTOFF] = 0.0
+    keep = sdiag > LINDEP_CUTOFF
+    X = Us[:,keep] / numpy.sqrt(sdiag[keep])
+    Smod = Us[:,keep].dot(numpy.diag(sdiag[keep])).dot(Us[:,keep].T.conj())
+    return Smod, X
+
