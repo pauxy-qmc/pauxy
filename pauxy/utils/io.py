@@ -371,25 +371,29 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
                       " of {}.".format(key, default))
     return val
 
-def read_qmcpack_wfn_hdf(filename):
+def read_qmcpack_wfn_hdf(filename, nelec=None):
     try:
         with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/NOMSD']
-            wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup)
+            wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup, nelec=nelec)
     except KeyError:
         with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/PHMSD']
-            wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
+            wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup, nelec=nelec)
     except KeyError:
         print("Wavefunction not found.")
         sys.exit()
     return wfn, psi0
 
-def read_qmcpack_nomsd_hdf5(wgroup):
+def read_qmcpack_nomsd_hdf5(wgroup, nelec=None):
     dims = wgroup['dims']
     nmo = dims[0]
     na = dims[1]
     nb = dims[2]
+    if nelec is not None:
+        log = "Number of electrons does not match wavefunction: {} vs {}."
+        assert na == nelec[0], log.format(na,nelec[0]) 
+        assert nb == nelec[0], log.format(nb,nelec[1]) 
     walker_type = dims[3]
     if walker_type == 2:
         uhf = True
@@ -418,11 +422,15 @@ def read_qmcpack_nomsd_hdf5(wgroup):
             wfn[idet,:,na:] = pa[:,:nb]
     return (coeffs,wfn), psi0
 
-def read_qmcpack_phmsd_hdf5(wgroup):
+def read_qmcpack_phmsd_hdf5(wgroup, nelec=None):
     dims = wgroup['dims']
     nmo = dims[0]
     na = dims[1]
     nb = dims[2]
+    if nelec is not None:
+        log = "Number of electrons does not match wavefunction: {} vs {}."
+        assert na == nelec[0], log.format(na,nelec[0]) 
+        assert nb == nelec[0], log.format(nb,nelec[1]) 
     walker_type = dims[3]
     if walker_type == 2:
         uhf = True
