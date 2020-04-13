@@ -496,11 +496,23 @@ def variational_energy_ortho_det(system, occs, coeffs):
     """
     evar = 0.0
     denom = 0.0
+    one_body = 0.0
+    two_body = 0.0
     for i, (occi, ci) in enumerate(zip(occs, coeffs)):
         denom += ci.conj()*ci
-        for j, (occj, cj) in enumerate(zip(occs, coeffs)):
-            evar += ci.conj()*cj*get_hmatel(system, occi, occj)
-    return evar/denom, 0.0, 0.0
+        for j in range(0,i+1):
+            cj = coeffs[j]
+            occj = occs[j]
+            etot, e1b, e2b = ci.conj()*cj*get_hmatel(system, occi, occj)
+            evar += etot
+            one_body += e1b
+            two_body += e2b
+            if j < i:
+                # Use Hermiticity
+                evar += etot
+                one_body += e1b
+                two_body += e2b
+    return evar/denom, one_body/denom, two_body/denom
 
 
 def variational_energy_single_det(system, psi, G=None, GH=None):

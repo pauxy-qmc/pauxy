@@ -124,7 +124,7 @@ class MultiSlater(object):
                 for j in range(i,self.ndets):
                     di = self.spin_occs[i]
                     dj = self.spin_occs[j]
-                    H[i,j] = get_hmatel(system,di,dj)
+                    H[i,j] = get_hmatel(system,di,dj)[0]
             e, ev = scipy.linalg.eigh(H, lower=False)
         else:
             na = system.nup
