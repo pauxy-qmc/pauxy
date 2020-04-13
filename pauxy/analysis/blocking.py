@@ -88,10 +88,12 @@ def reblock_mixed(groupby, columns):
     for group, frame in groupby:
         short = frame.reset_index().drop(columns+['index', 'Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        print("data_len, blocked_data = {}, {}".format(data_len, blocked_data.shape))
         reblocked = pd.DataFrame()
         for c in short.columns:
             try:
                 rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
+                print(rb.to_string())
                 reblocked[c] = rb['mean'].values
                 reblocked[c+'_error'] = rb['standard error'].values
             except KeyError:
@@ -281,7 +283,10 @@ def analyse_estimates(files, start_time, multi_sim=False):
     print(basic_av.to_string(index=False, float_format=fmt))
     with h5py.File(outfile, 'w') as fh5:
         fh5['metadata'] = numpy.array(mds).astype('S')
-        fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+        try:
+            fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+        except KeyError:
+            print("integrals does not exist under the problem class")
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
 def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
