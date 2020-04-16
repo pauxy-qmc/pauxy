@@ -78,6 +78,8 @@ class BackPropagation(object):
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.restore_weights = bp.get('restore_weights', None)
+        if root:
+            print("restore_weights = {}".format(restore_weights))
         self.dt = qmc.dt
         dms_size = self.G.size
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
