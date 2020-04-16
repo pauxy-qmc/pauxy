@@ -453,11 +453,54 @@ class UEG(object):
         else:
             return 0.0
 
+    def compute_real_transformation(self):
+        U22 = numpy.zeros((2,2), dtype=numpy.complex128)
+        U22[0,0] = (1./numpy.sqrt(2.0))
+        U22[0,1] = (1./numpy.sqrt(2.0))
+        U22[1,0] = (-1.j/numpy.sqrt(2.0))
+        U22[1,1] = (1.j/numpy.sqrt(2.0))
+        
+        U = numpy.zeros((self.nbasis, self.nbasis), dtype= numpy.complex128)
+        
+        for i, b in enumerate(self.basis):
+            if (numpy.sum(b*b) == 0):
+                U[i,i] = 1.0
+            else:
+                mb = -b
+                diff = numpy.einsum("ij->i",(self.basis - mb)**2)
+                idx = numpy.argwhere(diff==0)
+                assert(idx.ravel().shape[0] == 1)
+                if (i<idx):
+                    idx = idx.ravel()[0]
+                    U[i,i] = U22[0,0]
+                    U[i,idx] = U22[0,1]
+                    U[idx,i] = U22[1,0]
+                    U[idx,idx] = U22[1,1]
+                else:
+                    continue
+        
+        U = U.T.copy()
+        return U
+
     def eri_4(self):
         eri_chol = 4 * self.chol_vecs.dot(self.chol_vecs.T)
         eri_chol = eri_chol.toarray().reshape((self.nbasis,self.nbasis,self.nbasis,self.nbasis)).real
         eri_chol = eri_chol.transpose(0,1,3,2)
         return eri_chol
+
+
+    # Compute 8-fold symmetric integrals. Useful for running standard quantum chemistry methods
+    def eri_8(self):
+
+        eri = self.eri_4()
+        U = self.compute_real_transformation()
+        
+        eri0 = numpy.einsum("mp,mnls->pnls", U.conj(), eri, optimize=True)
+        eri1 = numpy.einsum("nq,pnls->pqls", U, eri0, optimize=True)
+        eri2 = numpy.einsum("lr,pqls->pqrs", U.conj(), eri1, optimize=True)
+        eri3 = numpy.einsum("st,pqrs->pqrt", U, eri2, optimize=True).real
+
+        return eri3
 
 def unit_test():
     from numpy import linalg as LA
