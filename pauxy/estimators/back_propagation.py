@@ -162,7 +162,8 @@ class BackPropagation(object):
 
             if self.eval_ekt:
                 if (system.name == 'UEG'):
-                    chol_vecs = system.chol_vecs.toarray().T.reshape((system.nchol, system.nbasis, system.nbasis))
+                    # there needs to be a factor of 2.0 here to account for the convention of cholesky vectors in the system class
+                    chol_vecs = 2.0 * system.chol_vecs.toarray().T.reshape((system.nchol, system.nbasis, system.nbasis))
                     self.ekt_fock_1p = ekt_1p_fock_opt(system.H1[0],chol_vecs, self.G[0], self.G[1])
                     self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],chol_vecs, self.G[0], self.G[1])
                 else:

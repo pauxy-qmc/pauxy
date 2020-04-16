@@ -453,6 +453,12 @@ class UEG(object):
         else:
             return 0.0
 
+    def eri_4(self):
+        eri_chol = 4 * self.chol_vecs.dot(self.chol_vecs.T)
+        eri_chol = eri_chol.toarray().reshape((self.nbasis,self.nbasis,self.nbasis,self.nbasis)).real
+        eri_chol = eri_chol.transpose(0,1,3,2)
+        return eri_chol
+
 def unit_test():
     from numpy import linalg as LA
     from pauxy.estimators import ci as pauxyci
