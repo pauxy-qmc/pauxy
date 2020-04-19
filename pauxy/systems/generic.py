@@ -87,6 +87,12 @@ class Generic(object):
             self.nelec = nelec
         self.ne = self.nup + self.ndown
         self.integral_file = inputs.get('integrals')
+        
+        self.stochastic_ri = inputs.get('stochastic_ri', False)
+        if self.stochastic_ri:
+            self.nsamples = inputs.get('nsamples', 10)
+            print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
+
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', False)
         self.half_rotated_integrals = inputs.get('integral_tensor', False)

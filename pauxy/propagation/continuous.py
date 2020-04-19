@@ -2,7 +2,7 @@ import cmath
 import math
 import numpy
 import sys
-from pauxy.propagation.operations import kinetic_real
+from pauxy.propagation.operations import kinetic_real, kinetic_real_stochastic
 from pauxy.propagation.hubbard import HubbardContinuous
 from pauxy.propagation.planewave import PlaneWave
 from pauxy.propagation.generic import GenericContinuous
@@ -18,6 +18,13 @@ class Continuous(object):
         if verbose:
             print("# Using phaseless approximation: %r"%(not self.free_projection))
         self.force_bias = options.get('force_bias', True)
+        
+        self.stochastic_ri = options.get('stochastic_ri', False)
+        if (self.stochastic_ri):
+            self.nsamples = options.get('nsamples', 20)
+            if (verbose):
+                print("# Stochastic RI approximation is used with {} samples".format(self.nsamples))
+
         if self.free_projection:
             if verbose:
                 print("# Setting force_bias to False with free projection.")
@@ -199,10 +206,16 @@ class Continuous(object):
         """
         # 2. Update Slater matrix
         # 2.a Apply one-body
+        # if (self.stochastic_ri):
+        #     kinetic_real_stochastic(walker.phi, system, self.propagator.BH1, self.nsamples)
+        # else:
         kinetic_real(walker.phi, system, self.propagator.BH1)
         # 2.b Apply two-body
         (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 2.c Apply one-body
+        # if (self.stochastic_ri):
+        #     kinetic_real_stochastic(walker.phi, system, self.propagator.BH1, self.nsamples)
+        # else:
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
         # Now apply phaseless approximation

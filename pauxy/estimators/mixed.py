@@ -21,7 +21,8 @@ from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic,
     local_energy_generic_cholesky,
-    local_energy_generic_cholesky_opt
+    local_energy_generic_cholesky_opt,
+    local_energy_generic_cholesky_opt_stochastic
 )
 from pauxy.utils.io import format_fixed_width_strings, format_fixed_width_floats
 from pauxy.utils.misc import dotdict
@@ -389,9 +390,15 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
             return local_energy_generic_opt(system, G, Ghalf)
         else:
             if Ghalf is not None:
-                return local_energy_generic_cholesky_opt(system, G,
-                                                         Ghalf=Ghalf,
-                                                         rchol=rchol)
+                if (system.stochastic_ri):
+                    return local_energy_generic_cholesky_opt_stochastic(system, G,
+                                         nsamples=system.nsamples,
+                                         Ghalf=Ghalf,
+                                         rchol=rchol)
+                else:
+                    return local_energy_generic_cholesky_opt(system, G,
+                                                             Ghalf=Ghalf,
+                                                             rchol=rchol)
             else:
                 return local_energy_generic_cholesky(system, G)
 
