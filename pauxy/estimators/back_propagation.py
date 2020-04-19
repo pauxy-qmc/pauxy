@@ -87,6 +87,8 @@ class BackPropagation(object):
         if self.calc_two_rdm is not None:
             if self.calc_two_rdm == "structure_factor":
                 two_rdm_shape = (2,2,len(system.qvecs),)
+            else:
+                two_rdm_shape = (system.nbasis, system.nbasis, system.nbasis, system.nbasis)
             self.two_rdm = numpy.zeros(two_rdm_shape,
                                        dtype=numpy.complex128)
             dms_size += self.two_rdm.size
@@ -161,6 +163,16 @@ class BackPropagation(object):
                 energies = numpy.array(list(eloc))
             else:
                 energies = numpy.zeros(3)
+
+
+            if self.calc_two_rdm is not None and self.calc_two_rdm is not "structure_factor":
+                # <p^+ q^+ s r> = G(p, r, q, s) also spin-summed
+                self.two_rdm =  numpy.einsum("pr,qs->prqs",self.G[0], self.G[0], optimize=True)\
+                              - numpy.einsum("ps,qr->prqs",self.G[0], self.G[0], optimize=True)
+                self.two_rdm += numpy.einsum("pr,qs->prqs",self.G[1], self.G[1], optimize=True)\
+                              - numpy.einsum("ps,qr->prqs",self.G[1], self.G[1], optimize=True)
+                self.two_rdm += numpy.einsum("pr,qs->prqs",self.G[0], self.G[1], optimize=True)\
+                              + numpy.einsum("pr,qs->prqs",self.G[1], self.G[0], optimize=True)
 
             if self.eval_ekt:
                 if (system.name == 'UEG'):
