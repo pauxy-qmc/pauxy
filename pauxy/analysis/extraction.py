@@ -42,6 +42,8 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
     else:
         if (len(one_rdm.shape) == 4):
             return one_rdm / denom[:,None,None]
+        elif (len(one_rdm.shape) == 5):
+            return one_rdm / denom[:,None,None,None]
         elif (len(one_rdm.shape) == 3):
             return one_rdm / denom[:,None]
         else:
