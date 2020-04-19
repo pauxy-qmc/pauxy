@@ -6,14 +6,12 @@ except ImportError:
     einsum = numpy.einsum
 
 # Assume it's generic
+# 4-fold integral symmetry
 def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
-
     nmo = rdm1a.shape[0]
     assert (len(cholvec.shape) == 3)
     assert (cholvec.shape[1] * cholvec.shape[2] == nmo*nmo)
     nchol = cholvec.shape[0]
-
-    # cholvec = numpy.array(cholvec.todense()).T.reshape((nchol,nmo,nmo))
 
     I = numpy.eye(nmo)
     gamma = I - rdm1a.T + I - rdm1b.T
@@ -22,8 +20,8 @@ def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
     Xa = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1a.ravel())
     Xb = cholvec.reshape((nchol, nmo*nmo)).dot(rdm1b.ravel())
 
-    Xachol = numpy.tensordot(Xa, cholvec, axes=([0],[0]))
-    Xbchol = numpy.tensordot(Xb, cholvec, axes=([0],[0]))
+    Xachol = numpy.tensordot(Xa, cholvec.transpose(0,2,1), axes=([0],[0]))
+    Xbchol = numpy.tensordot(Xb, cholvec.transpose(0,2,1), axes=([0],[0]))
 
     J = 2.0 * (Xachol + Xbchol) - 2.0 * rdm1a.T.dot(Xbchol) - rdm1a.T.dot(Xachol)\
     - rdm1b.T.dot(Xbchol)
@@ -32,9 +30,10 @@ def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
 
     for x in range(nchol):
         c = cholvec[x,:,:]
-        K += - c.dot(rdm1.T).dot(c)
-        K += rdm1a.T.dot(c).dot(rdm1a.T).dot(c)
-        K += rdm1b.T.dot(c).dot(rdm1b.T).dot(c)
+        c2 = cholvec[x,:,:].T
+        K += - c.dot(rdm1.T).dot(c2)
+        K += rdm1a.T.dot(c).dot(rdm1a.T).dot(c2)
+        K += rdm1b.T.dot(c).dot(rdm1b.T).dot(c2)
 
     Fock = gamma.dot(h1) + J + K
 
@@ -42,6 +41,8 @@ def ekt_1p_fock_opt(h1, cholvec, rdm1a, rdm1b):
 
     return Fock
 
+# Assume it's generic
+# 4-fold integral symmetry
 def ekt_1h_fock_opt(h1, cholvec, rdm1a, rdm1b):
     nmo = rdm1a.shape[0]
     assert (len(cholvec.shape) == 3)
@@ -53,8 +54,8 @@ def ekt_1h_fock_opt(h1, cholvec, rdm1a, rdm1b):
 
     # X[n] = \sum_ik L[n,ik] G[ik]
     # Xchol[i,k] = \sum_n X[n] L[n,ik]
-    Xachol = numpy.tensordot(Xa, cholvec, axes=([0],[0]))
-    Xbchol = numpy.tensordot(Xb, cholvec, axes=([0],[0]))
+    Xachol = numpy.tensordot(Xa, cholvec.transpose(0,2,1), axes=([0],[0]))
+    Xbchol = numpy.tensordot(Xb, cholvec.transpose(0,2,1), axes=([0],[0]))
 
     # J[i,j] = -\sum_s \sum_k Gs[i,k] Xschol[j,k]
     J = - 2.0 * rdm1a.dot(Xbchol.T) - rdm1a.dot(Xachol.T) - rdm1b.dot(Xbchol.T)
@@ -63,8 +64,9 @@ def ekt_1h_fock_opt(h1, cholvec, rdm1a, rdm1b):
 
     for x in range(nchol):
         c = cholvec[x,:,:]
-        K += rdm1a.dot(c.T).dot(rdm1a).dot(c.T)
-        K += rdm1a.dot(c.T).dot(rdm1b).dot(c.T)
+        c2 = cholvec[x,:,:].T
+        K += rdm1a.dot(c.T).dot(rdm1a).dot(c2.T)
+        K += rdm1a.dot(c.T).dot(rdm1b).dot(c2.T)
 
     gamma = rdm1a + rdm1b
     Fock = - gamma.dot(h1.T) + J + K
