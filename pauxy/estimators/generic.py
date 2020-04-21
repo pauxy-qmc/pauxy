@@ -114,17 +114,19 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
 
     nalpha, nbeta= system.nup, system.ndown
     nbasis = system.nbasis
-
+    
     Ga, Gb = Ghalf[0], Ghalf[1]
+    Xa = rchol[0].T.dot(Ga.ravel())
+    Xb = rchol[1].T.dot(Gb.ravel())
+    ecoul = numpy.dot(Xa,Xa)
+    ecoul += numpy.dot(Xb,Xb)
+    ecoul += 2*numpy.dot(Xa,Xb)
 
     naux = rchol[0].shape[-1]
 
     theta = numpy.zeros((naux,nsamples), dtype=numpy.int64)
     for i in range(nsamples):
         theta[:,i] = (2*numpy.random.randint(0,2,size=(naux))-1)
-
-    # theta = numpy.eye(naux)
-    # nsamples = 1
 
     if system.sparse:
         rchol_a, rchol_b = [rchol[0].toarray(), rchol[1].toarray()]
@@ -134,28 +136,19 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
     rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
     rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
 
-    # ra = numpy.einsum("ipX,Xs->ips",rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-    # rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
     ra = numpy.tensordot(rchol_a, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
     rb = numpy.tensordot(rchol_b, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
 
     # O(ON s)
-    # Xa = numpy.einsum("ips,ip->s",ra, Ga, optimize=True)
-    # Xb = numpy.einsum("ips,ip->s",rb, Gb, optimize=True)
-    Xa = numpy.tensordot(ra, Ga, axes=((0,1),(0,1)))
-    Xb = numpy.tensordot(rb, Gb, axes=((0,1),(0,1)))
+    # Xa = numpy.tensordot(ra, Ga, axes=((0,1),(0,1)))
+    # Xb = numpy.tensordot(rb, Gb, axes=((0,1),(0,1)))
+    # ecoul = numpy.dot(Xa,Xa)
+    # ecoul += numpy.dot(Xb,Xb)
+    # ecoul += 2*numpy.dot(Xa,Xb)
 
-    ecoul = numpy.dot(Xa,Xa)
-    ecoul += numpy.dot(Xb,Xb)
-    ecoul += 2*numpy.dot(Xa,Xb)
-
-    # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
-    # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
-    # Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
     Gra = numpy.tensordot(Ga, ra, axes=((1),(1))).transpose(1,0,2)
     exxa = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
 
-    # Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
     Grb = numpy.tensordot(Gb, rb, axes=((1),(1))).transpose(1,0,2)
     exxb = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
 
