@@ -122,8 +122,14 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
     ecoul += numpy.dot(Xb,Xb)
     ecoul += 2*numpy.dot(Xa,Xb)
 
-    naux = rchol[0].shape[-1]
+    # O(ON s)
+    # Xa = numpy.tensordot(ra, Ga, axes=((0,1),(0,1)))
+    # Xb = numpy.tensordot(rb, Gb, axes=((0,1),(0,1)))
+    # ecoul = numpy.dot(Xa,Xa)
+    # ecoul += numpy.dot(Xb,Xb)
+    # ecoul += 2*numpy.dot(Xa,Xb)
 
+    naux = rchol[0].shape[-1]
     theta = numpy.zeros((naux,nsamples), dtype=numpy.int64)
     for i in range(nsamples):
         theta[:,i] = (2*numpy.random.randint(0,2,size=(naux))-1)
@@ -136,20 +142,16 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
     rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
     rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
 
-    ra = numpy.tensordot(rchol_a, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
-    rb = numpy.tensordot(rchol_b, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
+    # ra = numpy.tensordot(rchol_a, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
+    # rb = numpy.tensordot(rchol_b, theta, axes=((2),(0))) * numpy.sqrt(1.0/nsamples)
+    ra = numpy.einsum("ipX,Xs->ips",rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+    rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+    Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)    
+    Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)    
 
-    # O(ON s)
-    # Xa = numpy.tensordot(ra, Ga, axes=((0,1),(0,1)))
-    # Xb = numpy.tensordot(rb, Gb, axes=((0,1),(0,1)))
-    # ecoul = numpy.dot(Xa,Xa)
-    # ecoul += numpy.dot(Xb,Xb)
-    # ecoul += 2*numpy.dot(Xa,Xb)
-
-    Gra = numpy.tensordot(Ga, ra, axes=((1),(1))).transpose(1,0,2)
+    # Gra = numpy.tensordot(Ga, ra, axes=((1),(1))).transpose(1,0,2)
+    # Grb = numpy.tensordot(Gb, rb, axes=((1),(1))).transpose(1,0,2)
     exxa = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
-
-    Grb = numpy.tensordot(Gb, rb, axes=((1),(1))).transpose(1,0,2)
     exxb = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
 
     exx = exxa + exxb
