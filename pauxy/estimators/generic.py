@@ -86,6 +86,10 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
+    #print("e1b = {}".format(e1b))
+    #print("ecoul = {}".format(ecoul*0.5))
+    #print("exx = {}".format(-exx*0.5))
+    #print("ecore = {}".format(system.ecore))
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 # def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None):

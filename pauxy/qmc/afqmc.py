@@ -86,7 +86,11 @@ class AFQMC(object):
             self.uuid = str(uuid.uuid1())
             get_sha1 = options.get('get_sha1', True)
             if get_sha1:
-                self.sha1, self.branch = get_git_revision_hash()
+                try:
+                    self.sha1, self.branch = get_git_revision_hash()
+                except:
+                    self.sha1 = 'None'
+                    self.branch = 'None'
             else:
                 self.sha1 = 'None'
             if verbose:

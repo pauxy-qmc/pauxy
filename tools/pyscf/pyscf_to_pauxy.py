@@ -40,6 +40,8 @@ def parse_args(args):
                         default='input.json', help='Name of input file.')
     parser.add_argument('-oao', '--oao', dest='oao', type=int,
                         default=1, help='whether to do oao')
+    parser.add_argument('-ao', '--ao', dest='ao', type=int,
+                        default=0, help='whether to do ao')
 
     options = parser.parse_args(args)
 
@@ -61,7 +63,7 @@ def main(args):
     options = parse_args(args)
     dump_pauxy(chkfile=options.input_scf, hamil_file=options.output,
                wfn_file=options.wfn, chol_cut=options.thresh,
-               sparse=options.sparse, sparse_zero=options.sparse_zero, ortho_ao=options.oao)
+               sparse=options.sparse, sparse_zero=options.sparse_zero, ortho_ao=options.oao, ao=options.ao)
     write_input(options.json_input, options.output, options.wfn, options.bp)
 
 if __name__ == '__main__':

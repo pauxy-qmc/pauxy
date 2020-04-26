@@ -91,7 +91,8 @@ class Generic(object):
         self.stochastic_ri = inputs.get('stochastic_ri', False)
         if self.stochastic_ri:
             self.nsamples = inputs.get('nsamples', 10)
-            print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
+            if self.verbose:
+                print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
 
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', False)
