@@ -213,59 +213,6 @@ def from_qmcpack_dense(filename):
         nbeta = dims[5]
         return (hcore, chol, enuc, int(nmo), int(nalpha), int(nbeta))
 
-def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
-                 verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
-    nmo = hcore.shape[-1]
-    if verbose:
-        print(" # Constructing trial wavefunctiom in ortho AO basis.")
-    if len(hcore.shape) == 3:
-        if verbose:
-            print(" # Writing UHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    else:
-        if verbose:
-            print(" # Writing RHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    write_qmcpack_wfn(filename, (numpy.array([1.0+0j]), orbs), 'uhf', nelec, nmo)
-    nbasis = hcore.shape[-1]
-    if verbose:
-        print (" # Performing modified Cholesky decomposition on ERI tensor.")
-    msq = nbasis * nbasis
-    # Why did I transpose everything?
-    # QMCPACK expects [M^2, N_chol]
-    # Internally store [N_chol, M^2]
-    if isinstance(eri, list):
-        chol_vecsa = modified_cholesky(eri[0].reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-        chol_vecsa = modified_cholesky(eri[1].reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-    elif len(eri.shape) == 4:
-        chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
-        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-        mem = 64*chol_vecs.nnz/(1024.0**3)
-    else:
-        chol_vecs = eri.T
-        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
-        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-        mem = 64*chol_vecs.nnz/(1024.0**3)
-    if verbose:
-        print (" # Total number of non-zero elements in sparse cholesky ERI"
-               " tensor: %d"%chol_vecs.nnz)
-        nelem = chol_vecs.shape[0]*chol_vecs.shape[1]
-        print (" # Sparsity of ERI Cholesky tensor: "
-               "%f"%(1-float(chol_vecs.nnz/nelem)))
-        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
-    dump_qmcpack_cholesky(numpy.array([hcore, hcore]), chol_vecs, nelec,
-                                      nbasis, enuc, filename=filename)
-
 def qmcpack_wfn_namelist(nci, uhf, fullmo=True):
     return "&FCI\n UHF = %d\n NCI = %d \n %s TYPE = matrix\n/\n"%(uhf,nci,'FullMO\n' if fullmo else '')
 
