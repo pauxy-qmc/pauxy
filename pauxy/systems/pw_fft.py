@@ -6,7 +6,7 @@ import pauxy.utils
 import math
 import time
 import itertools
-from pauxy.utils.io import dump_qmcpack_cholesky
+# from pauxy.utils.io import dump_qmcpack_cholesky
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 
 try:

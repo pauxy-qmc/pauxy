@@ -50,6 +50,7 @@ class MultiSlater(object):
         else:
             self.G = None
             self.GH = None
+
         if self.half_rot:
             self.half_rotate(system)
         if rediag:

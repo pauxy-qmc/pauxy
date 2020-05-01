@@ -360,7 +360,7 @@ class Mixed(object):
 
 # Energy evaluation routines.
 
-def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
+def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None, C0=None, ecoul0 = None, exxa0 = None, exxb0 = None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -369,6 +369,8 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
         system object.
     G : :class:`numpy.ndarray`
         1RDM.
+    C0 : :class:`numpy.ndarray`
+        trial C.
 
     Returns
     -------
@@ -390,7 +392,12 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None, rchol=None):
             return local_energy_generic_opt(system, G, Ghalf)
         else:
             if Ghalf is not None:
-                if (system.stochastic_ri):
+                if (system.stochastic_ri and system.control_variate):
+                    return local_energy_generic_cholesky_opt_stochastic(system, G,
+                                         nsamples=system.nsamples,
+                                         Ghalf=Ghalf,
+                                         rchol=rchol, C0=C0, ecoul0 = ecoul0, exxa0 = exxa0, exxb0 = exxb0)
+                elif (system.stochastic_ri and not system.control_variate):
                     return local_energy_generic_cholesky_opt_stochastic(system, G,
                                          nsamples=system.nsamples,
                                          Ghalf=Ghalf,

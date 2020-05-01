@@ -36,6 +36,8 @@ class SingleDetWalker(object):
         self.inverse_overlap(trial)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
+        self.C0 = trial.psi.copy()
+
         self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
                                  dtype=trial.psi.dtype),
                      numpy.zeros(shape=(system.ndown, system.nbasis),
@@ -45,7 +47,11 @@ class SingleDetWalker(object):
         self.ot = 1.0
         # interface consistency
         self.ots = numpy.zeros(1, dtype=numpy.complex128)
-        self.E_L = local_energy(system, self.G, self.Gmod)[0].real
+        self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, self.Gmod, C0=None)
+        self.E_L = self.E_L.real
+        if (system.control_variate):
+            self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system)
+
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
@@ -279,7 +285,49 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
+        if (system.control_variate):
+            return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm,C0=self.C0,\
+ecoul0 = self.ecoul0, exxa0=self.exxa0, exxb0=self.exxb0)
+        else:
+            return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
+
+    def local_energy_2body(self, system):
+        """Compute walkers two-body local energy
+
+        Parameters
+        ----------
+        system : object
+            System object.
+
+        Returns
+        -------
+        (E, T, V) : tuple
+            Mixed estimates for walker's energy components.
+        """
+
+        # Element wise multiplication.
+        rchol = system.rchol_vecs
+        nalpha, nbeta= system.nup, system.ndown
+        nbasis = system.nbasis
+        Ga, Gb = self.Gmod[0], self.Gmod[1]
+        Xa = rchol[0].T.dot(Ga.ravel())
+        Xb = rchol[1].T.dot(Gb.ravel())
+        ecoul = numpy.dot(Xa,Xa)
+        ecoul += numpy.dot(Xb,Xb)
+        ecoul += 2*numpy.dot(Xa,Xb)
+        if system.sparse:
+            rchol_a, rchol_b = [rchol[0].toarray(), rchol[1].toarray()]
+        else:
+            rchol_a, rchol_b = rchol[0], rchol[1]
+        # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
+        # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
+        Ta = numpy.tensordot(Ga, rchol_a.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
+        exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
+        Tb = numpy.tensordot(Gb, rchol_b.reshape((nbeta,nbasis,-1)), axes=((1),(1)))
+        exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
+        exx = exxa + exxb
+
+        return ecoul, exxa, exxb
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

@@ -12,10 +12,10 @@ from pauxy.utils.io import (
         write_qmcpack_sparse,
         write_qmcpack_dense,
         )
-from pauxy.estimators.generic import (
-        local_energy_generic, core_contribution,
-        local_energy_generic_cholesky, core_contribution_cholesky
-)
+# from pauxy.estimators.generic import (
+#         local_energy_generic, core_contribution,
+#         local_energy_generic_cholesky, core_contribution_cholesky
+# )
 
 
 class Generic(object):
@@ -89,10 +89,12 @@ class Generic(object):
         self.integral_file = inputs.get('integrals')
         
         self.stochastic_ri = inputs.get('stochastic_ri', False)
+        self.control_variate = inputs.get('control_variate', False)
         if self.stochastic_ri:
             self.nsamples = inputs.get('nsamples', 10)
             if self.verbose:
                 print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
+                print("# control_variate = {}".format(self.control_variate))
 
         self.cutoff = inputs.get('sparse_cutoff', None)
         self.sparse = inputs.get('sparse', False)

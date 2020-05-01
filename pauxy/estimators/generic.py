@@ -86,10 +86,6 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
-    #print("e1b = {}".format(e1b))
-    #print("ecoul = {}".format(ecoul*0.5))
-    #print("exx = {}".format(-exx*0.5))
-    #print("ecore = {}".format(system.ecore))
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 # def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None):
@@ -162,7 +158,8 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
 #     e2b = 0.5 * (ecoul - exx)
 
 #     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
-def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None):
+def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None, C0=None,\
+ecoul0 = None, exxa0 = None, exxb0 = None):
     r"""Calculate local for generic two-body hamiltonian.
     This uses the cholesky decomposed two-electron integrals.
     Parameters
@@ -176,6 +173,12 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
+
+    if (type(C0) == numpy.ndarray):
+        control = True
+    else:
+        control = False
+
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     if rchol is None:
@@ -201,20 +204,53 @@ def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None
     for i in range(nsamples):
         theta[:,i] = (2*numpy.random.randint(0,2,size=(naux))-1)
 
-    # theta = numpy.eye(naux)
-
     rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
-    ra = numpy.einsum("ipX,Xs->ips",rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-    Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
-    exxa = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
-
     rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
-    rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-    Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
-    exxb = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+
+    if (control):
+
+        G0a = C0[:,:system.nup].T.copy()
+        G0b = C0[:,system.nup:].T.copy()
+
+        ra = numpy.einsum("ipX,Xs->ips", rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Gra = numpy.einsum("kq,lqx->lkx", G0a, ra, optimize=True)
+        exxa_hf = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
+
+        rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Grb = numpy.einsum("kq,lqx->lkx", G0b, rb, optimize=True)
+        exxb_hf = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+
+        ra = numpy.einsum("ipX,Xs->ips", rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
+        exxa_corr = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
+
+        rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
+        exxb_corr = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+
+        exxa = exxa0 + (exxa_corr - exxa_hf)
+        exxb = exxb0 + (exxb_corr - exxb_hf)
+
+        # print("sri w/ control_variate")
+        # print("exx = {}".format(exxa+exxb))
+        # print("ecoul = {}".format(ecoul))
+
+    else:
+        ra = numpy.einsum("ipX,Xs->ips",rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
+        exxa = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
+
+        rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
+        Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
+        exxb = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+        
+        # print("sri w/o control_variate")
+        # print("exx = {}".format(exxa+exxb))
+        # print("ecoul = {}".format(ecoul))
 
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
+
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 def local_energy_generic_cholesky(system, G, Ghalf=None):
