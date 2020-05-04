@@ -29,26 +29,28 @@ def get_trial_wavefunction(system, options={}, mf=None,
     """
     wfn_file = get_input_value(options, 'filename', default=None,
                                alias=['wavefunction_file'], verbose=verbose)
-    if wfn_file is not None:
-        if verbose:
-            print("# Reading wavefunction from {}.".format(wfn_file))
-        read, psi0 = read_qmcpack_wfn_hdf(wfn_file)
-        thresh = options.get('threshold', None)
-        if thresh is not None:
-            coeff = read[0]
-            ndets = len(coeff[abs(coeff)>thresh])
+    wfn_type = options.get('name', 'MultiSlater')
+    if wfn_type == 'MultiSlater':
+        if wfn_file is not None:
             if verbose:
-                print("# Discarding determinants with weight "
-                      "  below {}.".format(thresh))
-        else:
-            ndets = options.get('ndets', None)
-        if verbose:
-            print("# Numeber of determinants in trial wavefunction: {}"
-                  .format(ndets))
-        if ndets is not None:
-            wfn = []
-            for x in read:
-                wfn.append(x[:ndets])
+                print("# Reading wavefunction from {}.".format(wfn_file))
+            read, psi0 = read_qmcpack_wfn_hdf(wfn_file)
+            thresh = options.get('threshold', None)
+            if thresh is not None:
+                coeff = read[0]
+                ndets = len(coeff[abs(coeff)>thresh])
+                if verbose:
+                    print("# Discarding determinants with weight "
+                          "  below {}.".format(thresh))
+            else:
+                ndets = options.get('ndets', None)
+            if verbose:
+                print("# Numeber of determinants in trial wavefunction: {}"
+                      .format(ndets))
+            if ndets is not None:
+                wfn = []
+                for x in read:
+                    wfn.append(x[:ndets])
         else:
             if verbose:
                 print("# Guessing RHF trial wavefunction.")
@@ -72,11 +74,11 @@ def get_trial_wavefunction(system, options={}, mf=None,
                 coeffs = None
             coeffs = comm.bcast(coeffs, root=0)
             trial.coeffs = coeffs
-    elif options['name'] == 'hartree_fock':
+    elif wfn_type == 'hartree_fock':
         trial = HartreeFock(system, options, verbose=verbose)
-    elif options['name'] == 'free_electron':
+    elif wfn_type == 'free_electron':
         trial = FreeElectron(system, options, verbose)
-    elif options['name'] == 'UHF':
+    elif wfn_type == 'UHF':
         trial = UHF(system, options, verbose)
     else:
         print("Unknown trial wavefunction type.")
