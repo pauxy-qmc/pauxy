@@ -251,10 +251,23 @@ class Generic(object):
             start = time.time()
             if self.verbose:
                 print("# Constructing half rotated V_{(ab)(kl)}.")
-            vakbl_a = (numpy.einsum('akn,bln->akbl', rup, rup, optimize='greedy') -
-                       numpy.einsum('bkn,aln->akbl', rup, rup, optimize='greedy'))
-            vakbl_b = (numpy.einsum('akn,bln->akbl', rdn, rdn, optimize='greedy') -
-                       numpy.einsum('bkn,aln->akbl', rdn, rdn, optimize='greedy'))
+            
+            vakbl_a_noanti = numpy.einsum('akn,bln->akbl', rup, rup, optimize='greedy')
+            vakbl_b_noanti = numpy.einsum('akn,bln->akbl', rdn, rdn, optimize='greedy')
+
+            vakbl_a = vakbl_a_noanti - vakbl_a_noanti.transpose((0,3,2,1))
+            vakbl_b = vakbl_b_noanti - vakbl_b_noanti.transpose((0,3,2,1))
+
+            vakbl_a_noanti = None
+            vakbl_b_noanti = None
+
+            vakbl_ab = numpy.einsum('akn,bln->akbl', rup, rdn, optimize='greedy')
+
+            # vakbl_a = (numpy.einsum('akn,bln->akbl', rup, rup, optimize='greedy') -
+            #            numpy.einsum('bkn,aln->akbl', rup, rup, optimize='greedy'))
+            # vakbl_b = (numpy.einsum('akn,bln->akbl', rdn, rdn, optimize='greedy') -
+            #            numpy.einsum('bkn,aln->akbl', rdn, rdn, optimize='greedy'))
+
             tvakbl = time.time() - start
         if self.cutoff is not None:
             rup[numpy.abs(rup) < self.cutoff] = 0.0
@@ -262,9 +275,12 @@ class Generic(object):
             if self.half_rotated_integrals:
                 vakbl_a[numpy.abs(vakbl_a) < self.cutoff] = 0.0
                 vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
+                vakbl_ab[numpy.abs(vakbl_ab) < self.cutoff] = 0.0
         if self.half_rotated_integrals:
             self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
-                          csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
+                          csr_matrix(vakbl_b.reshape((M*nb, M*nb))),
+                          csr_matrix(vakbl_ab.reshape((M*na, M*nb)))]
+
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
