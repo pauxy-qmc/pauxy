@@ -277,10 +277,14 @@ class Generic(object):
                 vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
                 vakbl_ab[numpy.abs(vakbl_ab) < self.cutoff] = 0.0
         if self.half_rotated_integrals:
-            self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
-                          csr_matrix(vakbl_b.reshape((M*nb, M*nb))),
-                          csr_matrix(vakbl_ab.reshape((M*na, M*nb)))]
-
+            if self.sparse:
+                self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
+                              csr_matrix(vakbl_b.reshape((M*nb, M*nb))),
+                              csr_matrix(vakbl_ab.reshape((M*na, M*nb)))]
+            else:
+                self.vakbl = [vakbl_a.reshape((M*na, M*na)),
+                              vakbl_b.reshape((M*nb, M*nb)),
+                              vakbl_ab.reshape((M*na, M*nb))]
         if self.sparse:
             if self.cutoff is not None:
                 self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
@@ -307,12 +311,16 @@ class Generic(object):
                   "{:.6f} GB".format(mem))
             if self.half_rotated_integrals:
                 print("# Time to construct V_{(ak)(bl)}: %f"%tvakbl)
-                nnz = self.vakbl[0].nnz
-                print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-                mem = (2*nnz*16/(1024.0**3))
-                print("# Approximate memory used %f GB"%mem)
-                nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
-                print("# Sparsity: %f"%(1-float(nnz)/nelem))
+                if (self.sparse):
+                    nnz = self.vakbl[0].nnz
+                    print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
+                    mem = (3*nnz*16/(1024.0**3))
+                    print("# Approximate memory used %f GB"%mem)
+                    nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
+                    print("# Sparsity: %f"%(1-float(nnz)/nelem))
+                else:
+                    mem = ((M*na*M*na + M*na*M*nb + M*nb*M*nb)*16/(1024.0**3))
+                    print("# Approximate memory used %f GB"%mem)
 
     def construct_integral_tensors_cplx(self, trial):
         # Half rotated cholesky vectors (by trial wavefunction).
