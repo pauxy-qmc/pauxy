@@ -77,9 +77,12 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
         rchol = system.rchol_vecs
     nalpha, nbeta= system.nup, system.ndown
     nbasis = system.nbasis
+    naux = rchol[0].shape[1]
+
     Ga, Gb = Ghalf[0], Ghalf[1]
     Xa = rchol[0].T.dot(Ga.ravel())
     Xb = rchol[1].T.dot(Gb.ravel())
+
     ecoul = numpy.dot(Xa,Xa)
     ecoul += numpy.dot(Xb,Xb)
     ecoul += 2*numpy.dot(Xa,Xb)
@@ -89,9 +92,12 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
         rchol_a, rchol_b = rchol[0], rchol[1]
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
-    Ta = numpy.tensordot(Ga, rchol_a.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
+    rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
+    rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
+
+    Ta = numpy.tensordot(Ga, rchol_a, axes=((1),(1)))
     exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
-    Tb = numpy.tensordot(Gb, rchol_b.reshape((nbeta,nbasis,-1)), axes=((1),(1)))
+    Tb = numpy.tensordot(Gb, rchol_b, axes=((1),(1)))
     exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
