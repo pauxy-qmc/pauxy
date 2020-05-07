@@ -32,9 +32,9 @@ def local_energy_generic(h1e, eri, G, ecore=0.0, Ghalf=None):
     return (e1+e2+ecore, e1+ecore, e2)
 
 def local_energy_generic_opt(system, G, Ghalf=None):
-    import cProfile
-    pr = cProfile.Profile()
-    pr.enable()
+    # import cProfile
+    # pr = cProfile.Profile()
+    # pr.enable()
 
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
@@ -47,8 +47,10 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     #                  (system.rchol_vecs[1].T).dot(Gdn))
     eos = Gup.dot(system.vakbl[2].dot(Gdn))
     e2b = euu + edd + eos #eud + edu
-    pr.disable()
-    pr.print_stats(sort='tottime')
+    
+    # pr.disable()
+    # pr.print_stats(sort='tottime')
+
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
@@ -68,9 +70,10 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    import cProfile
-    pr = cProfile.Profile()
-    pr.enable()
+    # import cProfile
+    # pr = cProfile.Profile()
+    # pr.enable()
+
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     if rchol is None:
@@ -92,17 +95,33 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
         rchol_a, rchol_b = rchol[0], rchol[1]
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
-    rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
-    rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
+    # rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
+    # rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
 
-    Ta = numpy.tensordot(Ga, rchol_a, axes=((1),(1)))
-    exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
-    Tb = numpy.tensordot(Gb, rchol_b, axes=((1),(1)))
-    exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
+    # Ta = numpy.tensordot(Ga, rchol_a, axes=((1),(1)))
+    # exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
+    # Tb = numpy.tensordot(Gb, rchol_b, axes=((1),(1)))
+    # exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
+    
+    rchol_a = rchol_a.T
+    rchol_b = rchol_b.T
+    Ta = numpy.zeros((naux, nalpha, nalpha), dtype=rchol_a.dtype)
+    Tb = numpy.zeros((naux, nbeta, nbeta), dtype=rchol_b.dtype)
+    GaT = Ga.T
+    GbT = Gb.T
+    for x in range(naux):
+        rmi_a = rchol_a[x].reshape((nalpha,nbasis))
+        Ta[x] = rmi_a.dot(GaT)
+        rmi_b = rchol_b[x].reshape((nbeta,nbasis))
+        Tb[x] = rmi_b.dot(GbT)
+    exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
+    exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
+
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
-    pr.disable()
-    pr.print_stats(sort='tottime')
+
+    # pr.disable()
+    # pr.print_stats(sort='tottime')
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 # def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None):
@@ -190,9 +209,9 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    import cProfile
-    pr = cProfile.Profile()
-    pr.enable()
+    # import cProfile
+    # pr = cProfile.Profile()
+    # pr.enable()
 
     if (type(C0) == numpy.ndarray):
         control = True
@@ -215,6 +234,7 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
         rchol_a, rchol_b = [rchol[0].toarray(), rchol[1].toarray()]
     else:
         rchol_a, rchol_b = rchol[0], rchol[1]
+
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
 
@@ -223,39 +243,46 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
     theta = numpy.zeros((naux,nsamples), dtype=numpy.int64)
     for i in range(nsamples):
         theta[:,i] = (2*numpy.random.randint(0,2,size=(naux))-1)
-
-    rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
-    rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
-
+    
     if (control):
+        
+        ra = rchol_a.dot(theta).T * numpy.sqrt(1.0/nsamples)
+        rb = rchol_b.dot(theta).T * numpy.sqrt(1.0/nsamples)
 
-        G0a = C0[:,:system.nup].T.copy()
-        G0b = C0[:,system.nup:].T.copy()
+        Ta0 = numpy.zeros((nsamples, nalpha, nalpha), dtype=rchol_a.dtype)
+        Tb0 = numpy.zeros((nsamples, nbeta, nbeta), dtype=rchol_b.dtype)
 
-        ra = numpy.einsum("ipX,Xs->ips", rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-        Gra = numpy.einsum("kq,lqx->lkx", G0a, ra, optimize=True)
-        exxa_hf = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
+        Ta = numpy.zeros((nsamples, nalpha, nalpha), dtype=rchol_a.dtype)
+        Tb = numpy.zeros((nsamples, nbeta, nbeta), dtype=rchol_b.dtype)
+        
+        G0aT = C0[:,:system.nup]
+        G0bT = C0[:,system.nup:]
 
-        rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-        Grb = numpy.einsum("kq,lqx->lkx", G0b, rb, optimize=True)
-        exxb_hf = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+        GaT = Ga.T
+        GbT = Gb.T
 
-        ra = numpy.einsum("ipX,Xs->ips", rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-        Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
-        exxa_corr = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
+        for x in range(nsamples):
+            rmi_a = ra[x].reshape((nalpha,nbasis))
+            rmi_b = rb[x].reshape((nbeta,nbasis))
 
-        rb = numpy.einsum("ipX,Xs->ips",rchol_b, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
-        Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
-        exxb_corr = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
+            Ta0[x] = rmi_a.dot(G0aT)
+            Tb0[x] = rmi_b.dot(G0bT)
+            Ta[x] = rmi_a.dot(GaT)
+            Tb[x] = rmi_b.dot(GbT)
+        
+        exxa_hf = numpy.tensordot(Ta0, Ta0, axes=((0,1,2),(0,2,1)))
+        exxb_hf = numpy.tensordot(Tb0, Tb0, axes=((0,1,2),(0,2,1)))
+        
+        exxa_corr = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
+        exxb_corr = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
 
         exxa = exxa0 + (exxa_corr - exxa_hf)
         exxb = exxb0 + (exxb_corr - exxb_hf)
 
-        # print("sri w/ control_variate")
-        # print("exx = {}".format(exxa+exxb))
-        # print("ecoul = {}".format(ecoul))
-
     else:
+        rchol_a = rchol_a.reshape((nalpha,nbasis, naux))
+        rchol_b = rchol_b.reshape((nbeta,nbasis, naux))
+
         ra = numpy.einsum("ipX,Xs->ips",rchol_a, theta, optimize=True) * numpy.sqrt(1.0/nsamples)
         Gra = numpy.einsum("kq,lqx->lkx", Ga, ra, optimize=True)
         exxa = numpy.tensordot(Gra, Gra, axes=((0,1,2),(1,0,2)))
@@ -264,14 +291,11 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
         Grb = numpy.einsum("kq,lqx->lkx", Gb, rb, optimize=True)
         exxb = numpy.tensordot(Grb, Grb, axes=((0,1,2),(1,0,2)))
         
-        # print("sri w/o control_variate")
-        # print("exx = {}".format(exxa+exxb))
-        # print("ecoul = {}".format(ecoul))
-
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
-    pr.disable()
-    pr.print_stats(sort='tottime')
+
+    # pr.disable()
+    # pr.print_stats(sort='tottime')
 
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
