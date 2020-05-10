@@ -79,7 +79,8 @@ class MultiSlater(object):
         else:
             (self.energy, self.e1b, self.e2b) = (
                     variational_energy(system, self.psi, self.coeffs,
-                                       G=self.G, GH=self.GH)
+                                       G=self.G, GH=self.GH,
+                                       rchol=self._rchol)
                     )
         if self.verbose:
             print("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
@@ -191,31 +192,56 @@ class MultiSlater(object):
             print("# Constructing half rotated Cholesky vectors.")
 
         if isinstance(system.chol_vecs, numpy.ndarray):
-            chol = system.chol_vecs.reshape((M,M,-1))
+            chol = system.chol_vecs.reshape((M,M,nchol))
         else:
-            chol = system.chol_vecs.toarray().reshape((M,M,-1))
-        if comm is None or comm.rank == 0:
-            shape = (self.ndets*(M*(na+nb)), nchol)
-        else:
-            shape = None
+            chol = system.chol_vecs.toarray().reshape((M,M,nchol))
+        shape = (self.ndets*(M*(na+nb)), nchol)
         self._rchol = get_shared_array(comm, shape, numpy.complex128)
-        if comm is None or comm.rank == 0:
-            for i, psi in enumerate(self.psi):
-                start_time = time.time()
-                if self.verbose:
-                    print("# Rotating Cholesky for determinant {} of "
-                          "{}.".format(i+1,self.ndets))
-                start = i*M*(na+nb)
+        for i, psi in enumerate(self.psi):
+            start_time = time.time()
+            if self.verbose:
+                print("# Rotating Cholesky for determinant {} of "
+                      "{}.".format(i+1,self.ndets))
+            start = i*M*(na+nb)
+            compute = True
+            # Distribute amongst MPI tasks on this node.
+            if comm is not None:
+                nwork_per_thread = chol.shape[-1] // comm.size
+                if nwork_per_thread == 0:
+                    start_n = 0
+                    end_n = nchol
+                    if comm.rank != 0:
+                        # Just run on root processor if problem too small.
+                        compute = False
+                else:
+                    start_n = comm.rank * nwork_per_thread
+                    end_n = (comm.rank+1) * nwork_per_thread
+                    if comm.rank == comm.size - 1:
+                        end_n = nchol
+            else:
+                start_n = 0
+                end_n = chol.shape[-1]
+
+            nchol_loc = end_n - start_n
+            # if comm.rank == 0:
+                # print(start_n, end_n, nchol_loc)
+                # print(numpy.may_share_memory(chol, chol[:,start_n:end_n]))
+            if compute:
                 rup = numpy.tensordot(psi[:,:na].conj(),
-                                      chol,
-                                      axes=((0),(0)))
-                self._rchol[start:start+M*na] = rup[:].reshape((-1,nchol))
+                                      chol[:,:,start_n:end_n],
+                                      axes=((0),(0))).reshape((na*M,nchol_loc))
+                self._rchol[start:start+M*na,start_n:end_n] = rup[:]
                 rdn = numpy.tensordot(psi[:,na:].conj(),
-                                      chol,
-                                      axes=((0),(0)))
-                self._rchol[start+M*na:start+M*(na+nb)] = rdn[:].reshape((-1,nchol))
-                if self.verbose:
-                    print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+                                      chol[:,:,start_n:end_n],
+                                      axes=((0),(0))).reshape((nb*M,nchol_loc))
+                self._rchol[start+M*na:start+M*(na+nb),start_n:end_n] = rdn[:]
+            if self.verbose:
+                self._mem_required = self._rchol.nbytes / (1024.0**3.0)
+                print("# Memory required by half-rotated integrals: "
+                      " {:.4f} GB.".format(self._mem_required))
+                print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+        if comm is not None:
+            comm.barrier()
         self._rot_hs_pot = self._rchol
 
     def rot_chol(self, idet=0, spin=None):
