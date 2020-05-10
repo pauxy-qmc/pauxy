@@ -202,8 +202,7 @@ class AFQMC(object):
             self.psi = psi
         self.setup_timers()
         w0 = self.psi.walkers[0]
-        (etot, e1b, e2b) = w0.local_energy(self.system, w0.G,
-                                           rchol=self.trial._rchol)
+        (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol)
         eshift = 0
         self.propagators.mean_local_energy = eshift.real
         # Calculate estimates for initial distribution of walkers.
