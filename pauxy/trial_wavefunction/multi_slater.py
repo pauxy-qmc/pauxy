@@ -235,8 +235,8 @@ class MultiSlater(object):
                                       chol[:,:,start_n:end_n],
                                       axes=((0),(0))).reshape((nb*M,nchol_loc))
                 self._rchol[start+M*na:start+M*(na+nb),start_n:end_n] = rdn[:]
+            self._mem_required = self._rchol.nbytes / (1024.0**3.0)
             if self.verbose:
-                self._mem_required = self._rchol.nbytes / (1024.0**3.0)
                 print("# Memory required by half-rotated integrals: "
                       " {:.4f} GB.".format(self._mem_required))
                 print("# Time to half rotate {} seconds.".format(time.time()-start_time))
