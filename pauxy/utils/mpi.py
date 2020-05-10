@@ -2,9 +2,9 @@
 import numpy
 from mpi4py import MPI
 
-def get_shared_comm(verbose=False):
+def get_shared_comm(comm, verbose=False):
     try:
-        return MPI.COMM_WORLD.Split_type(MPI.COMM_TYPE_SHARED)
+        return comm.Split_type(MPI.COMM_TYPE_SHARED)
     except:
         if verbose:
             print("# No MPI shared memory available.")
@@ -27,6 +27,7 @@ def get_shared_array(comm, shape, dtype, verbose=False):
         win = MPI.Win.Allocate_shared(nbytes, itemsize, comm=comm)
         buf, itemsize = win.Shared_query(0)
         assert itemsize == numpy.dtype(dtype).itemsize
+        buf = numpy.array(buf, dtype='B', copy=False)
         return numpy.ndarray(buffer=buf, dtype=dtype, shape=shape)
     except AttributeError:
         if verbose:
