@@ -77,6 +77,7 @@ def test_shmem():
     numpy.random.seed(7)
     nmo = 13
     nelec = (4,3)
+    comm = MPI.COMM_WORLD
     h1e_, chol_, enuc_, eri_ = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
     from pauxy.utils.io import write_qmcpack_dense
     chol_ = chol_.reshape((-1,nmo*nmo)).T.copy()
@@ -86,7 +87,7 @@ def test_shmem():
     filename = 'hamil.h5'
     nup, ndown = nelec
     from pauxy.utils.mpi import get_shared_comm
-    shared_comm = get_shared_comm(verbose=True)
+    shared_comm = get_shared_comm(comm, verbose=True)
     hcore, chol, h1e_mod, enuc = get_generic_integrals(filename,
                                                        comm=get_shared_comm,
                                                        verbose=False)

@@ -78,6 +78,8 @@ class UHF(object):
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+        self._mem_required = 0.0
+        self._rchol = None
 
     def find_uhf_wfn(self, system, ueff, ninit,
                      nit_max, alpha, deps=1e-8, verbose=0):

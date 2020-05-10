@@ -70,6 +70,8 @@ class FreeElectron(object):
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
+        self._mem_required
+        self._rchol = None
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
 

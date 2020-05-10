@@ -93,6 +93,8 @@ class HartreeFock(object):
         self.error = False
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+        self._mem_required = 0.0
+        self._rchol = None
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
