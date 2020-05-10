@@ -48,6 +48,29 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
     return system
 
 def get_generic_integrals(filename, comm=None, verbose=False):
+    """Read generic integrals, potentially into shared memory.
+
+    Parameters
+    ----------
+    filename : string
+        File containing 1e- and 2e-integrals.
+    comm : MPI communicator
+        split communicator. Optional. Default: None.
+    verbose : bool
+        Write information.
+
+    Returns
+    -------
+    hcore : :class:`numpy.ndarray`
+        One-body hamiltonian.
+    chol : :class:`numpy.ndarray`
+        Cholesky tensor L[ik,n].
+    h1e_mod : :class:`numpy.ndarray`
+        Modified one-body Hamiltonian following subtraction of normal ordered
+        contributions.
+    enuc : float
+        Core energy.
+    """
     shmem = have_shared_mem(comm)
     if verbose:
         print("# Have shared memory: {}".format(shmem))
