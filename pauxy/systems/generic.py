@@ -328,6 +328,7 @@ def construct_h1e_mod(chol, h1e, h1e_mod):
     # Eqn (17) of [Motta17]_
     nbasis = h1e.shape[-1]
     chol_3 = chol.reshape((nbasis, nbasis, -1))
+    # assert chol_3.__array_interface__['data'][0] == chol.__array_interface__['data'][0]
     v0 = 0.5 * numpy.einsum('ikn,jkn->ij', chol_3, chol_3, optimize='optimal')
     h1e_mod[0,:,:] = h1e[0] - v0
     h1e_mod[1,:,:] = h1e[1] - v0
