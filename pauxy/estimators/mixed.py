@@ -152,7 +152,7 @@ class Mixed(object):
                 if step % self.energy_eval_freq == 0:
                     w.greens_function(trial)
                     if self.eval_energy:
-                        E, T, V = w.local_energy(system)
+                        E, T, V = w.local_energy(system, rchol=trial._rchol)
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += wfac * E
@@ -205,7 +205,7 @@ class Mixed(object):
                     if step % self.energy_eval_freq == 0:
                         w.greens_function(trial)
                         if self.eval_energy:
-                            E, T, V = w.local_energy(system)
+                            E, T, V = w.local_energy(system, rchol=trial._rchol)
                         else:
                             E, T, V = 0, 0, 0
                         self.estimates[self.names.enumer] += w.weight*E.real
@@ -437,11 +437,17 @@ def eproj(estimates, enum):
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
 
-def variational_energy(system, psi, coeffs, G=None, GH=None):
-    if len(psi.shape) == 3:
-        return variational_energy_multi_det(system, psi, coeffs)
+def variational_energy(system, psi, coeffs, G=None, GH=None, rchol=None):
+    if len(psi.shape) == 2:
+        return variational_energy_single_det(system, psi,
+                                             G=G, GH=GH,
+                                             rchol=rchol)
+    elif len(psi) == 1:
+        return variational_energy_single_det(system, psi[0],
+                                             G=G, GH=GH,
+                                             rchol=rchol)
     else:
-        return variational_energy_single_det(system, psi, G=G, GH=GH)
+        return variational_energy_multi_det(system, psi, coeffs)
 
 def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     weight = 0
@@ -507,9 +513,6 @@ def variational_energy_ortho_det(system, occs, coeffs):
     return evar/denom, one_body/denom, two_body/denom
 
 
-def variational_energy_single_det(system, psi, G=None, GH=None):
-    if G is None:
-        na = system.nup
-        ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
-        gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
-    return local_energy(system, G, Ghalf=GH, opt=system._opt)
+def variational_energy_single_det(system, psi, G=None, GH=None, rchol=None):
+    assert len(psi.shape) == 2
+    return local_energy(system, G, Ghalf=GH, rchol=rchol)
