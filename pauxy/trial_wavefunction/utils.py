@@ -44,8 +44,10 @@ def get_trial_wavefunction(system, options={}, mf=None,
                           "  below {}.".format(thresh))
             else:
                 ndets = options.get('ndets', None)
+                if ndets is None:
+                    ndets = len(read[0])
             if verbose:
-                print("# Numeber of determinants in trial wavefunction: {}"
+                print("# Number of determinants in trial wavefunction: {}"
                       .format(ndets))
             if ndets is not None:
                 wfn = []
