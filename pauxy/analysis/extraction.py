@@ -108,6 +108,31 @@ def get_param(filename, param):
 def get_sys_param(filename, param):
     return get_param(filename, ['system', param])
 
+def extract_test_data_hdf5(filename):
+    """For use with testcode"""
+    data = extract_mixed_estimates(filename).drop(['Iteration', 'Time'], axis=1).to_dict()
+    print(data)
+    try:
+        mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
+    except KeyError:
+        mrdm = None
+    try:
+        brdm = extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm')
+    except KeyError:
+        brdm = None
+    if mrdm is not None:
+        mrdm = mrdm[::8].ravel()
+        data['Gmixed_re'] = numpy.real(mrdm)
+        data['Gmixed_im'] = numpy.imag(mrdm)
+    if brdm is not None:
+        brmd = brdm[::8].ravel()
+        data['Gbp_re'] = numpy.real(brdm)
+        data['Gbp_im'] = numpy.imag(brdm)
+    # if itcf is not None:
+        # itcf = itcf[abs(itcf) > 1e-10].flatten()
+        # data = pd.DataFrame(itcf)
+    return data
+
 
 # TODO : FDM FIX.
 # def analysed_itcf(filename, elements, spin, order, kspace):
