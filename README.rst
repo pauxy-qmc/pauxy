@@ -18,14 +18,10 @@ Features
 --------
 PAUXY can currently:
 
-- estimate ground state properties of model systems (Hubbard models and generic
-  systems defined by (real) FCIDUMPs).
-- perform phaseless, constrained path and free projection AFQMC using open ended random
-  walks.
+- estimate ground state properties of real (ab-initio) and model (Hubbard + UEG) systems.
+- perform phaseless and constrained path AFQMC.
 - calculate expectation values and correlation functions using back propagation.
 - calculate imaginary time correlation functions.
-- control the sign problem using a variety of trial wavefunctions including free-electron,
-  UHF and GHF, all in single- or multi-determinant form.
 - perform simple data analysis.
 
 Installation
@@ -35,7 +31,7 @@ Clone the repository
 
 ::
 
-    $ git clone https://github.com/fdmalone/pauxy.git
+    $ git clone https://github.com/pauxy-qmc/pauxy.git
 
 and run the following in the top-level pauxy directory
 
@@ -43,7 +39,7 @@ and run the following in the top-level pauxy directory
 
     $ python setup.py build_ext --inplace
 
-You will also need to set your PYTHONPATH appropriately.
+You may also need to set your PYTHONPATH appropriately.
 
 Requirements
 ------------
@@ -69,7 +65,7 @@ To the tests you can do:
 
     $ pytest
 
-These tests should all pass.
+In the main repository.
 
 .. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
     :target: https://travis-ci.org/fdmalone/pauxy
