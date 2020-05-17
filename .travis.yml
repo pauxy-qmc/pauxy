@@ -1,10 +1,12 @@
 sudo: required
-dist: trusty
 
 language: python
 
+cache:
+  apt: true
+  pip: true
+
 python:
-    2.7
     3.5
     3.6
     3.7
@@ -16,24 +18,10 @@ addons:
             - mpich
 
 before_install:
-    - pip install pandas matplotlib scipy numpy h5py mpi4py pyblock pyscf pytest
-    - cd
-    # testcode
-    - git clone git://github.com/jsspencer/testcode
-
+    - pip install -r requirements.txt
+    
 install:
-    - cd -
-    - python setup.py install
-
+    - python setup.py build_ext --inplace
+    
 script:
-    - cd tests
-    - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
-    - python -c "import sys; print (sys.path)"
-    - python -c "import pauxy; import pauxy.analysis"
-    - python -c "import pauxy.qmc"
-    - $HOME/testcode/bin/testcode.py -vvv
-    - cd $HOME/pauxy
-    - python -m pytest -v
-
-after_failure:
-    - cat */*.err*
+    - pytest -v
