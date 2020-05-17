@@ -67,8 +67,8 @@ To the tests you can do:
 
 In the main repository.
 
-.. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/fdmalone/pauxy
+.. image:: https://travis-ci.org/pauxy-qmc/pauxy.svg?branch=master
+    :target: https://travis-ci.org/pauxy-qmc/pauxy
 
 Documentation
 -------------
