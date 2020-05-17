@@ -11,12 +11,6 @@ python:
     3.6
     3.7
 
-addons:
-    apt:
-        packages:
-            - libmpich-dev
-            - mpich
-
 before_install:
     - pip install -r requirements.txt
     
