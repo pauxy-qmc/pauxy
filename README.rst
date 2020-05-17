@@ -5,8 +5,8 @@ PAUXY
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
 quantum Monte Carlo algorithms with a focus on simplicity rather than speed.
 
-.. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/fdmalone/pauxy
+.. image:: https://travis-ci.org/pauxy-qmc/pauxy.svg?branch=master
+    :target: https://travis-ci.org/pauxy-qmc/pauxy
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest
     :target: http://pauxy.readthedocs.io/en/latest/?badge=latest
