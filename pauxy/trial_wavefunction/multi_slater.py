@@ -137,8 +137,7 @@ class MultiSlater(object):
                         Ghalf = numpy.array([gha,ghb])
                         ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                         if abs(ovlp) > 1e-12:
-                            H[i,j] = ovlp * local_energy(system, G, Ghalf=Ghalf,
-                                                         rchol=self.rot_chol[i])[0]
+                            H[i,j] = ovlp * local_energy(system, G, Ghalf=Ghalf)[0]
                             S[i,j] = ovlp
                             H[j,i] = numpy.conjugate(H[i,j])
                             S[j,i] = numpy.conjugate(S[i,j])
@@ -166,8 +165,8 @@ class MultiSlater(object):
                 else:
                     di = self.psi[i]
                     dj = self.psi[j]
-                    ga, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
-                    gb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
+                    ga, gha, ioa = gab_mod_ovlp(di[:,:na], dj[:,:na])
+                    gb, ghb, iob = gab_mod_ovlp(di[:,na:], dj[:,na:])
                     ovlp = 1.0/(scipy.linalg.det(ioa)*scipy.linalg.det(iob))
                     tij = numpy.dot(ints.ravel(), ga.ravel()+gb.ravel())
                     numer += cfac * ovlp * tij
@@ -190,7 +189,7 @@ class MultiSlater(object):
         if self.verbose:
             print("# Constructing half rotated Cholesky vectors.")
 
-        chol = system.chol_vecs.reshape((-1,M*M)).T.reshape((M,M,-1))
+        chol = system.chol_vecs.reshape((M,M,-1))
         start = time.time()
         self.rot_chol = []
         for i, psi in enumerate(self.psi):

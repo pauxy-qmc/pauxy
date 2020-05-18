@@ -378,11 +378,13 @@ class Generic(object):
 
     def write_integrals(self, filename='hamil.h5'):
         if self.sparse:
-            write_qmcpack_sparse(self.H1[0], self.chol_vecs,
+            write_qmcpack_sparse(self.H1[0],
+                                 self.chol_vecs.reshape((-1,self.nbasis*self.nbasis)).T.copy(),
                                  self.nelec, self.nbasis,
                                  ecuc=self.ecore, filename=filename)
         else:
-            write_qmcpack_dense(self.H1[0], self.chol_vecs,
+            write_qmcpack_dense(self.H1[0],
+                                self.chol_vecs.reshape((-1,self.nbasis*self.nbasis)).T.copy(),
                                 self.nelec, self.nbasis,
                                 enuc=self.ecore, filename=filename,
                                 real_chol=not self.cplx_chol)
