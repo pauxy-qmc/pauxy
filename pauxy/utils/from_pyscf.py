@@ -15,9 +15,6 @@ from pauxy.estimators.generic import (
     )
 from pyscf import lib
 from pyscf import ao2mo, scf, fci
-from pyscf.pbc import scf as pbcscf
-from pyscf.pbc.gto import cell
-from pyscf.pbc.lib import chkfile
 from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, hamil_file='afqmc.h5',
