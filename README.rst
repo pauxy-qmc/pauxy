@@ -51,8 +51,8 @@ Requirements
 * mpi4py (>= 3.0.1)
 * cython (>= 0.29.2)
 
-To run the tests you will need pytest and pandas.  To perform error analysis you will also
-need `pyblock <https://github.com/jsspencer/pyblock>`
+To run the tests you will need pytest and pandas.
+To perform error analysis you will also need `pyblock <https://github.com/jsspencer/pyblock>`
 
 
 Running the Test Suite
