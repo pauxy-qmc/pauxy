@@ -19,9 +19,15 @@ addons:
 before_install:
   - pip install -r requirements.txt
   - pip install pyscf
+  - git clone https://github.com/jsspencer/testcode.git
+  - git clone https://github.com/pauxy-qmc/pauxy_test_data.git
 
 install:
   - python setup.py build_ext --inplace
 
 script:
   - pytest -v
+  - pwd
+  - ls
+  - cd pauxy_test_data
+  - python $HOME/testcode/bin/testcode.py -vvv  -e $HOME/pauxy/bin run --user-option=pauxy launch_parallel 'mpirun -np tc.nprocs python -u
