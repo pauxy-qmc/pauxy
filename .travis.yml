@@ -31,4 +31,5 @@ script:
   - echo $PYTHONPATH
   - export PYTHONPATH=$HOME/build/pauxy-qmc/pauxy:$PYTHONPATH
   - cd pauxy_test_data
-  - python ../testcode/bin/testcode.py -vvv  -e ../bin/pauxy run --user-option=pauxy launch_parallel 'mpirun -np tc.nprocs python -u'
+  - mpiexec --version
+  - python ../testcode/bin/testcode.py -vvv  -e ../bin/pauxy run --user-option=pauxy launch_parallel 'mpiexec -np tc.nprocs python -u'
