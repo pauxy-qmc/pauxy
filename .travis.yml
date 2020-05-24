@@ -27,8 +27,6 @@ install:
 
 script:
   - pytest -v
-  - pwd
   - ls
-  - ls $HOME
   - cd pauxy_test_data
-  - python $HOME/testcode/bin/testcode.py -vvv  -e $HOME/pauxy/bin run --user-option=pauxy launch_parallel 'mpirun -np tc.nprocs python -u'
+  - python testcode/bin/testcode.py -vvv  -e bin/pauxy run --user-option=pauxy launch_parallel 'mpirun -np tc.nprocs python -u'
