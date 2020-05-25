@@ -114,11 +114,11 @@ def extract_test_data_hdf5(filename):
     # print(data)
     try:
         mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
-    except:
+    except (KeyError,TypeError):
         mrdm = None
     try:
         brdm = extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm')
-    except:
+    except (KeyError,TypeError):
         brdm = None
     if mrdm is not None:
         mrdm = mrdm[::8].ravel()
