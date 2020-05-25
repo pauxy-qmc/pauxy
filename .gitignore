@@ -26,3 +26,5 @@ out
 *.chk
 *.json
 *_env
+dist
+*egg*
