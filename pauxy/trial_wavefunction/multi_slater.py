@@ -59,6 +59,7 @@ class MultiSlater(object):
         self._nelec = system.nelec
         self._nbasis = system.nbasis
         self._rchol = None
+        self._mem_required = 0.0
         write_wfn = options.get('write_wavefunction', False)
         if write_wfn:
             self.write_wavefunction()

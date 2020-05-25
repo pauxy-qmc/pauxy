@@ -81,7 +81,15 @@ def get_trial_wavefunction(system, options={}, mf=None,
     elif wfn_type == 'free_electron':
         trial = FreeElectron(system, options, verbose)
     elif wfn_type == 'UHF':
-        trial = UHF(system, options, verbose)
+        if comm.rank == 0:
+            wfn = UHF(system, options, verbose)
+            psi = wfn.psi
+        else:
+            psi = None
+        psi = comm.bcast(psi)
+        nmo = psi.shape[0]
+        nel = psi.shape[1]
+        trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)), options=options, verbose=verbose)
     else:
         print("Unknown trial wavefunction type.")
         sys.exit()

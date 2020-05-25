@@ -68,7 +68,7 @@ class UHF(object):
             self.find_uhf_wfn(system, self.ueff, self.ninitial,
                               self.nconv, self.alpha, self.deps, verbose)
         )
-        if self.error and not parallel:
+        if self.error:
             warnings.warn('Error in constructing trial wavefunction. Exiting')
             sys.exit()
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
