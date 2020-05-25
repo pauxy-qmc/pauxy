@@ -6,7 +6,6 @@ cache:
   pip: true
 
 python:
-  - "3.5"
   - "3.6"
   - "3.7"
 
