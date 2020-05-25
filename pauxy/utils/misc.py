@@ -228,14 +228,16 @@ def get_numeric_names(d):
 def get_node_mem():
     return os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 1024**3.0
 
-def print_sys_info(sha1, branch, uuid, nranks):
+def get_sys_info(sha1, branch, uuid, nranks):
     print('# Git hash: {:s}.'.format(sha1))
     print('# Git branch: {:s}.'.format(branch))
     print('# Calculation uuid: {:s}.'.format(uuid))
     mem = get_node_mem()
     print('# Approximate memory available per node: {:.4f} GB.'.format(mem))
     print('# Running on {:d} MPI rank{:s}.'.format(nranks, 's' if nranks > 1 else ''))
-    print("# Python interpreter: {:s}".format(' '.join(sys.version.splitlines())))
+    py_ver = sys.version.splitlines()
+    print("# Python interpreter: {:s}".format(' '.join(py_ver)))
+    info = {'nranks': nranks, 'python': py_ver, 'branch': branch, 'sha1': sha1}
     from importlib import import_module
     for lib in ['numpy', 'scipy', 'h5py', 'mpi4py']:
         try:
@@ -244,16 +246,21 @@ def print_sys_info(sha1, branch, uuid, nranks):
             path = l.__file__[:-12]
             vers = l.__version__
             print("# Using {:s} v{:s} from: {:s}.".format(lib, vers, path))
+            info['{:s}'.format(lib)] = {'version': vers, 'path': path}
             if lib == 'numpy':
                 np_lib = l.__config__.blas_opt_info['libraries']
                 print("# - BLAS lib: {:s}".format(' '.join(np_lib)))
                 lib_dir = l.__config__.blas_opt_info['library_dirs']
                 print("# - BLAS dir: {:s}".format(' '.join(lib_dir)))
+                info['{:s}'.format(lib)]['BLAS'] = {'lib': ' '.join(np_lib),
+                                                    'path': ' '.join(lib_dir)}
             elif lib == 'mpi4py':
                 mpicc = l.get_config()['mpicc']
                 print("# - mpicc: {:s}".format(mpicc))
+                info['{:s}'.format(lib)]['mpicc'] = mpicc
         except ModuleNotFoundError:
             print("# Package {:s} not found.".format(lib))
+    return info
 
 
 def unit_test():

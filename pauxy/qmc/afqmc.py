@@ -16,7 +16,7 @@ from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.utils.misc import (
         get_git_revision_hash,
-        print_sys_info,
+        get_sys_info,
         get_node_mem
         )
 from pauxy.utils.io import  to_json, serialise, get_input_value
@@ -95,7 +95,7 @@ class AFQMC(object):
             else:
                 self.sha1 = 'None'
             if verbose:
-                print_sys_info(self.sha1, self.branch, self.uuid, comm.size)
+                self.sys_info = get_sys_info(self.sha1, self.branch, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0
