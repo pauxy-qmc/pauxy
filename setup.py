@@ -3,6 +3,7 @@ import numpy
 from setuptools import find_packages, setup
 from setuptools.extension import Extension
 import sys
+import versioneer
 
 extensions = [
         Extension("pauxy.estimators.ueg_kernels",
@@ -10,8 +11,11 @@ extensions = [
 		  include_dirs=[numpy.get_include()])
         ]
 
+
+
 setup(
     name='pauxy',
+    version=versioneer.get_version(),
     author='PAUXY developers',
     url='http://github.com/fdmalone/pauxy',
     packages=find_packages(exclude=['examples', 'docs', 'tests', 'tools', 'setup.py']),
