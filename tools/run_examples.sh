@@ -1,6 +1,10 @@
 #!/bin/bash
-tool_dir=$(pwd)
-cd ../examples/generic
+tool_dir=$(pwd)/tools
+if [[ ! -d examples/generic ]]; then
+    echo "Error: Run from pauxy base directory."
+    exit 1
+fi
+cd examples/generic
 root_dir=$(pwd)
 cd 01-simple
 python scf.py

@@ -32,4 +32,8 @@ script:
   - export PYTHONPATH=$HOME/build/pauxy-qmc/pauxy:$PYTHONPATH
   - cd pauxy_test_data
   - mpiexec --version
+# Longer parallel tests
   - python ../testcode/bin/testcode.py -v  -e ../bin/pauxy run --user-option=pauxy launch_parallel 'mpiexec -np tc.nprocs python -u'
+# Test examples
+  - cd ..
+  - ./tools/run_examples.sh
