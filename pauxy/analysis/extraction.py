@@ -110,7 +110,7 @@ def get_sys_param(filename, param):
 
 def extract_test_data_hdf5(filename):
     """For use with testcode"""
-    data = extract_mixed_estimates(filename).drop(['Iteration', 'Time'], axis=1).to_dict(orient='list')
+    data = extract_mixed_estimates(filename).drop(['Iteration', 'Time'], axis=1)[::10].to_dict(orient='list')
     # print(data)
     try:
         mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
@@ -121,11 +121,11 @@ def extract_test_data_hdf5(filename):
     except (KeyError,TypeError):
         brdm = None
     if mrdm is not None:
-        mrdm = mrdm[::8].ravel()
+        mrdm = mrdm[::4].ravel()
         data['Gmixed_re'] = list(numpy.real(mrdm))
         data['Gmixed_im'] = list(numpy.imag(mrdm))
     if brdm is not None:
-        brdm = brdm[::8].flatten().copy()
+        brdm = brdm[::4].flatten().copy()
         data['Gbp_re'] = numpy.real(brdm)
         data['Gbp_im'] = numpy.imag(brdm)
     # if itcf is not None:
