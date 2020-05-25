@@ -46,14 +46,16 @@ Requirements
 ------------
 
 * python (>= 3.6)
-* numpy (>= 0.19.1)
-* scipy (>= 1.13.3)
-* h5py (>= 2.7.1)
-* mpi4py (>= 3.0.1)
-* cython (>= 0.29.2)
+* numpy
+* scipy
+* h5py
+* mpi4py
+* cython
+* pandas
 
-To run the tests you will need pytest and pandas.
-To perform error analysis you will also need `pyblock <https://github.com/jsspencer/pyblock>`
+Minimum versions are listed in the requirements.txt.
+To run the tests you will need pytest.
+To perform error analysis you will also need `pyblock <https://github.com/jsspencer/pyblock>`_.
 
 
 Running the Test Suite
