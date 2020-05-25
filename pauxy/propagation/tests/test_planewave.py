@@ -20,6 +20,7 @@ def test_pw():
     wfn[0,:,system.nup:] = occ
     coeffs = numpy.array([1+0j])
     trial = MultiSlater(system, (coeffs, wfn))
+    trial.psi = trial.psi[0]
     qmc = dotdict({'dt': 0.005, 'nstblz': 5})
     prop = PlaneWave(system, trial, qmc)
     walker = SingleDetWalker({}, system, trial)

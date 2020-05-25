@@ -53,6 +53,7 @@ class Walkers(object):
                 if verbose:
                     print("# Usinge single det walker with msd wavefunction.")
                 self.walker_type = 'SD'
+                trial.psi = trial.psi[0]
                 self.walkers = [SingleDetWalker(walker_opts, system, trial,
                                                 index=w, nprop_tot=nprop_tot,
                                                 nbp=nbp)

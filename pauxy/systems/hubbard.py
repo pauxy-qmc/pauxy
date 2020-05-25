@@ -47,6 +47,8 @@ class Hubbard(object):
             print("# Parsing input options.")
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
+        self.ne = self.nup + self.ndown
+        self.nelec = (self.nup, self.ndown)
         self.t = inputs.get('t', 1.0)
         self.U = inputs['U']
         self.nx = inputs['nx']

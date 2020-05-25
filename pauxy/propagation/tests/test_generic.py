@@ -17,9 +17,10 @@ def test_phmsd():
     numpy.random.seed(7)
     nmo = 10
     nelec = (5,5)
-    options = {'sparse': False}
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    system = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=0, inputs=options)
+    system = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                     chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                     ecore=0)
     wfn = get_random_nomsd(system, ndet=3)
     trial = MultiSlater(system, wfn)
     walker = MultiDetWalker({}, system, trial)

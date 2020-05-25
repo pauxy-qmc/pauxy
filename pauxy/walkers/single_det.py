@@ -45,7 +45,8 @@ class SingleDetWalker(object):
         self.ot = 1.0
         # interface consistency
         self.ots = numpy.zeros(1, dtype=numpy.complex128)
-        self.E_L = local_energy(system, self.G, self.Gmod)[0].real
+        # self.E_L = local_energy(system, self.G, self.Gmod, trail._rchol)[0].real
+        self.E_L = 0.0
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
@@ -266,7 +267,7 @@ class SingleDetWalker(object):
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-    def local_energy(self, system, two_rdm=None):
+    def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
 
         Parameters
@@ -279,7 +280,10 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
+        return local_energy(system, self.G,
+                            Ghalf=self.Gmod,
+                            two_rdm=two_rdm,
+                            rchol=rchol)
 
     def get_buffer(self):
         """Get walker buffer for MPI communication

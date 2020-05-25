@@ -225,11 +225,15 @@ def get_numeric_names(d):
             size += 1
     return names, size
 
+def get_node_mem():
+    return os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 1024**3.0
 
 def get_sys_info(sha1, branch, uuid, nranks):
     print('# Git hash: {:s}.'.format(sha1))
     print('# Git branch: {:s}.'.format(branch))
     print('# Calculation uuid: {:s}.'.format(uuid))
+    mem = get_node_mem()
+    print('# Approximate memory available per node: {:.4f} GB.'.format(mem))
     print('# Running on {:d} MPI rank{:s}.'.format(nranks, 's' if nranks > 1 else ''))
     py_ver = sys.version.splitlines()
     print("# Python interpreter: {:s}".format(' '.join(py_ver)))

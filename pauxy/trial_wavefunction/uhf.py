@@ -44,7 +44,7 @@ class UHF(object):
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=0):
+    def __init__(self, system, trial, verbose=0):
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -53,10 +53,7 @@ class UHF(object):
         self.type = "UHF"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'trial')
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        self.trial_type = complex
         # Unpack input options.
         self.ninitial = trial.get('ninitial', 10)
         self.nconv = trial.get('nconv', 5000)
@@ -68,10 +65,10 @@ class UHF(object):
         self.type = 'UHF'
         self.ndets = 1
         (self.psi, self.eigs, self.emin, self.error, self.nav) = (
-            self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
+            self.find_uhf_wfn(system, self.ueff, self.ninitial,
                               self.nconv, self.alpha, self.deps, verbose)
         )
-        if self.error and not parallel:
+        if self.error:
             warnings.warn('Error in constructing trial wavefunction. Exiting')
             sys.exit()
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
@@ -81,8 +78,10 @@ class UHF(object):
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+        self._mem_required = 0.0
+        self._rchol = None
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit,
+    def find_uhf_wfn(self, system, ueff, ninit,
                      nit_max, alpha, deps=1e-8, verbose=0):
         emin = 0
         uold = system.U
@@ -93,7 +92,7 @@ class UHF(object):
         for attempt in range(0, ninit):
             # Set up initial (random) guess for the density.
             (self.trial, eold) = self.initialise(system.nbasis, system.nup,
-                                            system.ndown, cplx)
+                                            system.ndown)
             niup = self.density(self.trial[:,:nup])
             nidown = self.density(self.trial[:,nup:])
             niup_old = self.density(self.trial[:,:nup])
@@ -142,16 +141,12 @@ class UHF(object):
                           "Delta E: %f" % (enew - emin))
             return (trial, numpy.append(e_up, e_down), None, True, None)
 
-    def initialise(self, nbasis, nup, ndown, cplx):
+    def initialise(self, nbasis, nup, ndown):
         (e_up, ev_up) = self.random_starting_point(nbasis)
         (e_down, ev_down) = self.random_starting_point(nbasis)
 
-        if cplx:
-            trial_type = complex
-        else:
-            trial_type = float
         trial = numpy.zeros(shape=(nbasis, nup+ndown),
-                            dtype=trial_type)
+                            dtype=numpy.complex128)
         trial[:,:nup] = ev_up[:,:nup]
         trial[:,nup:] = ev_down[:,:ndown]
         eold = sum(e_up[:nup]) + sum(e_down[:ndown])
