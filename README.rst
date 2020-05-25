@@ -37,6 +37,7 @@ and run the following in the top-level pauxy directory
 
 ::
 
+    $ pip install -r requirements.txt
     $ python setup.py build_ext --inplace
 
 You may also need to set your PYTHONPATH appropriately.
@@ -58,14 +59,15 @@ To perform error analysis you will also need `pyblock <https://github.com/jsspen
 Running the Test Suite
 ----------------------
 
-Pauxy contains unit tests and short deterministic longer tests of full calculations.
-To the tests you can do:
+Pauxy contains unit tests and some longer driver tests that can be run using pytest by
+running:
 
 ::
 
-    $ pytest
+    $ pytest -v
 
-In the main repository.
+in the base of the repo. Some longer parallel tests are also run through the CI. See
+travis.yml for more details.
 
 .. image:: https://travis-ci.com/pauxy-qmc/pauxy.svg?branch=master
     :target: https://travis-ci.com/pauxy-qmc/pauxy
@@ -73,7 +75,7 @@ In the main repository.
 Documentation
 -------------
 
-Notes on the underlying theory as well as documentation and tutorials are available at
+Documentation and tutorials are available at
 `readthedocs <https://pauxy.readthedocs.org>`_.
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest

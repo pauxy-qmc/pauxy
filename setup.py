@@ -1,9 +1,10 @@
-from Cython.Build import cythonize
 import numpy
 from setuptools import find_packages, setup
 from setuptools.extension import Extension
 import sys
 import versioneer
+from pip._internal.req import parse_requirements
+from Cython.Build import cythonize
 
 extensions = [
         Extension("pauxy.estimators.ueg_kernels",
@@ -11,7 +12,9 @@ extensions = [
 		  include_dirs=[numpy.get_include()])
         ]
 
-
+def load_requirements(fname):
+    reqs = parse_requirements(fname, session="test")
+    return [str(ir.req) for ir in reqs]
 
 setup(
     name='pauxy',
@@ -22,6 +25,7 @@ setup(
     license='Lesser GPL v2.1',
     description='Python Implementations of Auxilliary Field QMC algorithms',
     python_requires=">=3.6.0",
+    install_requires=load_requirements("requirements.txt"),
     long_description=open('README.rst').read(),
     ext_modules = cythonize(extensions, include_path=[numpy.get_include()],
                             compiler_directives={'language_level':
