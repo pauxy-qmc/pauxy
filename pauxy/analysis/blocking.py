@@ -6,7 +6,10 @@ import h5py
 import json
 import numpy
 import pandas as pd
-import pyblock
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import pyblock
 import scipy.stats
 from pauxy.analysis.extraction import (
         extract_mixed_estimates,
