@@ -32,7 +32,8 @@ class Continuous(object):
 
     def __init__(self, options, qmc, system, trial, verbose=False, lowrank=False):
         if verbose:
-            print ("# Parsing continuous propagator input options.")
+            print("# Parsing continuous propagator input options.")
+            print("# Using continuous Hubbar--Stratonovich transformations.")
 
         # Input options
         self.hs_type = 'continuous'

@@ -30,6 +30,7 @@ class HirschSpin(object):
 
         if verbose:
             print ("# Parsing discrete propagator input options.")
+            print ("# Using discrete Hubbard--Stratonovich transformation.")
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
