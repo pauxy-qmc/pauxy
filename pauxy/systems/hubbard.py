@@ -147,6 +147,13 @@ class Hubbard(object):
         else:
             self.h1e_mod = self.H1
 
+    def hijkl(self, i, j, k, l):
+        # (ik|jl)
+        if i == j == k == l:
+            return self.U
+        else:
+            return 0.0
+
 
 
 def transform_matrix(nbasis, kpoints, kc, nx, ny):
