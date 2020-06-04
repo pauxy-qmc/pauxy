@@ -275,6 +275,15 @@ def analyse_estimates(files, start_time, multi_sim=False):
         columns = set_info(data, md)
         basic.append(data.drop('Iteration', axis=1))
         mds.append(md)
+    new_columns = []
+    for c in columns:
+        if (c != "E_T"):
+            new_columns += [c]
+    columns = new_columns
+    if (len(files) > 1):
+        print("multi simulations detected")
+        print("grouping based on everything other than E_T")
+        print("columns = {}".format(columns))
     basic = pd.concat(basic).groupby(columns)
     basic_av = reblock_mixed(basic, columns)
     base = files[0].split('/')[-1]

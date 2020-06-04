@@ -119,15 +119,15 @@ class Generic(object):
         else:
             start = time.time()
             h1e, self.chol_vecs, self.ecore = self.read_integrals()
-            if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
-                self.cplx_chol = True
-                if verbose:
-                    print("# Found complex integrals.")
-                    print("# Using Hermitian Cholesky decomposition.")
-            else:
-                if verbose:
-                    print("# Using real symmetric Cholesky decomposition.")
-                self.cplx_chol = False
+            #if numpy.max(numpy.abs(self.chol_vecs.imag)) > 1e-6:
+            #    self.cplx_chol = True
+            #    if verbose:
+            #        print("# Found complex integrals.")
+            #        print("# Using Hermitian Cholesky decomposition.")
+            #else:
+            if verbose:
+                print("# Using real symmetric Cholesky decomposition.")
+            self.cplx_chol = False
             if verbose:
                 print("# Time to read integrals: {:.6f} "
                        "s".format(time.time()-start))
@@ -185,15 +185,20 @@ class Generic(object):
 
     def read_integrals(self):
         try:
+            #print("from sparse")
             (h1e, schol_vecs, ecore, nbasis, nup, ndown) = (
                     from_qmcpack_sparse(self.integral_file)
                     )
             chol_vecs = schol_vecs.toarray().T.reshape((-1,nbasis,nbasis))
         except KeyError:
+            #print("from dense start")
             (h1e, chol_vecs, ecore, nbasis, nup, ndown) = (
                     from_qmcpack_dense(self.integral_file)
                     )
+            #print("from dense end")
+            #print("transpose start")
             chol_vecs = chol_vecs.T.reshape((-1,nbasis,nbasis))
+            #print("transpose end")
         except OSError:
             print("# Unknown Hamiltonian file {}.".format(self.integral_file))
         except:

@@ -37,6 +37,9 @@ class Walkers(object):
                  comm=None, nprop_tot=None, nbp=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
+        if verbose:
+            print("# nwalkers = {}".format(self.nwalkers))
+            print("# ntot_walkers = {}".format(self.ntot_walkers))
         self.write_freq = walker_opts.get('write_freq', 0)
         self.write_file = walker_opts.get('write_file', 'restart.h5')
         self.read_file = walker_opts.get('read_file', None)

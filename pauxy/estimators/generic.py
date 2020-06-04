@@ -70,9 +70,9 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    # import cProfile
-    # pr = cProfile.Profile()
-    # pr.enable()
+    #import cProfile
+    #pr = cProfile.Profile()
+    #pr.enable()
 
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
@@ -120,8 +120,8 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf=None, rchol=None):
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
 
-    # pr.disable()
-    # pr.print_stats(sort='tottime')
+    #pr.disable()
+    #pr.print_stats(sort='tottime')
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
 # def local_energy_generic_cholesky_opt_stochastic(system, G, nsamples, Ghalf=None, rchol=None):
@@ -209,9 +209,9 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
     (E, T, V): tuple
         Local, kinetic and potential energies.
     """
-    # import cProfile
-    # pr = cProfile.Profile()
-    # pr.enable()
+    #import cProfile
+    #pr = cProfile.Profile()
+    #pr.enable()
 
     if (type(C0) == numpy.ndarray):
         control = True
@@ -294,8 +294,8 @@ ecoul0 = None, exxa0 = None, exxb0 = None):
     exx = exxa + exxb
     e2b = 0.5 * (ecoul - exx)
 
-    # pr.disable()
-    # pr.print_stats(sort='tottime')
+    #pr.disable()
+    #pr.print_stats(sort='tottime')
 
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
