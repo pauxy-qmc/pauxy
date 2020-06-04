@@ -12,6 +12,7 @@ from pauxy.utils.testing import (
         )
 from pauxy.walkers.multi_det import MultiDetWalker
 
+@pytest.mark.unit
 def test_phmsd():
     numpy.random.seed(7)
     nmo = 10

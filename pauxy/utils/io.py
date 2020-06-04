@@ -79,7 +79,7 @@ def to_sparse(vals, offset=0, cutoff=1e-8):
     return ix, vals
 
 def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonian.h5',
-                         real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
+                 real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
@@ -92,23 +92,33 @@ def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonia
         if ortho is not None:
             fh5['Hamiltonian/X'] = ortho
         # number of cholesky vectors
-        if isinstance(chol, numpy.ndarray):
-            h2 = scipy.sparse.csr_matrix(chol)
-        nchol_vecs = h2.shape[-1]
-        ix, vals = to_sparse(h2.toarray())
-        fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([len(vals)])
-        # (h2_unpacked, idx) = to_qmcpack_index(h2)
-        fh5['Hamiltonian/Factorized/index_0'] = numpy.array(ix)
-        fh5['Hamiltonian/Factorized/vals_0'] = to_qmcpack_complex(numpy.array(vals, dtype=numpy.complex128))
+        nchol_vecs = chol.shape[-1]
+        ix, vals = to_sparse(chol, cutoff=cutoff)
         nnz = len(vals)
+        mem = (8 if real_chol else 16) * nnz / (1024.0**3)
+        if verbose:
+            print(" # Total number of non-zero elements in sparse cholesky ERI"
+                   " tensor: %d"%nnz)
+            nelem = chol.shape[0]*chol.shape[1]
+            print(" # Sparsity of ERI Cholesky tensor: "
+                   "%f"%(1-float(nnz)/nelem))
+            print(" # Total memory required for ERI tensor: %13.8e GB"%(mem))
+        fh5['Hamiltonian/Factorized/block_sizes'] = numpy.array([nnz])
+        fh5['Hamiltonian/Factorized/index_0'] = numpy.array(ix)
+        if real_chol:
+            fh5['Hamiltonian/Factorized/vals_0'] = numpy.array(vals)
+        else:
+            fh5['Hamiltonian/Factorized/vals_0'] = (
+                    to_qmcpack_complex(numpy.array(vals, dtype=numpy.complex128))
+                    )
         # Number of integral blocks used for chunked HDF5 storage.
         # Currently hardcoded for simplicity.
         nint_block = 1
         (nalpha, nbeta) = nelec
-        # unused parameter as far as I can tell.
         unused = 0
         fh5['Hamiltonian/dims'] = numpy.array([unused, nnz, nint_block, nmo,
-                                                nalpha, nbeta, unused, nchol_vecs])
+                                               nalpha, nbeta, unused,
+                                               nchol_vecs])
         occups = [i for i in range(0, nalpha)]
         occups += [i+nmo for i in range(0, nbeta)]
         fh5['Hamiltonian/occups'] = numpy.array(occups)
@@ -116,7 +126,7 @@ def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonia
 def from_qmcpack_complex(data, shape):
     return data.view(numpy.complex128).ravel().reshape(shape)
 
-def from_qmcpack_cholesky(filename):
+def from_qmcpack_sparse(filename):
     with h5py.File(filename, 'r') as fh5:
         enuc = fh5['Hamiltonian/Energies'][:][0]
         dims = fh5['Hamiltonian/dims'][:]
@@ -153,7 +163,7 @@ def from_qmcpack_cholesky(filename):
             row_ix[s:s+bs] = ixs[::2]
             col_ix[s:s+bs] = ixs[1::2]
             if real_ints:
-                vals[s:s+bs] = fh5['Hamiltonian/Factorized/vals_%i'%ic][:].ravel()
+                vals[s:s+bs] = numpy.real(fh5['Hamiltonian/Factorized/vals_%i'%ic][:]).ravel()
             else:
                 vals[s:s+bs] = fh5['Hamiltonian/Factorized/vals_%i'%ic][:].view(numpy.complex128).ravel()
             s += bs
@@ -162,6 +172,23 @@ def from_qmcpack_cholesky(filename):
         chol_vecs = scipy.sparse.csr_matrix((vals, (row_ix, col_ix)),
                                             shape=(nmo*nmo,nchol))
         return (hcore, chol_vecs, enuc, int(nmo), int(nalpha), int(nbeta))
+
+def write_qmcpack_dense(hcore, chol, nelec, nmo, enuc=0.0,
+                        filename='hamiltonian.h5', real_chol=True,
+                        verbose=False, ortho=None):
+    with h5py.File(filename, 'w') as fh5:
+        fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
+        if real_chol:
+            fh5['Hamiltonian/hcore'] = numpy.real(hcore)
+            fh5['Hamiltonian/DenseFactorized/L'] = numpy.real(chol)
+        else:
+            fh5['Hamiltonian/hcore'] = to_qmcpack_complex(hcore.astype(numpy.complex128))
+            fh5['Hamiltonian/DenseFactorized/L'] = to_qmcpack_complex(chol.astype(numpy.complex128))
+        fh5['Hamiltonian/dims'] = numpy.array([0, 0, 0, nmo,
+                                               nelec[0], nelec[1], 0,
+                                               chol.shape[-1]])
+        if ortho is not None:
+            fh5['Hamiltonian/X'] = ortho
 
 def from_qmcpack_dense(filename):
     with h5py.File(filename, 'r') as fh5:
@@ -172,9 +199,9 @@ def from_qmcpack_dense(filename):
         real_ints = False
         try:
             hcore = fh5['Hamiltonian/hcore'][:]
-            hcore = hcore.view(numpy.complex128).reshape(nmo,nmo)
+            hcore = from_qmcpack_complex(hcore, (nmo,nmo))
             chol = fh5['Hamiltonian/DenseFactorized/L'][:]
-            chol = hcore.view(numpy.complex128)
+            chol = from_qmcpack_complex(chol, (nmo*nmo,-1))
         except ValueError:
             # Real format.
             hcore = fh5['Hamiltonian/hcore'][:]
@@ -183,37 +210,6 @@ def from_qmcpack_dense(filename):
         nalpha = dims[4]
         nbeta = dims[5]
         return (hcore, chol, enuc, int(nmo), int(nalpha), int(nbeta))
-
-def dump_native(filename, hcore, eri, orthoAO, fock, nelec, enuc,
-                orbs=None, verbose=True, coeffs=None):
-    if verbose:
-        print (" # Constructing trial wavefunctiom in ortho AO basis.")
-    if len(fock.shape) == 3:
-        if verbose:
-            print (" # Writing UHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    else:
-        if verbose:
-            print (" # Writing RHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    nbasis = hcore.shape[-1]
-    mem = 64*nbasis**4/(1024.0*1024.0*1024.0)
-    if verbose:
-        print (" # Total number of elements in ERI tensor: %d"%nbasis**4)
-        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
-    with h5py.File(filename, 'w') as fh5:
-        fh5.create_dataset('hcore', data=hcore)
-        fh5.create_dataset('nelec', data=nelec)
-        fh5.create_dataset('eri', data=eri)
-        fh5.create_dataset('enuc', data=[enuc])
-        fh5.create_dataset('orbs', data=orbs)
-        fh5.create_dataset('coeffs', data=coeffs)
 
 def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
                  verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
@@ -407,17 +403,17 @@ def read_qmcpack_nomsd_hdf5(wgroup):
     if uhf:
         psi0[:,na:] = psi0b.copy()
     else:
-        psi0[:,na:] = psi0a.copy()
+        psi0[:,na:] = psi0a[:,:nb].copy()
     wfn = numpy.zeros((nci,nmo,na+nb), dtype=numpy.complex128)
     for idet in range(nci):
         ix = 2*idet if uhf else idet
-        pa = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(idet)])
+        pa = orbs_from_dset(wgroup['PsiT_{:d}/'.format(idet)])
         wfn[idet,:,:na] = pa
         if uhf:
             ix = 2*idet + 1
-            wfn[idet,:,na:] = from_qmcpack_sparse(wgroup['PsiT_{:d}/'.format(ix)])
+            wfn[idet,:,na:] = orbs_from_dset(wgroup['PsiT_{:d}/'.format(ix)])
         else:
-            wfn[idet,:,na:] = pa
+            wfn[idet,:,na:] = pa[:,:nb]
     return (coeffs,wfn), psi0
 
 def read_qmcpack_phmsd_hdf5(wgroup):
@@ -584,7 +580,7 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     # Reading 1D array currently in qmcpack.
     fh5['occs'] = occs.ravel()
 
-def from_qmcpack_sparse(dset):
+def orbs_from_dset(dset):
     """Will read actually A^{H} but return A.
     """
     dims = dset['dims'][:]
@@ -624,10 +620,8 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
             },
         'qmc': {
             'dt': 0.005,
-            'nsteps': 10,
-            'blocks': 500,
-            'nwalkers': 30,
-            'blocks': 10000,
+            'nwalkers': 100,
+            'blocks': 1000,
             'nsteps': 10,
             'pop_control_freq': 5
             },

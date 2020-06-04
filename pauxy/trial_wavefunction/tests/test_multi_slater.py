@@ -11,7 +11,7 @@ from pauxy.utils.io import (
         read_qmcpack_wfn_hdf,
         write_qmcpack_wfn,
         read_phfmol,
-        dump_qmcpack_cholesky
+        write_qmcpack_sparse
         )
 from pauxy.utils.misc import dotdict
 from pauxy.utils.testing import get_random_wavefunction
@@ -19,6 +19,7 @@ from pauxy.trial_wavefunction.utils import get_trial_wavefunction
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.walkers.multi_det import MultiDetWalker
 
+@pytest.mark.unit
 def test_nomsd():
     system = UEG({'nup': 7, 'ndown': 7, 'rs': 5, 'ecut': 4,
                   'thermal': True})

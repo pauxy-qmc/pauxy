@@ -25,7 +25,7 @@ Once the scf converges we need to generate the wavefunction and integrals using 
 
 .. code-block:: bash
 
-    python /path/to/pauxy/tools/pyscf/pyscf_to_pauxy.py -i 'scf.chk'
+    python /path/to/pauxy/tools/pyscf/pyscf_to_pauxy.py -i 'scf.chk' -j 'input.json'
 
 You should find a file called `afqmc.h5` and pauxy input file `input.json` created from
 information in `afqmc.h5`.
@@ -41,10 +41,10 @@ information in `afqmc.h5`.
         },
         "qmc": {
             "dt": 0.005,
-            "nsteps": 5000,
-            "nmeasure": 10,
-            "nwalkers": 30,
-            "pop_control": 1
+            "nsteps": 10,
+            "blocks": 1000,
+            "nwalkers": 100,
+            "pop_control_freq": 5
         },
         "trial": {
             "filename": "afqmc.h5"
@@ -58,10 +58,25 @@ Run the AFQMC calculation by:
 
 .. code-block:: bash
 
-    python /path/to/pauxy/bin/pauxy.py input.json
+    mpirun -np N python /path/to/pauxy/bin/pauxy.py input.json
 
 See the documentation for more input options and the converter:
 
 .. code-block:: bash
 
     python /path/to/pauxy/tools/pyscf/pyscf_to_pauxy.py --help
+
+The data can be analysed using
+
+.. code-block:: bash
+
+    python /path/to/pauxy/tools/reblock.py -s 1.0 -f estimates.0.h5
+
+which will print a data table whose value for the total energy should be roughly
+-5.38331344 +/- 0.0014386. This can be compared to value of -5.3819  +/- 0.0006 from the
+Simons hydrogen chain benchmark `value`_. The results are roughly within error bars of
+eachother, however we would typically recommend the use of a walker population of 1000 or
+greater. The `-s` flag tells reblock.py to discard the first 1 a.u. of the simulation for
+equilibration.
+
+.. _value: https://github.com/simonsfoundation/hydrogen-benchmark-PRX/blob/master/N_10_OBC/R_1.6/AFQMC_basis-STO

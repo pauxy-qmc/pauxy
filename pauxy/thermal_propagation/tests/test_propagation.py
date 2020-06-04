@@ -7,6 +7,7 @@ from pauxy.thermal_propagation.hubbard import ThermalDiscrete
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.utils.misc import dotdict, update_stack
 
+@pytest.mark.unit
 def test_hubbard():
     options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 1.0, 'nup': 7, 'ndown': 7}
     system = Hubbard(options, verbose=False)
@@ -38,6 +39,7 @@ def test_hubbard():
     assert numpy.linalg.norm(walker1.G-walker2.G) == pytest.approx(0)
     assert walker1.local_energy(system)[0] == pytest.approx(walker2.local_energy(system)[0])
 
+@pytest.mark.unit
 def test_propagate_walker():
     options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 1.0, 'nup': 7, 'ndown': 7}
     system = Hubbard(options, verbose=False)

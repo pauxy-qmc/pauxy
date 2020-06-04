@@ -1,4 +1,4 @@
-# import pytest
+import pytest
 import numpy
 import os
 from pauxy.systems.ueg import UEG
@@ -8,6 +8,7 @@ from pauxy.estimators.back_propagation import BackPropagation
 from pauxy.propagation.continuous import Continuous
 from pauxy.walkers.handler import Walkers
 
+@pytest.mark.unit
 def test_back_prop():
     sys = UEG({'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 1.0})
     bp_opt = {'tau_bp': 1.0, 'nsplit': 4, 'evaluate_ekt':True}

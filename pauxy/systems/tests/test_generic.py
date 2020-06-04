@@ -6,6 +6,7 @@ from pauxy.systems.generic import Generic
 from pauxy.utils.testing import generate_hamiltonian
 
 
+@pytest.mark.unit
 def test_real():
     numpy.random.seed(7)
     nmo = 17
@@ -17,6 +18,7 @@ def test_real():
     assert numpy.trace(h1e) == pytest.approx(9.38462274882365)
 
 
+@pytest.mark.unit
 def test_complex():
     numpy.random.seed(7)
     nmo = 17
@@ -27,6 +29,7 @@ def test_complex():
     assert sys.ndown == 3
     assert sys.nbasis == 17
 
+@pytest.mark.unit
 def test_write():
     numpy.random.seed(7)
     nmo = 13
@@ -35,18 +38,21 @@ def test_write():
     sys = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc)
     sys.write_integrals()
 
+@pytest.mark.unit
 def test_read():
     numpy.random.seed(7)
     nmo = 13
     nelec = (4,3)
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=True, sym=4)
-    from pauxy.utils.io import dump_qmcpack_cholesky
-    dump_qmcpack_cholesky([h1e,h1e], chol, nelec, nmo, e0=enuc, filename='hamil.h5')
+    from pauxy.utils.io import write_qmcpack_dense
+    chol_ = chol.reshape((-1,nmo*nmo)).T.copy()
+    write_qmcpack_dense(h1e, chol_, nelec, nmo,
+                        enuc=enuc, filename='hamil.h5',
+                        real_chol=False)
     options = {'nup': nelec[0], 'ndown': nelec[1], 'integrals': 'hamil.h5'}
     sys = Generic(inputs=options)
-    eri = sys.chol_vecs
-    assert numpy.linalg.norm(chol-eri) == pytest.approx(0.0)
-
+    schol = sys.chol_vecs
+    assert numpy.linalg.norm(chol-schol) == pytest.approx(0.0)
 
 def teardown_module():
     cwd = os.getcwd()

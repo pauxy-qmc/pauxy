@@ -4,7 +4,7 @@ Back Propagation
 In this example we will outline how to compute the back propagated 1RDM.
 
 Generate the integrals as before but use the `-b` option to generate a skeleton back
-propagated estimator block. 
+propagated estimator block.
 
 .. code-block:: json
 
@@ -48,9 +48,9 @@ The rdm can be extracted from the estimates files using
 
     # can provide an index to get an rdm at a specific split
     rdm_0 = extract_rdm('estimates.0.h5', ix=100) # tau = 0.5
-    rdm_1 = extract_rdm('estimates.0.h5', ix=200) # tau = 1.0 
-    rdm_1 = extract_rdm('estimates.0.h5', ix=300) # tau = 1.5 
+    rdm_1 = extract_rdm('estimates.0.h5', ix=200) # tau = 1.0
+    rdm_1 = extract_rdm('estimates.0.h5', ix=300) # tau = 1.5
 
-    # To get the averaged rdm use 
-    from pauxy.analysis.blocking import average_rdm 
-    rdm_av, rdm_err = average_rdm('estimates.0.h5') 
+    # To get the averaged rdm use
+    from pauxy.analysis.blocking import average_rdm
+    rdm_av, rdm_err = average_rdm('estimates.0.h5')
