@@ -33,8 +33,7 @@ class MultiDetWalker(object):
         self.phase = 1 + 0j
         self.nup = system.nup
         self.E_L = 0.0
-        ix = numpy.random.randint(0,len(trial.psi))
-        self.phi = copy.deepcopy(trial.psi[ix])
+        self.phi = copy.deepcopy(trial.init)
         self.ndets = trial.psi.shape[0]
         dtype = numpy.complex128
         # This stores an array of overlap matrices with the various elements of
@@ -170,14 +169,20 @@ class MultiDetWalker(object):
             Trial wavefunction object.
         """
         nup = self.nup
-        for (ix, t) in enumerate(trial.psi):
+        for (ix, detix) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
-            self.Gi[ix,0,:,:] = (
-                    (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
-            )
-            self.Gi[ix,1,:,:] = (
-                    (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
-            )
+            ovlp = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
+            inv_ovlp = scipy.linalg.inv(ovlp)
+            self.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,:nup].T)
+                                          )
+            ovlp = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
+            inv_ovlp = scipy.linalg.inv(ovlp)
+            self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,nup:].T)
+                                          )
 
     def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
