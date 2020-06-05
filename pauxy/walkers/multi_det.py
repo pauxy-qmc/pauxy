@@ -33,7 +33,8 @@ class MultiDetWalker(object):
         self.phase = 1 + 0j
         self.nup = system.nup
         self.E_L = 0.0
-        self.phi = copy.deepcopy(trial.init)
+        ix = numpy.random.randint(0,len(trial.psi))
+        self.phi = copy.deepcopy(trial.psi[ix])
         self.ndets = trial.psi.shape[0]
         dtype = numpy.complex128
         # This stores an array of overlap matrices with the various elements of
@@ -178,7 +179,7 @@ class MultiDetWalker(object):
                     (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
             )
 
-    def local_energy(self, system, two_rdm=None):
+    def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
 
         Parameters
@@ -192,7 +193,9 @@ class MultiDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         return local_energy_multi_det(system, self.Gi,
-                                      self.weights, two_rdm=None)
+                                      self.weights,
+                                      two_rdm=None,
+                                      rchol=None)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0

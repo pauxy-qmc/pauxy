@@ -51,6 +51,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
                       .format(ndets))
             if ndets is not None:
                 wfn = []
+                # Wavefunction is a tuple, immutable so have to iterate through
                 for x in read:
                     wfn.append(x[:ndets])
         else:
@@ -71,6 +72,8 @@ def get_trial_wavefunction(system, options={}, mf=None,
         rediag = options.get('recompute_ci', False)
         if rediag:
             if comm.rank == 0:
+                if verbose:
+                    print("# Recomputing trial wavefunction ci coeffs.")
                 coeffs = trial.recompute_ci_coeffs(system)
             else:
                 coeffs = None
