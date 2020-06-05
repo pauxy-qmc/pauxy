@@ -66,7 +66,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
             wfn[0,:,:na] = I[:,:na]
             wfn[0,:,na:] = I[:,:nb]
             wfn = (coeffs, wfn)
-        trial = MultiSlater(system, wfn, options=options, verbose=verbose)
+        trial = MultiSlater(system, wfn, init=psi0, options=options, verbose=verbose)
         if system.name == 'Generic':
             trial.half_rotate(system, comm)
         rediag = options.get('recompute_ci', False)
