@@ -523,8 +523,10 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     # TODO: Update if we ever wanted "mixed" phmsd type wavefunctions.
     na, nb = nelec
     if init is not None:
-        fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
-        fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
+        psi0 = numpy.array(init[0], numpy.complex128)
+        fh5['Psi0_alpha'] = to_qmcpack_complex(psi0)
+        psi0 = numpy.array(init[1], numpy.complex128)
+        fh5['Psi0_beta'] = to_qmcpack_complex(psi0)
     else:
         init = numpy.eye(norb, dtype=numpy.complex128)
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())
@@ -578,9 +580,7 @@ def write_input(filename, hamil, wfn, bp=False, options={}):
         'qmc': {
             'dt': 0.005,
             'nwalkers': 100,
-            'blocks': 1000,
-            'nsteps': 10,
-            'pop_control_freq': 5
+            'blocks': 1000
             },
         'trial': {
             'filename': wfn
