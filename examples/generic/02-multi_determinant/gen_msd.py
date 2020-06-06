@@ -35,9 +35,9 @@ occb = [numpy.array(core + [o + mc.ncore for o in ob]) for ob in occb]
 coeff = numpy.array(coeff,dtype=numpy.complex128)
 # Sort in ascending order.
 ixs = numpy.argsort(numpy.abs(coeff))[::-1]
-coeff = coeff[ix]
-occa = occa[ix]
-occb = occb[ix]
+coeff = coeff[ixs]
+occa = numpy.array(occa)[ixs]
+occb = numpy.array(occb)[ixs]
 
 nmo = mf.mo_coeff.shape[-1]
 rdm = mc.make_rdm1()
