@@ -34,6 +34,11 @@ occa = [numpy.array(core + [o + mc.ncore for o in oa]) for oa in occa]
 occb = [numpy.array(core + [o + mc.ncore for o in ob]) for ob in occb]
 coeff = numpy.array(coeff,dtype=numpy.complex128)
 nmo = mf.mo_coeff.shape[-1]
-write_qmcpack_wfn('afqmc.h5', (coeff,occa,occb), 'uhf', mol.nelec, nmo, mode='a')
-write_input('input.json', 'afqmc.h5', 'afqmc.h5',
-            options={'system': {'sparse': False}})
+rdm = mc.make_rdm1()
+eigs, eigv = numpy.linalg.eigh(rdm)
+psi0a = eigv[::-1,:mol.nelec[0]].copy()
+psi0b = eigv[::-1,:mol.nelec[1]].copy()
+psi0 = [psi0a, psi0b]
+write_qmcpack_wfn('afqmc.h5', (coeff,occa,occb), 'uhf',
+                  mol.nelec, nmo, init=psi0, mode='a')
+write_input('input.json', 'afqmc.h5', 'afqmc.h5')
