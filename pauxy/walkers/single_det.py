@@ -43,6 +43,7 @@ class SingleDetWalker(object):
         self.greens_function(trial)
         self.total_weight = 0.0
         self.ot = 1.0
+        self.ovlp = 1.0
         # interface consistency
         self.ots = numpy.zeros(1, dtype=numpy.complex128)
         # self.E_L = local_energy(system, self.G, self.Gmod, trail._rchol)[0].real
@@ -145,6 +146,29 @@ class SingleDetWalker(object):
             ddn = scipy.linalg.det(self.inv_ovlp[1])
         return 1.0 / (dup*ddn)
 
+    def calc_overlap(self, trial):
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        nup = self.ndown
+        Oup = numpy.dot(trial.psi[:,:nup].conj().T, self.phi[:,:nup])
+        det_up = scipy.linalg.det(Oup)
+        ndn = self.ndown
+        det_dn = 1.0
+        if ndn > 0:
+            Odn = numpy.dot(trial.psi[:,nup:].conj().T, self.phi[:,nup:])
+            det_dn = scipy.linalg.det(Odn)
+        return det_up * det_dn
+
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
 
@@ -244,11 +268,14 @@ class SingleDetWalker(object):
         # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
         self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
+        det = numpy.linalg.det(ovlp)
         if ndown > 0:
             # self.inv_ovlp[1] = scipy.linalg.inv(ovlp)
             ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
+            det *= numpy.linalg.det(ovlp)
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
+        return det
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.

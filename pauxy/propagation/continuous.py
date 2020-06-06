@@ -197,6 +197,7 @@ class Continuous(object):
         Returns
         -------
         """
+        ovlp = walker.greens_function(trial)
         # 2. Update Slater matrix
         # 2.a Apply one-body
         kinetic_real(walker.phi, system, self.propagator.BH1)
@@ -206,10 +207,8 @@ class Continuous(object):
         kinetic_real(walker.phi, system, self.propagator.BH1)
 
         # Now apply phaseless approximation
-        walker.inverse_overlap(trial)
-        walker.greens_function(trial)
-        ot_new = walker.calc_otrial(trial)
-        ovlp_ratio = ot_new / walker.ot
+        ovlp_new = walker.calc_overlap(trial)
+        ovlp_ratio = ovlp_new / ovlp
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
         hybrid_energy = self.apply_bound(hybrid_energy, eshift)
         importance_function = (
@@ -227,7 +226,7 @@ class Continuous(object):
             dtheta = (-self.dt*hybrid_energy-cfb).imag
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
-            walker.ot = ot_new
+            walker.ot = ovlp_new
             if magn > 1e-16:
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:
