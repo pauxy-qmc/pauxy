@@ -33,6 +33,12 @@ core = [i for i in range(mc.ncore)]
 occa = [numpy.array(core + [o + mc.ncore for o in oa]) for oa in occa]
 occb = [numpy.array(core + [o + mc.ncore for o in ob]) for ob in occb]
 coeff = numpy.array(coeff,dtype=numpy.complex128)
+# Sort in ascending order.
+ixs = numpy.argsort(numpy.abs(coeff))[::-1]
+coeff = coeff[ix]
+occa = occa[ix]
+occb = occb[ix]
+
 nmo = mf.mo_coeff.shape[-1]
 rdm = mc.make_rdm1()
 eigs, eigv = numpy.linalg.eigh(rdm)
