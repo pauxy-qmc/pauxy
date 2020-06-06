@@ -31,6 +31,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
                                alias=['wavefunction_file'], verbose=verbose)
     wfn_type = options.get('name', 'MultiSlater')
     if wfn_type == 'MultiSlater':
+        psi0 = None
         if wfn_file is not None:
             if verbose:
                 print("# Reading wavefunction from {}.".format(wfn_file))
