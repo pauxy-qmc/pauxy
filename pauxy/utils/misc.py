@@ -220,9 +220,16 @@ def get_numeric_names(d):
         if isinstance(v, (numpy.ndarray)):
             names.append(k)
             size += v.size
-        elif isinstance(v, (float, complex)):
+        elif isinstance(v, (int, float, complex)):
             names.append(k)
             size += 1
+        elif isinstance(v, list):
+            names.append(k)
+            for l in v:
+                if isinstance(l, (numpy.ndarray)):
+                    size += l.size
+                elif isinstance(l, (int, float, complex)):
+                    size += 1
     return names, size
 
 def get_node_mem():

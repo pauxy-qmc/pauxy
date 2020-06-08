@@ -46,8 +46,13 @@ class MultiSlater(object):
             self.G = None
             self.GH = None
         if init is not None:
+            if verbose:
+                print("# Using initial wavefunction from file.")
             self.init = init
         else:
+            if verbose:
+                print("# Setting initial wavefunction as first determinant in"
+                      " expansion.")
             if len(self.psi.shape) == 3:
                 self.init = self.psi[0].copy()
             else:
@@ -144,10 +149,10 @@ class MultiSlater(object):
                             H[j,i] = numpy.conjugate(H[i,j])
                             S[j,i] = numpy.conjugate(S[i,j])
             e, ev = scipy.linalg.eigh(H, S, lower=False)
-        if self.verbose > 1:
-            print("Old and New CI coefficients: ")
-            for co,cn in zip(self.coeffs,ev[:,0]):
-                print("{} {}".format(co, cn))
+        # if self.verbose:
+            # print("Old and New CI coefficients: ")
+            # for co,cn in zip(self.coeffs,ev[:,0]):
+                # print("{} {}".format(co, cn))
         return numpy.array(ev[:,0], dtype=numpy.complex128)
 
     def contract_one_body(self, ints):

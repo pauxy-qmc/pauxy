@@ -167,8 +167,9 @@ class AFQMC(object):
                 print("# Setting one walker per core.")
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
-        self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose,
+        self.psi = Walkers(self.system, self.trial,
+                           self.qmc, walker_opts=wlk_opts,
+                           verbose=verbose,
                            nprop_tot=self.estimators.nprop_tot,
                            nbp=self.estimators.nbp,
                            comm=comm)
@@ -202,9 +203,8 @@ class AFQMC(object):
             self.psi = psi
         self.setup_timers()
         w0 = self.psi.walkers[0]
-        (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol)
         eshift = 0
-        self.propagators.mean_local_energy = eshift.real
+        (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol)
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,

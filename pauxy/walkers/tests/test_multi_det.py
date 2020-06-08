@@ -24,7 +24,7 @@ def test_walker_overlap():
     wfn = (a + 1j*b).reshape((3,system.nbasis,system.nup+system.ndown))
     coeffs = numpy.array([0.5+0j,0.3+0j,0.1+0j])
     trial = MultiSlater(system, (coeffs, wfn))
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     def calc_ovlp(a,b):
         return numpy.linalg.det(numpy.dot(a.conj().T, b))
     ovlp = 0.0+0j
@@ -49,7 +49,7 @@ def test_walker_overlap():
     b = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
     init = (a + 1j*b).reshape((system.nbasis,system.nup+system.ndown))
     trial = MultiSlater(system, wfn, init=init)
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     I = numpy.eye(system.nbasis)
     ovlp_sum = 0.0
     for idet, (c, occa, occb) in enumerate(zip(coeffs,oa,ob)):
@@ -85,7 +85,7 @@ def test_walker_energy():
     init[:,na:], R = reortho(init[:,na:])
     trial = MultiSlater(system, (ev[:,0],oa,ob), init=init)
     trial.calculate_energy(system)
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     nume = 0
     deno = 0
     for i in range(trial.ndets):

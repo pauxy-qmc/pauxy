@@ -18,7 +18,7 @@ def test_back_prop():
     prop = Continuous(sys, trial, qmc)
     est = BackPropagation(bp_opt, True, 'estimates.0.h5', qmc, sys, trial,
                           numpy.complex128, prop.BT_BP)
-    walkers = Walkers({}, sys, trial, qmc, nbp=est.nmax, nprop_tot=est.nmax)
+    walkers = Walkers(sys, trial, qmc, walker_opts={}, nbp=est.nmax, nprop_tot=est.nmax)
     wlk = walkers.walkers[0]
     from mpi4py import MPI
     comm = MPI.COMM_WORLD

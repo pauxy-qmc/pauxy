@@ -33,7 +33,7 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc, verbose=False,
+    def __init__(self, system, trial, qmc, walker_opts={}, verbose=False,
                  comm=None, nprop_tot=None, nbp=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
@@ -53,14 +53,15 @@ class Walkers(object):
                 if verbose:
                     print("# Usinge single det walker with msd wavefunction.")
                 self.walker_type = 'SD'
+                print("here: ", system, trial, walker_opts)
                 trial.psi = trial.psi[0]
-                self.walkers = [SingleDetWalker(walker_opts, system, trial,
+                self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                                 index=w, nprop_tot=nprop_tot,
                                                 nbp=nbp)
                                 for w in range(qmc.nwalkers)]
             else:
                 self.walkers = [
-                        MultiDetWalker(walker_opts, system, trial,
+                        MultiDetWalker(system, trial, walker_opts=walker_opts,
                                        verbose=(verbose and w == 0))
                         for w in range(qmc.nwalkers)
                         ]
@@ -71,7 +72,9 @@ class Walkers(object):
                                              dtype=numpy.complex128)
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
-            self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
+            self.walkers = [ThermalWalker(system, trial,
+                                          walker_opts=walker_opts,
+                                          verbose=(verbose and w==0))
                             for w in range(qmc.nwalkers)]
             self.buff_size = self.walkers[0].buff_size + self.walkers[0].stack.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,
@@ -93,7 +96,7 @@ class Walkers(object):
                                                   name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
-            self.walkers = [SingleDetWalker(walker_opts, system, trial,
+            self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                             index=w, nprop_tot=nprop_tot,
                                             nbp=nbp)
                             for w in range(qmc.nwalkers)]
@@ -272,9 +275,14 @@ class Walkers(object):
         # where returns a tuple (array,), selecting first element.
         kill = numpy.where(parent_ix == 0)[0]
         clone = numpy.where(parent_ix > 1)[0]
+        if len(kill) > 0:
+            if comm.rank == 0:
+                print(kill)
+                print(clone)
         reqs = []
         walker_buffers = []
         # First initiate non-blocking sends of walkers.
+        comm.barrier()
         for i, (c, k) in enumerate(zip(clone, kill)):
             # Sending from current processor?
             if c // self.nw == comm.rank:
@@ -284,6 +292,8 @@ class Walkers(object):
                 # with accessing walker data during send. Might not be
                 # necessary.
                 dest_proc = k // self.nw
+                # with h5py.File('before_{}.h5'.format(comm.rank), 'a') as fh5:
+                    # fh5['walker_{}_{}_{}'.format(c,k,dest_proc)] = self.walkers[clone_pos].get_buffer()
                 buff = self.walkers[clone_pos].get_buffer()
                 reqs.append(comm.Isend(buff, dest=dest_proc, tag=i))
         # Now receive walkers on processors where walkers are to be killed.
@@ -295,11 +305,17 @@ class Walkers(object):
                 # Location of walker to kill in local list of walkers.
                 kill_pos = k % self.nw
                 comm.Recv(self.walker_buffer, source=source_proc, tag=i)
+                # with h5py.File('walkers_recv.h5', 'w') as fh5:
+                    # fh5['walk_{}'.format(k)] = self.walker_buffer.copy()
                 self.walkers[kill_pos].set_buffer(self.walker_buffer)
+                # with h5py.File('after_{}.h5'.format(comm.rank), 'a') as fh5:
+                    # fh5['walker_{}_{}_{}'.format(c,k,comm.rank)] = self.walkers[kill_pos].get_buffer()
         # Complete non-blocking send.
         for rs in reqs:
             rs.wait()
         # Necessary?
+        # if len(kill) > 0 or len(clone) > 0:
+            # sys.exit()
         comm.Barrier()
         # Reset walker weight.
         # TODO: check this.

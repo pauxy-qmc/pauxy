@@ -31,6 +31,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
                                alias=['wavefunction_file'], verbose=verbose)
     wfn_type = options.get('name', 'MultiSlater')
     if wfn_type == 'MultiSlater':
+        psi0 = None
         if wfn_file is not None:
             if verbose:
                 print("# Reading wavefunction from {}.".format(wfn_file))
@@ -51,6 +52,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
                       .format(ndets))
             if ndets is not None:
                 wfn = []
+                # Wavefunction is a tuple, immutable so have to iterate through
                 for x in read:
                     wfn.append(x[:ndets])
         else:
@@ -65,12 +67,14 @@ def get_trial_wavefunction(system, options={}, mf=None,
             wfn[0,:,:na] = I[:,:na]
             wfn[0,:,na:] = I[:,:nb]
             wfn = (coeffs, wfn)
-        trial = MultiSlater(system, wfn, options=options, verbose=verbose)
+        trial = MultiSlater(system, wfn, init=psi0, options=options, verbose=verbose)
         if system.name == 'Generic':
             trial.half_rotate(system, comm)
         rediag = options.get('recompute_ci', False)
         if rediag:
             if comm.rank == 0:
+                if verbose:
+                    print("# Recomputing trial wavefunction ci coeffs.")
                 coeffs = trial.recompute_ci_coeffs(system)
             else:
                 coeffs = None
