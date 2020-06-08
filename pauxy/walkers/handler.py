@@ -72,7 +72,9 @@ class Walkers(object):
                                              dtype=numpy.complex128)
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
-            self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
+            self.walkers = [ThermalWalker(system, trial,
+                                          walker_opts=walker_opts,
+                                          verbose=(verbose and w==0))
                             for w in range(qmc.nwalkers)]
             self.buff_size = self.walkers[0].buff_size + self.walkers[0].stack.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,

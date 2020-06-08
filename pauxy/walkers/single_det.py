@@ -28,7 +28,6 @@ class SingleDetWalker(Walker):
     """
 
     def __init__(self, system, trial, walker_opts={}, index=0, nprop_tot=None, nbp=None):
-        print(system, trial, walker_opts)
         Walker.__init__(self, system, trial,
                         walker_opts=walker_opts, index=index,
                         nprop_tot=nprop_tot, nbp=nbp)

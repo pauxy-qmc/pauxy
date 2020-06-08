@@ -52,6 +52,7 @@ class Walker(object):
                                              numpy.complex128)
         else:
             self.field_configs = None
+        self.stack = None
 
     def get_buffer(self):
         """Get walker buffer for MPI communication
@@ -81,6 +82,9 @@ class Walker(object):
                 s += 1
         if self.field_configs is not None:
             stack_buff = self.field_configs.get_buffer()
+            return numpy.concatenate((buff,stack_buff))
+        elif self.stack is not None:
+            stack_buff = self.stack.get_buffer()
             return numpy.concatenate((buff,stack_buff))
         else:
             return buff
@@ -117,3 +121,5 @@ class Walker(object):
                 s += 1
         if self.field_configs is not None:
             self.field_configs.set_buffer(buff[self.buff_size:])
+        if self.stack is not None:
+            self.stack.set_buffer(buff[self.buff_size:])
