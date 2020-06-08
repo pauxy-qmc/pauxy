@@ -167,8 +167,9 @@ class AFQMC(object):
                 print("# Setting one walker per core.")
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
-        self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose,
+        self.psi = Walkers(self.system, self.trial,
+                           self.qmc, walker_opts=wlk_opts,
+                           verbose=verbose,
                            nprop_tot=self.estimators.nprop_tot,
                            nbp=self.estimators.nbp,
                            comm=comm)

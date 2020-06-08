@@ -2,9 +2,10 @@ import copy
 import numpy
 import scipy.linalg
 from pauxy.estimators.mixed import local_energy_multi_det
+from pauxy.walkers.walker import Walker
 from pauxy.utils.misc import get_numeric_names
 
-class MultiDetWalker(object):
+class MultiDetWalker(Walker):
     """Multi-Det style walker.
 
     Parameters
@@ -23,17 +24,11 @@ class MultiDetWalker(object):
         Initial wavefunction.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0,
+    def __init__(self, system, trial, walker_opts={}, index=0,
                  weights='zeros', verbose=False, nprop_tot=None, nbp=None):
         if verbose:
             print("# Setting up MultiDetWalker object.")
-        self.weight = walker_opts.get('weight', 1.0)
-        self.unscaled_weight = self.weight
-        self.alive = 1
-        self.phase = 1 + 0j
-        self.nup = system.nup
-        self.E_L = 0.0
-        self.phi = copy.deepcopy(trial.init)
+        Walker.__init__(self, system, trial, walker_opts, index, nprop_tot, nbp)
         self.ndets = trial.psi.shape[0]
         dtype = numpy.complex128
         # This stores an array of overlap matrices with the various elements of
@@ -53,7 +48,6 @@ class MultiDetWalker(object):
         self.ot = self.overlap_direct(trial)
         # TODO: fix name.
         self.ovlp = self.ot
-        self.hybrid_energy = 0.0
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
                   .format(self.ot.real))
@@ -67,21 +61,7 @@ class MultiDetWalker(object):
         # Contains overlaps of the current walker with the trial wavefunction.
         self.greens_function(trial)
         self.nb = system.nbasis
-        self.nup = system.nup
-        self.ndown = system.ndown
-        # Historic wavefunction for back propagation.
-        self.phi_old = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        self.phi_init = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        # self.phi_bp = copy.deepcopy(trial.psi)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
-        if nbp is not None:
-            self.field_configs = FieldConfig(system.nfields,
-                                             nprop_tot, nbp,
-                                             numpy.complex128)
-        else:
-            self.field_configs = None
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -245,48 +225,3 @@ class MultiDetWalker(object):
             numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
             denom += ofac
         return numer / denom
-
-    def get_buffer(self):
-        """Get walker buffer for MPI communication
-
-        Returns
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        if self.field_configs is not None:
-            stack_buff = self.field_configs.get_buffer()
-            return numpy.concatenate((buff,stack_buff))
-        else:
-            return buff
-
-    def set_buffer(self, buff):
-        """Set walker buffer following MPI communication
-
-        Parameters
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
-        if self.field_configs is not None:
-            self.field_configs.set_buffer(buff[self.buff_size:])

@@ -33,7 +33,7 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc, verbose=False,
+    def __init__(self, system, trial, qmc, walker_opts={}, verbose=False,
                  comm=None, nprop_tot=None, nbp=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
@@ -53,14 +53,15 @@ class Walkers(object):
                 if verbose:
                     print("# Usinge single det walker with msd wavefunction.")
                 self.walker_type = 'SD'
+                print("here: ", system, trial, walker_opts)
                 trial.psi = trial.psi[0]
-                self.walkers = [SingleDetWalker(walker_opts, system, trial,
+                self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                                 index=w, nprop_tot=nprop_tot,
                                                 nbp=nbp)
                                 for w in range(qmc.nwalkers)]
             else:
                 self.walkers = [
-                        MultiDetWalker(walker_opts, system, trial,
+                        MultiDetWalker(system, trial, walker_opts=walker_opts,
                                        verbose=(verbose and w == 0))
                         for w in range(qmc.nwalkers)
                         ]
@@ -93,7 +94,7 @@ class Walkers(object):
                                                   name="nstblz", verbose=verbose)
         else:
             self.walker_type = 'SD'
-            self.walkers = [SingleDetWalker(walker_opts, system, trial,
+            self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                             index=w, nprop_tot=nprop_tot,
                                             nbp=nbp)
                             for w in range(qmc.nwalkers)]

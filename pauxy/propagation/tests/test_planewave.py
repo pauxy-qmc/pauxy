@@ -23,7 +23,7 @@ def test_pw():
     trial.psi = trial.psi[0]
     qmc = dotdict({'dt': 0.005, 'nstblz': 5})
     prop = PlaneWave(system, trial, qmc)
-    walker = SingleDetWalker({}, system, trial)
+    walker = SingleDetWalker(system, trial)
     numpy.random.seed(7)
     a = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
     b = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
