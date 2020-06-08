@@ -275,10 +275,6 @@ class Walkers(object):
         # where returns a tuple (array,), selecting first element.
         kill = numpy.where(parent_ix == 0)[0]
         clone = numpy.where(parent_ix > 1)[0]
-        if len(kill) > 0:
-            if comm.rank == 0:
-                print(kill)
-                print(clone)
         reqs = []
         walker_buffers = []
         # First initiate non-blocking sends of walkers.
