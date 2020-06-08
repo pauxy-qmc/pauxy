@@ -327,6 +327,14 @@ class SingleDetWalker(object):
             if isinstance(data, (numpy.ndarray)):
                 buff[s:s+data.size] = data.ravel()
                 s += data.size
+            elif isinstance(data, list):
+                for l in data:
+                    if isinstance(l, (numpy.ndarray)):
+                        buff[s:s+l.size] = l.ravel()
+                        s += l.size
+                    elif isinstance(l, (int, float, complex)):
+                        buff[s:s+1] = data
+                        s += 1
             else:
                 buff[s:s+1] = data
                 s += 1
@@ -349,10 +357,22 @@ class SingleDetWalker(object):
             data = self.__dict__[d]
             if isinstance(data, numpy.ndarray):
                 self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
+                s += data.size
+            elif isinstance(data, list):
+                for ix, l in enumerate(data):
+                    if isinstance(l, (numpy.ndarray)):
+                        self.__dict__[d][ix] = buff[s:s+l.size].reshape(l.shape).copy()
+                        s += l.size
+                    elif isinstance(l, (int, float, complex)):
+                        self.__dict__[d][ix] = buff[s]
+                        s += 1
             else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
+                if isinstance(self.__dict__[d], int):
+                    self.__dict__[d] = int(buff[s].real)
+                elif isinstance(self.__dict__[d], float):
+                    self.__dict__[d] = buff[s].real
+                else:
+                    self.__dict__[d] = buff[s]
+                s += 1
         if self.field_configs is not None:
             self.field_configs.set_buffer(buff[self.buff_size:])
