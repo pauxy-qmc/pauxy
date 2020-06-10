@@ -274,6 +274,9 @@ class HubbardContinuous(object):
         # optimal mean-field shift for the hubbard model
         self.iu_fac = 1j * system.U**0.5
         self.mf_shift = self.construct_mean_field_shift(system, trial)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
         # self.ut_fac = self.dt*system.U
         self.sqrt_dt = qmc.dt**0.5
         self.isqrt_dt = 1j * self.sqrt_dt
