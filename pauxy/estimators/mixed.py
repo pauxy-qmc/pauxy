@@ -164,7 +164,7 @@ class Mixed(object):
                     nav = particle_number(one_rdm_from_G(w.G))
                     self.estimates[self.names.nav] += wfac * nav
                 self.estimates[self.names.uweight] += w.unscaled_weight
-                self.estimates[self.names.uweight] += w.weight
+                self.estimates[self.names.weight] += wfac
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
                 self.estimates[self.names.ovlp] += wfac * abs(w.ot)
         else:
