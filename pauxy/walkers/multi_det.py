@@ -190,7 +190,7 @@ class MultiDetWalker(Walker):
             inv_ovlp = scipy.linalg.inv(Odn)
             if abs(ovlp) < 1e-16:
                 continue
-            tot_ovlp += ovlp
+            tot_ovlp += trial.coeffs[ix].conj()*ovlp
             self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
                                           numpy.dot(inv_ovlp,
                                                     self.phi[:,nup:].T)
