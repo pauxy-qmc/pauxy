@@ -122,10 +122,13 @@ def extract_test_data_hdf5(filename):
         brdm = None
     if mrdm is not None:
         mrdm = mrdm[::4].ravel()
+        # Don't compare small numbers
+        mrdm[numpy.abs(mrdm) < 1e-15] = 0.0 + 0j
         data['Gmixed_re'] = list(numpy.real(mrdm))
         data['Gmixed_im'] = list(numpy.imag(mrdm))
     if brdm is not None:
         brdm = brdm[::4].flatten().copy()
+        bprdm[numpy.abs(bprdm) < 1e-15] = 0.0 + 0j
         data['Gbp_re'] = numpy.real(brdm)
         data['Gbp_im'] = numpy.imag(brdm)
     # if itcf is not None:
