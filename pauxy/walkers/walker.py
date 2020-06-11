@@ -34,6 +34,7 @@ class Walker(object):
         self.ovlp = 1.0
         # self.E_L = local_energy(system, self.G, self.Gmod, trail._rchol)[0].real
         self.E_L = 0.0
+        self.eloc = 0.0
         # walkers overlap at time tau before backpropagation occurs
         self.ot_bp = 1.0
         # walkers weight at time tau before backpropagation occurs
