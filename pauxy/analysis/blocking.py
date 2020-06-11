@@ -21,18 +21,20 @@ from pauxy.utils.misc import get_from_dict
 from pauxy.utils.linalg import get_ortho_ao_mod 
 
 
-def average_single(frame, delete=True):
-    short = frame
-    means = short.mean().to_frame().T
-    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).to_frame().T
+def average_single(frame, delete=True, multi_sym=False):
+    if multi_sym:
+        short = frame.groupby('Iteration')
+    else:
+        short = frame
+    means = short.mean()
+    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
     averaged = means.merge(err, left_index=True, right_index=True,
                            suffixes=('', '_error'))
     columns = [c for c in averaged.columns.values if '_error' not in c]
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    delcol = ['ENumer', 'ENumer_error', 'EDenom',
-              'EDenom_error', 'Weight', 'Weight_error']
+    delcol = ['Weight', 'Weight_error']
     for d in delcol:
         if delete:
             columns.remove(d)
@@ -63,26 +65,32 @@ def average_ratio(numerator, denominator):
 
 
 def average_fp(frame):
-    real = average_single(frame.apply(numpy.real), False)
-    imag = average_single(frame.apply(numpy.imag), False)
+    iteration = numpy.real(frame['Iteration'].values)
+    frame = frame.drop('Iteration', axis=1)
+    real_df = frame.apply(lambda x: x.real)
+    imag_df = frame.apply(lambda x: x.imag)
+    real_df['Iteration'] = iteration
+    imag_df['Iteration'] = iteration
+    real = average_single(real_df, multi_sym=True)
+    imag = average_single(imag_df, multi_sym=True)
     results = pd.DataFrame()
-    re_num = real.ENumer
-    re_den = real.EDenom
-    im_num = imag.ENumer
-    im_den = imag.EDenom
+    re_num = real.ENumer.values
+    re_den = real.EDenom.values
+    im_num = imag.ENumer.values
+    im_den = imag.EDenom.values
+    results['Iteration'] = real_df.groupby('Iteration').groups.keys()
     # When doing FP we need to compute E = \bar{ENumer} / \bar{EDenom}
     # Only compute real part of the energy
     results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
     # Doing error analysis properly is complicated. This is not correct.
-    re_nume = real.E_num_error
-    re_dene = real.E_denom_error
+    re_nume = real.ENumer_error.values
+    re_dene = real.EDenom_error.values
     # Ignoring the fact that the mean includes complex components.
-    cov = frame.apply(numpy.real).cov()
-    cov_nd = cov['ENumer']['EDenom']
-    nsmpl = len(frame)
-    results['E_error'] = results.E * ((re_nume/re_num)**2 +
-                                      (re_dene/re_den)**2 -
-                                      2*cov_nd/(nsmpl*re_num*re_den))**0.5
+    cov_nd = real_df.groupby('Iteration').apply(lambda x: x['ENumer'].cov(x['EDenom'])).values
+    nsamp = len(re_nume)
+    results['E_error'] = numpy.abs(results.E) * ((re_nume/re_num)**2 +
+                                                 (re_dene/re_den)**2 -
+                                                 2*cov_nd/(nsamp*re_num*re_den))**0.5
     return results
 
 
