@@ -52,6 +52,7 @@ class HirschSpin(object):
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
+        self.hybrid = False
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
