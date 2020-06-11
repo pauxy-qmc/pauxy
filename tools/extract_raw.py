@@ -3,10 +3,7 @@
 import h5py
 import numpy
 import sys
-from pauxy.analysis.extraction import extract_hdf5
+from pauxy.analysis.extraction import extract_mixed_estimates
 
-data = extract_hdf5(sys.argv[1])
-mixed = data[1]
-mixed = mixed.apply(numpy.real)
-mixed = mixed[mixed['Weight']>0]
-print (mixed.to_string())
+data = extract_mixed_estimates(sys.argv[1])
+print(data.to_string(index=False))

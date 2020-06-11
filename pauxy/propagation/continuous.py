@@ -254,6 +254,7 @@ class Continuous(object):
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
             walker.ot = ovlp_new
+            walker.ovlp = ovlp_new
             if magn > 1e-16:
                 wfac = numpy.array([importance_function/magn, cosine_fac])
             else:

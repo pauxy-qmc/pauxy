@@ -18,7 +18,7 @@ from pauxy.analysis.extraction import (
         extract_rdm
         )
 from pauxy.utils.misc import get_from_dict
-from pauxy.utils.linalg import get_ortho_ao_mod 
+from pauxy.utils.linalg import get_ortho_ao_mod
 
 
 def average_single(frame, delete=True, multi_sym=False):
@@ -94,19 +94,24 @@ def average_fp(frame):
     return results
 
 
-def reblock_mixed(groupby, columns):
+def reblock_mixed(groupby, columns, verbose=False):
     analysed = []
     for group, frame in groupby:
-        short = frame.reset_index().drop(columns+['index', 'Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
+        drop = ['index', 'Time', 'EDenom', 'ENumer', 'Weight', 'Overlap',
+                'WeightFactor', 'EHybrid']
+        if not verbose:
+            drop += ['E1Body', 'E2Body']
+        short = frame.reset_index().drop(columns+drop, axis=1)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
-        print("data_len, blocked_data = {}, {}".format(data_len, blocked_data.shape))
         reblocked = pd.DataFrame()
         for c in short.columns:
             try:
                 rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
-                print(rb.to_string())
-                reblocked[c] = rb['mean'].values
+                reblocked[c] = rb['mean'].values[0]
                 reblocked[c+'_error'] = rb['standard error'].values
+                reblocked[c+'_error_error'] = rb['standard error error'].values
+                ix = list(blocked_data[c]['optimal block']).index('<---    ')
+                reblocked[c+'_nsamp'] = data_len.values[ix]
             except KeyError:
                 print("Reblocking of {:4} failed. Insufficient "
                       "statistics.".format(c))
@@ -271,7 +276,7 @@ def analyse_back_prop(files, start_time):
         full.append(res)
     return pd.concat(full).sort_values('tau_bp')
 
-def analyse_estimates(files, start_time, multi_sim=False):
+def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
     mds = []
     basic = []
     for f in files:
@@ -287,7 +292,7 @@ def analyse_estimates(files, start_time, multi_sim=False):
         basic.append(data.drop('Iteration', axis=1))
         mds.append(md)
     basic = pd.concat(basic).groupby(columns)
-    basic_av = reblock_mixed(basic, columns)
+    basic_av = reblock_mixed(basic, columns, verbose=verbose)
     base = files[0].split('/')[-1]
     outfile = 'analysed_' + base
     fmt = lambda x: "{:13.8f}".format(x)
@@ -297,7 +302,7 @@ def analyse_estimates(files, start_time, multi_sim=False):
         try:
             fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
         except KeyError:
-            print("integrals does not exist under the problem class")
+            pass
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
 def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
