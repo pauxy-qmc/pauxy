@@ -242,7 +242,7 @@ class AFQMC(object):
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
             if step < self.qmc.neqlb:
-                eshift = self.estimators.estimators['mixed'].get_shift()
+                eshift = self.estimators.estimators['mixed'].get_shift(self.propagators.hybrid)
             else:
                 eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
             self.tstep += time.time() - start_step
