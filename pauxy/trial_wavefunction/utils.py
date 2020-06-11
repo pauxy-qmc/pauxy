@@ -8,7 +8,7 @@ from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.utils.io import read_qmcpack_wfn_hdf, get_input_value
 
 def get_trial_wavefunction(system, options={}, mf=None,
-                           comm=None, verbose=0):
+                           comm=None, scomm=None, verbose=0):
     """Wrapper to select trial wavefunction class.
 
     Parameters
@@ -69,7 +69,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
             wfn = (coeffs, wfn)
         trial = MultiSlater(system, wfn, init=psi0, options=options, verbose=verbose)
         if system.name == 'Generic':
-            trial.half_rotate(system, comm)
+            trial.half_rotate(system, scomm)
         rediag = options.get('recompute_ci', False)
         if rediag:
             if comm.rank == 0:

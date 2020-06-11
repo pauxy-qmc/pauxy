@@ -129,7 +129,8 @@ class AFQMC(object):
         else:
             self.trial = (
                 get_trial_wavefunction(self.system, options=twf_opt,
-                                       comm=self.shared_comm,
+                                       comm=comm,
+                                       scomm=self.shared_comm,
                                        verbose=verbose)
             )
             # if self.system.name == 'Generic':
