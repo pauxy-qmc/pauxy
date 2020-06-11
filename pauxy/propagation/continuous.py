@@ -279,7 +279,7 @@ class Continuous(object):
             dtheta = cmath.phase(ovlp_ratio)
             cosine_fac = max(0, math.cos(dtheta))
             walker.weight *= magn * cosine_fac
-            walker.ot = ot_new
+            walker.ot = ovlp_new
             if magn > 1e-16:
                 wfac = numpy.array([wfac_imag, cosine_fac])
             else:
