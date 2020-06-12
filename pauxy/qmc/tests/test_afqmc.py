@@ -47,19 +47,21 @@ def test_constructor():
 
 @pytest.mark.driver
 def test_ueg():
+    # FDM Updated benchmark to make run faster, old setup is commented out.
     options = {
             'verbosity': 0,
             'get_sha1': False,
             'qmc': {
                 'timestep': 0.01,
                 'num_steps': 10,
-                'blocks': 10,
+                'blocks': 5,
                 'rng_seed': 8,
             },
             'model': {
                 'name': "UEG",
                 'rs': 2.44,
-                'ecut': 4,
+                # 'ecut': 4,
+                'ecut': 2,
                 'nup': 7,
                 'ndown': 7,
             },
@@ -81,14 +83,18 @@ def test_ueg():
                                                 afqmc.trial, afqmc.psi, 0)
     enum = afqmc.estimators.estimators['mixed'].names
     numer = afqmc.estimators.estimators['mixed'].estimates[enum.enumer]
-    assert numer == pytest.approx(15.5272838037998)
+    # assert numer == pytest.approx(15.5272838037998)
+    assert numer == pytest.approx(16.33039729324558)
     denom = afqmc.estimators.estimators['mixed'].estimates[enum.edenom]
     assert denom == pytest.approx(10)
     weight = afqmc.estimators.estimators['mixed'].estimates[enum.uweight]
-    assert weight == pytest.approx(9.76035750882054)
+    # assert weight == pytest.approx(9.76035750882054)
+    assert weight == pytest.approx(9.75405059997262)
     ehy = afqmc.psi.walkers[0].hybrid_energy
-    assert ehy.real == pytest.approx(2.41659997842609)
-    assert ehy.imag == pytest.approx(-0.395817411848255)
+    # assert ehy.real == pytest.approx(2.41659997842609)
+    assert ehy.real == pytest.approx(2.265850691148155)
+    # assert ehy.imag == pytest.approx(-0.395817411848255)
+    assert ehy.imag == pytest.approx(0.192627296991027)
 
 @pytest.mark.driver
 def test_hubbard():

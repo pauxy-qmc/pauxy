@@ -94,7 +94,7 @@ class Mixed(object):
             dms_size = self.G.size
         else:
             dms_size = 0
-        self.eshift = 0
+        self.eshift = numpy.array([0,0])
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
         # TODO: Add functionality to accumulate 2RDM?
         if self.calc_two_rdm is not None:
@@ -259,9 +259,9 @@ class Mixed(object):
             gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
             gs[ns.ehyb] /= gs[ns.weight]
             gs[ns.ovlp] /= gs[ns.weight]
-            eshift = gs[ns.ehyb]
+            eshift = numpy.array([gs[ns.ehyb],gs[ns.eproj]])
         else:
-            eshift = 0
+            eshift = numpy.array([0,0])
         if self.thermal and comm.rank == 0:
             gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
         eshift = comm.bcast(eshift, root=0)
@@ -336,15 +336,22 @@ class Mixed(object):
         denominator = self.estimates[self.names.edenom]
         return (numerator / denominator).real
 
-    def get_shift(self):
+    def get_shift(self, hybrid=True):
         """Get hybrid shift.
 
+        Parameters
+        ----------
+        hybrid : bool
+            True if using hybrid propgation
         Returns
         -------
         eshift : float
             Walker averaged hybrid energy.
         """
-        return self.eshift.real
+        if hybrid:
+            return self.eshift[0].real
+        else:
+            return self.eshift[1].real
 
     def zero(self):
         """Zero (in the appropriate sense) various estimator arrays."""

@@ -13,8 +13,10 @@ class Continuous(object):
     def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print("# Parsing propagator input options.")
+            print("# Using continuous Hubbar--Stratonovich transformations.")
         # Input options
         self.free_projection = options.get('free_projection', False)
+        self.hybrid = options.get('hybrid', True)
         if verbose:
             print("# Using phaseless approximation: %r"%(not self.free_projection))
         self.force_bias = options.get('force_bias', True)
@@ -35,6 +37,14 @@ class Continuous(object):
                                                     options=options,
                                                     verbose=verbose)
 
+        if self.hybrid:
+            if verbose:
+                print("# Using hybrid weight update.")
+            self.update_weight = self.update_weight_hybrid
+        else:
+            if verbose:
+                print("# Using local energy weight update.")
+            self.update_weight = self.update_weight_local_energy
         # Constant core contribution modified by mean field shift.
         mf_core = self.propagator.mf_core
         self.mf_const_fac = math.exp(-self.dt*mf_core.real)
@@ -46,7 +56,6 @@ class Continuous(object):
 
 
         self.ebound = (2.0/self.dt)**0.5
-        self.mean_local_energy = 0
 
         if self.free_projection:
             if verbose:
@@ -170,9 +179,9 @@ class Continuous(object):
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
 
-    def apply_bound(self, ehyb, eshift):
+    def apply_bound_hybrid(self, ehyb, eshift):
         # For initial steps until first estimator communication eshift will be
-        # zero and hybrid energy can be incorrectly. So just avoid capping for
+        # zero and hybrid energy can be incorrect. So just avoid capping for
         # first block until reasonable estimate of eshift can be computed.
         if abs(eshift) < 1e-10:
             return ehyb
@@ -183,6 +192,22 @@ class Continuous(object):
             ehyb = eshift.real-self.ebound+1j*ehyb.imag
             self.nhe_trig += 1
         return ehyb
+
+    def apply_bound_local_energy(self, eloc, eshift):
+        # For initial steps until first estimator communication eshift will be
+        # zero and hybrid energy can be incorrect. So just avoid capping for
+        # first block until reasonable estimate of eshift can be computed.
+        if abs(eshift) < 1e-10:
+            return eloc
+        if eloc.real > eshift.real +  self.ebound:
+            eloc_bounded = eshift.real + self.ebound
+            self.nhe_trig += 1
+        elif eloc.real < eshift.real - self.ebound:
+            eloc_bounded = eshift.real - self.ebound
+            self.nhe_trig += 1
+        else:
+            eloc_bounded = eloc
+        return eloc_bounded
 
     def propagate_walker_phaseless(self, walker, system, trial, eshift):
         """Phaseless propagator
@@ -208,11 +233,13 @@ class Continuous(object):
 
         # Now apply phaseless approximation
         ovlp_new = walker.calc_overlap(trial)
+        self.update_weight(system, walker, trial, ovlp, ovlp_new, cfb, cmf, xmxbar, eshift)
+
+    def update_weight_hybrid(self, system, walker, trial, ovlp, ovlp_new, cfb, cmf, xmxbar, eshift):
         ovlp_ratio = ovlp_new / ovlp
         hybrid_energy = -(cmath.log(ovlp_ratio) + cfb + cmf)/self.dt
-        hybrid_energy = self.apply_bound(hybrid_energy, eshift)
+        hybrid_energy = self.apply_bound_hybrid(hybrid_energy, eshift)
         importance_function = (
-                # self.mf_const_fac * No need to include constant factor.
                 cmath.exp(-self.dt*(0.5*(hybrid_energy+walker.hybrid_energy)-eshift))
         )
         # splitting w_alpha = |I(x,\bar{x},|phi_alpha>)| e^{i theta_alpha}
@@ -230,6 +257,32 @@ class Continuous(object):
             walker.ovlp = ovlp_new
             if magn > 1e-16:
                 wfac = numpy.array([importance_function/magn, cosine_fac])
+            else:
+                wfac = numpy.array([0,0])
+            if walker.field_configs is not None:
+                walker.field_configs.update(xmxbar, wfac)
+        else:
+            walker.ot = ot_new
+            walker.weight = 0.0
+
+    def update_weight_local_energy(self, system, walker, trial, ovlp, ovlp_new, cfb, cmf, xmxbar, eshift):
+        ovlp_ratio = ovlp_new / ovlp
+        eloc = walker.local_energy(system)[0]
+        re_eloc = self.apply_bound_local_energy(eloc, eshift)
+        magn = numpy.exp(-0.5*self.dt*(re_eloc+walker.eloc-eshift).real)
+        # for back propagation
+        wfac_imag = numpy.exp(-0.5*self.dt*(eloc+walker.eloc-eshift).imag)
+        walker.eloc = eloc
+        if not math.isinf(magn):
+            # Determine cosine phase from Arg(<psi_T|B(x-\bar{x})|phi>/<psi_T|phi>)
+            # Note this doesn't include exponential factor from shifting
+            # propability distribution.
+            dtheta = cmath.phase(ovlp_ratio)
+            cosine_fac = max(0, math.cos(dtheta))
+            walker.weight *= magn * cosine_fac
+            walker.ot = ovlp_new
+            if magn > 1e-16:
+                wfac = numpy.array([wfac_imag, cosine_fac])
             else:
                 wfac = numpy.array([0,0])
             if walker.field_configs is not None:

@@ -157,6 +157,7 @@ class ThermalAFQMC(object):
                             self.qmc, walker_opts=wlk_opts, verbose=verbose)
         lowrank = self.walk.walkers[0].lowrank
         prop_opts = get_input_value(options, 'propagator', default={},
+                                    alias=['prop', 'propagation'],
                                     verbose=self.verbosity>1)
         self.propagators = get_propagator(prop_opts, self.qmc, self.system,
                                           self.trial,

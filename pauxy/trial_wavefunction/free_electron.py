@@ -63,6 +63,7 @@ class FreeElectron(object):
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
         # For interface compatability
+        self.init = self.psi
         self.coeffs = 1.0
         self.ndets = 1
         self.bp_wfn = trial.get('bp_wfn', None)
@@ -70,7 +71,7 @@ class FreeElectron(object):
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
-        self._mem_required
+        self._mem_required = 0.0
         self._rchol = None
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")

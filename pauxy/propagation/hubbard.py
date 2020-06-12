@@ -30,6 +30,7 @@ class HirschSpin(object):
 
         if verbose:
             print ("# Parsing discrete propagator input options.")
+            print ("# Using discrete Hubbard--Stratonovich transformation.")
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
@@ -51,6 +52,7 @@ class HirschSpin(object):
                                 [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
+        self.hybrid = False
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
