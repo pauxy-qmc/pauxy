@@ -67,7 +67,7 @@ def test_local_energy():
     walker = MultiDetWalker(system, trial)
     for i in range(0,10):
         prop.propagate_walker(walker, system, trial, trial.energy)
-    assert walker.weight == pytest.approx(0.2437177616868467)
+    assert walker.weight == pytest.approx(0.68797524675701)
 
 @pytest.mark.unit
 def test_hybrid():
@@ -89,4 +89,4 @@ def test_hybrid():
     for i in range(0,10):
         prop.propagate_walker(walker, system, trial, trial.energy)
 
-    assert walker.weight == pytest.approx(0.09832361467198293)
+    assert walker.weight == pytest.approx(0.7430443466368197)
