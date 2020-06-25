@@ -76,7 +76,7 @@ class Walker(object):
                         buff[s:s+l.size] = l.ravel()
                         s += l.size
                     elif isinstance(l, (int, float, complex)):
-                        buff[s:s+1] = data
+                        buff[s:s+1] = l
                         s += 1
             else:
                 buff[s:s+1] = data
