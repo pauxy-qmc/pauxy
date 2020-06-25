@@ -304,7 +304,7 @@ class Generic(object):
                                  ecuc=self.ecore, filename=filename)
         else:
             write_qmcpack_dense(self.H1[0],
-                                self.chol_vecs.reshape((-1,self.nbasis*self.nbasis)).T.copy(),
+                                self.chol_vecs,
                                 self.nelec, self.nbasis,
                                 enuc=self.ecore, filename=filename,
                                 real_chol=not self.cplx_chol)
