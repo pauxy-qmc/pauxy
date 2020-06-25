@@ -152,7 +152,10 @@ class Mixed(object):
                 if step % self.energy_eval_freq == 0:
                     w.greens_function(trial)
                     if self.eval_energy:
-                        E, T, V = w.local_energy(system, rchol=trial._rchol)
+                        if self.thermal:
+                            E, T, V = w.local_energy(system)
+                        else:
+                            E, T, V = w.local_energy(system, rchol=trial._rchol)
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += wfac * E
