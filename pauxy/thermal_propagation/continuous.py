@@ -70,7 +70,7 @@ class Continuous(object):
             if verbose:
                 print("# Using free projection.")
                 print("# Setting force_bias to False with free projection.")
-            self.force_bias = False
+            self.force_bias = options.get('force_bias', False)
             self.propagate_walker = self.propagate_walker_free
         else:
             if verbose:
