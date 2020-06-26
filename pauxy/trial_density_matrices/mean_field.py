@@ -13,32 +13,21 @@ from pauxy.trial_density_matrices.chem_pot import (
 
 class MeanField(OneBody):
 
-    def __init__(self, comm, system, beta, dt, options={}, H1=None, verbose=False):
-        OneBody.__init__(self, comm, system, beta, dt,
-                         options, H1=H1, verbose=verbose)
+    def __init__(self, system, beta, dt, options={}, H1=None, verbose=False):
+        OneBody.__init__(self, system, beta, dt,
+                         options=options, H1=H1, verbose=verbose)
         self.alpha = options.get('alpha', 0.75)
         self.max_scf_it = options.get('max_scf_it', self.max_it)
         self.max_macro_it = options.get('max_macro_it', self.max_it)
         self.find_mu = options.get('find_mu', True)
-        if comm.rank == 0:
-            P, HMF, mu = self.thermal_hartree_fock(system, beta)
-            muN = mu * numpy.eye(system.nbasis, dtype=self.G.dtype)
-            dmat = numpy.array([scipy.linalg.expm(-dt*(HMF[0]-muN)),
-                                scipy.linalg.expm(-dt*(HMF[1]-muN))])
-            dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),
-                                    scipy.linalg.inv(self.dmat[1], check_finite=False)])
-            G = numpy.array([greens_function(self.dmat[0]), greens_function(self.dmat[1])])
-            data = {'P': P, 'mu': mu, 'dmat': dmat,
-                    'dmat_inv': dmat_inv, 'G': G}
-        else:
-            data = None
-        data = comm.bcast(data, root=0)
-        self.P = data['P']
+        self.P, HMF, self.mu = self.thermal_hartree_fock(system, beta)
+        muN = self.mu * numpy.eye(system.nbasis, dtype=self.G.dtype)
+        self.dmat = numpy.array([scipy.linalg.expm(-dt*(HMF[0]-muN)),
+                                 scipy.linalg.expm(-dt*(HMF[1]-muN))])
+        self.dmat_inv = numpy.array([scipy.linalg.inv(self.dmat[0], check_finite=False),
+                                scipy.linalg.inv(self.dmat[1], check_finite=False)])
+        self.G = numpy.array([greens_function(self.dmat[0]), greens_function(self.dmat[1])])
         self.nav = particle_number(self.P).real
-        self.dmat = data['dmat']
-        self.dmat_inv = data['dmat_inv']
-        self.G = data['G']
-        self.mu = data['mu']
 
     def thermal_hartree_fock(self, system, beta):
         dt = self.dtau
@@ -90,7 +79,7 @@ class MeanField(OneBody):
                 break
             if self.verbose:
                 N = particle_number(P).real
-                E = local_energy(system, P, opt=False)[0].real
+                E = local_energy(system, P)[0].real
                 S = entropy(beta, mu, HMF)
                 omega = E - mu * N - 1.0/beta * S
                 print(" # Iteration: {:4d} dP: {:13.8e} Omega: {:13.8e}"
