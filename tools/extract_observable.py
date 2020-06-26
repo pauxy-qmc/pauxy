@@ -10,8 +10,12 @@ import json
 _script_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(_script_dir, 'analysis'))
 import matplotlib.pyplot as plt
-from pauxy.analysis.extraction import analysed_itcf
-from pauxy.analysis.extraction import analysed_energies, extract_hdf5_simple
+# from pauxy.analysis.extraction import analysed_itcf
+# from pauxy.analysis.extraction import analysed_energies, extract_hdf5_simple
+from pauxy.analysis.extraction import (
+        extract_mixed_estimates,
+        get_metadata
+        )
 import matplotlib.pyplot as pl
 
 
@@ -88,14 +92,15 @@ def main(args):
                                        options.elements)
         print_index = True
     elif options.plot:
-        (md, data) = extract_hdf5_simple(options.filename[0])
+        data = extract_mixed_estimates(options.filename[0])
+        md = get_metadata(options.filename[0])
         fp = md['propagators']['free_projection']
         dt = md['qmc']['dt']
-        mc = md['qmc']['nmeasure']
+        mc = md['qmc']['nsteps']
         data = data[abs(data.Weight) > 0.0]
         tau = numpy.arange(0,len(data)) * mc * dt
         if fp:
-            pl.plot(tau, (data.ENumer/data.EDenom).real)
+            pl.plot(tau, numpy.real(data.ENumer/data.EDenom))
             pl.xlabel(r"$\tau$ (au)")
             pl.ylabel(r"Energy (au)")
             pl.show()
