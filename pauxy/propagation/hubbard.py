@@ -47,9 +47,23 @@ class HirschSpin(object):
         self.ffts = options.get('ffts', False)
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+        self.charge_decomp = options.get('charge_decomposition', False)
+        if verbose:
+            if self.charge_decomp:
+                print("# Using charge decomposition")
+            else:
+                print("# Using spin decomposition.")
+        if self.charge_decomp:
+            self.gamma = numpy.arccosh(numpy.exp(-0.5*qmc.dt*system.U+0j))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(self.gamma), numpy.exp(self.gamma)]])
+        else:
+            self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+        # self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+        # self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                # [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         self.hybrid = False
@@ -78,6 +92,9 @@ class HirschSpin(object):
     def update_greens_function_uhf(self, walker, trial, i, nup):
         """Fast update of walker's Green's function for RHF/UHF walker.
 
+        This only updates the ii'th element of the greens function. This is
+        dangerous.
+
         Parameters
         ----------
         walker : :class:`pauxy.walkers.SingleDet`
@@ -91,12 +108,12 @@ class HirschSpin(object):
         """
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
-        q = numpy.dot(walker.inv_ovlp[0], vup)
-        walker.G[0][i,i] = numpy.dot(uup, q)
+        q = numpy.dot(walker.inv_ovlp[0].T, uup)
+        walker.G[0][i,i] = numpy.dot(vup,q)
         vdown = trial.psi.conj()[i,nup:]
         udown = walker.phi[i,nup:]
-        q = numpy.dot(walker.inv_ovlp[1], vdown)
-        walker.G[1][i,i] = numpy.dot(udown, q)
+        q = numpy.dot(walker.inv_ovlp[1].T, udown)
+        walker.G[1][i,i] = numpy.dot(vdown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -157,7 +174,11 @@ class HirschSpin(object):
         delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
+        # walker.greens_function_fast(trial)
         for i in range(0, system.nbasis):
+            # Compute Gii here to avoid need to recompute GF after KE
+            # propagation. We need Gii to include contributions from previous
+            # steps wavefunction / overlap update.
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
