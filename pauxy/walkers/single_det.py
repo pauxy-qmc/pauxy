@@ -212,10 +212,24 @@ class SingleDetWalker(Walker):
         self.ot = self.ot / detR
         return detR
 
-    def greens_function(self, trial):
+    def greens_function_fast(self, trial):
         """Compute walker's green's function.
 
-        Also updates walker's inverse overlap.
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
+        nup = self.nup
+        ndown = self.ndown
+
+        self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.inv_ovlp[0].T)
+        if ndown > 0:
+            self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.inv_ovlp[1].T)
+        return det
+
+    def greens_function(self, trial):
+        """Compute walker's green's function.
 
         Parameters
         ----------
@@ -226,7 +240,6 @@ class SingleDetWalker(Walker):
         ndown = self.ndown
 
         ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
-        # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
         self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
         det = numpy.linalg.det(ovlp)
