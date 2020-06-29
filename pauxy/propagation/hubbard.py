@@ -45,6 +45,11 @@ class HirschSpin(object):
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
         self.ffts = options.get('ffts', False)
+        single_site = options.get('single_site_update', True)
+        if single_site:
+            self.two_body = self.two_body_single_site
+        else:
+            self.two_body = self.two_body_direct
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         self.charge_decomp = options.get('charge_decomposition', False)
@@ -161,7 +166,7 @@ class HirschSpin(object):
         else:
             walker.weight = 0.0
 
-    def two_body(self, walker, system, trial):
+    def two_body_single_site(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
         Parameters
@@ -211,6 +216,35 @@ class HirschSpin(object):
             else:
                 walker.weight = 0
                 return
+
+    def two_body_direct(self, walker, system, trial):
+        r"""Propagate by potential term using discrete HS transform.
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
+        """
+        nup = system.nup
+        fields = numpy.random.randint(2, size=system.nbasis)
+        BVa = [self.auxf[xi,0] for xi in fields]
+        BVb = [self.auxf[xi,1] for xi in fields]
+        walker.phi[:,:nup] = numpy.einsum('i,ij->ij', BVa, walker.phi[:,:nup])
+        walker.phi[:,nup:] = numpy.einsum('i,ij->ij', BVb, walker.phi[:,nup:])
+        ovlp = walker.calc_ovlp(trial)
+        if self.charge_decomp:
+            for xi in fields:
+                ovlp *= self.aux_fac[xi]
+        if ovlp.real > 0:
+            walker.ot = ovlp
+        else:
+            walker.weight = 0
+            return
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
