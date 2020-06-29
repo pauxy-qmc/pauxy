@@ -66,7 +66,7 @@ class UHF(object):
         self.type = 'UHF'
         self.ndets = 1
         self.initial_guess = trial.get('initial', 'random')
-        if self.initial_guess is not 'checkerboard':
+        if self.initial_guess == 'random':
             if self.verbose:
                 print("# Solving UHF equations.")
             (self.psi, self.eigs, self.emin, self.error, self.nav) = (
