@@ -29,8 +29,8 @@ class HirschSpin(object):
     def __init__(self, system, trial, qmc, options={}, verbose=False):
 
         if verbose:
-            print ("# Parsing discrete propagator input options.")
-            print ("# Using discrete Hubbard--Stratonovich transformation.")
+            print("# Parsing discrete propagator input options.")
+            print("# Using discrete Hubbard--Stratonovich transformation.")
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
@@ -50,13 +50,17 @@ class HirschSpin(object):
         self.charge_decomp = options.get('charge_decomposition', False)
         if verbose:
             if self.charge_decomp:
-                print("# Using charge decomposition")
+                print("# Using charge decomposition.")
             else:
                 print("# Using spin decomposition.")
+        # [field,spin]
         if self.charge_decomp:
             self.gamma = numpy.arccosh(numpy.exp(-0.5*qmc.dt*system.U+0j))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
-                                    [numpy.exp(self.gamma), numpy.exp(self.gamma)]])
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            # e^{-gamma x}
+            self.aux_fac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
+                                                                         numpy.exp(self.gamma)])
         else:
             self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
@@ -182,6 +186,8 @@ class HirschSpin(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            if self.charge_decomp:
+                probs = probs * self.aux_fac
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
@@ -405,6 +411,21 @@ def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
     R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
     return 0.5 * numpy.array([R1,R2])
+
+def calculate_overlap_ratio_single_det_charge(walker, delta, trial, i):
+    """Calculate overlap ratio for single site update with UHF trial.
+
+    Parameters
+    ----------
+    walker : walker object
+        Walker to be updated.
+    delta : :class:`numpy.ndarray`
+        Delta updates for single spin flip.
+    trial : trial wavefunctio object
+        Trial wavefunction.
+    i : int
+        Basis index.
+    """
 
 def construct_propagator_matrix(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
