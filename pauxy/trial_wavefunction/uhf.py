@@ -4,6 +4,7 @@ import time
 from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab
 from pauxy.utils.linalg import diagonalise_sorted
+from pauxy.systems.hubbard import decode_basis
 
 class UHF(object):
     r"""UHF trial wavefunction.
@@ -44,7 +45,7 @@ class UHF(object):
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, trial, verbose=0):
+    def __init__(self, system, trial={}, verbose=0):
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -64,13 +65,21 @@ class UHF(object):
         self.coeffs = 1.0
         self.type = 'UHF'
         self.ndets = 1
-        (self.psi, self.eigs, self.emin, self.error, self.nav) = (
-            self.find_uhf_wfn(system, self.ueff, self.ninitial,
-                              self.nconv, self.alpha, self.deps, verbose)
-        )
-        if self.error:
-            warnings.warn('Error in constructing trial wavefunction. Exiting')
-            sys.exit()
+        self.initial_guess = trial.get('initial', 'random')
+        if self.initial_guess is not 'checkerboard':
+            if self.verbose:
+                print("# Solving UHF equations.")
+            (self.psi, self.eigs, self.emin, self.error, self.nav) = (
+                self.find_uhf_wfn(system, self.ueff, self.ninitial,
+                                  self.nconv, self.alpha, self.deps, verbose)
+            )
+            if self.error:
+                warnings.warn('Error in constructing trial wavefunction. Exiting')
+                sys.exit()
+        elif self.initial_guess == 'checkerboard':
+            if self.verbose:
+                print("# Using checkerboard breakup.")
+            self.psi, unused = self.checkerboard(system.nbasis, system.nup, system.ndown)
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
         Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
         self.G = numpy.array([Gup, Gdown])
@@ -133,7 +142,8 @@ class UHF(object):
                       " energy found is: {: 8f}".format(attempt, it, eold))
 
         system.U = uold
-        print("# Minimum energy found: {: 8f}".format(min(minima)))
+        if verbose:
+            print("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
@@ -158,6 +168,28 @@ class UHF(object):
         random = 0.5 * (random + random.T)
         (energies, eigv) = diagonalise_sorted(random)
         return (energies, eigv)
+
+    def checkerboard(self, nbasis, nup, ndown):
+        nalpha = 0
+        nbeta = 0
+        wfn = numpy.zeros(shape=(nbasis, nup+ndown),
+                            dtype=numpy.complex128)
+        for i in range(nbasis):
+            x, y = decode_basis(4,4,i)
+            if x % 2 == 0 and y % 2 == 0:
+                wfn[i,nalpha] = 1.0
+                nalpha += 1
+            elif x % 2 == 0 and y % 2 == 1:
+                wfn[i,nup+nbeta] = -1.0
+                nbeta += 1
+            elif x % 2 == 1 and y % 2 == 0:
+                wfn[i,nup+nbeta] = -1.0
+                nbeta += 1
+            elif x % 2 == 1 and y % 2 == 1:
+                wfn[i,nalpha] = 1.0
+                nalpha += 1
+        return wfn, 10
+
 
     def density(self, wfn):
         return numpy.diag(wfn.dot((wfn.conj()).T))
