@@ -1,8 +1,9 @@
 import numpy
 import pytest
-from pauxy.systems.hubbard import Hubbard
+from pauxy.systems.hubbard import Hubbard, decode_basis
 from pauxy.propagation.hubbard import HirschSpin
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
+from pauxy.trial_wavefunction.uhf import UHF
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.utils.misc import dotdict
 from pauxy.estimators.greens_function import gab
@@ -75,3 +76,35 @@ def test_update_greens_function():
         gdd = gab(trial.psi[:,system.nup:], walker.phi[:,nup:])
         assert guu[i,i] == pytest.approx(walker.G[0,i,i])
         assert gdd[i,i] == pytest.approx(walker.G[1,i,i])
+
+@pytest.mark.unit
+def test_hubbard_charge():
+    options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
+    system = Hubbard(inputs=options)
+    wfn = numpy.zeros((1,system.nbasis,system.ne), dtype=numpy.complex128)
+    count = 0
+    uhf = UHF(system, {'ueff': 4.0, 'initial': 'checkerboard'}, verbose=True)
+    wfn[0] = uhf.psi.copy()
+    trial = MultiSlater(system, (coeffs, wfn))
+    trial.psi = trial.psi[0]
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    qmc = dotdict({'dt': 0.01, 'nstblz': 5})
+    options = {'charge_decomposition': True}
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    numpy.random.seed(7)
+    nup = system.nup
+    # prop.propagate_walker_constrained(walker, system, trial, 0.0)
+    prop.two_body(walker, system, trial)
+    walker_ref = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    # Alpha electrons
+    BV = numpy.diag([prop.auxf[int(x.real),0] for x in walker.field_configs.configs[0]])
+    ovlp = walker_ref.calc_overlap(trial)
+    walker_ref.phi[:,:nup] = numpy.dot(BV, walker_ref.phi[:,:nup])
+    walker_ref.phi[:,nup:] = numpy.dot(BV, walker_ref.phi[:,nup:])
+    ovlp *= walker_ref.calc_overlap(trial)
+    assert ovlp != pytest.approx(walker.ot)
+    for i in walker.field_configs.configs[0]:
+        ovlp *= prop.aux_fac[int(i.real)]
+    assert ovlp.imag == pytest.approx(0.0, abs=1e-10)
+    assert ovlp == pytest.approx(walker.ot)
