@@ -101,16 +101,21 @@ def get_trial_wavefunction(system, options={}, mf=None,
 
     spin_proj = get_input_value(options, 'spin_proj', default=None,
                                 alias=['spin_project'], verbose=verbose)
+    init_walker = get_input_value(options, 'init_walker', default=None,
+                              alias=['initial_walker'], verbose=verbose)
     if spin_proj:
         na, nb = system.nelec
         if verbose:
             print("# Performing spin projection for walker's initial wavefunction.")
         if comm.rank == 0:
-            rdm, rdmh = gab_spin(trial.psi[0], trial.psi[0], na, nb)
-            eigs, eigv = numpy.linalg.eigh(rdm[0]+rdm[1])
-            ix = numpy.argsort(eigs)[::-1]
-            trial.noons = eigs[ix]
-            eigv = eigv[:,ix]
+            if init_walker == 'free_electron':
+                eigs, eigv = numpy.linalg.eigh(system.H1[0])
+            else:
+                rdm, rdmh = gab_spin(trial.psi[0], trial.psi[0], na, nb)
+                eigs, eigv = numpy.linalg.eigh(rdm[0]+rdm[1])
+                ix = numpy.argsort(eigs)[::-1]
+                trial.noons = eigs[ix]
+                eigv = eigv[:,ix]
         else:
             eigv = None
         eigv = comm.bcast(eigv, root=0)
