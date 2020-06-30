@@ -113,14 +113,15 @@ def reblock_mixed(groupby, columns, verbose=False):
                 ix = list(blocked_data[c]['optimal block']).index('<---    ')
                 reblocked[c+'_nsamp'] = data_len.values[ix]
             except KeyError:
-                print("Reblocking of {:4} failed. Insufficient "
-                      "statistics.".format(c))
+                if verbose:
+                    print("Reblocking of {:4} failed. Insufficient "
+                          "statistics.".format(c))
         for i, v in enumerate(group):
             reblocked[columns[i]] = v
         analysed.append(reblocked)
 
 
-    return pd.concat(analysed)
+    return pd.concat(analysed, sort=True)
 
 
 def reblock_free_projection(frame):
