@@ -232,11 +232,11 @@ class HirschSpin(object):
         """
         nup = system.nup
         fields = numpy.random.randint(2, size=system.nbasis)
-        BVa = [self.auxf[xi,0] for xi in fields]
-        BVb = [self.auxf[xi,1] for xi in fields]
-        walker.phi[:,:nup] = numpy.einsum('i,ij->ij', BVa, walker.phi[:,:nup])
-        walker.phi[:,nup:] = numpy.einsum('i,ij->ij', BVb, walker.phi[:,nup:])
-        ovlp = walker.calc_ovlp(trial)
+        BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
+        BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
+        walker.phi[:,:nup] = numpy.dot(BVa, walker.phi[:,:nup])
+        walker.phi[:,nup:] = numpy.dot(BVb, walker.phi[:,nup:])
+        ovlp = walker.calc_overlap(trial)
         if self.charge_decomp:
             for xi in fields:
                 ovlp *= self.aux_fac[xi]
