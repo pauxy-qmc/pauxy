@@ -3,7 +3,7 @@ import math
 import numpy
 import sys
 from pauxy.propagation.operations import kinetic_real
-from pauxy.propagation.hubbard import HubbardContinuous
+from pauxy.propagation.hubbard import HubbardContinuous, HubbardContinuousSpin
 from pauxy.propagation.planewave import PlaneWave
 from pauxy.propagation.generic import GenericContinuous
 
@@ -145,10 +145,16 @@ class Continuous(object):
 
         # Operator terms contributing to propagator.
         VHS = self.propagator.construct_VHS(system, xshifted)
-        # 2.b Apply two-body
-        self.apply_exponential(walker.phi[:,:system.nup], VHS)
-        if system.ndown > 0:
-            self.apply_exponential(walker.phi[:,system.nup:], VHS)
+        if len(VHS.shape) == 3:
+            # 2.b Apply two-body
+            self.apply_exponential(walker.phi[:,:system.nup], VHS[0])
+            if system.ndown > 0:
+                self.apply_exponential(walker.phi[:,system.nup:], VHS[1])
+        else:
+            # 2.b Apply two-body
+            self.apply_exponential(walker.phi[:,:system.nup], VHS)
+            if system.ndown > 0:
+                self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
         return (cmf, cfb, xshifted)
 
@@ -315,9 +321,15 @@ def get_continuous_propagator(system, trial, qmc, options={}, verbose=False):
                                options=options,
                                verbose=verbose)
     elif system.name == "Hubbard":
-        propagator = HubbardContinuous(system, trial, qmc,
-                                       options=options,
-                                       verbose=verbose)
+        charge = options.get('charge_decomposition', True)
+        if charge:
+            propagator = HubbardContinuous(system, trial, qmc,
+                                           options=options,
+                                           verbose=verbose)
+        else:
+            propagator = HubbardContinuousSpin(system, trial, qmc,
+                                           options=options,
+                                           verbose=verbose)
     elif system.name == "Generic":
         propagator = GenericContinuous(system, trial, qmc,
                                        options=options,
