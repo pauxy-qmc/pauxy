@@ -177,13 +177,13 @@ class Continuous(object):
         (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        walker.inverse_overlap(trial)
-        walker.ot = walker.calc_otrial(trial)
-        walker.greens_function(trial)
+        ovlp_new = walker.calc_overlap(trial)
         # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
+        walker.ot = ovlp_new
+        walker.ovlp = ovlp_new
 
     def apply_bound_hybrid(self, ehyb, eshift):
         # For initial steps until first estimator communication eshift will be

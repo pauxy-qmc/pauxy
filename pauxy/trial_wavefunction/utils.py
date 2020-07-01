@@ -85,7 +85,7 @@ def get_trial_wavefunction(system, options={}, mf=None,
         trial = HartreeFock(system, options, verbose=verbose)
     elif wfn_type == 'free_electron':
         trial = FreeElectron(system, options, verbose)
-    elif wfn_type == 'UHF':
+    elif wfn_type.lower() == 'uhf':
         if comm.rank == 0:
             wfn = UHF(system, options, verbose)
             psi = wfn.psi

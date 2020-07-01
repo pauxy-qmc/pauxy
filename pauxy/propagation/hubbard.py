@@ -271,7 +271,7 @@ class HirschSpin(object):
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
 
-    def propagate_walker_free(self, walker, system, trial):
+    def propagate_walker_free(self, walker, system, trial, eshift=0):
         r"""Propagate walker without imposing constraint.
 
         Uses single-site updates for potential term.
@@ -283,7 +283,7 @@ class HirschSpin(object):
             B_V(x) and updated the weight appropriately. Updates inplace.
         system : :class:`pauxy.system.System`
             System object.
-        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        trial : :class:`pauxy.trial_wavefunction.Trial`
             Trial wavefunction object.
         """
         kinetic_real(walker.phi, system, self.bt2)
@@ -405,7 +405,7 @@ class HubbardContinuousSpin(object):
         model = system.__class__.__name__
         self.dt = qmc.dt
         # optimal mean-field shift for the hubbard model
-        self.iu_fac = 1j * system.U**0.5
+        self.ut_fac = (qmc.dt*system.U)**0.5
         self.mf_shift = self.construct_mean_field_shift(system, trial)
         if verbose:
             print("# Absolute value of maximum component of mean field shift: "
@@ -418,28 +418,30 @@ class HubbardContinuousSpin(object):
 
     def construct_one_body_propagator(self, system, dt):
         # \sum_gamma v_MF^{gamma} v^{\gamma}
+        I = numpy.eye(system.nbasis)
+        # vi1b = 1j*system.U**0.5 * numpy.diag(self.mf_shift)
         vi1b = system.U**0.5 * numpy.diag(self.mf_shift)
-        H1 = system.h1e_mod - numpy.array([vi1b,vi1b])
-        # H1 = system.H1 - numpy.array([vi1b,vi1b])
+        H1 = system.H1 + 0.5*system.U*numpy.array([I,I]) - numpy.array([vi1b,vi1b])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
                                 scipy.linalg.expm(-0.5*dt*H1[1])])
 
     def construct_mean_field_shift(self, system, trial):
-        #  sqrt{U} < n_{iup} - n_{idn} >_MF
+        # sqrt{U} < n_{iup} - n_{idn} >_MF
         # return  system.U**0.5 * numpy.array([numpy.diag(trial.G[0], -numpy.diag(trial.G[1])])
         return  system.U**0.5 * numpy.diag(trial.G[0]-trial.G[1])
 
     def construct_force_bias(self, system, walker, trial):
-        #  i sqrt{U} < n_{iup} - n_{idn} > - mf_shift
+        # - sqrt(dt) < sqrt(U) (n_{iup} - n_{idn}) > - mf_shift
         # vbias = system.U**0.5 numpy.array([numpy.diag(walker.G[0]), -numpy.diag(walker.G[1])])
         vbias = system.U**0.5 * numpy.diag(walker.G[0]-walker.G[1])
-        return - self.sqrt_dt * (vbias - self.mf_shift)
+        return -self.sqrt_dt * (vbias - self.mf_shift)
 
     def construct_VHS(self, system, shifted):
         # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
-        # v_i = n_{iu} + n_{id}
-        return numpy.array([numpy.diag(system.U**0.5*self.sqrt_dt*shifted),
-                            numpy.diag(-system.U**0.5*self.sqrt_dt*shifted)])
+        # v_i = sqrt(U)(n_{iu} - n_{id})
+        # return numpy.array([numpy.eye(system.nbasis), numpy.eye(system.nbasis)])
+        return numpy.array([numpy.diag(-self.ut_fac*shifted),
+                            numpy.diag(self.ut_fac*shifted)])
 
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
