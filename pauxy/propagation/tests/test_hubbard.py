@@ -2,6 +2,7 @@ import numpy
 import pytest
 from pauxy.systems.hubbard import Hubbard, decode_basis
 from pauxy.propagation.hubbard import HirschSpin
+from pauxy.propagation.continuous import Continuous
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.trial_wavefunction.uhf import UHF
 from pauxy.walkers.single_det import SingleDetWalker
@@ -108,3 +109,24 @@ def test_hubbard_charge():
         ovlp *= prop.aux_fac[int(i.real)]
     assert ovlp.imag == pytest.approx(0.0, abs=1e-10)
     assert ovlp == pytest.approx(walker.ot)
+
+@pytest.mark.unit
+def test_hubbard_continuous_charge():
+    options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
+    system = Hubbard(inputs=options)
+    wfn = numpy.zeros((1,system.nbasis,system.ne), dtype=numpy.complex128)
+    count = 0
+    numpy.random.seed(7)
+    uhf = UHF(system, {'ueff': 4.0}, verbose=True)
+    wfn[0] = uhf.psi.copy()
+    trial = MultiSlater(system, (coeffs, wfn))
+    trial.psi = trial.psi[0]
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    qmc = dotdict({'dt': 0.01, 'nstblz': 5})
+    options = {'charge_decomposition': True}
+    prop = Continuous(system, trial, qmc, options=options, verbose=True)
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    nup = system.nup
+    prop.propagate_walker(walker, system, trial, 0.0)
+    assert walker.ovlp.imag == pytest.approx(0.0)
+    assert walker.ovlp.real == pytest.approx(2.417230378237814)
