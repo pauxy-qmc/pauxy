@@ -33,6 +33,8 @@ class SingleDetWalker(Walker):
                         nprop_tot=nprop_tot, nbp=nbp)
         self.inv_ovlp = [0.0, 0.0]
         self.inverse_overlap(trial)
+        self.ot = self.calc_overlap(trial)
+        self.ovlp = self.ot
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
