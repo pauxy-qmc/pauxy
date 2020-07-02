@@ -159,20 +159,29 @@ class SingleDetWalker(Walker):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
                                                   mode='economic')
         Rdown = numpy.zeros(Rup.shape)
-        if (ndown > 0):
-            (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
+        if ndown > 0:
+            (self.phi[:,nup:], Rdn) = scipy.linalg.qr(self.phi[:,nup:],
                                                         mode='economic')
-        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
-        if (ndown > 0):
-            signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
-        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        if (ndown > 0):
-            self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
-        drup = scipy.linalg.det(signs_up.dot(Rup))
-        drdn = 1.0
-        if (ndown > 0):
-            drdn = scipy.linalg.det(signs_down.dot(Rdown))
-        detR = drup * drdn
+        # TODO: FDM This isn't really necessary, the absolute value of the
+        # weight is used for population control so this shouldn't matter.
+        # I think this is a legacy thing.
+        # Wanted detR factors to remain positive, dump the sign in orbitals.
+        Rup_diag = numpy.diag(Rup)
+        signs_up = numpy.sign(Rup_diag)
+        if ndown > 0:
+            Rdn_diag = numpy.diag(Rdn)
+            signs_dn = numpy.sign(Rdn_diag)
+        self.phi[:,:nup] = numpy.einsum('j,ij->ij', signs_up, self.phi[:,:nup])
+        if ndown > 0:
+            self.phi[:,nup:] = numpy.einsum('j,ij->ij', signs_dn, self.phi[:,nup:])
+        # include overlap factor
+        # det(R) = \prod_ii R_ii
+        # det(R) = exp(log(det(R))) = exp((sum_i log R_ii) - C)
+        # C factor included to avoid over/underflow
+        log_ovlp = numpy.sum(numpy.log(numpy.abs(Rup_diag)))
+        if ndown > 0:
+            log_ovlp += numpy.sum(numpy.log(numpy.abs(Rdn_diag)))
+        detR = numpy.exp(log_ovlp-self.log_shift)
         self.ot = self.ot / detR
         return detR
 
