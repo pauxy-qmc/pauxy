@@ -102,12 +102,13 @@ class SingleDetWalker(Walker):
         ot : float / complex
             Overlap.
         """
-        dup = scipy.linalg.det(self.inv_ovlp[0])
-        ndown = self.ndown
-        ddn = 1.0
-        if ndown > 0:
-            ddn = scipy.linalg.det(self.inv_ovlp[1])
-        return 1.0 / (dup*ddn)
+        sign_a, logdet_a = numpy.linalg.slogdet(self.inv_ovlp[0])
+        nbeta = self.ndown
+        sign_b, logdet_b = 1.0, 0.0
+        if nbeta > 0:
+            sign_b, logdet_b = numpy.linalg.slogdet(self.inv_ovlp[1])
+        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+        return 1.0 / det
 
     def calc_overlap(self, trial):
         """Caculate overlap with trial wavefunction.
@@ -122,15 +123,16 @@ class SingleDetWalker(Walker):
         ot : float / complex
             Overlap.
         """
-        nup = self.ndown
-        Oup = numpy.dot(trial.psi[:,:nup].conj().T, self.phi[:,:nup])
-        det_up = scipy.linalg.det(Oup)
-        ndn = self.ndown
-        det_dn = 1.0
-        if ndn > 0:
-            Odn = numpy.dot(trial.psi[:,nup:].conj().T, self.phi[:,nup:])
-            det_dn = scipy.linalg.det(Odn)
-        return det_up * det_dn
+        na = self.ndown
+        Oalpha = numpy.dot(trial.psi[:,:na].conj().T, self.phi[:,:na])
+        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        nb = self.ndown
+        logdet_b, sign_b = 0.0, 1.0
+        if nb > 0:
+            Obeta = numpy.dot(trial.psi[:,na:].conj().T, self.phi[:,na:])
+            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
+        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+        return det
 
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
