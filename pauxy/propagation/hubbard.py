@@ -308,7 +308,8 @@ class HirschSpin(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         ovlp = walker.calc_otrial(trial.psi)
-        magn, dtheta = cmath.polar(ovlp/walker.ot*wfac)
+        # magn, dtheta = cmath.polar(ovlp/walker.ot*wfac)
+        magn, dtheta = cmath.polar(wfac)
         walker.weight *= numpy.exp(self.dt*eshift) * magn
         walker.phase *= numpy.exp(1j*dtheta)
         walker.ot = ovlp
