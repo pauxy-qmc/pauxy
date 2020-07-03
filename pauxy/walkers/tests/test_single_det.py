@@ -68,3 +68,24 @@ def test_greens_function():
     # Test Green's function
     Gref = gab(trial.psi[:,:nup], walker.phi[:,:nup])
     numpy.testing.assert_allclose(walker.G[0], Gref, atol=1e-12)
+
+@pytest.mark.unit
+def test_reortho():
+    options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
+    system = Hubbard(inputs=options)
+    eigs, eigv = numpy.linalg.eigh(system.H1[0])
+    coeffs = numpy.array([1.0+0j])
+    numpy.random.seed(7)
+    wfn = numpy.random.random((system.nbasis*system.ne)).reshape(1,system.nbasis, system.ne)
+    trial = MultiSlater(system, (coeffs, wfn))
+    trial.psi = trial.psi[0]
+    nup = system.nup
+    walker = SingleDetWalker(system, trial)
+    # Test Green's function
+    ovlp = walker.calc_overlap(trial)
+    assert walker.ot == pytest.approx(ovlp)
+    eloc = walker.local_energy(system, trial)
+    detR = walker.reortho(trial)
+    eloc_new = walker.local_energy(system, trial)
+    assert eloc == pytest.approx(eloc_new)
+    assert detR*walker.ot == pytest.approx(ovlp)
