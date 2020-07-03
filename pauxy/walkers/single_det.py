@@ -43,6 +43,7 @@ class SingleDetWalker(Walker):
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
+        self.detR = 1.0
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
