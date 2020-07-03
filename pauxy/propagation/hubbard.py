@@ -44,6 +44,7 @@ class HirschSpin(object):
             self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
+        self.dt = qmc.dt
         self.ffts = options.get('ffts', False)
         single_site = options.get('single_site_update', True)
         if single_site:
@@ -64,12 +65,13 @@ class HirschSpin(object):
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
             # e^{-gamma x}
-            self.aux_fac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
+            self.aux_wfac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
                                                                          numpy.exp(self.gamma)])
         else:
             self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.aux_wfac = numpy.array([1.0, 1.0])
         # self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
         # self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                 # [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
@@ -191,8 +193,8 @@ class HirschSpin(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
-            if self.charge_decomp:
-                probs = probs * self.aux_fac
+            # This only matters for charge decomposition
+            probs = probs * self.aux_wfac
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
@@ -239,7 +241,7 @@ class HirschSpin(object):
         ovlp = walker.calc_overlap(trial)
         if self.charge_decomp:
             for xi in fields:
-                ovlp *= self.aux_fac[xi]
+                ovlp *= self.aux_wfac[xi]
         if ovlp.real > 0:
             walker.ot = ovlp
         else:
@@ -289,6 +291,7 @@ class HirschSpin(object):
         kinetic_real(walker.phi, system, self.bt2)
         delta = self.delta
         nup = system.nup
+        wfac = 1.0
         for i in range(0, system.nbasis):
             if abs(walker.weight) > 0:
                 r = numpy.random.random()
@@ -300,10 +303,16 @@ class HirschSpin(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                wfac *= self.aux_wfac[xi]
         kinetic_real(walker.phi, system, self.bt2)
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi)
+        ovlp = walker.calc_otrial(trial.psi)
+        magn, dtheta = cmath.polar(ovlp/walker.ot*wfac)
+        walker.weight *= numpy.exp(self.dt*eshift) * magn
+        walker.phase *= numpy.exp(1j*dtheta)
+        walker.ot = ovlp
+        walker.ovlp = walker.ot
 
 # todo: stucture is the same for all continuous HS transformations.
 class HubbardContinuous(object):
