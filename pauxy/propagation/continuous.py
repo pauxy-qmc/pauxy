@@ -328,8 +328,8 @@ def get_continuous_propagator(system, trial, qmc, options={}, verbose=False):
                                            verbose=verbose)
         else:
             propagator = HubbardContinuousSpin(system, trial, qmc,
-                                           options=options,
-                                           verbose=verbose)
+                                               options=options,
+                                               verbose=verbose)
     elif system.name == "Generic":
         propagator = GenericContinuous(system, trial, qmc,
                                        options=options,
