@@ -5,6 +5,7 @@ from pauxy.propagation.hubbard import HirschSpin
 from pauxy.propagation.continuous import Continuous
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.trial_wavefunction.uhf import UHF
+from pauxy.walkers.handler import Walkers
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.utils.misc import dotdict
 from pauxy.estimators.greens_function import gab
@@ -13,7 +14,7 @@ options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
 system = Hubbard(inputs=options)
 eigs, eigv = numpy.linalg.eigh(system.H1[0])
 coeffs = numpy.array([1.0+0j])
-wfn = numpy.zeros((1,system.nbasis,system.ne))
+wfn = numpy.zeros((1,system.nbasis,system.ne), dtype=numpy.complex128)
 wfn[0,:,:system.nup] = eigv[:,:system.nup].copy()
 wfn[0,:,system.nup:] = eigv[:,:system.ndown].copy()
 trial = MultiSlater(system, (coeffs, wfn))
@@ -28,6 +29,8 @@ def test_hubbard_spin():
     nup = system.nup
     prop.propagate_walker_constrained(walker, system, trial, 0.0)
     walker_ref = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    ovlpa = numpy.linalg.det(numpy.dot(trial.psi[:,:nup].conj().T, walker_ref.phi[:,:nup]))
+    assert ovlpa == pytest.approx(walker_ref.ovlp)
     # Alpha electrons
     walker_ref.phi[:,:nup] = numpy.dot(prop.bt2[0], walker_ref.phi[:,:nup])
     BV = numpy.diag([prop.auxf[int(x.real),0] for x in walker.field_configs.configs[0]])
@@ -43,6 +46,7 @@ def test_hubbard_spin():
     numpy.testing.assert_allclose(walker.phi[:,nup:], walker_ref.phi[:,nup:], atol=1e-14)
     # Test overlap
     ovlpb = numpy.linalg.det(numpy.dot(trial.psi[:,nup:].conj().T, walker_ref.phi[:,nup:]))
+    ovlp_ = walker.calc_overlap(trial)
     assert walker.ot == pytest.approx(ovlpa*ovlpb)
 
 
@@ -111,7 +115,7 @@ def test_hubbard_charge():
     assert ovlp == pytest.approx(walker.ot)
 
 @pytest.mark.unit
-def test_hubbard_continuous_charge():
+def test_hubbard_continuous_spin():
     options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
     system = Hubbard(inputs=options)
     wfn = numpy.zeros((1,system.nbasis,system.ne), dtype=numpy.complex128)
@@ -123,10 +127,75 @@ def test_hubbard_continuous_charge():
     trial.psi = trial.psi[0]
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
-    options = {'charge_decomposition': True}
+    options = {'charge_decomposition': False}
     prop = Continuous(system, trial, qmc, options=options, verbose=True)
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     nup = system.nup
     prop.propagate_walker(walker, system, trial, 0.0)
     assert walker.ovlp.imag == pytest.approx(0.0)
-    assert walker.ovlp.real == pytest.approx(2.417230378237814)
+    assert walker.ovlp.real == pytest.approx(0.765551499039435)
+
+@pytest.mark.unit
+def test_hubbard_discrete_fp():
+    options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
+    system = Hubbard(inputs=options)
+    numpy.random.seed(7)
+    wfn = numpy.random.random(system.nbasis*system.ne).reshape((1,system.nbasis,system.ne))
+    trial = MultiSlater(system, (coeffs, wfn))
+    trial.psi = trial.psi[0]
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    qmc = dotdict({'dt': 0.01, 'nstblz': 5})
+    options = {'free_projection': True}
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    nup = system.nup
+    numpy.random.seed(7)
+    prop.propagate_walker(walker, system, trial, 0.0)
+    ovlp_a = walker.greens_function(trial)
+    ovlp = walker.calc_overlap(trial)
+    e1 = walker.weight*walker.phase*ovlp*walker.local_energy(system, trial)[0]
+    walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
+    detR = walker.reortho(trial)
+    walker.weight *= detR
+    numpy.random.seed(7)
+    prop.propagate_walker(walker, system, trial, 0.0)
+    ovlp = walker.greens_function(trial)
+    e2 = walker.weight*walker.phase*ovlp*walker.local_energy(system, trial)[0]
+    assert e1 == pytest.approx(e2)
+
+@pytest.mark.unit
+def test_hubbard_diff():
+    options = {'nx': 4, 'ny': 4, 'nup': 8, 'ndown': 8, 'U': 4}
+    system = Hubbard(inputs=options)
+    numpy.random.seed(7)
+    wfn[0,:,:system.nup] = eigv[:,:system.nup].copy()
+    wfn[0,:,system.nup:] = eigv[:,:system.ndown].copy()
+    trial = MultiSlater(system, (coeffs, wfn))
+    qmc = dotdict({'dt': 0.01, 'nstblz': 5, 'nwalkers': 10})
+    options = {'free_projection': True}
+    walkers = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    # Discrete
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    for w in walkers.walkers:
+        for i in range(0,10):
+            prop.propagate_walker(w, system, trial, 0.0)
+        detR = w.reortho(trial)
+    # Continuous
+    trial = MultiSlater(system, (coeffs, wfn))
+    walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    prop = Continuous(system, trial, qmc, options=options, verbose=True)
+    for w in walkers2.walkers:
+        for i in range(0,10):
+            prop.propagate_walker(w, system, trial, 0.0)
+        detR2 = w.reortho(trial)
+    assert detR2 == pytest.approx(0.25934872296001504)
+    # CP
+    trial = MultiSlater(system, (coeffs, wfn))
+    walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    options = {'free_projection': False}
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    for w in walkers2.walkers:
+        for i in range(0,10):
+            prop.propagate_walker(w, system, trial, 0.0)
+        detR2 = w.reortho(trial)
+    assert detR2 == pytest.approx(13.678898660838367)
