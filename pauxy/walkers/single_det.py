@@ -226,22 +226,6 @@ class SingleDetWalker(Walker):
         self.ot = self.ot / detR
         return detR
 
-    def greens_function_fast(self, trial):
-        """Compute walker's green's function.
-
-        Parameters
-        ----------
-        trial : object
-            Trial wavefunction object.
-        """
-        nup = self.nup
-        ndown = self.ndown
-
-        self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.inv_ovlp[0].T)
-        if ndown > 0:
-            self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.inv_ovlp[1].T)
-        return det
-
     def greens_function(self, trial):
         """Compute walker's green's function.
 
@@ -249,6 +233,10 @@ class SingleDetWalker(Walker):
         ----------
         trial : object
             Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
         """
         nup = self.nup
         ndown = self.ndown
@@ -256,13 +244,14 @@ class SingleDetWalker(Walker):
         ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
         self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
-        det = numpy.linalg.det(ovlp)
+        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+        sign_b, log_ovlp_b = 1.0, 0.0
         if ndown > 0:
-            # self.inv_ovlp[1] = scipy.linalg.inv(ovlp)
             ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
-            det *= numpy.linalg.det(ovlp)
+            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
+        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-self.log_shift)
         return det
 
     def rotated_greens_function(self):
