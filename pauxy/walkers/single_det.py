@@ -184,11 +184,13 @@ class SingleDetWalker(Walker):
         # det(R) = \prod_ii R_ii
         # det(R) = exp(log(det(R))) = exp((sum_i log R_ii) - C)
         # C factor included to avoid over/underflow
-        log_ovlp = numpy.sum(numpy.log(numpy.abs(Rup_diag)))
+        log_det = numpy.sum(numpy.log(numpy.abs(Rup_diag)))
         if ndown > 0:
-            log_ovlp += numpy.sum(numpy.log(numpy.abs(Rdn_diag)))
-        detR = numpy.exp(log_ovlp-self.log_shift)
+            log_det += numpy.sum(numpy.log(numpy.abs(Rdn_diag)))
+        detR = numpy.exp(log_det-self.detr_shift)
+        self.detR = detR
         self.ot = self.ot / detR
+        self.ovlp = self.ot
         return detR
 
     def reortho_excite(self, trial):
