@@ -175,11 +175,8 @@ class SingleDetWalker(Walker):
         if ndown > 0:
             Rdn_diag = numpy.diag(Rdn)
             signs_dn = numpy.sign(Rdn_diag)
-        # self.phi[:,:nup] = numpy.einsum('j,ij->ij', signs_up, self.phi[:,:nup])
         self.phi[:,:nup] = numpy.dot(self.phi[:,:nup], numpy.diag(signs_up))
-        # print(self.calc_overlap(trial))
         if ndown > 0:
-            # self.phi[:,nup:] = numpy.einsum('j,ij->ij', signs_dn, self.phi[:,nup:])
             self.phi[:,nup:] = numpy.dot(self.phi[:,nup:], numpy.diag(signs_dn))
         # include overlap factor
         # det(R) = \prod_ii R_ii
