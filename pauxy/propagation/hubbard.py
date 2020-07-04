@@ -248,16 +248,16 @@ class HirschSpin(object):
         else:
             fb_term = nia - nib
         for i in range(system.nbasis):
-            pp = 0.5*numpy.exp(self.gamma*fb_term[i])
-            pm = 0.5*numpy.exp(-self.gamma*fb_term[i])
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
             norm = pp + pm
             r = numpy.random.random()
             if r < pp/norm:
                 fields.append(0)
-                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i])
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
             else:
                 fields.append(1)
-                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i])
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
 
         BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
         BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
@@ -271,6 +271,7 @@ class HirschSpin(object):
         phase = cmath.phase(ratio)
         if abs(phase) < 0.5*math.pi:
             walker.ot = ovlp
+            walker.ovlp = ovlp
             walker.weight *= (fb_fac*ratio).real
         else:
             walker.weight = 0
@@ -300,6 +301,7 @@ class HirschSpin(object):
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
+        walker.weight *= numpy.exp(self.dt*eshift)
 
     def propagate_walker_free(self, walker, system, trial, eshift=0):
         r"""Propagate walker without imposing constraint.
