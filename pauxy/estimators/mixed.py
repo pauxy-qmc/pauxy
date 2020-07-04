@@ -148,7 +148,7 @@ class Mixed(object):
         if free_projection:
             for i, w in enumerate(psi.walkers):
                 # For T > 0 w.ot = 1 always.
-                wfac = w.weight * w.ot * w.phase
+                wfac = w.weight * w.ot * w.phase * numpy.exp(w.log_detR-w.log_detR_shift)
                 if step % self.energy_eval_freq == 0:
                     w.greens_function(trial)
                     if self.eval_energy:

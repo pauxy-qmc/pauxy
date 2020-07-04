@@ -158,10 +158,10 @@ class Walkers(object):
         """
         for w in self.walkers:
             detR = w.reortho(trial)
-            if free_projection:
-                (magn, dtheta) = cmath.polar(detR)
-                w.weight *= magn
-                w.phase *= cmath.exp(1j*dtheta)
+            # if free_projection:
+                # (magn, dtheta) = cmath.polar(detR)
+                # w.weight *= magn
+                # w.phase *= cmath.exp(1j*dtheta)
 
     def add_field_config(self, nprop_tot, nbp, system, dtype):
         """Add FieldConfig object to walker object.
@@ -435,21 +435,24 @@ class Walkers(object):
                   .format(time.time()-start))
 
     def update_log_ovlp(self, comm):
-        send = numpy.zeros(2, dtype=numpy.complex128)
+        send = numpy.zeros(3, dtype=numpy.complex128)
         # Overlap log factor
         send[0] = sum(abs(w.ot) for w in self.walkers)
         # Det R log factor
         send[1] = sum(abs(w.detR) for w in self.walkers)
-        global_av = numpy.zeros(2, dtype=numpy.complex128)
+        send[2] = sum(abs(w.log_detR) for w in self.walkers)
+        global_av = numpy.zeros(3, dtype=numpy.complex128)
         comm.Allreduce(send, global_av)
         log_shift = numpy.log(global_av[0]/self.ntot_walkers)
-        detr_shift = numpy.log(global_av[1]/self.ntot_walkers)
+        detR_shift = numpy.log(global_av[1]/self.ntot_walkers)
+        log_detR_shift = global_av[2]/self.ntot_walkers
         # w.log_shift = -0.5
         n = self.shift_counter
         nm1 = self.shift_counter - 1
         for w in self.walkers:
             w.log_shift = (w.log_shift*nm1 + log_shift)/n
-            w.detr_shift = (w.detr_shift*nm1 + detr_shift)/n
+            w.log_detR_shift = (w.log_detR_shift*nm1 + log_detR_shift)/n
+            w.detR_shift = (w.detR_shift*nm1 + detR_shift)/n
         self.shift_counter += 1
 
     def read_walkers(self, comm):

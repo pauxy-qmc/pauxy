@@ -44,6 +44,7 @@ class SingleDetWalker(Walker):
         self.greens_function(trial)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
         self.detR = 1.0
+        self.log_detR = 0.0
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
@@ -187,7 +188,8 @@ class SingleDetWalker(Walker):
         log_det = numpy.sum(numpy.log(numpy.abs(Rup_diag)))
         if ndown > 0:
             log_det += numpy.sum(numpy.log(numpy.abs(Rdn_diag)))
-        detR = numpy.exp(log_det-self.detr_shift)
+        detR = numpy.exp(log_det-self.detR_shift)
+        self.log_detR += numpy.log(detR)
         self.detR = detR
         self.ot = self.ot / detR
         self.ovlp = self.ot

@@ -46,7 +46,8 @@ class Walker(object):
         self.phi_right = self.phi.copy()
         self.weights = numpy.array([1.0])
         self.log_shift = 0.0
-        self.detr_shift = 0.0
+        self.detR_shift = 0.0
+        self.log_detR_shift = 0.0
         # Number of propagators to store for back propagation / ITCF.
         num_propg = walker_opts.get('num_propg', 1)
         if nbp is not None:
