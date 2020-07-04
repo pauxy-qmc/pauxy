@@ -48,8 +48,12 @@ class HirschSpin(object):
         self.ffts = options.get('ffts', False)
         single_site = options.get('single_site_update', True)
         if single_site:
+            if verbose:
+                print("# Using classic single-site update.")
             self.two_body = self.two_body_single_site
         else:
+            if verbose:
+                print("# Using dynamic force bias update.")
             self.two_body = self.two_body_direct
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
@@ -200,7 +204,6 @@ class HirschSpin(object):
             norm = sum(phaseless_ratio)
             r = numpy.random.random()
             # Is this necessary?
-            # todo : mirror correction
             if norm > 0:
                 walker.weight = walker.weight * norm
                 if r < phaseless_ratio[0]/norm:
@@ -222,6 +225,8 @@ class HirschSpin(object):
     def two_body_direct(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
+        Use dynamic force bias from: PHYSICAL REVIEW A 92, 033603 (2015)
+
         Parameters
         ----------
         walker : :class:`pauxy.walker` object
@@ -233,17 +238,40 @@ class HirschSpin(object):
             Trial wavefunction object.
         """
         nup = system.nup
-        fields = numpy.random.randint(2, size=system.nbasis)
+        # fields = numpy.random.randint(2, size=system.nbasis)
+        walker.greens_function(trial)
+        nia, nib = walker.G[0].diagonal(), walker.G[1].diagonal()
+        fields = []
+        fb_fac = 1.0
+        if self.charge_decomp:
+            fb_term = nia + nib - 1
+        else:
+            fb_term = nia - nib
+        for i in range(system.nbasis):
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i])
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i])
+            norm = pp + pm
+            r = numpy.random.random()
+            if r < pp/norm:
+                fields.append(0)
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i])
+            else:
+                fields.append(1)
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i])
+
         BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
         BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
         walker.phi[:,:nup] = numpy.dot(BVa, walker.phi[:,:nup])
         walker.phi[:,nup:] = numpy.dot(BVb, walker.phi[:,nup:])
         ovlp = walker.calc_overlap(trial)
-        if self.charge_decomp:
-            for xi in fields:
-                ovlp *= self.aux_wfac[xi]
-        if ovlp.real > 0:
+        wfac = 1.0 + 0j
+        for xi in fields:
+            wfac *= self.aux_wfac[xi]
+        ratio = wfac * ovlp / walker.ot
+        phase = cmath.phase(ratio)
+        if abs(phase) < 0.5*math.pi:
             walker.ot = ovlp
+            walker.weight *= (fb_fac*ratio).real
         else:
             walker.weight = 0
             return
