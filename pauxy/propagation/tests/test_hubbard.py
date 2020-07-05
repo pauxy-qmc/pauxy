@@ -199,3 +199,80 @@ def test_hubbard_diff():
             prop.propagate_walker(w, system, trial, 0.0)
         detR2 = w.reortho(trial)
     assert detR2 == pytest.approx(13.678898660838367)
+
+def total_energy(walkers, system, trial, fp=False):
+    num = 0.0
+    den = 0.0
+    for w in walkers:
+        w.greens_function(trial)
+        e = w.local_energy(system)[0]
+        if fp:
+            num += w.weight*w.ot*e*numpy.exp(w.log_detR-w.log_detR_shift)
+            den += w.weight*w.ot*numpy.exp(w.log_detR-w.log_detR_shift)
+        else:
+            num += w.weight*e
+            den += w.weight
+    return num/den
+
+
+@pytest.mark.unit
+def test_hubbard_ortho():
+    options = {'nx': 4, 'ny': 4, 'nup': 5, 'ndown': 5, 'U': 4}
+    system = Hubbard(inputs=options)
+    numpy.random.seed(7)
+    wfn = numpy.zeros((1,system.nbasis,system.ne), dtype=numpy.complex128)
+    wfn[0,:,:system.nup] = eigv[:,:system.nup].copy()
+    wfn[0,:,system.nup:] = eigv[:,:system.ndown].copy()
+    trial = MultiSlater(system, (coeffs, wfn))
+    qmc = dotdict({'dt': 0.01, 'nstblz': 5, 'nwalkers': 10, 'ntot_walkers': 10})
+    options = {'free_projection': True}
+    wopt = {'population_control': 'pair_branch', 'use_log_shift': True}
+    walkers = Walkers(system, trial, qmc, walker_opts=wopt, nbp=1, nprop_tot=1)
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    # Discrete
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    energies = []
+    for i in range(0,100):
+        if i % 5 == 0:
+            walkers.orthogonalise(trial, free_projection=True)
+        for w in walkers.walkers:
+            prop.propagate_walker(w, system, trial, 0.0)
+        # print(w.detR_shift, w.log_detR_shift,  w.log_detR, w.detR)
+        if i % 1 == 0:
+            energies.append(total_energy(walkers.walkers, system, trial, True).real)
+        if i % 5 == 0:
+            # print([w.local_energy(system)[0].real for w in walkers.walkers])
+            # print([(w.weight).real for w in walkers.walkers])
+            walkers.pop_control(comm)
+            # print([w.local_energy(system)[0].real for w in walkers.walkers])
+            # print([(w.weight).real for w in walkers.walkers])
+    # CP
+    trial = MultiSlater(system, (coeffs, wfn))
+    walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    options = {'free_projection': False}
+    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    numpy.random.seed(7)
+    energies2 = []
+    for i in range(0,100):
+        if i % 5 == 0:
+            walkers2.orthogonalise(trial, free_projection=False)
+        for w in walkers2.walkers:
+            prop.propagate_walker(w, system, trial, 0.0)
+        if i % 1 == 0:
+            energies2.append(total_energy(walkers2.walkers, system, trial, False).real)
+        if i % 5 == 0:
+            walkers2.pop_control(comm)
+    for w in walkers2.walkers:
+        w.greens_function(trial)
+    weights_2 = [w.weight for w in walkers2.walkers]
+    # print(weights, weights_2)
+    # energies_2 = [w.local_energy(system)[0].real for w in walkers2.walkers]
+    # import matplotlib.pyplot as pl
+    # print(energies,energies2)
+    # pl.plot(energies, label='fp', linestyle=':')
+    # pl.plot(energies2, label='cpmc', linestyle='-.')
+    # pl.axhline(-1.22368*16)
+    # pl.ylim([-25,-17])
+    # pl.legend()
+    # pl.show()
