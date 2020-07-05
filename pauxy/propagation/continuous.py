@@ -13,7 +13,7 @@ class Continuous(object):
     def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print("# Parsing propagator input options.")
-            print("# Using continuous Hubbar--Stratonovich transformations.")
+            print("# Using continuous Hubbard--Stratonovich transformations.")
         # Input options
         self.free_projection = options.get('free_projection', False)
         self.hybrid = options.get('hybrid', True)
