@@ -76,9 +76,6 @@ class HirschSpin(object):
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
             self.aux_wfac = numpy.array([1.0, 1.0])
-        # self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
-        # self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                # [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         self.hybrid = False
