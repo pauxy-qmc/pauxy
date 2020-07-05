@@ -459,7 +459,6 @@ class HubbardContinuousSpin(object):
     def construct_one_body_propagator(self, system, dt):
         # \sum_gamma v_MF^{gamma} v^{\gamma}
         I = numpy.eye(system.nbasis)
-        # vi1b = 1j*system.U**0.5 * numpy.diag(self.mf_shift)
         vi1b = system.U**0.5 * numpy.diag(self.mf_shift)
         H1 = system.H1 + 0.5*system.U*numpy.array([I,I]) - numpy.array([vi1b,vi1b])
         self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
