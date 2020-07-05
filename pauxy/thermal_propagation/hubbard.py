@@ -7,7 +7,7 @@ from pauxy.estimators.thermal import one_rdm_from_G
 
 class ThermalDiscrete(object):
 
-    def __init__(self, options, qmc, system, trial, verbose=False, lowrank=False):
+    def __init__(self, system, trial, qmc, options={}, verbose=False, lowrank=False):
 
         if verbose:
             print("# Parsing discrete propagator input options.")
@@ -55,7 +55,11 @@ class ThermalDiscrete(object):
         self.BT_BP = None
         self.BT = trial.dmat
         self.BT_inv = trial.dmat_inv
-        self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=trial.dmat.dtype)
+        if self.charge_decomp:
+            dtype = numpy.complex128
+        else:
+            dtype = trial.dmat.dtype
+        self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=dtype)
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
@@ -139,9 +143,9 @@ class ThermalDiscrete(object):
 
     def propagate_walker_free(self, system, walker, time_slice, eshift):
         fields = numpy.random.randint(0, 2, system.nbasis)
-        BV = numpy.zeros((2,system.nbasis), dtype=numpy.complex128)
-        BV[0] = numpy.array([self.auxf[xi,0] for xi in fields])
-        BV[1] = numpy.array([self.auxf[xi,1] for xi in fields])
+        self.BV[0] = numpy.array([self.auxf[xi,0] for xi in fields])
+        self.BV[1] = numpy.array([self.auxf[xi,1] for xi in fields])
+        # Vsii Tsij
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
         wfac = 1.0 + 0j
         for xi in fields:
@@ -153,21 +157,20 @@ class ThermalDiscrete(object):
         # 2. Compute updated green's function.
         walker.stack.update_new(B)
         walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
-                                    inplace=True)
+                               inplace=True)
 
         # 3. Compute det(G/G')
         M0 = numpy.array([scipy.linalg.det(G[0], check_finite=False),
                           scipy.linalg.det(G[1], check_finite=False)])
         Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
                             scipy.linalg.det(walker.G[1], check_finite=False)])
-
         try:
             # Could save M0 rather than recompute.
-            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+            oratio = wfac * (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
 
             walker.ot = 1.0
             # Constant terms are included in the walker's weight.
-            (magn, phase) = cmath.polar(wfac*oratio)
+            (magn, phase) = cmath.polar(oratio)
             walker.weight *= magn
             walker.phase *= cmath.exp(1j*phase)
         except ZeroDivisionError:
