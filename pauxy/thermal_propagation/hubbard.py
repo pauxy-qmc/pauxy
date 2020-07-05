@@ -15,9 +15,25 @@ class ThermalDiscrete(object):
         self.free_projection = options.get('free_projection', False)
         self.nstblz = qmc.nstblz
         self.hs_type = 'discrete'
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+        self.charge_decomp = options.get('charge_decomposition', False)
+        if verbose:
+            if self.charge_decomp:
+                print("# Using charge decomposition.")
+            else:
+                print("# Using spin decomposition.")
+        # [field,spin]
+        if self.charge_decomp:
+            self.gamma = numpy.arccosh(numpy.exp(-0.5*qmc.dt*system.U+0j))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            # e^{-gamma x}
+            self.aux_wfac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
+                                                                         numpy.exp(self.gamma)])
+        else:
+            self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.aux_wfac = numpy.array([1.0, 1.0])
         if not system.symmetric:
             self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         # Account for potential shift in chemical potential
@@ -122,32 +138,42 @@ class ThermalDiscrete(object):
         self.propagate_greens_function(walker)
 
     def propagate_walker_free(self, system, walker, time_slice, eshift):
-        for i in range(0, system.nbasis):
-            probs = self.calculate_overlap_ratio(walker, i)
-            norm = sum(numpy.abs(probs))
-            sgns = numpy.sign(probs) / numpy.sign(sum(probs))
-            r = numpy.random.random()
-            if norm > 0:
-                if r < abs(probs[0]) / norm:
-                    xi = 0
-                    walker.weight *= norm
-                    walker.phase *= sgns[0]
-                else:
-                    xi = 1
-                    walker.weight = walker.weight * norm
-                    walker.phase *= sgns[1]
-                self.update_greens_function(walker, i, xi)
-                self.BV[0,i] = self.auxf[xi, 0]
-                self.BV[1,i] = self.auxf[xi, 1]
-            else:
-                walker.weight = 0
+        fields = numpy.random.randint(0, 2, system.nbasis)
+        BV = numpy.zeros((2,system.nbasis), dtype=numpy.complex128)
+        BV[0] = numpy.array([self.auxf[xi,0] for xi in fields])
+        BV[1] = numpy.array([self.auxf[xi,1] for xi in fields])
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
-        walker.stack.update(B)
+        wfac = 1.0 + 0j
+        for xi in fields:
+            wfac *= self.aux_wfac[xi]
+            # Compute determinant ratio det(1+A')/det(1+A).
+            # 1. Current walker's green's function.
+        G = walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                    inplace=False)
+        # 2. Compute updated green's function.
+        walker.stack.update_new(B)
+        walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
+                                    inplace=True)
+
+        # 3. Compute det(G/G')
+        M0 = numpy.array([scipy.linalg.det(G[0], check_finite=False),
+                          scipy.linalg.det(G[1], check_finite=False)])
+        Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
+                            scipy.linalg.det(walker.G[1], check_finite=False)])
+
+        try:
+            # Could save M0 rather than recompute.
+            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+
+            walker.ot = 1.0
+            # Constant terms are included in the walker's weight.
+            (magn, phase) = cmath.polar(wfac*oratio)
+            walker.weight *= magn
+            walker.phase *= cmath.exp(1j*phase)
+        except ZeroDivisionError:
+            walker.weight = 0.0
         # Need to recompute Green's function from scratch before we propagate it
         # to the next time slice due to stack structure.
-        if walker.stack.time_slice % self.nstblz == 0:
-            walker.greens_function(None, walker.stack.time_slice-1)
-        self.propagate_greens_function(walker)
 
 
 class HubbardContinuous(object):
