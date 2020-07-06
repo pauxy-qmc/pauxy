@@ -7,20 +7,22 @@ from pauxy.utils.misc import get_from_dict
 
 def extract_data(filename, group, estimator, raw=False):
     fp = get_param(filename, ['propagators', 'free_projection'])
-    with h5py.File(filename, 'r') as fh5:
-        dsets = list(fh5[group][estimator].keys())
-        data = numpy.array([fh5[group][estimator][d][:] for d in dsets])
-        if 'rdm' in estimator or raw:
-            return data
-        else:
-            header = fh5[group]['headers'][:]
-            header = numpy.array([h.decode('utf-8') for h in header])
-            df = pd.DataFrame(data)
-            df.columns = header
-            if not fp:
-                df = df.apply(numpy.real)
-            return df
-
+    try:
+        with h5py.File(filename, 'r') as fh5:
+            dsets = list(fh5[group][estimator].keys())
+            data = numpy.array([fh5[group][estimator][d][:] for d in dsets])
+            if 'rdm' in estimator or raw:
+                return data
+            else:
+                header = fh5[group]['headers'][:]
+                header = numpy.array([h.decode('utf-8') for h in header])
+                df = pd.DataFrame(data)
+                df.columns = header
+                if not fp:
+                    df = df.apply(numpy.real)
+                return df
+    except:
+        print("file = {} is problematic".format(filename))
 def extract_mixed_estimates(filename, skip=0):
     return extract_data(filename, 'basic', 'energies')[skip:]
 
