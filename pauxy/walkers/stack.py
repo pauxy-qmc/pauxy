@@ -127,8 +127,9 @@ class FieldConfig(object):
         self.tot_wfac = 1.0 + 0j
 
 class PropagatorStack:
+
     def __init__(self, stack_size, ntime_slices, nbasis, dtype, BT=None, BTinv=None,
-                 diagonal=False, averaging = False, lowrank=True, thresh=1e-6):
+                 diagonal=False, averaging=False, lowrank=True, thresh=1e-6):
 
         self.time_slice = 0
         self.stack_size = stack_size
@@ -156,10 +157,6 @@ class PropagatorStack:
         self.BTinv = BTinv
         self.counter = 0
         self.block = 0
-        # self.buff_size = (
-            # 2+3*self.nbins*2*nbasis*nbasis + 2*nbasis*nbasis # ovlp,stack,left,right,G
-            # + (4*2*nbasis*nbasis + 2*2*nbasis if self.lowrank else 0) # low rank
-            # )
 
         self.stack = numpy.zeros(shape=(self.nbins, 2, nbasis, nbasis),
                                  dtype=dtype)
@@ -198,12 +195,6 @@ class PropagatorStack:
         return self.stack[ix]
 
     def get_buffer(self):
-        # buff = {
-            # 'left': self.left,
-            # 'right': self.right,
-            # 'stack': self.stack,
-            # 'wfac': numpy.array(self.wfac),
-        # }
         s = 0
         buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
         for d in self.buff_names:
@@ -214,30 +205,9 @@ class PropagatorStack:
             else:
                 buff[s:s+1] = data
                 s += 1
-        # self.buff[0] = self.wfac
-        # s += 1
-        # self.buff[s:s+self.left.size1] = self.wfac
-        # if self.lowrank:
-            # buff['Ql'] = self.Ql
-            # buff['Dl'] = self.Dl
-            # buff['Tl'] = self.Tl
-            # buff['Qr'] = self.Qr
-            # buff['Dr'] = self.Dr
-            # buff['Tr'] = self.Tr
         return buff
 
     def set_buffer(self, buff):
-        # self.stack = numpy.copy(buff['stack'])
-        # self.left = numpy.copy(buff['left'])
-        # self.right = numpy.copy(buff['right'])
-        # self.wfac = buff['wfac']
-        # if self.lowrank:
-            # self.Ql = numpy.copy(buff['Ql'])
-            # self.Dl = numpy.copy(buff['Dl'])
-            # self.Tl = numpy.copy(buff['Tl'])
-            # self.Qr = numpy.copy(buff['Qr'])
-            # self.Dr = numpy.copy(buff['Dr'])
-            # self.Tr = numpy.copy(buff['Tr'])
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
@@ -290,7 +260,7 @@ class PropagatorStack:
             self.left[i,0] = numpy.identity(self.nbasis, dtype=self.dtype)
             self.left[i,1] = numpy.identity(self.nbasis, dtype=self.dtype)
 
-        if (self.lowrank):
+        if self.lowrank:
             for s in [0,1]:
                 self.Qr[s] = numpy.identity(self.nbasis, dtype=self.dtype)
                 self.Dr[s] = numpy.ones(self.nbasis,dtype=self.dtype)

@@ -214,8 +214,8 @@ class ThermalAFQMC(object):
                 start = time.time()
                 for w in self.walk.walkers:
                     self.propagators.propagate_walker(self.system, w, ts, 0)
-                    if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
-                        w.weight = w.total_weight * 0.10
+                    # if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
+                        # w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start
                 start = time.time()
                 if ts % self.qmc.npop_control == 0 and ts != 0:

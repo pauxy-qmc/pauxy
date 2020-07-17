@@ -206,6 +206,8 @@ class Walkers(object):
             numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
     def pop_control(self, comm):
+        if self.ntot_walkers == 1:
+            return
         if self.use_log_shift:
            self.update_log_ovlp(comm)
         weights = numpy.array([abs(w.weight) for w in self.walkers])

@@ -119,3 +119,44 @@ def test_propagate_walker_free():
         walker.greens_function(None)
         rdm = one_rdm_from_G(walker.G)
     assert False
+
+@pytest.mark.unit
+def test_update_gf():
+    options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 1.0, 'nup': 8, 'ndown': 8}
+    system = Hubbard(options, verbose=False)
+    beta = 2.0
+    dt = 0.05
+    nslice = int(round(beta/dt))
+    trial = OneBody(system, beta, dt)
+    numpy.random.seed(7)
+    qmc = dotdict({'dt': dt, 'nstblz': 1})
+    prop = ThermalDiscrete(system, trial, qmc, verbose=False)
+    walker = ThermalWalker(system, trial,
+                            walker_opts={'stack_size': 1, 'low_rank': False},
+                            verbose=False)
+    rands = numpy.random.random(system.nbasis)
+    I = numpy.eye(system.nbasis)
+    BV = numpy.zeros((2,system.nbasis))
+    BV[0] = 1.0
+    BV[1] = 1.0
+    walker.greens_function(trial, slice_ix=0)
+    rands = numpy.random.random(system.nbasis)
+    BV = numpy.zeros((2,system.nbasis))
+    BV[0] = 1.0
+    BV[1] = 1.0
+    for i in range(system.nbasis):
+        if rands[i] > 0.5:
+            xi = 0
+        else:
+            xi = 1
+        BV[0,i] = prop.auxf[xi,0]
+        BV[1,i] = prop.auxf[xi,1]
+        prop.update_greens_function(walker, i, xi)
+    G = walker.G.copy()
+    B = numpy.einsum('ki,kij->kij', BV, prop.BH1)
+    walker.stack.update(B)
+    Gnew = walker.greens_function(trial, slice_ix=0, inplace=False)
+    assert numpy.linalg.norm(G-Gnew) == pytest.approx(0.0)
+    prop.propagate_greens_function(walker)
+    Gnew = walker.greens_function(trial, slice_ix=1, inplace=False)
+    assert numpy.linalg.norm(walker.G-Gnew) == pytest.approx(0.0)

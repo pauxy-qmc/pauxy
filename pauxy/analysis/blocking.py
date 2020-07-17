@@ -101,9 +101,13 @@ def reblock_mixed(groupby, columns, verbose=False):
                 'WeightFactor', 'EHybrid']
         if not verbose:
             drop += ['E1Body', 'E2Body']
-        short = frame.reset_index().drop(columns+drop, axis=1)
+        short = frame.reset_index()
+        try:
+            short = short.drop(columns+drop, axis=1)
+        except KeyError:
+            short = short.drop(columns+['index'], axis=1)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
-        reblocked = pd.DataFrame()
+        reblocked = pd.DataFrame({'ETotal': [0.0]})
         for c in short.columns:
             try:
                 rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
@@ -153,7 +157,7 @@ def reblock_free_projection(frame):
 
 
 def reblock_local_energy(filename, skip=0):
-    data = pauxy.analysis.extraction.extract_mixed_estimates(filename)
+    data = extract_mixed_estimates(filename)
     results = reblock_mixed(data.apply(numpy.real)[skip:])
     if results is None:
         return None
