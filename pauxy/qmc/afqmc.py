@@ -15,8 +15,13 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.trial_wavefunction.utils import get_trial_wavefunction
-from pauxy.utils.misc import get_git_revision_hash, print_sys_info
+from pauxy.utils.misc import (
+        get_git_revision_hash,
+        get_sys_info,
+        get_node_mem
+        )
 from pauxy.utils.io import  to_json, serialise, get_input_value
+from pauxy.utils.mpi import get_shared_comm
 from pauxy.walkers.handler import Walkers
 
 
@@ -98,13 +103,8 @@ class AFQMC(object):
         self.rank = comm.rank
         self._init_time = time.time()
         self.run_time = time.asctime()
+        self.shared_comm = get_shared_comm(comm, verbose=verbose)
         # 2. Calculation objects.
-        # if comm.rank == 0:
-            # system = get_system(sys_opts=options.get('model', {}),
-                                     # mf=mf, verbose=verbose)
-        # else:
-            # system = None
-        # self.system = comm.bcast(system, root=0)
         if system is not None:
             self.system = system
         else:
@@ -112,7 +112,8 @@ class AFQMC(object):
                                        default={},
                                        alias=['system'],
                                        verbose=self.verbosity>1)
-            self.system = get_system(sys_opts, verbose=verbose)
+            self.system = get_system(sys_opts, verbose=verbose,
+                                     comm=self.shared_comm)
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -127,22 +128,18 @@ class AFQMC(object):
         if trial is not None:
             self.trial = trial
         else:
-            if comm.rank == 0:
-                self.trial = (
-                    get_trial_wavefunction(self.system, options=twf_opt,
-                                           parallel=parallel, verbose=verbose)
-                )
-            else:
-                self.trial = None
-            self.trial = comm.bcast(self.trial, root=0)
-        if self.system.name == "Generic":
-            if self.trial.ndets == 1:
-                if self.system.cplx_chol:
-                    self.system.construct_integral_tensors_cplx(self.trial)
-                else:
-                    self.system.construct_integral_tensors_real(self.trial)
+            self.trial = (
+                get_trial_wavefunction(self.system, options=twf_opt,
+                                       comm=comm,
+                                       scomm=self.shared_comm,
+                                       verbose=verbose)
+            )
+            # if self.system.name == 'Generic':
+                # self.trial.half_rotate(self.system, self.shared_comm)
+        mem = get_node_mem()
         if comm.rank == 0:
             self.trial.calculate_energy(self.system)
+        comm.barrier()
         prop_opt = options.get('propagator', {})
         self.propagators = get_propagator_driver(self.system, self.trial,
                                                  self.qmc, options=prop_opt,
@@ -172,12 +169,21 @@ class AFQMC(object):
                 print("# Setting one walker per core.")
             self.qmc.nwalkers = 1
         self.qmc.ntot_walkers = self.qmc.nwalkers * comm.size
-        self.psi = Walkers(wlk_opts, self.system, self.trial,
-                           self.qmc, verbose,
+        self.psi = Walkers(self.system, self.trial,
+                           self.qmc, walker_opts=wlk_opts,
+                           verbose=verbose,
                            nprop_tot=self.estimators.nprop_tot,
                            nbp=self.estimators.nbp,
                            comm=comm)
         if comm.rank == 0:
+            mem_avail = get_node_mem()
+            factor = float(self.system.ne) / self.system.nbasis
+            mem = factor*self.trial._mem_required*self.shared_comm.size
+            print("# Approx required for energy evaluation: {:.4f} GB.".format(mem))
+            if mem > 0.5*mem_avail:
+                print("# Warning: Memory requirements of calculation are high")
+                print("# Consider using fewer walkers per node.")
+                print("# Memory available: {.6f}".format(mem_avail))
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string
@@ -198,12 +204,11 @@ class AFQMC(object):
         if psi is not None:
             self.psi = psi
         self.setup_timers()
-        (etot, e1b, e2b) = self.psi.walkers[0].local_energy(self.system)
+        w0 = self.psi.walkers[0]
         eshift = 0
         # eshift = self.estimators.estimators['mixed'].get_shift()
-        
-
         self.propagators.mean_local_energy = eshift.real
+        (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol)
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,
@@ -275,7 +280,7 @@ class AFQMC(object):
             if self.psi.write_restart and step % self.psi.write_freq == 0:
                 self.psi.write_walkers(comm)
             if step < self.qmc.neqlb:
-                eshift = self.estimators.estimators['mixed'].get_shift()
+                eshift = self.estimators.estimators['mixed'].get_shift(self.propagators.hybrid)
             else:
                 eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
             

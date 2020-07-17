@@ -19,13 +19,16 @@ def test_hubbard():
     numpy.random.seed(7)
     qmc = dotdict({'dt': dt, 'nstblz': 10})
     prop = ThermalDiscrete({}, qmc, system, trial, verbose=False)
-    walker1 = ThermalWalker({'stack_size': 1, 'low_rank': False},
-                            system, trial, verbose=False)
+    walker1 = ThermalWalker(system, trial,
+                            walker_opts={'stack_size': 1, 'low_rank': False},
+                            verbose=False)
     for ts in range(0,nslice):
         prop.propagate_walker(system, walker1, ts, 0)
         walker1.weight /= 1.0e6
     numpy.random.seed(7)
-    walker2 = ThermalWalker({'stack_size': 10, 'low_rank': False}, system, trial, verbose=False)
+    walker2 = ThermalWalker(system, trial,
+                            walker_opts={'stack_size': 10, 'low_rank': False},
+                            verbose=False)
     energies = []
     for ts in range(0,nslice):
         prop.propagate_walker(system, walker2, ts, 0)
@@ -51,10 +54,12 @@ def test_propagate_walker():
     numpy.random.seed(7)
     qmc = dotdict({'dt': dt, 'nstblz': 1})
     prop = ThermalDiscrete({}, qmc, system, trial, verbose=False)
-    walker1 = ThermalWalker({'stack_size': 1, 'low_rank': False},
-                            system, trial, verbose=False)
-    walker2 = ThermalWalker({'stack_size': 1, 'low_rank': False},
-                            system, trial, verbose=False)
+    walker1 = ThermalWalker(system, trial,
+                            walker_opts={'stack_size': 1, 'low_rank': False},
+                            verbose=False)
+    walker2 = ThermalWalker(system, trial,
+                            walker_opts={'stack_size': 1, 'low_rank': False},
+                            verbose=False)
     rands = numpy.random.random(system.nbasis)
     I = numpy.eye(system.nbasis)
     BV = numpy.zeros((2,system.nbasis))

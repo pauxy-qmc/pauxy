@@ -5,7 +5,11 @@ import scipy.sparse
 import sys
 import time
 import numpy
+<<<<<<< HEAD
 from pauxy.utils.io import write_qmcpack_sparse
+=======
+from pauxy.utils.io import write_qmcpack_dense
+>>>>>>> develop
 from pauxy.utils.hamiltonian_converter import read_fcidump
 from pauxy.utils.linalg import modified_cholesky
 
@@ -74,7 +78,11 @@ def main(args):
                              options.thresh, options.verbose,
                              cmax=20).T.copy()
     cplx_chol = options.write_complex or numpy.any(abs(eri.imag)>1e-14)
+<<<<<<< HEAD
     write_qmcpack_sparse(hcore, chol, nelec, norb, enuc=ecore,
+=======
+    write_qmcpack_dense(hcore, chol, nelec, norb, enuc=ecore,
+>>>>>>> develop
                         real_chol=(not cplx_chol),
                         filename=options.output_file)
 

@@ -11,6 +11,10 @@ try:
     from scipy.fftpack.helper import next_fast_len
     from scipy.fftpack.helper import _init_nd_shape_and_axes_sorted
 except ImportError:
+# =======
+#     from scipy.fft._helper import next_fast_len, _init_nd_shape_and_axes
+# except ModuleNotFoundError:
+# >>>>>>> develop
     pass
 
 # Stolen from scipy

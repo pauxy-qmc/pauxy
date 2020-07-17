@@ -177,7 +177,7 @@ def objective_function_rotation_only (x, system, psi, c0):
     return etot.real
 class LangFirsov(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+    def __init__(self, system, trial, verbose=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing free electron input options.")
@@ -193,10 +193,12 @@ class LangFirsov(object):
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
 
         self.reference = trial.get('reference', None)
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        # if cplx:
+        #     self.trial_type = complex
+        # else:
+        #     self.trial_type = float
+        self.trial_type = numpy.complex128
+        
         self.read_in = trial.get('read_in', None)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)

@@ -32,7 +32,8 @@ class Continuous(object):
 
     def __init__(self, options, qmc, system, trial, verbose=False, lowrank=False):
         if verbose:
-            print ("# Parsing continuous propagator input options.")
+            print("# Parsing continuous propagator input options.")
+            print("# Using continuous Hubbar--Stratonovich transformations.")
 
         # Input options
         self.hs_type = 'continuous'
@@ -69,7 +70,7 @@ class Continuous(object):
             if verbose:
                 print("# Using free projection.")
                 print("# Setting force_bias to False with free projection.")
-            self.force_bias = False
+            self.force_bias = options.get('force_bias', False)
             self.propagate_walker = self.propagate_walker_free
         else:
             if verbose:

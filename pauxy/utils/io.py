@@ -79,7 +79,7 @@ def to_sparse(vals, offset=0, cutoff=1e-8):
     return ix, vals
 
 def write_qmcpack_sparse(hcore, chol, nelec, nmo, enuc=0.0, filename='hamiltonian.h5',
-                 real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
+                         real_chol=False, verbose=False, cutoff=1e-16, ortho=None):
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
@@ -176,6 +176,8 @@ def from_qmcpack_sparse(filename):
 def write_qmcpack_dense(hcore, chol, nelec, nmo, enuc=0.0,
                         filename='hamiltonian.h5', real_chol=True,
                         verbose=False, ortho=None):
+    assert len(chol.shape) == 2
+    assert chol.shape[0] == nmo*nmo
     with h5py.File(filename, 'w') as fh5:
         fh5['Hamiltonian/Energies'] = numpy.array([enuc,0])
         if real_chol:
@@ -210,59 +212,6 @@ def from_qmcpack_dense(filename):
         nalpha = dims[4]
         nbeta = dims[5]
         return (hcore, chol, enuc, int(nmo), int(nalpha), int(nbeta))
-
-def dump_qmcpack(filename, wfn_file, hcore, eri, orthoAO, fock, nelec, enuc,
-                 verbose=True, threshold=1e-5, sparse_zero=1e-16, orbs=None):
-    nmo = hcore.shape[-1]
-    if verbose:
-        print(" # Constructing trial wavefunctiom in ortho AO basis.")
-    if len(hcore.shape) == 3:
-        if verbose:
-            print(" # Writing UHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_uhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    else:
-        if verbose:
-            print(" # Writing RHF trial wavefunction.")
-        if orbs is None:
-            (mo_energies, orbs) = molecular_orbitals_rhf(fock, orthoAO)
-        else:
-            orbs = orbs
-    write_qmcpack_wfn(filename, (numpy.array([1.0+0j]), orbs), 'uhf', nelec, nmo)
-    nbasis = hcore.shape[-1]
-    if verbose:
-        print (" # Performing modified Cholesky decomposition on ERI tensor.")
-    msq = nbasis * nbasis
-    # Why did I transpose everything?
-    # QMCPACK expects [M^2, N_chol]
-    # Internally store [N_chol, M^2]
-    if isinstance(eri, list):
-        chol_vecsa = modified_cholesky(eri[0].reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-        chol_vecsa = modified_cholesky(eri[1].reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-    elif len(eri.shape) == 4:
-        chol_vecs = modified_cholesky(eri.reshape((msq, msq)), threshold,
-                                       verbose=verbose).T
-        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
-        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-        mem = 64*chol_vecs.nnz/(1024.0**3)
-    else:
-        chol_vecs = eri.T
-        chol_vecs[numpy.abs(chol_vecs) < sparse_zero] = 0
-        chol_vecs = scipy.sparse.csr_matrix(chol_vecs)
-        mem = 64*chol_vecs.nnz/(1024.0**3)
-    if verbose:
-        print (" # Total number of non-zero elements in sparse cholesky ERI"
-               " tensor: %d"%chol_vecs.nnz)
-        nelem = chol_vecs.shape[0]*chol_vecs.shape[1]
-        print (" # Sparsity of ERI Cholesky tensor: "
-               "%f"%(1-float(chol_vecs.nnz/nelem)))
-        print (" # Total memory required for ERI tensor: %13.8e GB"%(mem))
-    dump_qmcpack_cholesky(numpy.array([hcore, hcore]), chol_vecs, nelec,
-                                      nbasis, enuc, filename=filename)
 
 def qmcpack_wfn_namelist(nci, uhf, fullmo=True):
     return "&FCI\n UHF = %d\n NCI = %d \n %s TYPE = matrix\n/\n"%(uhf,nci,'FullMO\n' if fullmo else '')
@@ -369,25 +318,29 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
                       " of {}.".format(key, default))
     return val
 
-def read_qmcpack_wfn_hdf(filename):
+def read_qmcpack_wfn_hdf(filename, nelec=None):
     try:
         with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/NOMSD']
-            wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup)
+            wfn, psi0 = read_qmcpack_nomsd_hdf5(wgroup, nelec=nelec)
     except KeyError:
         with h5py.File(filename, 'r') as fh5:
             wgroup = fh5['Wavefunction/PHMSD']
-            wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup)
+            wfn, psi0 = read_qmcpack_phmsd_hdf5(wgroup, nelec=nelec)
     except KeyError:
         print("Wavefunction not found.")
         sys.exit()
     return wfn, psi0
 
-def read_qmcpack_nomsd_hdf5(wgroup):
+def read_qmcpack_nomsd_hdf5(wgroup, nelec=None):
     dims = wgroup['dims']
     nmo = dims[0]
     na = dims[1]
     nb = dims[2]
+    if nelec is not None:
+        log = "Number of electrons does not match wavefunction: {} vs {}."
+        assert na == nelec[0], log.format(na,nelec[0]) 
+        assert nb == nelec[0], log.format(nb,nelec[1]) 
     walker_type = dims[3]
     if walker_type == 2:
         uhf = True
@@ -416,11 +369,15 @@ def read_qmcpack_nomsd_hdf5(wgroup):
             wfn[idet,:,na:] = pa[:,:nb]
     return (coeffs,wfn), psi0
 
-def read_qmcpack_phmsd_hdf5(wgroup):
+def read_qmcpack_phmsd_hdf5(wgroup, nelec=None):
     dims = wgroup['dims']
     nmo = dims[0]
     na = dims[1]
     nb = dims[2]
+    if nelec is not None:
+        log = "Number of electrons does not match wavefunction: {} vs {}."
+        assert na == nelec[0], log.format(na,nelec[0]) 
+        assert nb == nelec[0], log.format(nb,nelec[1]) 
     walker_type = dims[3]
     if walker_type == 2:
         uhf = True
@@ -566,8 +523,10 @@ def write_phmsd(fh5, occa, occb, nelec, norb, init=None):
     # TODO: Update if we ever wanted "mixed" phmsd type wavefunctions.
     na, nb = nelec
     if init is not None:
-        fh5['Psi0_alpha'] = to_qmcpack_complex(init[0])
-        fh5['Psi0_beta'] = to_qmcpack_complex(init[1])
+        psi0 = numpy.array(init[0], numpy.complex128)
+        fh5['Psi0_alpha'] = to_qmcpack_complex(psi0)
+        psi0 = numpy.array(init[1], numpy.complex128)
+        fh5['Psi0_beta'] = to_qmcpack_complex(psi0)
     else:
         init = numpy.eye(norb, dtype=numpy.complex128)
         fh5['Psi0_alpha'] = to_qmcpack_complex(init[:,occa[0]].copy())

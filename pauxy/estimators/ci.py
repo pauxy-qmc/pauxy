@@ -619,7 +619,7 @@ def simple_fci(system, gen_dets=False, occs=None, hamil=False):
     H = numpy.zeros((ndets,ndets))
     for i in range(ndets):
         for j in range(i,ndets):
-            H[i,j] = get_hmatel(system, dets[i], dets[j])
+            H[i,j] = get_hmatel(system, dets[i], dets[j])[0]
     if gen_dets:
         return scipy.linalg.eigh(H, lower=False), (dets,numpy.array(oa),numpy.array(ob))
     elif hamil:
@@ -635,11 +635,11 @@ def get_hmatel(system, di, dj):
     nex = len(from_orb)
     perm = get_perm(from_orb, to_orb, di, dj)
     if nex == 0:
-        hmatel = slater_condon0(system, di)[0]
+        hmatel, e1b, e2b = slater_condon0(system, di)
     elif nex == 1:
         i, si = map_orb(from_orb[0], system.nbasis)
         a, sa = map_orb(to_orb[0], system.nbasis)
-        hmatel = slater_condon1(system, (i,si), (a,sa), di, perm)
+        hmatel, e1b, e2b = slater_condon1(system, (i,si), (a,sa), di, perm)
     elif nex == 2:
         # < ij | ab > or < ij | ba >
         i, si = map_orb(from_orb[0], system.nbasis)
@@ -647,9 +647,13 @@ def get_hmatel(system, di, dj):
         a, sa = map_orb(to_orb[0], system.nbasis)
         b, sb = map_orb(to_orb[1], system.nbasis)
         hmatel = slater_condon2(system, (i,si), (j,sj), (a,sa), (b,sb), perm)
+        e1b = 0
+        e2b = hmatel
     else:
         hmatel = 0.0
-    return hmatel
+        e1b = 0.0
+        e2b = 0.0
+    return numpy.array([hmatel, e1b, e2b])
 
 def get_perm(from_orb, to_orb, di, dj):
     """Determine sign of permutation needed to align two determinants.
@@ -688,20 +692,22 @@ def slater_condon0(system, occs):
 def slater_condon1(system, i, a, occs, perm):
     ii, si = i
     aa, sa = a
-    hmatel = system.H1[0,ii,aa]
+    e1b = system.H1[0,ii,aa]
     nel = system.nup + system.ndown
+    e2b = 0
     for j in range(nel):
         # \sum_j <ij|aj> - <ij|ja>
         oj = occs[j]
         oj, soj = map_orb(oj, system.nbasis)
         if 2*oj+soj != 2*ii+si:
-            hmatel += system.hijkl(ii,oj,aa,oj)
+            e2b += system.hijkl(ii,oj,aa,oj)
             if soj == si:
-                hmatel -= system.hijkl(ii,oj,oj,aa)
+                e2b -= system.hijkl(ii,oj,oj,aa)
+    hmatel = e1b + e2b
     if perm:
-        return -hmatel
+        return -hmatel, -e1b, -e2b
     else:
-        return hmatel
+        return hmatel, e1b, e2b
 
 def slater_condon2(system, i, j, a, b, perm):
     ii, si = i

@@ -187,7 +187,7 @@ def objective_function (x, system, c0, psi, resctricted):
 
 class CoherentState(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+    def __init__(self, system, trial, verbose=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing free electron input options.")
@@ -203,10 +203,12 @@ class CoherentState(object):
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
 
         self.reference = trial.get('reference', None)
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        # if cplx:
+        #     self.trial_type = complex
+        # else:
+        #     self.trial_type = float
+        self.trial_type = numpy.complex128
+        
         self.read_in = trial.get('read_in', None)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
@@ -246,9 +248,9 @@ class CoherentState(object):
         else:
             free_electron = trial.get('free_electron', False)
             if (free_electron):
-                trial_elec = FreeElectron(system, False, trial, parallel=False, verbose=0)
+                trial_elec = FreeElectron(system, trial, verbose=0)
             else:
-                trial_elec = UHF(system, False, trial, parallel=False, verbose=0)
+                trial_elec = UHF(system, trial, verbose=0)
 
             self.psi[:, :system.nup] = trial_elec.psi[:, :system.nup]
             self.psi[:, system.nup:] = trial_elec.psi[:, system.nup:]
@@ -337,6 +339,9 @@ class CoherentState(object):
             self.init[:, system.nup:] = v[:, :system.ndown].copy()
         else:
             self.init = self.psi.copy()
+        
+        self._mem_required = 0.0
+        self._rchol = None
 
         if verbose:
             print ("# Updated coherent.")

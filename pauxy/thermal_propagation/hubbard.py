@@ -10,7 +10,8 @@ class ThermalDiscrete(object):
     def __init__(self, options, qmc, system, trial, verbose=False, lowrank=False):
 
         if verbose:
-            print ("# Parsing discrete propagator input options.")
+            print("# Parsing discrete propagator input options.")
+            print("# Using continuous Hubbar--Stratonovich transformations.")
         self.free_projection = options.get('free_projection', False)
         self.nstblz = qmc.nstblz
         self.hs_type = 'discrete'

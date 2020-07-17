@@ -78,6 +78,8 @@ class BackPropagation(object):
         self.nstblz = qmc.nstblz
         self.BT2 = BT2
         self.restore_weights = bp.get('restore_weights', None)
+        if root:
+            print("# restore_weights = {}".format(self.restore_weights))
         self.dt = qmc.dt
         dms_size = self.G.size
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
@@ -85,6 +87,8 @@ class BackPropagation(object):
         if self.calc_two_rdm is not None:
             if self.calc_two_rdm == "structure_factor":
                 two_rdm_shape = (2,2,len(system.qvecs),)
+            else:
+                two_rdm_shape = (system.nbasis, system.nbasis, system.nbasis, system.nbasis)
             self.two_rdm = numpy.zeros(two_rdm_shape,
                                        dtype=numpy.complex128)
             dms_size += self.two_rdm.size
@@ -160,9 +164,25 @@ class BackPropagation(object):
             else:
                 energies = numpy.zeros(3)
 
+
+            if self.calc_two_rdm is not None and self.calc_two_rdm is not "structure_factor":
+                # <p^+ q^+ s r> = G(p, r, q, s) also spin-summed
+                self.two_rdm =  numpy.einsum("pr,qs->prqs",self.G[0], self.G[0], optimize=True)\
+                              - numpy.einsum("ps,qr->prqs",self.G[0], self.G[0], optimize=True)
+                self.two_rdm += numpy.einsum("pr,qs->prqs",self.G[1], self.G[1], optimize=True)\
+                              - numpy.einsum("ps,qr->prqs",self.G[1], self.G[1], optimize=True)
+                self.two_rdm += numpy.einsum("pr,qs->prqs",self.G[0], self.G[1], optimize=True)\
+                              + numpy.einsum("pr,qs->prqs",self.G[1], self.G[0], optimize=True)
+
             if self.eval_ekt:
-                self.ekt_fock_1p = ekt_1p_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
-                self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+                if (system.name == 'UEG'):
+                    # there needs to be a factor of 2.0 here to account for the convention of cholesky vectors in the system class
+                    chol_vecs = 2.0 * system.chol_vecs.toarray().T.reshape((system.nchol, system.nbasis, system.nbasis))
+                    self.ekt_fock_1p = ekt_1p_fock_opt(system.H1[0],chol_vecs, self.G[0], self.G[1])
+                    self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],chol_vecs, self.G[0], self.G[1])
+                else:
+                    self.ekt_fock_1p = ekt_1p_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
+                    self.ekt_fock_1h = ekt_1h_fock_opt(system.H1[0],system.chol_vecs, self.G[0], self.G[1])
 
             if self.restore_weights is not None:
                 cosine_fac, ph_fac = wnm.field_configs.get_wfac()

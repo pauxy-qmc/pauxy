@@ -115,3 +115,4 @@ class OneBody(object):
 
         self.G = numpy.array([greens_function(self.dmat[0]), greens_function(self.dmat[1])])
         self.error = False
+        self.init = numpy.array([0])

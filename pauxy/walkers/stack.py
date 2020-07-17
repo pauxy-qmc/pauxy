@@ -106,7 +106,12 @@ class FieldConfig(object):
                 self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
                 dsize = data.size
             else:
-                self.__dict__[d] = buff[s]
+                if isinstance(self.__dict__[d], int):
+                    self.__dict__[d] = int(buff[s].real)
+                elif isinstance(self.__dict__[d], float):
+                    self.__dict__[d] = buff[s].real
+                else:
+                    self.__dict__[d] = buff[s]
                 dsize = 1
             s += dsize
 
@@ -240,7 +245,12 @@ class PropagatorStack:
                 self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
                 dsize = data.size
             else:
-                self.__dict__[d] = buff[s]
+                if isinstance(self.__dict__[d], int):
+                    self.__dict__[d] = int(buff[s].real)
+                elif isinstance(self.__dict__[d], float):
+                    self.__dict__[d] = float(buff[s].real)
+                else:
+                    self.__dict__[d] = buff[s]
                 dsize = 1
             s += dsize
 

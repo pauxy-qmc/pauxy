@@ -42,6 +42,9 @@ def parse_args(args):
                         help='Compute average of energy as a function of tau.')
     parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
                         default=False, help='Extract correlation functions.')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        default=False, help='Analyse all all energy components.'
+                        ' Default False.')
     parser.add_argument('-f', nargs='+', dest='filenames',
                         help='Space-separated list of files to analyse.')
 
@@ -72,6 +75,7 @@ def main(args):
     else:
         files = options.filenames
     analyse_estimates(files, start_time=options.start_time,
-                      multi_sim=options.multi_sim, av_tau=options.av_tau)
+                      multi_sim=options.multi_sim, av_tau=options.av_tau,
+                      verbose=options.verbose)
 if __name__ == '__main__':
     main(sys.argv[1:])

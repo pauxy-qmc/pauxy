@@ -50,6 +50,7 @@ class HubbardHolstein(object):
             print("# Parsing input options.")
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
+        self.ne = self.nup + self.ndown
         self.t = inputs.get('t', 1.0)
         self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)

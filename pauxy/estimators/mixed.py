@@ -97,7 +97,7 @@ class Mixed(object):
             dms_size = self.G.size
         else:
             dms_size = 0
-        self.eshift = 0
+        self.eshift = numpy.array([0,0])
         # Abuse of language for the moment. Only accumulates S(k) for UEG.
         # TODO: Add functionality to accumulate 2RDM?
         if self.calc_two_rdm is not None:
@@ -161,7 +161,10 @@ class Mixed(object):
                 if step % self.energy_eval_freq == 0:
                     w.greens_function(trial)
                     if self.eval_energy:
-                        E, T, V = w.local_energy(system)
+                        if self.thermal:
+                            E, T, V = w.local_energy(system)
+                        else:
+                            E, T, V = w.local_energy(system, rchol=trial._rchol)
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += wfac * E
@@ -215,7 +218,7 @@ class Mixed(object):
                     if step % self.energy_eval_freq == 0:
                         w.greens_function(trial)
                         if self.eval_energy:
-                            E, T, V = w.local_energy(system)
+                            E, T, V = w.local_energy(system, rchol=trial._rchol)
                         else:
                             E, T, V = 0, 0, 0
                         self.estimates[self.names.enumer] += w.weight*E.real
@@ -284,9 +287,9 @@ class Mixed(object):
             gs[ns.eproj:ns.e2b+1] = gs[ns.eproj:ns.e2b+1] / gs[ns.edenom]
             gs[ns.ehyb] /= gs[ns.weight]
             gs[ns.ovlp] /= gs[ns.weight]
-            eshift = gs[ns.ehyb]
+            eshift = numpy.array([gs[ns.ehyb],gs[ns.eproj]])
         else:
-            eshift = 0
+            eshift = numpy.array([0,0])
         if self.thermal and comm.rank == 0:
             gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
         
@@ -405,15 +408,22 @@ class Mixed(object):
         denominator = self.estimates[self.names.edenom]
         return (numerator / denominator).real
 
-    def get_shift(self):
+    def get_shift(self, hybrid=True):
         """Get hybrid shift.
 
+        Parameters
+        ----------
+        hybrid : bool
+            True if using hybrid propgation
         Returns
         -------
         eshift : float
             Walker averaged hybrid energy.
         """
-        return self.eshift.real
+        if hybrid:
+            return self.eshift[0].real
+        else:
+            return self.eshift[1].real
 
     def get_holstein(self):
         """Get holstein estimators
@@ -449,7 +459,7 @@ def local_energy_hh(system, G, X, Lap, Ghalf=None):
         print("SOMETHING IS VERY WRONG... WHY ARE YOU CALLING HUBBARD-HOSTEIN FUNCTION?")
         exit()
 
-def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
+def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -477,21 +487,23 @@ def local_energy(system, G, Ghalf=None, opt=True, two_rdm=None):
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
-        if system.half_rotated_integrals:
+        if half_rot_ints:
             return local_energy_generic_opt(system, G, Ghalf)
         else:
-            if Ghalf is not None:
-                return local_energy_generic_cholesky_opt(system, G, Ghalf)
+            if Ghalf is not None and rchol is not None:
+                return local_energy_generic_cholesky_opt(system, G,
+                                                         Ghalf=Ghalf,
+                                                         rchol=rchol)
             else:
                 return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det(system, Gi, weights, two_rdm=None):
+def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
     weight = 0
     energies = 0
     denom = 0
     for w, G in zip(weights, Gi):
         # construct "local" green's functions for each component of A
-        energies += w * numpy.array(local_energy(system, G, opt=False))
+        energies += w * numpy.array(local_energy(system, G, rchol=None))
         denom += w
     return tuple(energies/denom)
 
@@ -537,11 +549,17 @@ def eproj(estimates, enum):
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
 
-def variational_energy(system, psi, coeffs, G=None, GH=None):
-    if len(psi.shape) == 3:
-        return variational_energy_multi_det(system, psi, coeffs)
+def variational_energy(system, psi, coeffs, G=None, GH=None, rchol=None):
+    if len(psi.shape) == 2:
+        return variational_energy_single_det(system, psi,
+                                             G=G, GH=GH,
+                                             rchol=rchol)
+    elif len(psi) == 1:
+        return variational_energy_single_det(system, psi[0],
+                                             G=G, GH=GH,
+                                             rchol=rchol)
     else:
-        return variational_energy_single_det(system, psi, G=G, GH=GH)
+        return variational_energy_multi_det(system, psi, coeffs)
 
 def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     weight = 0
@@ -556,20 +574,12 @@ def variational_energy_multi_det(system, psi, coeffs, H=None, S=None):
     for i, (Bi, ci) in enumerate(zip(psi, coeffs)):
         for j, (Aj, cj) in enumerate(zip(psi, coeffs)):
             # construct "local" green's functions for each component of A
-            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            Gup, GHup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
+            Gdn, GHdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
             ovlp = 1.0 / (scipy.linalg.det(inv_O_up)*scipy.linalg.det(inv_O_dn))
             weight = (ci.conj()*cj) * ovlp
             G = numpy.array([Gup, Gdn])
-            e = numpy.array(local_energy(system, G, opt=False))
-            if (i == 0 and j == 1) or (i == 1 and j == 0):
-                Gup, inv_O_up = gab_mod_ovlp(Aj[:,:nup],Bi[:,:nup])
-                Gdn, inv_O_dn = gab_mod_ovlp(Aj[:,nup:], Bi[:,nup:])
-                G = numpy.array([Gup, Gdn])
-                e2 = numpy.array(local_energy(system, G, opt=False))
-
-            Gup, inv_O_up = gab_mod_ovlp(Bi[:,:nup], Aj[:,:nup])
-            Gdn, inv_O_dn = gab_mod_ovlp(Bi[:,nup:], Aj[:,nup:])
+            e = numpy.array(local_energy(system, G))
             if store:
                 H[i,j] = ovlp*e[0]
                 S[i,j] = ovlp
@@ -596,16 +606,25 @@ def variational_energy_ortho_det(system, occs, coeffs):
     """
     evar = 0.0
     denom = 0.0
+    one_body = 0.0
+    two_body = 0.0
     for i, (occi, ci) in enumerate(zip(occs, coeffs)):
         denom += ci.conj()*ci
-        for j, (occj, cj) in enumerate(zip(occs, coeffs)):
-            evar += ci.conj()*cj*get_hmatel(system, occi, occj)
-    return evar/denom, 0.0, 0.0
+        for j in range(0,i+1):
+            cj = coeffs[j]
+            occj = occs[j]
+            etot, e1b, e2b = ci.conj()*cj*get_hmatel(system, occi, occj)
+            evar += etot
+            one_body += e1b
+            two_body += e2b
+            if j < i:
+                # Use Hermiticity
+                evar += etot
+                one_body += e1b
+                two_body += e2b
+    return evar/denom, one_body/denom, two_body/denom
 
 
-def variational_energy_single_det(system, psi, G=None, GH=None):
-    if G is None:
-        na = system.nup
-        ga, ga_half = gab_mod(psi[:,:na],psi[:,:na])
-        gb, gb_half = gab_mod(psi[:,na:],psi[:,na:])
-    return local_energy(system, G, Ghalf=GH, opt=system._opt)
+def variational_energy_single_det(system, psi, G=None, GH=None, rchol=None):
+    assert len(psi.shape) == 2
+    return local_energy(system, G, Ghalf=GH, rchol=rchol)

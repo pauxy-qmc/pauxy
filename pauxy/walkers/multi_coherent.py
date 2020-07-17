@@ -27,7 +27,7 @@ class MultiCoherentWalker(object):
         Initial wavefunction.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0, nprop_tot = None, nbp = None,
+    def __init__(self, system, trial, walker_opts, index=0, nprop_tot = None, nbp = None,
                  weights='zeros', verbose=False):
         if verbose:
             print("# Setting up MultiCoherentWalker object.")

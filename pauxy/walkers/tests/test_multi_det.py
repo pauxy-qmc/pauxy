@@ -24,7 +24,7 @@ def test_walker_overlap():
     wfn = (a + 1j*b).reshape((3,system.nbasis,system.nup+system.ndown))
     coeffs = numpy.array([0.5+0j,0.3+0j,0.1+0j])
     trial = MultiSlater(system, (coeffs, wfn))
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     def calc_ovlp(a,b):
         return numpy.linalg.det(numpy.dot(a.conj().T, b))
     ovlp = 0.0+0j
@@ -49,7 +49,7 @@ def test_walker_overlap():
     b = numpy.random.rand(system.nbasis*(system.nup+system.ndown))
     init = (a + 1j*b).reshape((system.nbasis,system.nup+system.ndown))
     trial = MultiSlater(system, wfn, init=init)
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     I = numpy.eye(system.nbasis)
     ovlp_sum = 0.0
     for idet, (c, occa, occb) in enumerate(zip(coeffs,oa,ob)):
@@ -75,8 +75,9 @@ def test_walker_energy():
     nelec = (2,2)
     nmo = 5
     h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
-    system = Generic(nelec=nelec, h1e=h1e, chol=chol, ecore=enuc,
-                     inputs={'integral_tensor': False})
+    system = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                     chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                     ecore=enuc)
     (e0, ev), (d,oa,ob) = simple_fci(system, gen_dets=True)
     na = system.nup
     init = get_random_wavefunction(nelec, nmo)
@@ -84,7 +85,7 @@ def test_walker_energy():
     init[:,na:], R = reortho(init[:,na:])
     trial = MultiSlater(system, (ev[:,0],oa,ob), init=init)
     trial.calculate_energy(system)
-    walker = MultiDetWalker({}, system, trial)
+    walker = MultiDetWalker(system, trial)
     nume = 0
     deno = 0
     for i in range(trial.ndets):
@@ -97,7 +98,7 @@ def test_walker_energy():
         ovlp = numpy.linalg.det(oa)*numpy.linalg.det(ob)
         ga = numpy.dot(init[:,:system.nup], numpy.dot(isa, psia.conj().T)).T
         gb = numpy.dot(init[:,system.nup:], numpy.dot(isb, psib.conj().T)).T
-        e = local_energy(system, numpy.array([ga,gb]), opt=False)[0]
+        e = local_energy(system, numpy.array([ga,gb]))[0]
         nume += trial.coeffs[i].conj()*ovlp*e
         deno += trial.coeffs[i].conj()*ovlp
     print(nume/deno,nume,deno,e0[0])

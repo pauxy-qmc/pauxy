@@ -145,6 +145,8 @@ class HirschSpinDMC(object):
         self.eshift_boson = self.boson_trial.local_energy(shift)
         self.eshift_boson = self.eshift_boson.real
 
+        self.hybrid = False
+
         if verbose:
             print ("# Finished setting up propagator.")
 

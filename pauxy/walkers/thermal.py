@@ -5,21 +5,18 @@ import scipy.linalg
 from pauxy.estimators.thermal import greens_function, one_rdm_from_G, particle_number
 from pauxy.estimators.mixed import local_energy
 from pauxy.walkers.stack import PropagatorStack
+from pauxy.walkers.walker import Walker
 from pauxy.utils.linalg import regularise_matrix_inverse
 from pauxy.utils.misc import update_stack, get_numeric_names
 
-class ThermalWalker(object):
+class ThermalWalker(Walker):
 
-    def __init__(self, walker_opts, system, trial, verbose=False):
-        self.weight = walker_opts.get('weight', 1.0)
-        self.unscaled_weight = self.weight
-        self.phase = 1.0 + 0.0j
-        self.alive = True
+    def __init__(self, system, trial, walker_opts={}, verbose=False):
+        Walker.__init__(self, system, trial, walker_opts=walker_opts)
         self.num_slices = trial.num_slices
         dtype = numpy.complex128
         self.G = numpy.zeros(trial.dmat.shape, dtype=dtype)
         self.nbasis = trial.dmat[0].shape[0]
-        self.total_weight = 0
         self.stack_size = walker_opts.get('stack_size', None)
         max_diff_diag = numpy.linalg.norm((numpy.diag(trial.dmat[0].diagonal())-trial.dmat[0]))
         if max_diff_diag < 1e-10:
@@ -65,7 +62,6 @@ class ThermalWalker(object):
         self.M0 = numpy.array([scipy.linalg.det(self.G[0], check_finite=False),
                                scipy.linalg.det(self.G[1], check_finite=False)])
         self.stack.ovlp = numpy.array([1.0/self.M0[0], 1.0/self.M0[1]])
-        self.ot = 1.0
 
         # # temporary storage for stacks...
         I = numpy.identity(system.nbasis, dtype=dtype)
@@ -548,48 +544,7 @@ class ThermalWalker(object):
 
     def local_energy(self, system, two_rdm=None):
         rdm = one_rdm_from_G(self.G)
-        return local_energy(system, rdm, two_rdm=two_rdm, opt=False)
-
-    def get_buffer(self):
-        """Get walker buffer for MPI communication
-
-        Returns
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        stack_buff = self.stack.get_buffer()
-        return numpy.concatenate((buff,stack_buff))
-
-    def set_buffer(self, buff):
-        """Set walker buffer following MPI communication
-
-        Parameters
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        self.stack.set_buffer(buff[self.buff_size:])
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
+        return local_energy(system, rdm, two_rdm=two_rdm)
 
 def unit_test():
     from pauxy.systems.ueg import UEG

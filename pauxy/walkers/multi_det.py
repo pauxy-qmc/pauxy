@@ -2,9 +2,10 @@ import copy
 import numpy
 import scipy.linalg
 from pauxy.estimators.mixed import local_energy_multi_det
+from pauxy.walkers.walker import Walker
 from pauxy.utils.misc import get_numeric_names
 
-class MultiDetWalker(object):
+class MultiDetWalker(Walker):
     """Multi-Det style walker.
 
     Parameters
@@ -23,17 +24,11 @@ class MultiDetWalker(object):
         Initial wavefunction.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0,
+    def __init__(self, system, trial, walker_opts={}, index=0,
                  weights='zeros', verbose=False, nprop_tot=None, nbp=None):
         if verbose:
             print("# Setting up MultiDetWalker object.")
-        self.weight = walker_opts.get('weight', 1.0)
-        self.unscaled_weight = self.weight
-        self.alive = 1
-        self.phase = 1 + 0j
-        self.nup = system.nup
-        self.E_L = 0.0
-        self.phi = copy.deepcopy(trial.init)
+        Walker.__init__(self, system, trial, walker_opts, index, nprop_tot, nbp)
         self.ndets = trial.psi.shape[0]
         dtype = numpy.complex128
         # This stores an array of overlap matrices with the various elements of
@@ -53,7 +48,6 @@ class MultiDetWalker(object):
         self.ot = self.overlap_direct(trial)
         # TODO: fix name.
         self.ovlp = self.ot
-        self.hybrid_energy = 0.0
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
                   .format(self.ot.real))
@@ -67,21 +61,7 @@ class MultiDetWalker(object):
         # Contains overlaps of the current walker with the trial wavefunction.
         self.greens_function(trial)
         self.nb = system.nbasis
-        self.nup = system.nup
-        self.ndown = system.ndown
-        # Historic wavefunction for back propagation.
-        self.phi_old = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        self.phi_init = copy.deepcopy(self.phi)
-        # Historic wavefunction for ITCF.
-        # self.phi_bp = copy.deepcopy(trial.psi)
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
-        if nbp is not None:
-            self.field_configs = FieldConfig(system.nfields,
-                                             nprop_tot, nbp,
-                                             numpy.complex128)
-        else:
-            self.field_configs = None
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -130,6 +110,29 @@ class MultiDetWalker(object):
             self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
         return sum(self.weights)
 
+    def calc_overlap(self, trial):
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ovlp : float / complex
+            Overlap.
+        """
+        nup = self.nup
+        for ix in range(self.ndets):
+            Oup = numpy.dot(trial.psi[ix,:,:nup].conj().T, self.phi[:,:nup])
+            Odn = numpy.dot(trial.psi[ix,:,nup:].conj().T, self.phi[:,nup:])
+            det_Oup = scipy.linalg.det(Oup)
+            det_Odn = scipy.linalg.det(Odn)
+            self.ovlps[ix] = det_Oup * det_Odn
+            self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
+        return sum(self.weights)
+
     def reortho(self, trial):
         """reorthogonalise walker.
 
@@ -169,16 +172,34 @@ class MultiDetWalker(object):
             Trial wavefunction object.
         """
         nup = self.nup
-        for (ix, t) in enumerate(trial.psi):
+        tot_ovlp = 0.0
+        for (ix, detix) in enumerate(trial.psi):
             # construct "local" green's functions for each component of psi_T
-            self.Gi[ix,0,:,:] = (
-                    (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
-            )
-            self.Gi[ix,1,:,:] = (
-                    (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
-            )
+            Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
+            # det(A) = det(A^T)
+            ovlp = scipy.linalg.det(Oup)
+            inv_ovlp = scipy.linalg.inv(Oup)
+            if abs(ovlp) < 1e-16:
+                continue
+            self.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,:nup].T)
+                                          )
+            Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
+            ovlp *= scipy.linalg.det(Odn)
+            inv_ovlp = scipy.linalg.inv(Odn)
+            if abs(ovlp) < 1e-16:
+                continue
+            tot_ovlp += trial.coeffs[ix].conj()*ovlp
+            self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,nup:].T)
+                                          )
+            self.ovlps[ix] = ovlp
+            self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
+        return tot_ovlp
 
-    def local_energy(self, system, two_rdm=None):
+    def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
 
         Parameters
@@ -192,7 +213,9 @@ class MultiDetWalker(object):
             Mixed estimates for walker's energy components.
         """
         return local_energy_multi_det(system, self.Gi,
-                                      self.weights, two_rdm=None)
+                                      self.weights,
+                                      two_rdm=None,
+                                      rchol=None)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0
@@ -202,48 +225,3 @@ class MultiDetWalker(object):
             numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
             denom += ofac
         return numer / denom
-
-    def get_buffer(self):
-        """Get walker buffer for MPI communication
-
-        Returns
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        if self.field_configs is not None:
-            stack_buff = self.field_configs.get_buffer()
-            return numpy.concatenate((buff,stack_buff))
-        else:
-            return buff
-
-    def set_buffer(self, buff):
-        """Set walker buffer following MPI communication
-
-        Parameters
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
-        if self.field_configs is not None:
-            self.field_configs.set_buffer(buff[self.buff_size:])

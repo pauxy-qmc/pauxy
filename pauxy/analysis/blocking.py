@@ -6,7 +6,10 @@ import h5py
 import json
 import numpy
 import pandas as pd
-import pyblock
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import pyblock
 import scipy.stats
 from pauxy.analysis.extraction import (
         extract_mixed_estimates,
@@ -15,20 +18,23 @@ from pauxy.analysis.extraction import (
         extract_rdm, extract_mixed_rdm
         )
 from pauxy.utils.misc import get_from_dict
+from pauxy.utils.linalg import get_ortho_ao_mod
 
 
-def average_single(frame, delete=True):
-    short = frame
-    means = short.mean().to_frame().T
-    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1)).to_frame().T
+def average_single(frame, delete=True, multi_sym=False):
+    if multi_sym:
+        short = frame.groupby('Iteration')
+    else:
+        short = frame
+    means = short.mean()
+    err = short.aggregate(lambda x: scipy.stats.sem(x, ddof=1))
     averaged = means.merge(err, left_index=True, right_index=True,
                            suffixes=('', '_error'))
     columns = [c for c in averaged.columns.values if '_error' not in c]
     columns = [[c, c+'_error'] for c in columns]
     columns = [item for sublist in columns for item in sublist]
     averaged.reset_index(inplace=True)
-    delcol = ['ENumer', 'ENumer_error', 'EDenom',
-              'EDenom_error', 'Weight', 'Weight_error']
+    delcol = ['Weight', 'Weight_error']
     for d in delcol:
         if delete:
             columns.remove(d)
@@ -59,33 +65,43 @@ def average_ratio(numerator, denominator):
 
 
 def average_fp(frame):
-    real = average_single(frame.apply(numpy.real), False)
-    imag = average_single(frame.apply(numpy.imag), False)
+    iteration = numpy.real(frame['Iteration'].values)
+    frame = frame.drop('Iteration', axis=1)
+    real_df = frame.apply(lambda x: x.real)
+    imag_df = frame.apply(lambda x: x.imag)
+    real_df['Iteration'] = iteration
+    imag_df['Iteration'] = iteration
+    real = average_single(real_df, multi_sym=True)
+    imag = average_single(imag_df, multi_sym=True)
     results = pd.DataFrame()
-    re_num = real.ENumer
-    re_den = real.EDenom
-    im_num = imag.ENumer
-    im_den = imag.EDenom
+    re_num = real.ENumer.values
+    re_den = real.EDenom.values
+    im_num = imag.ENumer.values
+    im_den = imag.EDenom.values
+    results['Iteration'] = real_df.groupby('Iteration').groups.keys()
     # When doing FP we need to compute E = \bar{ENumer} / \bar{EDenom}
     # Only compute real part of the energy
     results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
     # Doing error analysis properly is complicated. This is not correct.
-    re_nume = real.E_num_error
-    re_dene = real.E_denom_error
+    re_nume = real.ENumer_error.values
+    re_dene = real.EDenom_error.values
     # Ignoring the fact that the mean includes complex components.
-    cov = frame.apply(numpy.real).cov()
-    cov_nd = cov['ENumer']['EDenom']
-    nsmpl = len(frame)
-    results['E_error'] = results.E * ((re_nume/re_num)**2 +
-                                      (re_dene/re_den)**2 -
-                                      2*cov_nd/(nsmpl*re_num*re_den))**0.5
+    cov_nd = real_df.groupby('Iteration').apply(lambda x: x['ENumer'].cov(x['EDenom'])).values
+    nsamp = len(re_nume)
+    results['E_error'] = numpy.abs(results.E) * ((re_nume/re_num)**2 +
+                                                 (re_dene/re_den)**2 -
+                                                 2*cov_nd/(nsamp*re_num*re_den))**0.5
     return results
 
 
-def reblock_mixed(groupby, columns):
+def reblock_mixed(groupby, columns, verbose=False):
     analysed = []
     for group, frame in groupby:
-        short = frame.reset_index().drop(columns+['index', 'Time', 'EDenom', 'ENumer', 'Weight'], axis=1)
+        drop = ['index', 'Time', 'EDenom', 'ENumer', 'Weight', 'Overlap',
+                'WeightFactor', 'EHybrid']
+        if not verbose:
+            drop += ['E1Body', 'E2Body']
+        short = frame.reset_index().drop(columns+drop, axis=1)
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
         print("data_len, blocked_data = {}, {}".format(data_len, blocked_data.shape))
         reblocked = pd.DataFrame()
@@ -93,8 +109,11 @@ def reblock_mixed(groupby, columns):
             try:
                 rb = pyblock.pd_utils.reblock_summary(blocked_data.loc[:,c])
                 print(rb.to_string())
-                reblocked[c] = rb['mean'].values
+                reblocked[c] = rb['mean'].values[0]
                 reblocked[c+'_error'] = rb['standard error'].values
+                reblocked[c+'_error_error'] = rb['standard error error'].values
+                ix = list(blocked_data[c]['optimal block']).index('<---    ')
+                reblocked[c+'_nsamp'] = data_len.values[ix]
             except KeyError:
                 print("Reblocking of {:4} failed. Insufficient "
                       "statistics.".format(c))
@@ -159,7 +178,6 @@ def average_rdm(files, skip=1, est_type='back_propagated', rdm_type='one_rdm', i
         rdm_series = extract_rdm(files, est_type=est_type, rdm_type=rdm_type, ix=ix)
     elif (est_type == 'basic'):
         rdm_series = extract_mixed_rdm(files, est_type=est_type, rdm_type=rdm_type)
-
     rdm_av = rdm_series[skip:].mean(axis=0)
     rdm_err = rdm_series[skip:].std(axis=0, ddof=1) / len(rdm_series)**0.5
     return rdm_av, rdm_err
@@ -262,7 +280,8 @@ def analyse_back_prop(files, start_time):
         full.append(res)
     return pd.concat(full).sort_values('tau_bp')
 
-def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
+<<<<<<< HEAD
+def analyse_estimates(files, start_time, multi_sim=False, av_tau=False, verbose=False):
     mds = []
     basic = []
     if av_tau:
@@ -287,19 +306,20 @@ def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
             basic.append(data.drop('Iteration', axis=1))
             mds.append(md)
 
-        new_columns = []
-        for c in columns:
-            if (c == "E_T"):
-                continue
-            else:
-                new_columns += [c]
-        columns = new_columns
+        # new_columns = []
+        # for c in columns:
+        #     if (c == "E_T"):
+        #         continue
+        #     else:
+        #         new_columns += [c]
+        # columns = new_columns
+
         basic = pd.concat(basic).groupby(columns)
 
         if fp:
             basic_av = reblock_free_projection(basic, columns)
         else:
-            basic_av = reblock_mixed(basic, columns)
+            basic_av = reblock_mixed(basic, columns, verbose = verbose)
 
         base = files[0].split('/')[-1]
         outfile = 'analysed_' + base
@@ -311,4 +331,27 @@ def analyse_estimates(files, start_time, multi_sim=False, av_tau=False):
                 fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
             except:
                 print("No integral attribute found")
+                fh5['basic/estimates'] = basic_av.values.astype(float)
             fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
+
+def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
+    rdm, rdm_err = average_rdm(filename, rdm_type='one_rdm', ix=ix)
+    fock_1h_av, fock_1h_err = average_rdm(filename, rdm_type='fock_1h', ix=ix)
+    fock_1p_av, fock_1p_err = average_rdm(filename, rdm_type='fock_1p', ix=ix)
+    rdm[numpy.abs(rdm) < screen_factor*rdm_err] = 0.0
+    fock_1h_av[numpy.abs(fock_1h_av) < screen_factor*fock_1h_err] = 0.0
+    fock_1p_av[numpy.abs(fock_1p_av) < screen_factor*fock_1p_err] = 0.0
+    # Spin average
+    rdm = rdm[0] + rdm[1]
+    rdm = 0.5 * numpy.real(rdm + rdm.conj().T)
+    rdm1_reg, X = get_ortho_ao_mod(rdm, LINDEP_CUTOFF=cutoff)
+    # 1-hole / IP
+    fockT = numpy.dot(X.conj().T, numpy.dot(fock_1h_av, X))
+    eip, eip_vec = numpy.linalg.eigh(fockT)
+    norb = rdm.shape[-1]
+    I = numpy.eye(norb)
+    gamma = 2.0 * I - rdm.T
+    gamma_reg, X = get_ortho_ao_mod(gamma, LINDEP_CUTOFF=cutoff)
+    fockT = numpy.dot(X.conj().T, numpy.dot(fock_1p_av, X))
+    eea, eea_vec = numpy.linalg.eigh(fockT)
+    return (eip, eip_vec) , (eea, eea_vec)

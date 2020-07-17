@@ -5,33 +5,41 @@ import scipy.linalg
 from pauxy.estimators.mixed import local_energy, local_energy_hh
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
-from pauxy.walkers.stack import PropagatorStack, FieldConfig
+from pauxy.walkers.stack import FieldConfig
+from pauxy.walkers.walker import Walker
 from pauxy.utils.misc import get_numeric_names
 from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
 
-class SingleDetWalker(object):
+class SingleDetWalker(Walker):
     """UHF style walker.
 
     Parameters
     ----------
-    weight : int
-        Walker weight.
     system : object
         System object.
     trial : object
         Trial wavefunction object.
+    options : dict
+        Input options
     index : int
         Element of trial wavefunction to initalise walker to.
+    nprop_tot : int
+        Number of back propagation steps (including imaginary time correlation
+                functions.)
+    nbp : int
+        Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0, nprop_tot=None, nbp=None):
+    def __init__(self, system, trial, walker_opts={}, index=0, nprop_tot=None, nbp=None):
+        Walker.__init__(self, system, trial,
+                        walker_opts=walker_opts, index=index,
+                        nprop_tot=nprop_tot, nbp=nbp)
         self.weight = walker_opts.get('weight', 1.0)
         self.unscaled_weight = self.weight
         self.phase = 1 + 0j
         self.alive = 1
         self.phi = trial.init.copy()
-        # JOONHO randomizing the guess
-        # self.phi = numpy.random.rand([system.nbasis,system.ne])
+        
         self.inv_ovlp = [0.0, 0.0]
         self.nup = system.nup
         self.ndown = system.ndown
@@ -89,7 +97,6 @@ class SingleDetWalker(object):
                 self.Lap = tmptrial.laplacian(self.X)
                 self.phi_boson = tmptrial.value(self.X)
 
-
         self.inverse_overlap(trial)
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
@@ -99,6 +106,7 @@ class SingleDetWalker(object):
                                  dtype=trial.psi.dtype)]
 
         self.greens_function(trial)
+
         self.total_weight = 0.0
         self.ot = self.calc_otrial(trial)
         # interface consistency
@@ -212,6 +220,29 @@ class SingleDetWalker(object):
             ot *= self.phi_boson
         return ot
 
+    def calc_overlap(self, trial):
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        nup = self.ndown
+        Oup = numpy.dot(trial.psi[:,:nup].conj().T, self.phi[:,:nup])
+        det_up = scipy.linalg.det(Oup)
+        ndn = self.ndown
+        det_dn = 1.0
+        if ndn > 0:
+            Odn = numpy.dot(trial.psi[:,nup:].conj().T, self.phi[:,nup:])
+            det_dn = scipy.linalg.det(Odn)
+        return det_up * det_dn
+
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
 
@@ -316,14 +347,14 @@ class SingleDetWalker(object):
         # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
         self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
+        det = numpy.linalg.det(ovlp)
         if ndown > 0:
             # self.inv_ovlp[1] = scipy.linalg.inv(ovlp)
             ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
+            det *= numpy.linalg.det(ovlp)
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
-        
-        # if (trial.name == "lang_firsov"):
-            # trial.psi = psi0.copy()
+        return det
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.
@@ -342,7 +373,7 @@ class SingleDetWalker(object):
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-    def local_energy(self, system, two_rdm=None):
+    def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
 
         Parameters

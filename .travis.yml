@@ -1,39 +1,38 @@
 sudo: required
-dist: trusty
 
 language: python
 
+cache:
+  pip: true
+
 python:
-    2.7
-    3.5
-    3.6
-    3.7
+  - "3.6"
+  - "3.7"
 
 addons:
-    apt:
-        packages:
-            - libmpich-dev
-            - mpich
+  apt:
+    packages:
+      - mpich
+      - libmpich-dev
 
 before_install:
-    - pip install pandas matplotlib scipy numpy h5py mpi4py pyblock pyscf pytest
-    - cd
-    # testcode
-    - git clone git://github.com/jsspencer/testcode
+  - pip install -r requirements.txt
+  - pip install pyscf
+  - git clone https://github.com/pauxy-qmc/pauxy_test_data.git
+  - git clone https://github.com/jsspencer/testcode.git
 
 install:
-    - cd -
-    - python setup.py install
+  - python setup.py build_ext --inplace
 
 script:
-    - cd tests
-    - export PYTHONPATH=$PYTHONPATH:$HOME/pauxy
-    - python -c "import sys; print (sys.path)"
-    - python -c "import pauxy; import pauxy.analysis"
-    - python -c "import pauxy.qmc"
-    - $HOME/testcode/bin/testcode.py -vvv
-    - cd $HOME/pauxy
-    - python -m pytest -v
-
-after_failure:
-    - cat */*.err*
+  - pytest -v
+ # Temporary hack until pauxy is pip-able
+  - echo $PYTHONPATH
+  - export PYTHONPATH=$HOME/build/pauxy-qmc/pauxy:$PYTHONPATH
+  - cd pauxy_test_data
+  - mpiexec --version
+# Longer parallel tests
+  - python ../testcode/bin/testcode.py -v  -e ../bin/pauxy run --user-option=pauxy launch_parallel 'mpiexec -np tc.nprocs python -u'
+# Test examples
+  - cd ..
+  - ./tools/run_examples.sh

@@ -14,7 +14,7 @@ from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
 from pauxy.trial_density_matrices.utils import get_trial_density_matrices
-from pauxy.utils.misc import get_git_revision_hash, print_sys_info
+from pauxy.utils.misc import get_git_revision_hash, get_sys_info
 from pauxy.utils.io import to_json, get_input_value
 from pauxy.walkers.handler import Walkers
 
@@ -83,6 +83,7 @@ class ThermalAFQMC(object):
             verbose = verbose > 0 and comm.rank == 0
         else:
             self.verbosity = 0
+            verbose = False
         qmc_opts = get_input_value(options, 'qmc', default={},
                                    alias=['qmc_options'],
                                    verbose=self.verbosity>1)
@@ -90,9 +91,6 @@ class ThermalAFQMC(object):
             print("Shouldn't call ThermalAFQMC without specifying beta")
             exit()
         # 1. Environment attributes
-        if verbose is not None:
-            self.verbosity = verbose
-            verbose = verbose > 0
         if comm.rank == 0:
             self.uuid = str(uuid.uuid1())
             get_sha1 = options.get('get_sha1', True)
@@ -101,7 +99,7 @@ class ThermalAFQMC(object):
             else:
                 self.sha1 = 'None'
             if verbose:
-                print_sys_info(self.sha1, self.branch, self.uuid, comm.size)
+                self.sys_info = get_sys_info(self.sha1, self.branch, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
         # initialisation.
         self.root = comm.rank == 0
@@ -145,20 +143,21 @@ class ThermalAFQMC(object):
         # Total number of walkers.
         self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         if self.qmc.nwalkers == 0:
-            if comm.rank == 0:
+            if comm.rank == 0 and verbose:
                 print("# WARNING: Not enough walkers for selected core count.")
-                print("# There must be at least one walker per core set in the "
+                print("#          There must be at least one walker per core set in the "
                       "input file.")
-                print("# Setting one walker per core.")
+                print("#          Setting one walker per core.")
             self.qmc.nwalkers = 1
             self.qmc.ntot_walkers = self.qmc.nwalkers * self.nprocs
         wlk_opts = get_input_value(options, 'walkers', default={},
                                    alias=['walker', 'walker_opts'],
                                    verbose=self.verbosity>1)
-        self.walk = Walkers(wlk_opts, self.system, self.trial,
-                            self.qmc, verbose)
+        self.walk = Walkers(self.system, self.trial,
+                            self.qmc, walker_opts=wlk_opts, verbose=verbose)
         lowrank = self.walk.walkers[0].lowrank
         prop_opts = get_input_value(options, 'propagator', default={},
+                                    alias=['prop', 'propagation'],
                                     verbose=self.verbosity>1)
         self.propagators = get_propagator(prop_opts, self.qmc, self.system,
                                           self.trial,
@@ -180,8 +179,9 @@ class ThermalAFQMC(object):
             json_string = to_json(self)
             self.estimators.json_string = json_string
             self.estimators.dump_metadata()
-            self.estimators.estimators['mixed'].print_key()
-            self.estimators.estimators['mixed'].print_header()
+            if verbose:
+                self.estimators.estimators['mixed'].print_key()
+                self.estimators.estimators['mixed'].print_header()
 
     def run(self, walk=None, comm=None, verbose=None):
         """Perform AFQMC simulation on state object using open-ended random walk.
