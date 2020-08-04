@@ -3,7 +3,10 @@ from setuptools import find_packages, setup
 from setuptools.extension import Extension
 import sys
 import versioneer
-from pip._internal.req import parse_requirements
+try:
+    from pip._internal.req import parse_requirements
+except ImportError:
+    from pip.req import parse_requirements
 from Cython.Build import cythonize
 
 extensions = [
