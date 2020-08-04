@@ -110,7 +110,7 @@ def test_hubbard_charge():
     ovlp *= walker_ref.calc_overlap(trial)
     assert ovlp != pytest.approx(walker.ot)
     for i in walker.field_configs.configs[0]:
-        ovlp *= prop.aux_fac[int(i.real)]
+        ovlp *= prop.aux_wfac[int(i.real)]
     assert ovlp.imag == pytest.approx(0.0, abs=1e-10)
     assert ovlp == pytest.approx(walker.ot)
 
