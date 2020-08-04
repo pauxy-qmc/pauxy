@@ -188,6 +188,7 @@ def test_hubbard_diff():
         for i in range(0,10):
             prop.propagate_walker(w, system, trial, 0.0)
         detR2 = w.reortho(trial)
+    assert abs(w.ovlp) == pytest.approx(0.30079734335907987)
     assert detR2 == pytest.approx(0.25934872296001504)
     # CP
     trial = MultiSlater(system, (coeffs, wfn))
