@@ -11,7 +11,6 @@ from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
-from pauxy.qmc.comm import FakeComm
 from pauxy.utils.io import get_input_value
 from pauxy.utils.misc import update_stack
 
