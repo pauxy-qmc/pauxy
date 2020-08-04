@@ -118,7 +118,6 @@ def test_propagate_walker_free():
         prop.propagate_walker(system, walker, ts, 0)
         walker.greens_function(None)
         rdm = one_rdm_from_G(walker.G)
-    assert False
 
 @pytest.mark.unit
 def test_update_gf():
