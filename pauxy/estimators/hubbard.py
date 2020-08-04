@@ -113,3 +113,12 @@ def local_energy_multi_det(system, Gi, weights):
                          axis2=2)
     pe = system.U * numpy.einsum('j,jk->', weights, guu*gdd) / denom
     return (ke+pe, ke, pe)
+
+
+def fock_hubbard(system, P):
+    """Hubbard Fock Matrix
+        F_{ij} = T_{ij} + U(<niu>nid + <nid>niu)_{ij}
+    """
+    niu = numpy.diag(P[0].diagonal())
+    nid = numpy.diag(P[1].diagonal())
+    return system.T + system.U*numpy.array([nid,niu])

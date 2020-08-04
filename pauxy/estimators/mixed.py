@@ -148,7 +148,7 @@ class Mixed(object):
         if free_projection:
             for i, w in enumerate(psi.walkers):
                 # For T > 0 w.ot = 1 always.
-                wfac = w.weight * w.ot * w.phase
+                wfac = w.weight * w.ot * w.phase * numpy.exp(w.log_detR-w.log_detR_shift)
                 if step % self.energy_eval_freq == 0:
                     w.greens_function(trial)
                     if self.eval_energy:
@@ -169,7 +169,7 @@ class Mixed(object):
                 self.estimates[self.names.uweight] += w.unscaled_weight
                 self.estimates[self.names.weight] += wfac
                 self.estimates[self.names.ehyb] += wfac * w.hybrid_energy
-                self.estimates[self.names.ovlp] += wfac * abs(w.ot)
+                self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
         else:
             # When using importance sampling we only need to know the current
             # walkers weight as well as the local energy, the walker's overlap
@@ -340,16 +340,16 @@ class Mixed(object):
         return (numerator / denominator).real
 
     def get_shift(self, hybrid=True):
-        """Get hybrid shift.
+        """get hybrid shift.
 
-        Parameters
+        parameters
         ----------
         hybrid : bool
-            True if using hybrid propgation
-        Returns
+            true if using hybrid propgation
+        returns
         -------
         eshift : float
-            Walker averaged hybrid energy.
+            walker averaged hybrid energy.
         """
         if hybrid:
             return self.eshift[0].real

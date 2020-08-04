@@ -11,7 +11,6 @@ from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
-from pauxy.qmc.comm import FakeComm
 from pauxy.utils.io import get_input_value
 from pauxy.utils.misc import update_stack
 
@@ -39,6 +38,8 @@ class Walkers(object):
         self.ntot_walkers = qmc.ntot_walkers
         self.write_freq = walker_opts.get('write_freq', 0)
         self.write_file = walker_opts.get('write_file', 'restart.h5')
+        self.use_log_shift = walker_opts.get('use_log_shift', False)
+        self.shift_counter = 1
         self.read_file = walker_opts.get('read_file', None)
         if comm is None:
             rank = 0
@@ -156,10 +157,10 @@ class Walkers(object):
         """
         for w in self.walkers:
             detR = w.reortho(trial)
-            if free_projection:
-                (magn, dtheta) = cmath.polar(detR)
-                w.weight *= magn
-                w.phase *= cmath.exp(1j*dtheta)
+            # if free_projection:
+                # (magn, dtheta) = cmath.polar(detR)
+                # w.weight *= magn
+                # w.phase *= cmath.exp(1j*dtheta)
 
     def add_field_config(self, nprop_tot, nbp, system, dtype):
         """Add FieldConfig object to walker object.
@@ -204,11 +205,12 @@ class Walkers(object):
             numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
     def pop_control(self, comm):
+        if self.ntot_walkers == 1:
+            return
+        if self.use_log_shift:
+           self.update_log_ovlp(comm)
         weights = numpy.array([abs(w.weight) for w in self.walkers])
-        if comm.rank == 0:
-            global_weights = numpy.empty(len(weights)*comm.size)
-        else:
-            global_weights = numpy.empty(len(weights)*comm.size)
+        global_weights = numpy.empty(len(weights)*comm.size)
         comm.Allgather(weights, global_weights)
         total_weight = sum(global_weights)
         # Rescale weights to combat exponential decay/growth.
@@ -432,6 +434,27 @@ class Walkers(object):
             print(" # Writing walkers to file.")
             print(" # Time to write restart: {:13.8e} s"
                   .format(time.time()-start))
+
+    def update_log_ovlp(self, comm):
+        send = numpy.zeros(3, dtype=numpy.complex128)
+        # Overlap log factor
+        send[0] = sum(abs(w.ot) for w in self.walkers)
+        # Det R log factor
+        send[1] = sum(abs(w.detR) for w in self.walkers)
+        send[2] = sum(abs(w.log_detR) for w in self.walkers)
+        global_av = numpy.zeros(3, dtype=numpy.complex128)
+        comm.Allreduce(send, global_av)
+        log_shift = numpy.log(global_av[0]/self.ntot_walkers)
+        detR_shift = numpy.log(global_av[1]/self.ntot_walkers)
+        log_detR_shift = global_av[2]/self.ntot_walkers
+        # w.log_shift = -0.5
+        n = self.shift_counter
+        nm1 = self.shift_counter - 1
+        for w in self.walkers:
+            w.log_shift = (w.log_shift*nm1 + log_shift)/n
+            w.log_detR_shift = (w.log_detR_shift*nm1 + log_detR_shift)/n
+            w.detR_shift = (w.detR_shift*nm1 + detR_shift)/n
+        self.shift_counter += 1
 
     def read_walkers(self, comm):
         with h5py.File(self.read_file, 'r') as fh5:

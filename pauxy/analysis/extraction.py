@@ -56,10 +56,14 @@ def set_info(frame, md):
     trial = md.get('trial')
     ncols = len(frame.columns)
     frame['dt'] = qmc.get('dt')
-    frame['nwalkers'] = qmc.get('ntot_walkers')
-    frame['free_projection'] = propg.get('free_projection')
+    nwalkers = qmc.get('ntot_walkers')
+    if nwalkers is not None:
+        frame['nwalkers'] = nwalkers
+    fp = get_from_dict(md, ['propagators', 'free_projection'])
+    if fp is not None:
+        frame['free_projection'] = fp
     beta = qmc.get('beta')
-    bp = md['estimators']['estimators'].get('back_prop')
+    bp = get_from_dict(md, ['estimates', 'estimates', 'back_prop'])
     frame['nbasis'] = system.get('nbasis', 0)
     if bp is not None:
         frame['tau_bp'] = bp['tau_bp']
@@ -71,8 +75,9 @@ def set_info(frame, md):
         mu = system.get('mu')
         if mu is not None:
             frame['mu'] = system.get('mu')
-        frame['mu_T'] = trial.get('mu')
-        frame['Nav_T'] = trial.get('nav')
+        if trial is not None:
+            frame['mu_T'] = trial.get('mu')
+            frame['Nav_T'] = trial.get('nav')
     else:
         frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":

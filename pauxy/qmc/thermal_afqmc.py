@@ -13,7 +13,7 @@ from pauxy.qmc.options import QMCOpts
 from pauxy.qmc.utils import set_rng_seed
 from pauxy.systems.utils import get_system
 from pauxy.thermal_propagation.utils import get_propagator
-from pauxy.trial_density_matrices.utils import get_trial_density_matrices
+from pauxy.trial_density_matrices.utils import get_trial_density_matrix
 from pauxy.utils.misc import get_git_revision_hash, get_sys_info
 from pauxy.utils.io import to_json, get_input_value
 from pauxy.walkers.handler import Walkers
@@ -132,10 +132,11 @@ class ThermalAFQMC(object):
             trial_opts = get_input_value(options, 'trial', default={},
                                          alias=['trial_density'],
                                          verbose=self.verbosity>1)
-            self.trial = get_trial_density_matrices(comm, trial_opts,
-                                                    self.system, self.cplx,
-                                                    self.qmc.beta,
-                                                    self.qmc.dt, verbose)
+            self.trial = get_trial_density_matrix(self.system,
+                                                  self.qmc.beta,
+                                                  self.qmc.dt,
+                                                  comm=comm,
+                                                  verbose=verbose)
 
         self.qmc.ntot_walkers = self.qmc.nwalkers
         # Number of walkers per core/rank.
@@ -212,7 +213,7 @@ class ThermalAFQMC(object):
                     print(" # Timeslice %d of %d."%(ts, self.qmc.ntime_slices))
                 start = time.time()
                 for w in self.walk.walkers:
-                    self.propagators.propagate_walker(self.system, w, ts)
+                    self.propagators.propagate_walker(self.system, w, ts, 0)
                     if (abs(w.weight) > w.total_weight * 0.10) and ts > 0:
                         w.weight = w.total_weight * 0.10
                 self.tprop += time.time() - start

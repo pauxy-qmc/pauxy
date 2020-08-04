@@ -3,7 +3,7 @@ import math
 import numpy
 import sys
 from pauxy.propagation.operations import kinetic_real
-from pauxy.propagation.hubbard import HubbardContinuous
+from pauxy.propagation.hubbard import HubbardContinuous, HubbardContinuousSpin
 from pauxy.propagation.planewave import PlaneWave
 from pauxy.propagation.generic import GenericContinuous
 
@@ -13,7 +13,7 @@ class Continuous(object):
     def __init__(self, system, trial, qmc, options={}, verbose=False):
         if verbose:
             print("# Parsing propagator input options.")
-            print("# Using continuous Hubbar--Stratonovich transformations.")
+            print("# Using continuous Hubbard--Stratonovich transformations.")
         # Input options
         self.free_projection = options.get('free_projection', False)
         self.hybrid = options.get('hybrid', True)
@@ -145,10 +145,16 @@ class Continuous(object):
 
         # Operator terms contributing to propagator.
         VHS = self.propagator.construct_VHS(system, xshifted)
-        # 2.b Apply two-body
-        self.apply_exponential(walker.phi[:,:system.nup], VHS)
-        if system.ndown > 0:
-            self.apply_exponential(walker.phi[:,system.nup:], VHS)
+        if len(VHS.shape) == 3:
+            # 2.b Apply two-body
+            self.apply_exponential(walker.phi[:,:system.nup], VHS[0])
+            if system.ndown > 0:
+                self.apply_exponential(walker.phi[:,system.nup:], VHS[1])
+        else:
+            # 2.b Apply two-body
+            self.apply_exponential(walker.phi[:,:system.nup], VHS)
+            if system.ndown > 0:
+                self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
         return (cmf, cfb, xshifted)
 
@@ -171,13 +177,13 @@ class Continuous(object):
         (cmf, cfb, xmxbar) = self.two_body_propagator(walker, system, trial)
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
-        walker.inverse_overlap(trial)
-        walker.ot = walker.calc_otrial(trial)
-        walker.greens_function(trial)
+        ovlp_new = walker.calc_overlap(trial)
         # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
+        walker.ot = ovlp_new
+        walker.ovlp = ovlp_new
 
     def apply_bound_hybrid(self, ehyb, eshift):
         # For initial steps until first estimator communication eshift will be
@@ -315,9 +321,15 @@ def get_continuous_propagator(system, trial, qmc, options={}, verbose=False):
                                options=options,
                                verbose=verbose)
     elif system.name == "Hubbard":
-        propagator = HubbardContinuous(system, trial, qmc,
-                                       options=options,
-                                       verbose=verbose)
+        charge = options.get('charge_decomposition', True)
+        if charge:
+            propagator = HubbardContinuous(system, trial, qmc,
+                                           options=options,
+                                           verbose=verbose)
+        else:
+            propagator = HubbardContinuousSpin(system, trial, qmc,
+                                               options=options,
+                                               verbose=verbose)
     elif system.name == "Generic":
         propagator = GenericContinuous(system, trial, qmc,
                                        options=options,

@@ -29,8 +29,8 @@ class HirschSpin(object):
     def __init__(self, system, trial, qmc, options={}, verbose=False):
 
         if verbose:
-            print ("# Parsing discrete propagator input options.")
-            print ("# Using discrete Hubbard--Stratonovich transformation.")
+            print("# Parsing discrete propagator input options.")
+            print("# Using discrete Hubbard--Stratonovich transformation.")
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
@@ -44,12 +44,38 @@ class HirschSpin(object):
             self.back_propagate = back_propagate
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
+        self.dt = qmc.dt
         self.ffts = options.get('ffts', False)
+        single_site = options.get('single_site_update', True)
+        if single_site:
+            if verbose:
+                print("# Using classic single-site update.")
+            self.two_body = self.two_body_single_site
+        else:
+            if verbose:
+                print("# Using dynamic force bias update.")
+            self.two_body = self.two_body_direct
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
-        self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
-        self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+        self.charge_decomp = options.get('charge_decomposition', False)
+        if verbose:
+            if self.charge_decomp:
+                print("# Using charge decomposition.")
+            else:
+                print("# Using spin decomposition.")
+        # [field,spin]
+        if self.charge_decomp:
+            self.gamma = numpy.arccosh(numpy.exp(-0.5*qmc.dt*system.U+0j))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            # e^{-gamma x}
+            self.aux_wfac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
+                                                                         numpy.exp(self.gamma)])
+        else:
+            self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.aux_wfac = numpy.array([1.0, 1.0])
         self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
         self.delta = self.auxf - 1
         self.hybrid = False
@@ -78,6 +104,9 @@ class HirschSpin(object):
     def update_greens_function_uhf(self, walker, trial, i, nup):
         """Fast update of walker's Green's function for RHF/UHF walker.
 
+        This only updates the ii'th element of the greens function. This is
+        dangerous.
+
         Parameters
         ----------
         walker : :class:`pauxy.walkers.SingleDet`
@@ -91,12 +120,12 @@ class HirschSpin(object):
         """
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
-        q = numpy.dot(walker.inv_ovlp[0], vup)
-        walker.G[0][i,i] = numpy.dot(uup, q)
+        q = numpy.dot(walker.inv_ovlp[0].T, uup)
+        walker.G[0][i,i] = numpy.dot(vup,q)
         vdown = trial.psi.conj()[i,nup:]
         udown = walker.phi[i,nup:]
-        q = numpy.dot(walker.inv_ovlp[1], vdown)
-        walker.G[1][i,i] = numpy.dot(udown, q)
+        q = numpy.dot(walker.inv_ovlp[1].T, udown)
+        walker.G[1][i,i] = numpy.dot(vdown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -140,7 +169,7 @@ class HirschSpin(object):
         else:
             walker.weight = 0.0
 
-    def two_body(self, walker, system, trial):
+    def two_body_single_site(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
         Parameters
@@ -157,16 +186,21 @@ class HirschSpin(object):
         delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
+        # walker.greens_function_fast(trial)
         for i in range(0, system.nbasis):
+            # Compute Gii here to avoid need to recompute GF after KE
+            # propagation. We need Gii to include contributions from previous
+            # steps wavefunction / overlap update.
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
+            # This only matters for charge decomposition
+            probs = probs * self.aux_wfac
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
             r = numpy.random.random()
             # Is this necessary?
-            # todo : mirror correction
             if norm > 0:
                 walker.weight = walker.weight * norm
                 if r < phaseless_ratio[0]/norm:
@@ -184,6 +218,61 @@ class HirschSpin(object):
             else:
                 walker.weight = 0
                 return
+
+    def two_body_direct(self, walker, system, trial):
+        r"""Propagate by potential term using discrete HS transform.
+
+        Use dynamic force bias from: PHYSICAL REVIEW A 92, 033603 (2015)
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
+        """
+        nup = system.nup
+        # fields = numpy.random.randint(2, size=system.nbasis)
+        walker.greens_function(trial)
+        nia, nib = walker.G[0].diagonal(), walker.G[1].diagonal()
+        fields = []
+        fb_fac = 1.0
+        if self.charge_decomp:
+            fb_term = nia + nib - 1
+        else:
+            fb_term = nia - nib
+        for i in range(system.nbasis):
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
+            norm = pp + pm
+            r = numpy.random.random()
+            if r < pp/norm:
+                fields.append(0)
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+            else:
+                fields.append(1)
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+
+        BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
+        BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
+        walker.phi[:,:nup] = numpy.dot(BVa, walker.phi[:,:nup])
+        walker.phi[:,nup:] = numpy.dot(BVb, walker.phi[:,nup:])
+        ovlp = walker.calc_overlap(trial)
+        wfac = 1.0 + 0j
+        for xi in fields:
+            wfac *= self.aux_wfac[xi]
+        ratio = wfac * ovlp / walker.ot
+        phase = cmath.phase(ratio)
+        if abs(phase) < 0.5*math.pi:
+            walker.ot = ovlp
+            walker.ovlp = ovlp
+            walker.weight *= (fb_fac*ratio).real
+        else:
+            walker.weight = 0
+            return
 
     def propagate_walker_constrained(self, walker, system, trial, eshift):
         r"""Wrapper function for propagation using discrete transformation
@@ -209,8 +298,9 @@ class HirschSpin(object):
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
+        walker.weight *= numpy.exp(self.dt*eshift)
 
-    def propagate_walker_free(self, walker, system, trial):
+    def propagate_walker_free(self, walker, system, trial, eshift=0):
         r"""Propagate walker without imposing constraint.
 
         Uses single-site updates for potential term.
@@ -222,12 +312,13 @@ class HirschSpin(object):
             B_V(x) and updated the weight appropriately. Updates inplace.
         system : :class:`pauxy.system.System`
             System object.
-        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        trial : :class:`pauxy.trial_wavefunction.Trial`
             Trial wavefunction object.
         """
         kinetic_real(walker.phi, system, self.bt2)
         delta = self.delta
         nup = system.nup
+        wfac = 1.0
         for i in range(0, system.nbasis):
             if abs(walker.weight) > 0:
                 r = numpy.random.random()
@@ -239,10 +330,17 @@ class HirschSpin(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
+                wfac *= self.aux_wfac[xi]
         kinetic_real(walker.phi, system, self.bt2)
         walker.inverse_overlap(trial)
         # Update walker weight
-        walker.ot = walker.calc_otrial(trial.psi)
+        ovlp = walker.calc_otrial(trial.psi)
+        # magn, dtheta = cmath.polar(ovlp/walker.ot*wfac)
+        magn, dtheta = cmath.polar(wfac)
+        walker.weight *= numpy.exp(self.dt*eshift) * magn
+        walker.phase *= numpy.exp(1j*dtheta)
+        walker.ot = ovlp
+        walker.ovlp = walker.ot
 
 # todo: stucture is the same for all continuous HS transformations.
 class HubbardContinuous(object):
@@ -314,6 +412,73 @@ class HubbardContinuous(object):
         # v_i = n_{iu} + n_{id}
         return numpy.diag(self.sqrt_dt*self.iu_fac*shifted)
 
+class HubbardContinuousSpin(object):
+    """Propagator for continuous HS transformation, specialised for Hubbard model.
+
+    Parameters
+    ----------
+    options : dict
+        Propagator input options.
+    qmc : :class:`pauxy.qmc.options.QMCOpts`
+        QMC options.
+    system : :class:`pauxy.system.System`
+        System object.
+    trial : :class:`pauxy.trial_wavefunctioin.Trial`
+        Trial wavefunction object.
+    verbose : bool
+        If true print out more information during setup.
+    """
+
+    def __init__(self, system, trial, qmc, options={}, verbose=False):
+        if verbose:
+            print("# Parsing continuous propagator input options.")
+            print("# Using Hubbard Continuous propagator.")
+        self.hs_type = 'hubbard_continuous'
+        self.free_projection = options.get('free_projection', False)
+        self.ffts = options.get('ffts', False)
+        self.back_propagate = back_propagate
+        self.nstblz = qmc.nstblz
+        self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
+        model = system.__class__.__name__
+        self.dt = qmc.dt
+        # optimal mean-field shift for the hubbard model
+        self.ut_fac = (qmc.dt*system.U)**0.5
+        self.mf_shift = self.construct_mean_field_shift(system, trial)
+        if verbose:
+            print("# Absolute value of maximum component of mean field shift: "
+                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
+        self.sqrt_dt = qmc.dt**0.5
+        self.isqrt_dt = 1j * self.sqrt_dt
+        self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
+        if verbose:
+            print("# Finished propagator input options.")
+
+    def construct_one_body_propagator(self, system, dt):
+        # \sum_gamma v_MF^{gamma} v^{\gamma}
+        I = numpy.eye(system.nbasis)
+        vi1b = system.U**0.5 * numpy.diag(self.mf_shift)
+        H1 = system.H1 + 0.5*system.U*numpy.array([I,I]) - numpy.array([vi1b,vi1b])
+        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
+                                scipy.linalg.expm(-0.5*dt*H1[1])])
+
+    def construct_mean_field_shift(self, system, trial):
+        # sqrt{U} < n_{iup} - n_{idn} >_MF
+        # return  system.U**0.5 * numpy.array([numpy.diag(trial.G[0], -numpy.diag(trial.G[1])])
+        return  system.U**0.5 * numpy.diag(trial.G[0]-trial.G[1])
+
+    def construct_force_bias(self, system, walker, trial):
+        # - sqrt(dt) < sqrt(U) (n_{iup} - n_{idn}) > - mf_shift
+        # vbias = system.U**0.5 numpy.array([numpy.diag(walker.G[0]), -numpy.diag(walker.G[1])])
+        vbias = system.U**0.5 * numpy.diag(walker.G[0]-walker.G[1])
+        return -self.sqrt_dt * (vbias - self.mf_shift)
+
+    def construct_VHS(self, system, shifted):
+        # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
+        # v_i = sqrt(U)(n_{iu} - n_{id})
+        # return numpy.array([numpy.eye(system.nbasis), numpy.eye(system.nbasis)])
+        return numpy.array([numpy.diag(-self.ut_fac*shifted),
+                            numpy.diag(self.ut_fac*shifted)])
+
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
     """Calculate overlap ratio for single site update with GHF trial.
@@ -384,6 +549,21 @@ def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
     R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
     return 0.5 * numpy.array([R1,R2])
+
+def calculate_overlap_ratio_single_det_charge(walker, delta, trial, i):
+    """Calculate overlap ratio for single site update with UHF trial.
+
+    Parameters
+    ----------
+    walker : walker object
+        Walker to be updated.
+    delta : :class:`numpy.ndarray`
+        Delta updates for single spin flip.
+    trial : trial wavefunctio object
+        Trial wavefunction.
+    i : int
+        Basis index.
+    """
 
 def construct_propagator_matrix(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
