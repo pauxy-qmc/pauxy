@@ -137,7 +137,15 @@ class SingleDetWalker(Walker):
         if nbeta > 0:
             sign_b, logdet_b = numpy.linalg.slogdet(self.inv_ovlp[1])
         det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
-        return 1.0 / det
+
+        ot = 1.0/det
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
 
     def calc_overlap(self, trial):
         """Caculate overlap with trial wavefunction.
