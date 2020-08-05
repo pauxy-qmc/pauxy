@@ -46,6 +46,7 @@ class UHF(object):
     """
 
     def __init__(self, system, trial={}, verbose=0):
+        assert ("Hubbard" in system.name)
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose

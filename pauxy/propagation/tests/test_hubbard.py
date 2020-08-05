@@ -1,7 +1,7 @@
 import numpy
 import pytest
 from pauxy.systems.hubbard import Hubbard, decode_basis
-from pauxy.propagation.hubbard import HirschSpin
+from pauxy.propagation.hubbard import Hirsch
 from pauxy.propagation.continuous import Continuous
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.trial_wavefunction.uhf import UHF
@@ -23,7 +23,7 @@ trial.psi = trial.psi[0]
 @pytest.mark.unit
 def test_hubbard_spin():
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
-    prop = HirschSpin(system, trial, qmc)
+    prop = Hirsch(system, trial, qmc)
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     numpy.random.seed(7)
     nup = system.nup
@@ -53,7 +53,7 @@ def test_hubbard_spin():
 @pytest.mark.unit
 def test_update_greens_function():
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
-    prop = HirschSpin(system, trial, qmc)
+    prop = Hirsch(system, trial, qmc)
     walker = SingleDetWalker(system, trial)
     numpy.random.seed(7)
     prop.kinetic_importance_sampling(walker, system, trial)
@@ -95,7 +95,7 @@ def test_hubbard_charge():
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
     options = {'charge_decomposition': True}
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     numpy.random.seed(7)
     nup = system.nup
@@ -146,7 +146,7 @@ def test_hubbard_discrete_fp():
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
     options = {'free_projection': True}
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     nup = system.nup
     numpy.random.seed(7)
@@ -176,7 +176,7 @@ def test_hubbard_diff():
     options = {'free_projection': True}
     walkers = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
     # Discrete
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     for w in walkers.walkers:
         for i in range(0,10):
             prop.propagate_walker(w, system, trial, 0.0)
@@ -195,7 +195,7 @@ def test_hubbard_diff():
     trial = MultiSlater(system, (coeffs, wfn))
     walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
     options = {'free_projection': False}
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     for w in walkers2.walkers:
         for i in range(0,10):
             prop.propagate_walker(w, system, trial, 0.0)
@@ -233,7 +233,7 @@ def test_hubbard_ortho():
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
     # Discrete
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     energies = []
     for i in range(0,100):
         if i % 5 == 0:
@@ -253,7 +253,7 @@ def test_hubbard_ortho():
     trial = MultiSlater(system, (coeffs, wfn))
     walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
     options = {'free_projection': False}
-    prop = HirschSpin(system, trial, qmc, options=options, verbose=True)
+    prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     numpy.random.seed(7)
     energies2 = []
     for i in range(0,100):
