@@ -64,6 +64,9 @@ class SingleDetWalker(Walker):
         self.inverse_overlap(trial)
         self.ot = self.calc_overlap(trial)
         self.ovlp = self.ot
+
+        print("self.ot = {}".format(self.ot))
+
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
@@ -168,8 +171,15 @@ class SingleDetWalker(Walker):
         if nb > 0:
             Obeta = numpy.dot(trial.psi[:,na:].conj().T, self.phi[:,na:])
             sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
-        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
-        return det
+        
+        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
 
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
