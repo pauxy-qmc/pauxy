@@ -97,7 +97,11 @@ def get_trial_wavefunction(system, options={}, mf=None,
         nel = psi.shape[1]
         trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)), options=options, verbose=verbose)
     elif wfn_type.lower() == 'coherent_state':
-        trial = CoherentState(system, options=options, verbose=verbose)
+        if comm.rank == 0:
+            trial = CoherentState(system, options=options, verbose=verbose)
+        else:
+            trial = None
+        trial = comm.bcast(trial)
     else:
         print("Unknown trial wavefunction type.")
         sys.exit()
