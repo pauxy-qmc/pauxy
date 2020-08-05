@@ -81,8 +81,7 @@ class HartreeFock(object):
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
-        # self.Gfull, g = gab_mod(orbs_full[:,:system.nup],
-                                # orbs_full[:,:system.nup])
+
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])

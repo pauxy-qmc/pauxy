@@ -15,7 +15,8 @@ try:
     from pauxy.estimators.pw_fft import local_energy_pw_fft
 except ImportError as e:
     print(e)
-from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf
+from pauxy.estimators.hubbard import local_energy_hubbard, local_energy_hubbard_ghf,\
+                                     local_energy_hubbard_holstein
 from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
@@ -367,8 +368,16 @@ class Mixed(object):
             fh5['basic/headers'] = numpy.array(self.header).astype('S')
         self.output = H5EstimatorHelper(filename, 'basic')
 
-# Energy evaluation routines.
+# Energy evaluation routines for the Hubbard-Holstein model.
+def local_energy_hh(system, G, X, Lap, Ghalf=None):
+    if system.name == "HubbardHolstein":
+        (e1, e2, e3) = local_energy_hubbard_holstein(system, G, X, Lap, Ghalf)
+        return (e1, e2, e3)
+    else:
+        print("SOMETHING IS VERY WRONG... WHY ARE YOU CALLING HUBBARD-HOSTEIN FUNCTION?")
+        exit()
 
+# Energy evaluation routines.
 def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol=None):
     """Helper routine to compute local energy.
 
@@ -385,7 +394,8 @@ def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol
         Total, one-body and two-body energy.
     """
     ghf = (G.shape[-1] == 2*system.nbasis)
-    if system.name == "Hubbard":
+    # unfortunate interfacial problem for the HH model
+    if system.name == "Hubbard" or system.name == "HubbardHolstein":
         if ghf:
             return local_energy_ghf(system, G)
         else:

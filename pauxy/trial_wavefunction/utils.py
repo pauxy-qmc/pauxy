@@ -2,6 +2,7 @@ import numpy
 import sys
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.trial_wavefunction.uhf  import UHF
+from pauxy.trial_wavefunction.coherent_state  import CoherentState
 from pauxy.trial_wavefunction.hartree_fock import HartreeFock
 from pauxy.trial_wavefunction.multi_determinant import MultiDeterminant
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
@@ -95,6 +96,8 @@ def get_trial_wavefunction(system, options={}, mf=None,
         nmo = psi.shape[0]
         nel = psi.shape[1]
         trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)), options=options, verbose=verbose)
+    elif wfn_type.lower() == 'coherent_state':
+        trial = CoherentState(system, options=options, verbose=verbose)
     else:
         print("Unknown trial wavefunction type.")
         sys.exit()

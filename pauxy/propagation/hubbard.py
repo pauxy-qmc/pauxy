@@ -9,7 +9,7 @@ from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 
-class HirschSpin(object):
+class Hirsch(object):
     """Propagator for discrete HS transformation.
 
     Parameters
