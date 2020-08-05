@@ -301,6 +301,8 @@ class CoherentState(object):
             norm = 1.0 / numpy.sqrt(self.nperms)
             self.coeffs = norm * numpy.ones(self.nperms)
             print("# Number of permutations = {}".format(self.nperms))
+        else:
+            self.coeffs = 1.0
 
         self.calculate_energy(system)
         
