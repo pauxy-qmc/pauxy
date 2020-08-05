@@ -224,11 +224,18 @@ class MultiCoherentWalker(object):
         ovlp : float / complex
             Overlap.
         """
-        for ix in range(self.nperms):
+        shift0 = trial.shift.copy()
+        for ix, perm in enumerate(trial.perms):
             det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
             det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
             self.ots[ix] = det_O_up * det_O_dn
+            
+            shift = shift0[perm].copy()
+            trial.boson_trial.update_shift(shift)
+
+            self.phi_boson[ix] = trial.boson_trial.value(self.X)
             self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix] * self.phi_boson[ix]
+        trial.boson_trial.update_shift(shift0)
         return sum(self.weights)
 
     def reortho(self, trial):
@@ -290,13 +297,9 @@ class MultiCoherentWalker(object):
         nup = self.nup
 
         psi0 = trial.psi.copy()
-        # shift0 = trial.shift.copy()
 
         for ix, perm in enumerate(trial.perms):
             t = psi0[perm,:].copy()
-            # shift = shift0[perm].copy()
-            # trial.boson_trial.update_shift(shift)
-            # self.phi_boson[ix] = trial.boson_trial.value(self.X)
 
             # construct "local" green's functions for each component of psi_T
             self.Gi[ix,0,:,:] = (
@@ -358,8 +361,6 @@ class MultiCoherentWalker(object):
             return numpy.concatenate((buff,stack_buff))
         else:
             return buff
-        # stack_buff = self.stack.get_buffer()
-        # return numpy.concatenate((buff,stack_buff))
 
     def set_buffer(self, buff):
         """Set walker buffer following MPI communication

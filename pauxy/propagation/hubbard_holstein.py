@@ -277,8 +277,6 @@ class HirschDMC(object):
 
         phiold = trial.value(walker)
 
-
-        # boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=trial.shift)
         #Drift+diffusion
         driftold = (self.dt / system.m) * trial.gradient(walker)
 

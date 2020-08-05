@@ -346,13 +346,11 @@ class CoherentState(object):
     def value(self, walker): # value
         if (self.symmetrize):
             phi = 0.0
-            denom = numpy.sum(walker.weights)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
                 shift = shift0[perm].copy()
                 boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
-                phi += boson_trial.value(walker.X) * walker.weights[i]
-            phi /= denom
+                phi += boson_trial.value(walker.X) * walker.ots[i] * self.coeffs[i]
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
             phi = boson_trial.value(walker.X)
@@ -361,12 +359,12 @@ class CoherentState(object):
     def gradient(self, walker): # gradient / value
         if (self.symmetrize):
             grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
-            denom = numpy.sum(walker.weights)
+            denom = self.value(walker)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
                 shift = shift0[perm].copy()
                 boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
-                grad += boson_trial.gradient(walker.X) * walker.weights[i]
+                grad += boson_trial.value(walker.X) * boson_trial.gradient(walker.X) * walker.ots[i] * self.coeffs[i]
             grad /= denom
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
@@ -376,13 +374,13 @@ class CoherentState(object):
     def laplacian(self, walker): # gradient / value
         if (self.symmetrize):
             lap = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
-            denom = numpy.sum(walker.weights)
+            denom = self.value(walker)
             shift0 = self.shift.copy()
             for i, perm in enumerate(self.perms):
                 shift = shift0[perm].copy()
                 boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
                 walker.Lapi[i] = boson_trial.laplacian(walker.X)
-                lap += walker.Lapi[i] * walker.weights[i]
+                lap += boson_trial.value(walker.X) * walker.Lapi[i] * walker.ots[i] * self.coeffs[i]
             lap /= denom
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
