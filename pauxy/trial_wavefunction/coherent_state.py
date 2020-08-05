@@ -14,9 +14,6 @@ from pauxy.estimators.greens_function import gab_spin
 
 import time
 from pauxy.utils.linalg import diagonalise_sorted
-# from pauxy.estimators.greens_function import gab
-# from pauxy.utils.io import read_fortran_complex_numbers
-# from pauxy.estimators.mixed import local_energy
 
 
 from pauxy.estimators.greens_function import gab_spin
@@ -111,46 +108,6 @@ def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
     Eeb = e_eph
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
-
-def local_energy_hubbard_holstein_jax_unitary(system, G, X, Lap, Ghalf=None):
-    r"""Calculate local energy of walker for the Hubbard-Hostein model.
-    Using the unitary transformed Hamiltonian
-
-    Parameters
-    ----------
-    system : :class:`HubbardHolstein`
-        System information for the HubbardHolstein model.
-    G : :class:`numpy.ndarray`
-        Walker's "Green's function"
-
-    Returns
-    -------
-    (E_L(phi), T, V): tuple
-        Local, kinetic and potential energies of given walker phi.
-    """
-    ke = np.sum(system.T[0] * G[0] + system.T[1] * G[1])
-
-    if system.symmetric:
-        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
-
-    pe = system.U * np.dot(G[0].diagonal(), G[1].diagonal())
-
-    
-    # pe_ph = 0.5 * system.w0 ** 2 * system.m * np.sum(X * X)
-    # ke_ph = -0.5 * np.sum(Lap) / system.m - 0.5 * system.w0 * system.nbasis
-    e_ph = system.w0 * np.sum(X*X) * system.m * system.w0 * 2.0
-    
-    rho = G[0].diagonal() + G[1].diagonal()
-    # e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * np.dot(rho, X)
-
-    e_eph = - 2.0 * system.g * cmath.sqrt(system.m * system.w0 * 2.0) * np.dot(rho, X)
-
-    etot = ke + pe + e_ph + e_eph
-
-    Eel = ke + pe
-    Eeb = e_eph
-
-    return (etot, ke+pe, e_ph+e_eph)
 
 def gradient(x, system, c0, psi,resctricted):
     grad = numpy.array(jax.grad(objective_function)(x, system, c0, psi,resctricted))
