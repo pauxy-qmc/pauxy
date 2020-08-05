@@ -94,6 +94,7 @@ class AFQMC(object):
                 self.sha1, self.branch = get_git_revision_hash()
             else:
                 self.sha1 = 'None'
+                self.branch = 'None'
             if verbose:
                 self.sys_info = get_sys_info(self.sha1, self.branch, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
