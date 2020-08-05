@@ -127,6 +127,8 @@ class MultiCoherentWalker(object):
         else:
             self.field_configs = None
 
+        self.stack = None
+        
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def overlap_direct(self, trial):
