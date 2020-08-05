@@ -353,11 +353,22 @@ class MultiCoherentWalker(object):
             if isinstance(data, (numpy.ndarray)):
                 buff[s:s+data.size] = data.ravel()
                 s += data.size
+            elif isinstance(data, list):
+                for l in data:
+                    if isinstance(l, (numpy.ndarray)):
+                        buff[s:s+l.size] = l.ravel()
+                        s += l.size
+                    elif isinstance(l, (int, float, complex)):
+                        buff[s:s+1] = l
+                        s += 1
             else:
                 buff[s:s+1] = data
                 s += 1
         if self.field_configs is not None:
             stack_buff = self.field_configs.get_buffer()
+            return numpy.concatenate((buff,stack_buff))
+        elif self.stack is not None:
+            stack_buff = self.stack.get_buffer()
             return numpy.concatenate((buff,stack_buff))
         else:
             return buff
@@ -370,16 +381,29 @@ class MultiCoherentWalker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        # self.stack.set_buffer(buff[self.buff_size:])
         s = 0
         for d in self.buff_names:
             data = self.__dict__[d]
             if isinstance(data, numpy.ndarray):
                 self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
+                s += data.size
+            elif isinstance(data, list):
+                for ix, l in enumerate(data):
+                    if isinstance(l, (numpy.ndarray)):
+                        self.__dict__[d][ix] = buff[s:s+l.size].reshape(l.shape).copy()
+                        s += l.size
+                    elif isinstance(l, (int, float, complex)):
+                        self.__dict__[d][ix] = buff[s]
+                        s += 1
             else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
+                if isinstance(self.__dict__[d], int):
+                    self.__dict__[d] = int(buff[s].real)
+                elif isinstance(self.__dict__[d], float):
+                    self.__dict__[d] = buff[s].real
+                else:
+                    self.__dict__[d] = buff[s]
+                s += 1
         if self.field_configs is not None:
             self.field_configs.set_buffer(buff[self.buff_size:])
+        if self.stack is not None:
+            self.stack.set_buffer(buff[self.buff_size:])
