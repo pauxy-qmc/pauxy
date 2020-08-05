@@ -9,6 +9,7 @@ import time
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
+from pauxy.walkers.multi_coherent import MultiCoherentWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
 from pauxy.utils.io import get_input_value
@@ -94,6 +95,20 @@ class Walkers(object):
                     else:
                         qmc.nstblz = update_stack(qmc.nstblz, stack_size,
                                                   name="nstblz", verbose=verbose)
+        elif trial.name == "coherent_state" and trial.symmetrize:
+            self.walker_type = 'MSD'
+            self.walkers = [MultiCoherentWalker(system, trial, walker_opts=walker_opts,
+                                        index=w, nprop_tot=nprop_tot,
+                                        nbp=nbp)
+                        for w in range(qmc.nwalkers)]
+            self.buff_size = self.walkers[0].buff_size
+            if nbp is not None:
+                if verbose:
+                    print("# Performing back propagation.")
+                    print("# Number of steps in imaginary time: {:}.".format(nbp))
+                self.buff_size += self.walkers[0].field_configs.buff_size
+            self.walker_buffer = numpy.zeros(self.buff_size,
+                                             dtype=numpy.complex128)
         else:
             self.walker_type = 'SD'
             self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,

@@ -46,7 +46,7 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     hel = scipy.sparse.csr_matrix((ndets,ndets))
     for i in range(ndets):
         for j in range(i,ndets):
-            hel[i,j] = get_hmatel(system, dets[i], dets[j])
+            hel[i,j] = get_hmatel(system, dets[i], dets[j])[0]
             hel[j,i] = hel[i,j]
 
     print("# finshed forming hel")
@@ -308,3 +308,78 @@ def get_one_body_matel(ints, di, dj):
         return -matel
     else:
         return matel
+
+
+def unlabeled_balls_in_labeled_boxes(balls, box_sizes):
+   """
+   OVERVIEW
+   This function returns a generator that produces all distinct distributions of
+   indistinguishable balls among labeled boxes with specified box sizes
+   (capacities).  This is a generalization of the most common formulation of the
+   problem, where each box is sufficiently large to accommodate all of the
+   balls, and is an important example of a class of combinatorics problems
+   called 'weak composition' problems.
+   CONSTRUCTOR INPUTS
+   n: the number of balls
+   box_sizes: This argument is a list of length 1 or greater.  The length of
+   the list corresponds to the number of boxes.  `box_sizes[i]` is a positive
+   integer that specifies the maximum capacity of the ith box.  If
+   `box_sizes[i]` equals `n` (or greater), the ith box can accommodate all `n`
+   balls and thus effectively has unlimited capacity.
+   ACKNOWLEDGMENT
+   I'd like to thank Chris Rebert for helping me to convert my prototype
+   class-based code into a generator function.
+   """
+   if not isinstance(balls, int):
+      raise TypeError("balls must be a non-negative integer.")
+   if balls < 0:
+      raise ValueError("balls must be a non-negative integer.")
+
+   if not isinstance(box_sizes,list):
+      raise ValueError("box_sizes must be a non-empty list.")
+
+   capacity= 0
+   for size in box_sizes:
+      if not isinstance(size, int):
+          raise TypeError("box_sizes must contain only positive integers.")
+      if size < 1:
+          raise ValueError("box_sizes must contain only positive integers.")
+      capacity+= size
+
+   if capacity < balls:
+      raise ValueError("The total capacity of the boxes is less than the "
+        "number of balls to be distributed.")
+
+   return _unlabeled_balls_in_labeled_boxes(balls, box_sizes)
+
+
+def _unlabeled_balls_in_labeled_boxes(balls, box_sizes):
+   """
+   This recursive generator function was designed to be returned by
+   `unlabeled_balls_in_labeled_boxes`.
+   """
+
+   # If there are no balls, all boxes must be empty:
+   if not balls:
+      yield len(box_sizes) * (0,)
+
+   elif len(box_sizes) == 1:
+
+      # If the single available box has sufficient capacity to store the balls,
+      # there is only one possible distribution, and we return it to the caller
+      # via `yield`.  Otherwise, the flow of control will pass to the end of the
+      # function, triggering a `StopIteration` exception.
+      if box_sizes[0] >= balls:
+          yield (balls,)
+
+   else:
+
+      # Iterate over the number of balls in the first box (from the maximum
+      # possible down to zero), recursively invoking the generator to distribute
+      # the remaining balls among the remaining boxes.
+      for balls_in_first_box in range( min(balls, box_sizes[0]), -1, -1 ):
+         balls_in_other_boxes= balls - balls_in_first_box
+
+         for distribution_other in _unlabeled_balls_in_labeled_boxes(
+           balls_in_other_boxes, box_sizes[1:]):
+            yield (balls_in_first_box,) + distribution_other

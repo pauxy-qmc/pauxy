@@ -328,7 +328,6 @@ class CoherentState(object):
             self.init = self.psi.copy()
 
         # For interface compatability
-        self.coeffs = 1.0
         self.ndets = 1
         self.bp_wfn = options.get('bp_wfn', None)
         self.error = False
