@@ -66,8 +66,9 @@ class MultiSlater(object):
         self._rchol = None
         self._mem_required = 0.0
         write_wfn = options.get('write_wavefunction', False)
+        output_file = options.get('output_file', 'wfn.h5')
         if write_wfn:
-            self.write_wavefunction()
+            self.write_wavefunction(filename=output_file)
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
