@@ -5,6 +5,12 @@ import h5py
 from pauxy.utils.misc import get_from_dict
 
 
+def extract_data_sets(files, group, estimator, raw=False):
+    data = []
+    for f in files:
+        data.append(extract_data(f, group, estimator, raw))
+    return pd.concat(data)
+
 def extract_data(filename, group, estimator, raw=False):
     fp = get_param(filename, ['propagators', 'free_projection'])
     with h5py.File(filename, 'r') as fh5:

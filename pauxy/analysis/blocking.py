@@ -78,7 +78,7 @@ def average_fp(frame):
     re_den = real.EDenom.values
     im_num = imag.ENumer.values
     im_den = imag.EDenom.values
-    results['Iteration'] = real_df.groupby('Iteration').groups.keys()
+    results['Iteration'] = sorted(real_df.groupby('Iteration').groups.keys())
     # When doing FP we need to compute E = \bar{ENumer} / \bar{EDenom}
     # Only compute real part of the energy
     results['E'] = (re_num*re_den+im_num*im_den) / (re_den**2 + im_den**2)
