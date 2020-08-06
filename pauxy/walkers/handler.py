@@ -157,10 +157,10 @@ class Walkers(object):
         """
         for w in self.walkers:
             detR = w.reortho(trial)
-            # if free_projection:
-                # (magn, dtheta) = cmath.polar(detR)
-                # w.weight *= magn
-                # w.phase *= cmath.exp(1j*dtheta)
+            if free_projection:
+                (magn, dtheta) = cmath.polar(detR)
+                w.weight *= magn
+                w.phase *= cmath.exp(1j*dtheta)
 
     def add_field_config(self, nprop_tot, nbp, system, dtype):
         """Add FieldConfig object to walker object.
