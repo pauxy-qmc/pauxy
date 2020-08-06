@@ -91,7 +91,7 @@ def average_fp(frame):
     results['E_error'] = numpy.abs(results.E) * ((re_nume/re_num)**2 +
                                                  (re_dene/re_den)**2 -
                                                  2*cov_nd/(nsamp*re_num*re_den))**0.5
-    return results
+    return results.sort_values('Iteration')
 
 
 def reblock_mixed(groupby, columns, verbose=False):
