@@ -8,9 +8,14 @@ from pauxy.utils.fft import fft_wavefunction, ifft_wavefunction
 from pauxy.utils.linalg import reortho
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator, HarmonicOscillatorMomentum
 
-class Hirsch(object):
-    """Propagator for discrete HS transformation.
+def arccosh(y): # it works even when y is complex
+    gamma = cmath.log(y - cmath.sqrt(y*y-1))
+    return gamma
+
+class HirschDMC(object):
+    """Propagator for discrete HS transformation plus phonon propagation.
 
     Parameters
     ----------
@@ -31,81 +36,105 @@ class Hirsch(object):
         if verbose:
             print("# Parsing discrete propagator input options.")
             print("# Using discrete Hubbard--Stratonovich transformation.")
+            
         if trial.type == 'GHF':
             self.bt2 = scipy.linalg.expm(-0.5*qmc.dt*system.T[0])
         else:
             self.bt2 = numpy.array([scipy.linalg.expm(-0.5*qmc.dt*system.T[0]),
                                     scipy.linalg.expm(-0.5*qmc.dt*system.T[1])])
+
         if trial.type == 'GHF' and trial.bp_wfn is not None:
             self.BT_BP = scipy.linalg.block_diag(self.bt2, self.bt2)
             self.back_propagate = back_propagate_ghf
         else:
             self.BT_BP = self.bt2
             self.back_propagate = back_propagate
+
         self.nstblz = qmc.nstblz
         self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        self.dt = qmc.dt
         self.ffts = options.get('ffts', False)
-        single_site = options.get('single_site_update', True)
-        if single_site:
-            if verbose:
-                print("# Using classic single-site update.")
-            self.two_body = self.two_body_single_site
-        else:
-            if verbose:
-                print("# Using dynamic force bias update.")
-            self.two_body = self.two_body_direct
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
-        self.charge_decomp = options.get('charge_decomposition', False)
+        
+        Ueff = system.U
+
         if verbose:
-            if self.charge_decomp:
-                print("# Using charge decomposition.")
-            else:
-                print("# Using spin decomposition.")
-        # [field,spin]
-        if self.charge_decomp:
-            self.gamma = numpy.arccosh(numpy.exp(-0.5*qmc.dt*system.U+0j))
-            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
-                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
-            # e^{-gamma x}
-            self.aux_wfac = numpy.exp(0.5*qmc.dt*system.U) * numpy.array([numpy.exp(-self.gamma),
-                                                                         numpy.exp(self.gamma)])
-        else:
-            self.gamma = numpy.arccosh(numpy.exp(0.5*qmc.dt*system.U))
+            print("# Ueff = {}".format(Ueff))
+
+        self.sorella = options.get('sorella', False)
+        self.charge = options.get('charge', False)
+
+        if (self.sorella == True):
+            self.charge = True
+
+        if (not self.charge):
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
+            if verbose:
+                print("# Spin decomposition is used")
+            # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-            self.aux_wfac = numpy.array([1.0, 1.0])
-        self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*system.U)
-        self.delta = self.auxf - 1
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+        
+        else:
+            if verbose:
+                print("# Charge decomposition is used")
+            
+            self.gamma = arccosh(numpy.exp(-0.5*qmc.dt*Ueff))
+
+            if (self.sorella):
+                if verbose:
+                    print("# Sorella decomposition is used")
+                self.charge_factor = numpy.array([numpy.exp(-0.5*self.gamma), numpy.exp(0.5*self.gamma)])
+            else:
+                self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
+
+            if verbose:
+                print("# charge_factor = {}".format(self.charge_factor))
+
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
+            if (not self.sorella):
+                self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+
         self.hybrid = False
+
+        self.dt = qmc.dt
+        self.sqrtdt = math.sqrt(qmc.dt)
+        self.delta = self.auxf - 1
+
         if self.free_projection:
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
-        if trial.name == 'multi_determinant':
-            if trial.type == 'GHF':
-                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_ghf
-                self.kinetic = kinetic_ghf
-                self.update_greens_function = self.update_greens_function_ghf
-            else:
-                self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
-                self.kinetic = kinetic_real
+
+        if (trial.symmetrize):
+            self.calculate_overlap_ratio = calculate_overlap_ratio_multi_det
+            self.update_greens_function = self.update_greens_function_mult
         else:
             self.calculate_overlap_ratio = calculate_overlap_ratio_single_det
             self.update_greens_function = self.update_greens_function_uhf
-            if self.ffts:
-                self.kinetic = kinetic_kspace
-            else:
-                self.kinetic = kinetic_real
+
+        if self.ffts:
+            self.kinetic = kinetic_kspace
+        else:
+            self.kinetic = kinetic_real
+
+        shift = trial.shift.copy()
+        if (verbose):
+            print("# Shift in propagation = {}".format(shift[:3]))
+
+        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+
+        self.eshift_boson = self.boson_trial.local_energy(shift)
+        self.eshift_boson = self.eshift_boson.real
+
         if verbose:
             print ("# Finished setting up propagator.")
 
     def update_greens_function_uhf(self, walker, trial, i, nup):
         """Fast update of walker's Green's function for RHF/UHF walker.
-
-        This only updates the ii'th element of the greens function. This is
-        dangerous.
 
         Parameters
         ----------
@@ -118,14 +147,52 @@ class Hirsch(object):
         nup : int
             Number of up electrons.
         """
+
+        ndown = walker.phi.shape[1] - nup
+
         vup = trial.psi.conj()[i,:nup]
         uup = walker.phi[i,:nup]
-        q = numpy.dot(walker.inv_ovlp[0].T, uup)
-        walker.G[0][i,i] = numpy.dot(vup,q)
+        q = numpy.dot(walker.inv_ovlp[0], vup)
+        walker.G[0][i,i] = numpy.dot(uup, q)
         vdown = trial.psi.conj()[i,nup:]
         udown = walker.phi[i,nup:]
-        q = numpy.dot(walker.inv_ovlp[1].T, udown)
-        walker.G[1][i,i] = numpy.dot(vdown, q)
+        if (ndown > 0):
+            q = numpy.dot(walker.inv_ovlp[1], vdown)
+            walker.G[1][i,i] = numpy.dot(udown, q)
+
+    def update_greens_function_mult(self, walker, trial, i, nup):
+        """Fast update of walker's Green's function for multi RHF/UHF walker.
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walkers.SingleDet`
+            Walker's wavefunction.
+        trial : :class:`pauxy.trial_wavefunction`
+            Trial wavefunction.
+        i : int
+            Basis index.
+        nup : int
+            Number of up electrons.
+        """
+
+        ndown = walker.phi.shape[1] - nup
+
+        for ix, perm in enumerate(trial.perms):
+            psi = trial.psi[perm,:].copy()
+            vup = psi.conj()[i,:nup]
+
+            uup = walker.phi[i,:nup]
+
+            q = numpy.dot(walker.inv_ovlp[0][ix], vup)
+
+            walker.Gi[ix,0,i,i] = numpy.dot(uup, q)
+            
+            vdown = psi.conj()[i,nup:]
+            udown = walker.phi[i,nup:]
+
+            if (ndown > 0):
+                q = numpy.dot(walker.inv_ovlp[1][ix], vdown)
+                walker.Gi[ix,1,i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -142,34 +209,8 @@ class Hirsch(object):
             Number of up electrons.
         """
         walker.greens_function(trial)
-
-    def kinetic_importance_sampling(self, walker, system, trial):
-        r"""Propagate by the kinetic term by direct matrix multiplication.
-
-        Parameters
-        ----------
-        walker : :class:`pauxy.walker`
-            Walker object to be updated. On output we have acted on phi by
-            B_{T/2} and updated the weight appropriately. Updates inplace.
-        system : :class:`pauxy.system.System`
-            System object.
-        trial : :class:`pauxy.trial_wavefunctioin.Trial`
-            Trial wavefunction object.
-        """
-        self.kinetic(walker.phi, system, self.bt2)
-        # Update inverse overlap
-        walker.inverse_overlap(trial)
-        # Update walker weight
-        ot_new = walker.calc_otrial(trial)
-        ratio = (ot_new/walker.ot)
-        phase = cmath.phase(ratio)
-        if abs(phase) < 0.5*math.pi:
-            walker.weight = walker.weight * ratio.real
-            walker.ot = ot_new
-        else:
-            walker.weight = 0.0
-
-    def two_body_single_site(self, walker, system, trial):
+    
+    def two_body(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
         Parameters
@@ -186,21 +227,24 @@ class Hirsch(object):
         delta = self.delta
         nup = system.nup
         soffset = walker.phi.shape[0] - system.nbasis
-        # walker.greens_function_fast(trial)
         for i in range(0, system.nbasis):
-            # Compute Gii here to avoid need to recompute GF after KE
-            # propagation. We need Gii to include contributions from previous
-            # steps wavefunction / overlap update.
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
-            # This only matters for charge decomposition
-            probs = probs * self.aux_wfac
+            if (self.charge):
+                probs *= self.charge_factor
+
+            if (self.sorella):
+                const = -self.gamma * system.g * math.sqrt(2.0 * system.m * system.w0) / system. U * walker.X[i]
+                factor = numpy.array([numpy.exp(const), numpy.exp(-const)])
+                probs *= factor
+
             # issues here with complex numbers?
             phaseless_ratio = numpy.maximum(probs.real, [0,0])
             norm = sum(phaseless_ratio)
             r = numpy.random.random()
             # Is this necessary?
+            # todo : mirror correction
             if norm > 0:
                 walker.weight = walker.weight * norm
                 if r < phaseless_ratio[0]/norm:
@@ -218,63 +262,99 @@ class Hirsch(object):
             else:
                 walker.weight = 0
                 return
+    
+    def acceptance(self, posold,posnew,driftold,driftnew, trial):
+        
+        gfratio=numpy.exp(-numpy.sum( (posold-posnew-driftnew)**2/(2*self.dt) ) 
+                       +numpy.sum( (posnew-posold-driftold)**2/(2*self.dt) ) 
+                       )
 
-    def two_body_direct(self, walker, system, trial):
-        r"""Propagate by potential term using discrete HS transform.
+        ratio = trial.value(posnew)**2 / trial.value(posold)**2
 
-        Use dynamic force bias from: PHYSICAL REVIEW A 92, 033603 (2015)
+        return ratio*gfratio
+    
+    def boson_importance_sampling(self, walker, system, trial):
+
+        phiold = trial.value(walker)
+
+        #Drift+diffusion
+        driftold = (self.dt / system.m) * trial.gradient(walker)
+
+        if (self.sorella):
+            Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
+            Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
+            lap = trial.laplacian(walker)
+            Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
+            elocold = Ev + Ev2 + Ek
+        else:
+            elocold = trial.bosonic_local_energy(walker)
+        
+        elocold = numpy.real(elocold)
+
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
+        Xnew = walker.X + dX + driftold
+        
+        walker.X = Xnew.copy()
+        
+        phinew = trial.value(walker)
+
+        lap = trial.laplacian(walker)
+        walker.Lap = lap
+        
+        #Change weight
+        if (self.sorella):
+            Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
+            Ev2 = -0.5 * numpy.sqrt(2.0 * system.m * system.w0) * system.g * numpy.sum(walker.X)
+            lap = trial.laplacian(walker)
+            Ek = 0.5 / (system.m) * numpy.sum(lap * lap)
+            eloc = Ev + Ev2 + Ek
+        else:
+            eloc = trial.bosonic_local_energy(walker)
+        
+        eloc = numpy.real(eloc)
+        walker.ot *= (phinew / phiold)
+        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
+
+    def kinetic_importance_sampling(self, walker, system, trial):
+        r"""Propagate by the kinetic term by direct matrix multiplication.
 
         Parameters
         ----------
-        walker : :class:`pauxy.walker` object
+        walker : :class:`pauxy.walker`
             Walker object to be updated. On output we have acted on phi by
-            B_V(x) and updated the weight appropriately. Updates inplace.
+            B_{T/2} and updated the weight appropriately. Updates inplace.
         system : :class:`pauxy.system.System`
             System object.
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-        nup = system.nup
-        # fields = numpy.random.randint(2, size=system.nbasis)
-        walker.greens_function(trial)
-        nia, nib = walker.G[0].diagonal(), walker.G[1].diagonal()
-        fields = []
-        fb_fac = 1.0
-        if self.charge_decomp:
-            fb_term = nia + nib - 1
-        else:
-            fb_term = nia - nib
-        for i in range(system.nbasis):
-            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
-            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
-            norm = pp + pm
-            r = numpy.random.random()
-            if r < pp/norm:
-                fields.append(0)
-                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
-            else:
-                fields.append(1)
-                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
 
-        BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
-        BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
-        walker.phi[:,:nup] = numpy.dot(BVa, walker.phi[:,:nup])
-        walker.phi[:,nup:] = numpy.dot(BVb, walker.phi[:,nup:])
-        ovlp = walker.calc_overlap(trial)
-        wfac = 1.0 + 0j
-        for xi in fields:
-            wfac *= self.aux_wfac[xi]
-        ratio = wfac * ovlp / walker.ot
+        self.kinetic(walker.phi, system, self.bt2)
+
+        if (not self.sorella):
+            const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
+            nX = [walker.X, walker.X]
+            Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+            kinetic_real(walker.phi, system, Veph, H1diag=True)
+
+        # Update inverse overlap
+        walker.inverse_overlap(trial)
+        # Update walker weight
+        ot_new = walker.calc_otrial(trial)
+        
+        ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
-        if abs(phase) < 0.5*math.pi:
-            walker.ot = ovlp
-            walker.ovlp = ovlp
-            walker.weight *= (fb_fac*ratio).real
-        else:
-            walker.weight = 0
-            return
 
-    def propagate_walker_constrained(self, walker, system, trial, eshift):
+        if abs(phase) < 0.5*math.pi:
+            (magn, phase) = cmath.polar(ratio)
+            cosine_fac = max(0, math.cos(phase))
+            walker.weight *= magn * cosine_fac            
+            walker.ot = ot_new
+        else:
+            walker.ot = ot_new
+            walker.weight = 0.0
+
+    def propagate_walker_constrained(self, walker, system, trial, eshift, rho=None, X=None):
         r"""Wrapper function for propagation using discrete transformation
 
         The discrete transformation allows us to split the application of the
@@ -298,9 +378,32 @@ class Hirsch(object):
             self.two_body(walker, system, trial)
         if abs(walker.weight.real) > 0:
             self.kinetic_importance_sampling(walker, system, trial)
-        walker.weight *= numpy.exp(self.dt*eshift)
+        if abs(walker.weight.real) > 0:
+            self.boson_importance_sampling(walker, system, trial)
 
-    def propagate_walker_free(self, walker, system, trial, eshift=0):
+    def boson_free_propagation(self, walker, system, trial, eshift):
+        #Change weight
+        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot = pot.real
+        walker.weight *= math.exp(-self.dt* pot)
+
+        psiold = self.boson_trial.value(walker.X)
+
+        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt / numpy.sqrt(system.m), size=(system.nbasis))
+        Xnew = walker.X + dX
+
+        walker.X = Xnew.copy()
+
+        lap = self.boson_trial.laplacian(walker.X)
+        walker.Lap = lap
+
+        psinew = self.boson_trial.value(walker.X)
+
+        pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)
+        pot = pot.real
+        walker.weight *= math.exp(-self.dt* pot)
+    
+    def propagate_walker_free(self, walker, system, trial, eshift):
         r"""Propagate walker without imposing constraint.
 
         Uses single-site updates for potential term.
@@ -312,13 +415,19 @@ class Hirsch(object):
             B_V(x) and updated the weight appropriately. Updates inplace.
         system : :class:`pauxy.system.System`
             System object.
-        trial : :class:`pauxy.trial_wavefunction.Trial`
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
+        self.boson_free_propagation(walker, system, self.boson_trial, eshift)
+
         kinetic_real(walker.phi, system, self.bt2)
+
+        const = system.g * cmath.sqrt(system.m * system.w0 * 2.0) * self.dt / 2.0
+        Veph = [numpy.diag( numpy.exp(const * walker.X) ),numpy.diag( numpy.exp(const * walker.X) )]
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
         delta = self.delta
         nup = system.nup
-        wfac = 1.0
         for i in range(0, system.nbasis):
             if abs(walker.weight) > 0:
                 r = numpy.random.random()
@@ -330,154 +439,23 @@ class Hirsch(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                wfac *= self.aux_wfac[xi]
+                if (self.charge):
+                    walker.weight *= self.charge_factor[xi]
+        
+        kinetic_real(walker.phi, system, Veph, H1diag=True)
+
         kinetic_real(walker.phi, system, self.bt2)
+
         walker.inverse_overlap(trial)
+        
         # Update walker weight
-        ovlp = walker.calc_otrial(trial.psi)
-        # magn, dtheta = cmath.polar(ovlp/walker.ot*wfac)
-        magn, dtheta = cmath.polar(wfac)
-        walker.weight *= numpy.exp(self.dt*eshift) * magn
-        walker.phase *= numpy.exp(1j*dtheta)
-        walker.ot = ovlp
-        walker.ovlp = walker.ot
+        walker.ot = walker.calc_otrial(trial.psi) * self.boson_trial.value(walker.X)
 
-# todo: stucture is the same for all continuous HS transformations.
-class HubbardContinuous(object):
-    """Propagator for continuous HS transformation, specialised for Hubbard model.
-
-    Parameters
-    ----------
-    options : dict
-        Propagator input options.
-    qmc : :class:`pauxy.qmc.options.QMCOpts`
-        QMC options.
-    system : :class:`pauxy.system.System`
-        System object.
-    trial : :class:`pauxy.trial_wavefunctioin.Trial`
-        Trial wavefunction object.
-    verbose : bool
-        If true print out more information during setup.
-    """
-
-    def __init__(self, system, trial, qmc, options={}, verbose=False):
-        if verbose:
-            print("# Parsing continuous propagator input options.")
-            print("# Using Hubbard Continuous propagator.")
-        self.hs_type = 'hubbard_continuous'
-        self.free_projection = options.get('free_projection', False)
-        self.ffts = options.get('ffts', False)
-        self.back_propagate = back_propagate
-        self.nstblz = qmc.nstblz
-        self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        model = system.__class__.__name__
-        self.dt = qmc.dt
-        # optimal mean-field shift for the hubbard model
-        self.iu_fac = 1j * system.U**0.5
-        self.mf_shift = self.construct_mean_field_shift(system, trial)
-        if verbose:
-            print("# Absolute value of maximum component of mean field shift: "
-                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
-        # self.ut_fac = self.dt*system.U
-        self.sqrt_dt = qmc.dt**0.5
-        self.isqrt_dt = 1j * self.sqrt_dt
-        self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
-        # if self.ffts:
-            # self.kinetic = kinetic_kspace
-        # else:
-            # self.kinetic = kinetic_real
-        if verbose:
-            print("# Finished propagator input options.")
-
-    def construct_one_body_propagator(self, system, dt):
-        # \sum_gamma v_MF^{gamma} v^{\gamma}
-        vi1b = self.iu_fac * numpy.diag(self.mf_shift)
-        H1 = system.h1e_mod - numpy.array([vi1b,vi1b])
-        # H1 = system.H1 - numpy.array([vi1b,vi1b])
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
-                                scipy.linalg.expm(-0.5*dt*H1[1])])
-
-    def construct_mean_field_shift(self, system, trial):
-        #  i sqrt{U} < n_{iup} + n_{idn} >_MF
-        return  self.iu_fac * (numpy.diag(trial.G[0]) + numpy.diag(trial.G[1]))
-
-    def construct_force_bias(self, system, walker, trial):
-        #  i sqrt{U} < n_{iup} + n_{idn} > - mf_shift
-        vbias = self.iu_fac*(numpy.diag(walker.G[0]) + numpy.diag(walker.G[1]))
-        return - self.sqrt_dt * (vbias - self.mf_shift)
-
-    def construct_VHS(self, system, shifted):
-        # Note factor of i included in v_i
-        # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
-        # v_i = n_{iu} + n_{id}
-        return numpy.diag(self.sqrt_dt*self.iu_fac*shifted)
-
-class HubbardContinuousSpin(object):
-    """Propagator for continuous HS transformation, specialised for Hubbard model.
-
-    Parameters
-    ----------
-    options : dict
-        Propagator input options.
-    qmc : :class:`pauxy.qmc.options.QMCOpts`
-        QMC options.
-    system : :class:`pauxy.system.System`
-        System object.
-    trial : :class:`pauxy.trial_wavefunctioin.Trial`
-        Trial wavefunction object.
-    verbose : bool
-        If true print out more information during setup.
-    """
-
-    def __init__(self, system, trial, qmc, options={}, verbose=False):
-        if verbose:
-            print("# Parsing continuous propagator input options.")
-            print("# Using Hubbard Continuous propagator.")
-        self.hs_type = 'hubbard_continuous'
-        self.free_projection = options.get('free_projection', False)
-        self.ffts = options.get('ffts', False)
-        self.back_propagate = back_propagate
-        self.nstblz = qmc.nstblz
-        self.btk = numpy.exp(-0.5*qmc.dt*system.eks)
-        model = system.__class__.__name__
-        self.dt = qmc.dt
-        # optimal mean-field shift for the hubbard model
-        self.ut_fac = (qmc.dt*system.U)**0.5
-        self.mf_shift = self.construct_mean_field_shift(system, trial)
-        if verbose:
-            print("# Absolute value of maximum component of mean field shift: "
-                  "{:13.8e}.".format(numpy.max(numpy.abs(self.mf_shift))))
-        self.sqrt_dt = qmc.dt**0.5
-        self.isqrt_dt = 1j * self.sqrt_dt
-        self.mf_core = 0.5 * numpy.dot(self.mf_shift, self.mf_shift)
-        if verbose:
-            print("# Finished propagator input options.")
-
-    def construct_one_body_propagator(self, system, dt):
-        # \sum_gamma v_MF^{gamma} v^{\gamma}
-        I = numpy.eye(system.nbasis)
-        vi1b = system.U**0.5 * numpy.diag(self.mf_shift)
-        H1 = system.H1 + 0.5*system.U*numpy.array([I,I]) - numpy.array([vi1b,vi1b])
-        self.BH1 = numpy.array([scipy.linalg.expm(-0.5*dt*H1[0]),
-                                scipy.linalg.expm(-0.5*dt*H1[1])])
-
-    def construct_mean_field_shift(self, system, trial):
-        # sqrt{U} < n_{iup} - n_{idn} >_MF
-        # return  system.U**0.5 * numpy.array([numpy.diag(trial.G[0], -numpy.diag(trial.G[1])])
-        return  system.U**0.5 * numpy.diag(trial.G[0]-trial.G[1])
-
-    def construct_force_bias(self, system, walker, trial):
-        # - sqrt(dt) < sqrt(U) (n_{iup} - n_{idn}) > - mf_shift
-        # vbias = system.U**0.5 numpy.array([numpy.diag(walker.G[0]), -numpy.diag(walker.G[1])])
-        vbias = system.U**0.5 * numpy.diag(walker.G[0]-walker.G[1])
-        return -self.sqrt_dt * (vbias - self.mf_shift)
-
-    def construct_VHS(self, system, shifted):
-        # B_V(x-\bar{x}) = e^{\sqrt{dt}*(x-\bar{x})\hat{v}_i}
-        # v_i = sqrt(U)(n_{iu} - n_{id})
-        # return numpy.array([numpy.eye(system.nbasis), numpy.eye(system.nbasis)])
-        return numpy.array([numpy.diag(-self.ut_fac*shifted),
-                            numpy.diag(self.ut_fac*shifted)])
+        walker.greens_function(trial)
+        # Constant terms are included in the walker's weight.
+        # (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
+        # walker.weight *= magn
+        # walker.phase *= cmath.exp(1j*dtheta)
 
 
 def calculate_overlap_ratio_multi_ghf(walker, delta, trial, i):
@@ -524,12 +502,13 @@ def calculate_overlap_ratio_multi_det(walker, delta, trial, i):
         Basis index.
     """
     for (idx, G) in enumerate(walker.Gi):
-        walker.R[idx,0,0] = (1+delta[0][0]*G[0][i,i])
-        walker.R[idx,0,1] = (1+delta[0][1]*G[1][i,i])
-        walker.R[idx,1,0] = (1+delta[1][0]*G[0][i,i])
-        walker.R[idx,1,1] = (1+delta[1][1]*G[1][i,i])
-    spin_prod = numpy.einsum('ikj,ji->ikj',walker.R,walker.ots)
-    R = numpy.einsum('i,ij->j',trial.coeffs,spin_prod[:,:,0]*spin_prod[:,:,1])/walker.ot
+        walker.R[idx,0] = (1+delta[0][0]*G[0][i,i]) * (1+delta[0][1]*G[1][i,i])
+        walker.R[idx,1] = (1+delta[1][0]*G[0][i,i]) * (1+delta[1][1]*G[1][i,i])
+
+    denom = numpy.sum(walker.weights)
+    R = numpy.einsum('i,ix->x', walker.weights, walker.R) / denom
+    # spin_prod = numpy.einsum('ikj,ji->ikj',walker.R,walker.ots)
+    # R = numpy.einsum('i,ij->j',trial.coeffs,spin_prod[:,:,0]*spin_prod[:,:,1])/walker.ot
     return 0.5 * numpy.array([R[0],R[1]])
 
 def calculate_overlap_ratio_single_det(walker, delta, trial, i):
@@ -549,21 +528,6 @@ def calculate_overlap_ratio_single_det(walker, delta, trial, i):
     R1 = (1+delta[0][0]*walker.G[0][i,i])*(1+delta[0][1]*walker.G[1][i,i])
     R2 = (1+delta[1][0]*walker.G[0][i,i])*(1+delta[1][1]*walker.G[1][i,i])
     return 0.5 * numpy.array([R1,R2])
-
-def calculate_overlap_ratio_single_det_charge(walker, delta, trial, i):
-    """Calculate overlap ratio for single site update with UHF trial.
-
-    Parameters
-    ----------
-    walker : walker object
-        Walker to be updated.
-    delta : :class:`numpy.ndarray`
-        Delta updates for single spin flip.
-    trial : trial wavefunctio object
-        Trial wavefunction.
-    i : int
-        Basis index.
-    """
 
 def construct_propagator_matrix(system, BT2, config, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.

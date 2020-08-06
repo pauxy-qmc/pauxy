@@ -233,7 +233,10 @@ def get_numeric_names(d):
     return names, size
 
 def get_node_mem():
-    return os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 1024**3.0
+    try:
+        return os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 1024**3.0
+    except:
+        return 0.0
 
 def get_sys_info(sha1, branch, uuid, nranks):
     print('# Git hash: {:s}.'.format(sha1))

@@ -1,11 +1,12 @@
 import numpy
 import scipy.linalg
-from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.mixed import local_energy, local_energy_hh
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
 from pauxy.walkers.stack import FieldConfig
 from pauxy.walkers.walker import Walker
 from pauxy.utils.misc import get_numeric_names
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
 
 class SingleDetWalker(Walker):
     """UHF style walker.
@@ -32,9 +33,38 @@ class SingleDetWalker(Walker):
                         walker_opts=walker_opts, index=index,
                         nprop_tot=nprop_tot, nbp=nbp)
         self.inv_ovlp = [0.0, 0.0]
+
+        self.phi_boson = None
+
+        if system.name == "HubbardHolstein":
+            shift = trial.shift.copy()
+            self.X = numpy.real(shift).copy()
+
+            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+
+            sqtau = numpy.sqrt(0.005)
+            nstep = 250
+            # simple VMC
+            for istep in range(nstep):
+                chi = numpy.random.randn(system.nbasis)# Random move
+                # propose a move
+                posnew = self.X + sqtau * chi
+                # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                wfold = tmptrial.value(self.X)
+                wfnew = tmptrial.value(posnew)
+                pacc = wfnew*wfnew/(wfold*wfold) 
+                # get indices of accepted moves
+                u = numpy.random.random(1)
+                if (u < pacc):
+                    self.X = posnew.copy()
+            self.Lap = tmptrial.laplacian(self.X)
+            self.phi_boson = tmptrial.value(self.X)
+
+
         self.inverse_overlap(trial)
         self.ot = self.calc_overlap(trial)
         self.ovlp = self.ot
+
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.Gmod = [numpy.zeros(shape=(system.nup, system.nbasis),
@@ -108,7 +138,15 @@ class SingleDetWalker(Walker):
         if nbeta > 0:
             sign_b, logdet_b = numpy.linalg.slogdet(self.inv_ovlp[1])
         det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
-        return 1.0 / det
+
+        ot = 1.0/det
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
 
     def calc_overlap(self, trial):
         """Caculate overlap with trial wavefunction.
@@ -131,8 +169,15 @@ class SingleDetWalker(Walker):
         if nb > 0:
             Obeta = numpy.dot(trial.psi[:,na:].conj().T, self.phi[:,na:])
             sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
-        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
-        return det
+        
+        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
 
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
@@ -286,7 +331,12 @@ class SingleDetWalker(Walker):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy(system, self.G,
-                            Ghalf=self.Gmod,
+        if (system.name == "HubbardHolstein"):
+            return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Gmod)
+        else:
+            return local_energy(system, self.G,
+                                Ghalf=self.Gmod,
+
+
                             two_rdm=two_rdm,
                             rchol=rchol)
