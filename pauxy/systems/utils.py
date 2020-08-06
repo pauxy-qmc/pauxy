@@ -1,6 +1,7 @@
 import numpy
 import sys
 from pauxy.systems.hubbard import Hubbard
+from pauxy.systems.hubbard_holstein import HubbardHolstein
 from pauxy.systems.generic import Generic, read_integrals, construct_h1e_mod
 from pauxy.systems.ueg import UEG
 from pauxy.utils.mpi import get_shared_array, have_shared_mem
@@ -22,6 +23,8 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
     """
     if sys_opts['name'] == 'Hubbard':
         system = Hubbard(sys_opts, verbose)
+    elif sys_opts['name'] == 'HubbardHolstein':
+        system = HubbardHolstein(sys_opts, verbose)
     elif sys_opts['name'] == 'Generic':
         filename = sys_opts.get('integrals', None)
         if filename is None:
@@ -43,7 +46,10 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:
-        system = None
+        if comm.rank == 0:
+            print("# Error: unrecognized system name {}.".format(sys_opts['name']))
+            sys.exit()
+        # system = None
 
     return system
 

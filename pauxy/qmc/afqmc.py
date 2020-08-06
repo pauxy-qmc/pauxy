@@ -94,6 +94,7 @@ class AFQMC(object):
                 self.sha1, self.branch = get_git_revision_hash()
             else:
                 self.sha1 = 'None'
+                self.branch = 'None'
             if verbose:
                 self.sys_info = get_sys_info(self.sha1, self.branch, self.uuid, comm.size)
         # Hack - this is modified later if running in parallel on
@@ -113,6 +114,7 @@ class AFQMC(object):
                                        verbose=self.verbosity>1)
             self.system = get_system(sys_opts, verbose=verbose,
                                      comm=self.shared_comm)
+
         qmc_opt = get_input_value(options, 'qmc', default={},
                                   alias=['qmc_options'],
                                   verbose=self.verbosity>1)
@@ -182,7 +184,7 @@ class AFQMC(object):
             if mem > 0.5*mem_avail:
                 print("# Warning: Memory requirements of calculation are high")
                 print("# Consider using fewer walkers per node.")
-                print("# Memory available: {.6f}".format(mem_avail))
+                print("# Memory available: {:.6f}".format(mem_avail))
             json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
             json_string = to_json(self)
             self.estimators.json_string = json_string

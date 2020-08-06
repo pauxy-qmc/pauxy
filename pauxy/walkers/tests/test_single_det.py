@@ -1,7 +1,7 @@
 import numpy
 import pytest
 from pauxy.systems.hubbard import Hubbard
-from pauxy.propagation.hubbard import HirschSpin
+from pauxy.propagation.hubbard import Hirsch
 from pauxy.trial_wavefunction.multi_slater import MultiSlater
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.utils.misc import dotdict

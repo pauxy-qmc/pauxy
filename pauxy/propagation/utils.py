@@ -1,7 +1,8 @@
 """Routines for performing propagation of a walker"""
-
+import sys
 from pauxy.propagation.continuous import Continuous
-from pauxy.propagation.hubbard import HirschSpin
+from pauxy.propagation.hubbard import Hirsch
+from pauxy.propagation.hubbard_holstein import HirschDMC
 
 # TODO: Fix for discrete transformation.
 def get_propagator_driver(system, trial, qmc, options={}, verbose=False):
@@ -32,9 +33,13 @@ def get_discrete_propagator(options, qmc, system, trial, verbose=False):
     """
     hs_type = options.get('hubbard_stratonovich', 'discrete')
     if system.name == "Hubbard":
-        propagator = HirschSpin(system, trial, qmc,
+        propagator = Hirsch(system, trial, qmc,
+                                options=options, verbose=verbose)
+    elif system.name == "HubbardHolstein":
+        propagator = HirschDMC(system, trial, qmc,
                                 options=options, verbose=verbose)
     else:
-        propagator = None
+        print("No suitable discrete propagator exists for {}. Check your input.".format(system.name))
+        sys.exit()
 
     return propagator
