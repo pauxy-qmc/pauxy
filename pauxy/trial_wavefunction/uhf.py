@@ -47,7 +47,7 @@ class UHF(object):
     """
 
     def __init__(self, system, trial={}, verbose=0):
-        assert ("Hubbard" in system.name)
+        assert "Hubbard" in system.name
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -63,7 +63,7 @@ class UHF(object):
         self.nconv = get_input_value(trial, 'nconv', default=5000,
                                     verbose=verbose)
         self.ueff = get_input_value(trial, 'ueff',
-                                    default=system.U/10.0,
+                                    default=0.4,
                                     verbose=verbose)
         self.deps = get_input_value(trial, 'deps', default=1e-8,
                                     verbose=verbose)
