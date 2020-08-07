@@ -305,11 +305,15 @@ def get_input_value(inputs, key, default=0, alias=None, verbose=False):
     """Helper routine to parse input options.
     """
     val = inputs.get(key, None)
+    if val is not None and verbose:
+        print("# Setting {} to {}.".format(key, val))
     if val is None:
         if alias is not None:
             for a in alias:
                 val = inputs.get(a, None)
                 if val is not None:
+                    if verbose:
+                        print("# Setting {} to {}.".format(key, val))
                     break
         if val is None:
             val = default

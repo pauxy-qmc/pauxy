@@ -29,6 +29,9 @@ def get_trial_wavefunction(system, options={}, mf=None,
     trial : class or None
         Trial wavfunction class.
     """
+    if comm is not None and comm.rank == 0:
+        if verbose:
+            print("# Building trial wavefunction object.")
     wfn_file = get_input_value(options, 'filename', default=None,
                                alias=['wavefunction_file'], verbose=verbose)
     wfn_type = options.get('name', 'MultiSlater')

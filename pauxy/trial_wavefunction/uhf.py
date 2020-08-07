@@ -5,6 +5,7 @@ from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab
 from pauxy.utils.linalg import diagonalise_sorted
 from pauxy.systems.hubbard import decode_basis
+from pauxy.utils.io import get_input_value
 
 class UHF(object):
     r"""UHF trial wavefunction.
@@ -46,7 +47,7 @@ class UHF(object):
     """
 
     def __init__(self, system, trial={}, verbose=0):
-        assert ("Hubbard" in system.name)
+        assert "Hubbard" in system.name
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -57,11 +58,17 @@ class UHF(object):
                                               'trial')
         self.trial_type = complex
         # Unpack input options.
-        self.ninitial = trial.get('ninitial', 10)
-        self.nconv = trial.get('nconv', 5000)
-        self.ueff = trial.get('ueff', 0.4)
-        self.deps = trial.get('deps', 1e-8)
-        self.alpha = trial.get('alpha', 0.5)
+        self.ninitial = get_input_value(trial, 'ninitial', default=10,
+                                        verbose=verbose)
+        self.nconv = get_input_value(trial, 'nconv', default=5000,
+                                    verbose=verbose)
+        self.ueff = get_input_value(trial, 'ueff',
+                                    default=0.4,
+                                    verbose=verbose)
+        self.deps = get_input_value(trial, 'deps', default=1e-8,
+                                    verbose=verbose)
+        self.alpha = get_input_value(trial, 'alpha', default=0.5,
+                                     verbose=verbose)
         # For interface compatability
         self.coeffs = 1.0
         self.type = 'UHF'
