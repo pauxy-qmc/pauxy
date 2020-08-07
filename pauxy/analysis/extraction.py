@@ -95,6 +95,8 @@ def set_info(frame, md):
         frame['U'] = system.get('U')
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
+        frame['nup'] = system.get('nup')
+        frame['ndown'] = system.get('ndown')
     elif system['name'] == "Generic":
         ints = system.get('integral_file')
         if ints is not None:
