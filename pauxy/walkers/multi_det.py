@@ -178,18 +178,18 @@ class MultiDetWalker(Walker):
             Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
             # det(A) = det(A^T)
             ovlp = scipy.linalg.det(Oup)
-            inv_ovlp = scipy.linalg.inv(Oup)
             if abs(ovlp) < 1e-16:
                 continue
+            inv_ovlp = scipy.linalg.inv(Oup)
             self.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
                                           numpy.dot(inv_ovlp,
                                                     self.phi[:,:nup].T)
                                           )
             Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
             ovlp *= scipy.linalg.det(Odn)
-            inv_ovlp = scipy.linalg.inv(Odn)
             if abs(ovlp) < 1e-16:
                 continue
+            inv_ovlp = scipy.linalg.inv(Odn)
             tot_ovlp += trial.coeffs[ix].conj()*ovlp
             self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
                                           numpy.dot(inv_ovlp,
