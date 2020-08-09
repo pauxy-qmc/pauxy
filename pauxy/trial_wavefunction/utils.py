@@ -88,7 +88,16 @@ def get_trial_wavefunction(system, options={}, mf=None,
     elif wfn_type == 'hartree_fock':
         trial = HartreeFock(system, options, verbose=verbose)
     elif wfn_type == 'free_electron':
-        trial = FreeElectron(system, options, verbose)
+        if comm.rank == 0:
+            wfn = FreeElectron(system, options, verbose)
+            psi = wfn.psi
+        else:
+            psi = None
+        psi = comm.bcast(psi)
+        nmo = psi.shape[0]
+        nel = psi.shape[1]
+        trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)),
+                            options=options, verbose=verbose)
     elif wfn_type.lower() == 'uhf':
         if comm.rank == 0:
             wfn = UHF(system, options, verbose)
@@ -98,7 +107,8 @@ def get_trial_wavefunction(system, options={}, mf=None,
         psi = comm.bcast(psi)
         nmo = psi.shape[0]
         nel = psi.shape[1]
-        trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)), options=options, verbose=verbose)
+        trial = MultiSlater(system, (numpy.array([1.0]), psi.reshape(1,nmo,nel)),
+                            options=options, verbose=verbose)
     elif wfn_type.lower() == 'coherent_state':
         if comm.rank == 0:
             trial = CoherentState(system, options=options, verbose=verbose)
