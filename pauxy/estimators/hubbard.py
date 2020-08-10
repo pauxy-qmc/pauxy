@@ -1,4 +1,45 @@
 import numpy
+def local_energy_hubbard_holstein(system, G, X, Lap, Ghalf=None):
+    r"""Calculate local energy of walker for the Hubbard-Hostein model.
+
+    Parameters
+    ----------
+    system : :class:`HubbardHolstein`
+        System information for the HubbardHolstein model.
+    G : :class:`numpy.ndarray`
+        Walker's "Green's function"
+    X : :class:`numpy.ndarray`
+        Walker's phonon coordinate
+
+    Returns
+    -------
+    (E_L(phi), T, V): tuple
+        Local, kinetic and potential energies of given walker phi.
+    """
+    ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
+
+    if system.symmetric:
+        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
+
+    pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal())
+
+    
+    pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(X * X)
+
+    ke_ph = -0.5 * numpy.sum(Lap) / system.m - 0.5 * system.w0 * system.nbasis
+    
+    rho = G[0].diagonal() + G[1].diagonal()
+    e_eph = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, X)
+
+
+    etot = ke + pe + pe_ph + ke_ph + e_eph
+
+    Eph = ke_ph + pe_ph
+    Eel = ke + pe
+    Eeb = e_eph
+
+    return (etot, ke+pe, ke_ph+pe_ph+e_eph)
+
 
 def local_energy_hubbard(system, G, Ghalf=None):
     r"""Calculate local energy of walker for the Hubbard model.
@@ -113,3 +154,12 @@ def local_energy_multi_det(system, Gi, weights):
                          axis2=2)
     pe = system.U * numpy.einsum('j,jk->', weights, guu*gdd) / denom
     return (ke+pe, ke, pe)
+
+
+def fock_hubbard(system, P):
+    """Hubbard Fock Matrix
+        F_{ij} = T_{ij} + U(<niu>nid + <nid>niu)_{ij}
+    """
+    niu = numpy.diag(P[0].diagonal())
+    nid = numpy.diag(P[1].diagonal())
+    return system.T + system.U*numpy.array([nid,niu])

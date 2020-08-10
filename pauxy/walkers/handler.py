@@ -9,9 +9,9 @@ import time
 from pauxy.walkers.multi_ghf import MultiGHFWalker
 from pauxy.walkers.single_det import SingleDetWalker
 from pauxy.walkers.multi_det import MultiDetWalker
+from pauxy.walkers.multi_coherent import MultiCoherentWalker
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.walkers.stack import FieldConfig
-from pauxy.qmc.comm import FakeComm
 from pauxy.utils.io import get_input_value
 from pauxy.utils.misc import update_stack
 
@@ -33,7 +33,7 @@ class Walkers(object):
         Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, qmc, verbose=False,
+    def __init__(self, system, trial, qmc, walker_opts={}, verbose=False,
                  comm=None, nprop_tot=None, nbp=None):
         self.nwalkers = qmc.nwalkers
         self.ntot_walkers = qmc.ntot_walkers
@@ -42,6 +42,8 @@ class Walkers(object):
             print("# ntot_walkers = {}".format(self.ntot_walkers))
         self.write_freq = walker_opts.get('write_freq', 0)
         self.write_file = walker_opts.get('write_file', 'restart.h5')
+        self.use_log_shift = walker_opts.get('use_log_shift', False)
+        self.shift_counter = 1
         self.read_file = walker_opts.get('read_file', None)
         if comm is None:
             rank = 0
@@ -56,13 +58,14 @@ class Walkers(object):
                 if verbose:
                     print("# Usinge single det walker with msd wavefunction.")
                 self.walker_type = 'SD'
-                self.walkers = [SingleDetWalker(walker_opts, system, trial,
+                trial.psi = trial.psi[0]
+                self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                                 index=w, nprop_tot=nprop_tot,
                                                 nbp=nbp)
                                 for w in range(qmc.nwalkers)]
             else:
                 self.walkers = [
-                        MultiDetWalker(walker_opts, system, trial,
+                        MultiDetWalker(system, trial, walker_opts=walker_opts,
                                        verbose=(verbose and w == 0))
                         for w in range(qmc.nwalkers)
                         ]
@@ -73,7 +76,9 @@ class Walkers(object):
                                              dtype=numpy.complex128)
         elif trial.name == 'thermal':
             self.walker_type = 'thermal'
-            self.walkers = [ThermalWalker(walker_opts, system, trial, verbose and w==0)
+            self.walkers = [ThermalWalker(system, trial,
+                                          walker_opts=walker_opts,
+                                          verbose=(verbose and w==0))
                             for w in range(qmc.nwalkers)]
             self.buff_size = self.walkers[0].buff_size + self.walkers[0].stack.buff_size
             self.walker_buffer = numpy.zeros(self.buff_size,
@@ -93,9 +98,23 @@ class Walkers(object):
                     else:
                         qmc.nstblz = update_stack(qmc.nstblz, stack_size,
                                                   name="nstblz", verbose=verbose)
+        elif trial.name == "coherent_state" and trial.symmetrize:
+            self.walker_type = 'MSD'
+            self.walkers = [MultiCoherentWalker(system, trial, walker_opts=walker_opts,
+                                        index=w, nprop_tot=nprop_tot,
+                                        nbp=nbp)
+                        for w in range(qmc.nwalkers)]
+            self.buff_size = self.walkers[0].buff_size
+            if nbp is not None:
+                if verbose:
+                    print("# Performing back propagation.")
+                    print("# Number of steps in imaginary time: {:}.".format(nbp))
+                self.buff_size += self.walkers[0].field_configs.buff_size
+            self.walker_buffer = numpy.zeros(self.buff_size,
+                                             dtype=numpy.complex128)
         else:
             self.walker_type = 'SD'
-            self.walkers = [SingleDetWalker(walker_opts, system, trial,
+            self.walkers = [SingleDetWalker(system, trial, walker_opts=walker_opts,
                                             index=w, nprop_tot=nprop_tot,
                                             nbp=nbp)
                             for w in range(qmc.nwalkers)]
@@ -204,11 +223,12 @@ class Walkers(object):
             numpy.copyto(self.walkers[i].phi_right, self.walkers[i].phi)
 
     def pop_control(self, comm):
+        if self.ntot_walkers == 1:
+            return
+        if self.use_log_shift:
+           self.update_log_ovlp(comm)
         weights = numpy.array([abs(w.weight) for w in self.walkers])
-        if comm.rank == 0:
-            global_weights = numpy.empty(len(weights)*comm.size)
-        else:
-            global_weights = numpy.empty(len(weights)*comm.size)
+        global_weights = numpy.empty(len(weights)*comm.size)
         comm.Allgather(weights, global_weights)
         total_weight = sum(global_weights)
         # Rescale weights to combat exponential decay/growth.
@@ -277,6 +297,7 @@ class Walkers(object):
         reqs = []
         walker_buffers = []
         # First initiate non-blocking sends of walkers.
+        comm.barrier()
         for i, (c, k) in enumerate(zip(clone, kill)):
             # Sending from current processor?
             if c // self.nw == comm.rank:
@@ -286,6 +307,8 @@ class Walkers(object):
                 # with accessing walker data during send. Might not be
                 # necessary.
                 dest_proc = k // self.nw
+                # with h5py.File('before_{}.h5'.format(comm.rank), 'a') as fh5:
+                    # fh5['walker_{}_{}_{}'.format(c,k,dest_proc)] = self.walkers[clone_pos].get_buffer()
                 buff = self.walkers[clone_pos].get_buffer()
                 reqs.append(comm.Isend(buff, dest=dest_proc, tag=i))
         # Now receive walkers on processors where walkers are to be killed.
@@ -297,11 +320,17 @@ class Walkers(object):
                 # Location of walker to kill in local list of walkers.
                 kill_pos = k % self.nw
                 comm.Recv(self.walker_buffer, source=source_proc, tag=i)
+                # with h5py.File('walkers_recv.h5', 'w') as fh5:
+                    # fh5['walk_{}'.format(k)] = self.walker_buffer.copy()
                 self.walkers[kill_pos].set_buffer(self.walker_buffer)
+                # with h5py.File('after_{}.h5'.format(comm.rank), 'a') as fh5:
+                    # fh5['walker_{}_{}_{}'.format(c,k,comm.rank)] = self.walkers[kill_pos].get_buffer()
         # Complete non-blocking send.
         for rs in reqs:
             rs.wait()
         # Necessary?
+        # if len(kill) > 0 or len(clone) > 0:
+            # sys.exit()
         comm.Barrier()
         # Reset walker weight.
         # TODO: check this.
@@ -423,6 +452,27 @@ class Walkers(object):
             print(" # Writing walkers to file.")
             print(" # Time to write restart: {:13.8e} s"
                   .format(time.time()-start))
+
+    def update_log_ovlp(self, comm):
+        send = numpy.zeros(3, dtype=numpy.complex128)
+        # Overlap log factor
+        send[0] = sum(abs(w.ot) for w in self.walkers)
+        # Det R log factor
+        send[1] = sum(abs(w.detR) for w in self.walkers)
+        send[2] = sum(abs(w.log_detR) for w in self.walkers)
+        global_av = numpy.zeros(3, dtype=numpy.complex128)
+        comm.Allreduce(send, global_av)
+        log_shift = numpy.log(global_av[0]/self.ntot_walkers)
+        detR_shift = numpy.log(global_av[1]/self.ntot_walkers)
+        log_detR_shift = global_av[2]/self.ntot_walkers
+        # w.log_shift = -0.5
+        n = self.shift_counter
+        nm1 = self.shift_counter - 1
+        for w in self.walkers:
+            w.log_shift = (w.log_shift*nm1 + log_shift)/n
+            w.log_detR_shift = (w.log_detR_shift*nm1 + log_detR_shift)/n
+            w.detR_shift = (w.detR_shift*nm1 + detR_shift)/n
+        self.shift_counter += 1
 
     def read_walkers(self, comm):
         with h5py.File(self.read_file, 'r') as fh5:

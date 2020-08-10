@@ -47,6 +47,8 @@ class Hubbard(object):
             print("# Parsing input options.")
         self.nup = inputs.get('nup')
         self.ndown = inputs.get('ndown')
+        self.ne = self.nup + self.ndown
+        self.nelec = (self.nup, self.ndown)
         self.t = inputs.get('t', 1.0)
         self.U = inputs['U']
         self.nx = inputs['nx']
@@ -144,6 +146,13 @@ class Hubbard(object):
             self.h1e_mod = numpy.array([self.H1[0]-v0, self.H1[1]-v0])
         else:
             self.h1e_mod = self.H1
+
+    def hijkl(self, i, j, k, l):
+        # (ik|jl)
+        if i == j == k == l:
+            return self.U
+        else:
+            return 0.0
 
 
 

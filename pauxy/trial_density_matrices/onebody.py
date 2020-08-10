@@ -3,8 +3,8 @@ import numpy
 import scipy.linalg
 import sys
 from pauxy.estimators.thermal import (
-        greens_function, particle_number, one_rdm, one_rdm_from_G,
-        one_rdm_stable
+        greens_function, particle_number, one_rdm,
+        one_rdm_from_G, one_rdm_stable
         )
 from pauxy.estimators.mixed import local_energy
 from pauxy.trial_density_matrices.chem_pot import (
@@ -14,7 +14,7 @@ from pauxy.utils.misc import update_stack
 
 class OneBody(object):
 
-    def __init__(self, comm, system, beta, dt, options={}, nav=None, H1=None, verbose=False):
+    def __init__(self, system, beta, dt, options={}, nav=None, H1=None, verbose=False):
         self.name = 'thermal'
         self.verbose = verbose
         if H1 is None:
@@ -48,7 +48,7 @@ class OneBody(object):
         self.max_it = options.get('max_it', 1000)
         self.deps = options.get('threshold', 1e-6)
         self.mu = options.get('mu', None)
-        
+
         self.num_slices = int(beta/dt)
         self.stack_size = options.get("stack_size", None)
 
@@ -83,30 +83,24 @@ class OneBody(object):
             sign = -1
         dtau = self.stack_size * dt
         self.dtau = dtau
+
         if self.mu is None:
             self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
                                     scipy.linalg.expm(-dtau*(self.H1[1]))])
-            if comm.rank == 0:
-                mu = find_chemical_potential(system, self.rho,
-                                             dtau, self.num_bins, self.nav,
-                                             deps=self.deps, max_it=self.max_it,
-                                             verbose=verbose)
-            else:
-                mu = None
-            self.mu = comm.bcast(mu, root=0)
+            self.mu = find_chemical_potential(system, self.rho,
+                                         dtau, self.num_bins, self.nav,
+                                         deps=self.deps, max_it=self.max_it,
+                                         verbose=verbose)
         else:
             self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
                                     scipy.linalg.expm(-dtau*(self.H1[1]))])
 
-        if verbose:
+        if self.verbose:
             print("# Chemical potential in trial density matrix: {: .10e}".format(self.mu))
-
-        if system.mu is None:
-            system.mu = self.mu
 
         self.P = one_rdm_stable(compute_rho(self.rho, self.mu, dtau, sign=sign), self.num_bins)
         self.nav = particle_number(self.P).real
-        if verbose:
+        if self.verbose:
             print("# Average particle number in trial density matrix: "
                   "{}".format(self.nav))
         self.dmat = compute_rho(self.dmat, self.mu, dt, sign=sign)
@@ -115,3 +109,4 @@ class OneBody(object):
 
         self.G = numpy.array([greens_function(self.dmat[0]), greens_function(self.dmat[1])])
         self.error = False
+        self.init = numpy.array([0])

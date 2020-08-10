@@ -13,12 +13,12 @@ def test_back_prop():
     sys = UEG({'rs': 2, 'nup': 7, 'ndown': 7, 'ecut': 1.0})
     bp_opt = {'tau_bp': 1.0, 'nsplit': 4}
     qmc = dotdict({'dt': 0.05, 'nstblz': 10, 'nwalkers': 1})
-    trial = HartreeFock(sys, True, {})
+    trial = HartreeFock(sys, {})
     numpy.random.seed(8)
     prop = Continuous(sys, trial, qmc)
     est = BackPropagation(bp_opt, True, 'estimates.0.h5', qmc, sys, trial,
                           numpy.complex128, prop.BT_BP)
-    walkers = Walkers({}, sys, trial, qmc, nbp=est.nmax, nprop_tot=est.nmax)
+    walkers = Walkers(sys, trial, qmc, walker_opts={}, nbp=est.nmax, nprop_tot=est.nmax)
     wlk = walkers.walkers[0]
     from mpi4py import MPI
     comm = MPI.COMM_WORLD

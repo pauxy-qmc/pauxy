@@ -5,8 +5,8 @@ PAUXY
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
 quantum Monte Carlo algorithms with a focus on simplicity rather than speed.
 
-.. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/fdmalone/pauxy
+.. image:: https://travis-ci.com/pauxy-qmc/pauxy.svg?branch=master
+    :target: https://travis-ci.com/pauxy-qmc/pauxy
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest
     :target: http://pauxy.readthedocs.io/en/latest/?badge=latest
@@ -18,14 +18,10 @@ Features
 --------
 PAUXY can currently:
 
-- estimate ground state properties of model systems (Hubbard models and generic
-  systems defined by (real) FCIDUMPs).
-- perform phaseless, constrained path and free projection AFQMC using open ended random
-  walks.
+- estimate ground state properties of real (ab-initio) and model (Hubbard + UEG) systems.
+- perform phaseless and constrained path AFQMC.
 - calculate expectation values and correlation functions using back propagation.
 - calculate imaginary time correlation functions.
-- control the sign problem using a variety of trial wavefunctions including free-electron,
-  UHF and GHF, all in single- or multi-determinant form.
 - perform simple data analysis.
 
 Installation
@@ -35,49 +31,53 @@ Clone the repository
 
 ::
 
-    $ git clone https://github.com/fdmalone/pauxy.git
+    $ git clone https://github.com/pauxy-qmc/pauxy.git
 
 and run the following in the top-level pauxy directory
 
 ::
 
+    $ pip install -r requirements.txt
     $ python setup.py build_ext --inplace
 
-You will also need to set your PYTHONPATH appropriately.
+You may also need to set your PYTHONPATH appropriately.
 
 Requirements
 ------------
 
 * python (>= 3.6)
-* numpy (>= 0.19.1)
-* scipy (>= 1.13.3)
-* h5py (>= 2.7.1)
-* mpi4py (>= 3.0.1)
-* cython (>= 0.29.2)
+* numpy
+* scipy
+* h5py
+* mpi4py
+* cython
+* pandas
 
-To run the tests you will need pytest and pandas.  To perform error analysis you will also
-need `pyblock <https://github.com/jsspencer/pyblock>`
+Minimum versions are listed in the requirements.txt.
+To run the tests you will need pytest.
+To perform error analysis you will also need `pyblock <https://github.com/jsspencer/pyblock>`_.
 
 
 Running the Test Suite
 ----------------------
 
-Pauxy contains unit tests and short deterministic longer tests of full calculations.
-To the tests you can do:
+Pauxy contains unit tests and some longer driver tests that can be run using pytest by
+running:
 
 ::
 
-    $ pytest
+    $ pytest -v
 
-These tests should all pass.
+in the base of the repo. Some longer parallel tests are also run through the CI. See
+travis.yml for more details.
 
-.. image:: https://travis-ci.org/fdmalone/pauxy.svg?branch=master
-    :target: https://travis-ci.org/fdmalone/pauxy
+.. image:: https://travis-ci.com/pauxy-qmc/pauxy.svg?branch=master
+    :target: https://travis-ci.com/pauxy-qmc/pauxy
 
 Documentation
 -------------
 
-Notes on the underlying theory as well as documentation and tutorials are available at
+Documentation and tutorials are available at
 `readthedocs <https://pauxy.readthedocs.org>`_.
 
 .. image:: http://readthedocs.org/projects/pauxy/badge/?version=latest

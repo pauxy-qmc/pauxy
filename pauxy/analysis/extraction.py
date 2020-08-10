@@ -5,6 +5,12 @@ import h5py
 from pauxy.utils.misc import get_from_dict
 
 
+def extract_data_sets(files, group, estimator, raw=False):
+    data = []
+    for f in files:
+        data.append(extract_data(f, group, estimator, raw))
+    return pd.concat(data)
+
 def extract_data(filename, group, estimator, raw=False):
     fp = get_param(filename, ['propagators', 'free_projection'])
     try:
@@ -60,10 +66,14 @@ def set_info(frame, md):
     trial = md.get('trial')
     ncols = len(frame.columns)
     frame['dt'] = qmc.get('dt')
-    frame['nwalkers'] = qmc.get('ntot_walkers')
-    frame['free_projection'] = propg.get('free_projection')
+    nwalkers = qmc.get('ntot_walkers')
+    if nwalkers is not None:
+        frame['nwalkers'] = nwalkers
+    fp = get_from_dict(md, ['propagators', 'free_projection'])
+    if fp is not None:
+        frame['free_projection'] = fp
     beta = qmc.get('beta')
-    bp = md['estimators']['estimators'].get('back_prop')
+    bp = get_from_dict(md, ['estimates', 'estimates', 'back_prop'])
     frame['nbasis'] = system.get('nbasis', 0)
     if bp is not None:
         frame['tau_bp'] = bp['tau_bp']
@@ -75,8 +85,9 @@ def set_info(frame, md):
         mu = system.get('mu')
         if mu is not None:
             frame['mu'] = system.get('mu')
-        frame['mu_T'] = trial.get('mu')
-        frame['Nav_T'] = trial.get('nav')
+        if trial is not None:
+            frame['mu_T'] = trial.get('mu')
+            frame['Nav_T'] = trial.get('nav')
     else:
         frame['E_T'] = trial.get('energy')
     if system['name'] == "UEG":
@@ -88,6 +99,8 @@ def set_info(frame, md):
         frame['U'] = system.get('U')
         frame['nx'] = system.get('nx')
         frame['ny'] = system.get('ny')
+        frame['nup'] = system.get('nup')
+        frame['ndown'] = system.get('ndown')
     elif system['name'] == "Generic":
         ints = system.get('integral_file')
         if ints is not None:
@@ -114,6 +127,40 @@ def get_param(filename, param):
 
 def get_sys_param(filename, param):
     return get_param(filename, ['system', param])
+
+def extract_test_data_hdf5(filename):
+    """For use with testcode"""
+    data = extract_mixed_estimates(filename).drop(['Iteration', 'Time'], axis=1)[::10].to_dict(orient='list')
+    # print(data)
+    try:
+        mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
+    except (KeyError,TypeError):
+        mrdm = None
+    try:
+        brdm = extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm')
+    except (KeyError,TypeError):
+        brdm = None
+    if mrdm is not None:
+        mrdm = mrdm[::4].ravel()
+        # Don't compare small numbers
+        re = numpy.real(mrdm)
+        im = numpy.imag(mrdm)
+        re[numpy.abs(re)<1e-12] = 0.0
+        im[numpy.abs(im)<1e-12] = 0.0
+        data['Gmixed_re'] = mrdm
+        data['Gmixed_im'] = mrdm
+    if brdm is not None:
+        brdm = brdm[::4].flatten().copy()
+        re = numpy.real(brdm)
+        im = numpy.imag(brdm)
+        re[numpy.abs(re)<1e-12] = 0.0
+        im[numpy.abs(im)<1e-12] = 0.0
+        data['Gbp_re'] = re
+        data['Gbp_im'] = im
+    # if itcf is not None:
+        # itcf = itcf[abs(itcf) > 1e-10].flatten()
+        # data = pd.DataFrame(itcf)
+    return data
 
 
 # TODO : FDM FIX.

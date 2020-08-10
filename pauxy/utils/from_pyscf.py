@@ -3,6 +3,11 @@ import h5py
 import numpy
 import time
 import scipy.linalg
+
+from pyscf import lib
+from pyscf import ao2mo, scf, fci
+from pyscf.tools import fcidump
+
 from pauxy.utils.misc import dotdict
 from pauxy.utils.io import (
         write_qmcpack_sparse,
@@ -13,12 +18,6 @@ from pauxy.estimators.greens_function import gab
 from pauxy.estimators.generic import (
         local_energy_generic_cholesky, core_contribution_cholesky
     )
-from pyscf import lib
-from pyscf import ao2mo, scf, fci
-from pyscf.pbc import scf as pbcscf
-from pyscf.pbc.gto import cell
-from pyscf.pbc.lib import chkfile
-from pyscf.tools import fcidump
 
 def dump_pauxy(chkfile=None, mol=None, mf=None, hamil_file='afqmc.h5',
                verbose=True, wfn_file='afqmc.h5',

@@ -27,7 +27,7 @@ def get_propagator(options, qmc, system, trial, verbose=False, lowrank=False):
     if system.name == "Hubbard":
         hs_type = options.get('hubbard_stratonovich', 'discrete')
         if hs_type == "discrete":
-            propagator = ThermalDiscrete(options, qmc, system, trial,
+            propagator = ThermalDiscrete(system, trial, qmc, options=options,
                                          verbose=verbose, lowrank=lowrank)
         else:
             propagator = Continuous(options, qmc, system, trial,

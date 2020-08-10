@@ -1,39 +1,70 @@
-import copy
 import numpy
 import scipy.linalg
-from pauxy.estimators.mixed import local_energy
+from pauxy.estimators.mixed import local_energy, local_energy_hh
 from pauxy.trial_wavefunction.free_electron import FreeElectron
 from pauxy.utils.linalg import sherman_morrison
-from pauxy.walkers.stack import PropagatorStack, FieldConfig
+from pauxy.walkers.stack import FieldConfig
+from pauxy.walkers.walker import Walker
 from pauxy.utils.misc import get_numeric_names
+from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
 
-class SingleDetWalker(object):
+class SingleDetWalker(Walker):
     """UHF style walker.
 
     Parameters
     ----------
-    weight : int
-        Walker weight.
     system : object
         System object.
     trial : object
         Trial wavefunction object.
+    options : dict
+        Input options
     index : int
         Element of trial wavefunction to initalise walker to.
+    nprop_tot : int
+        Number of back propagation steps (including imaginary time correlation
+                functions.)
+    nbp : int
+        Number of back propagation steps.
     """
 
-    def __init__(self, walker_opts, system, trial, index=0, nprop_tot=None, nbp=None):
-        self.weight = walker_opts.get('weight', 1.0)
-        self.unscaled_weight = self.weight
-        self.phase = 1 + 0j
-        self.alive = 1
-        self.phi = trial.init.copy()
-        # JOONHO randomizing the guess
-        # self.phi = numpy.random.rand([system.nbasis,system.ne])
+    def __init__(self, system, trial, walker_opts={}, index=0, nprop_tot=None, nbp=None):
+        Walker.__init__(self, system, trial,
+                        walker_opts=walker_opts, index=index,
+                        nprop_tot=nprop_tot, nbp=nbp)
         self.inv_ovlp = [0.0, 0.0]
-        self.nup = system.nup
-        self.ndown = system.ndown
+
+        self.phi_boson = None
+
+        if system.name == "HubbardHolstein":
+            shift = trial.shift.copy()
+            self.X = numpy.real(shift).copy()
+
+            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+
+            sqtau = numpy.sqrt(0.005)
+            nstep = 250
+            # simple VMC
+            for istep in range(nstep):
+                chi = numpy.random.randn(system.nbasis)# Random move
+                # propose a move
+                posnew = self.X + sqtau * chi
+                # calculate Metropolis-Rosenbluth-Teller acceptance probability
+                wfold = tmptrial.value(self.X)
+                wfnew = tmptrial.value(posnew)
+                pacc = wfnew*wfnew/(wfold*wfold) 
+                # get indices of accepted moves
+                u = numpy.random.random(1)
+                if (u < pacc):
+                    self.X = posnew.copy()
+            self.Lap = tmptrial.laplacian(self.X)
+            self.phi_boson = tmptrial.value(self.X)
+
+
         self.inverse_overlap(trial)
+        self.ot = self.calc_overlap(trial)
+        self.ovlp = self.ot
+
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.C0 = trial.psi.copy()
@@ -43,46 +74,11 @@ class SingleDetWalker(object):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
-        self.total_weight = 0.0
-        self.ot = 1.0
-        # interface consistency
-        self.ots = numpy.zeros(1, dtype=numpy.complex128)
         self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, self.Gmod, C0=None)
         self.E_L = self.E_L.real
-        if (system.control_variate):
+        if system.control_variate:
             self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system)
 
-        # walkers overlap at time tau before backpropagation occurs
-        self.ot_bp = 1.0
-        # walkers weight at time tau before backpropagation occurs
-        self.weight_bp = self.weight
-        # Historic wavefunction for back propagation.
-        self.phi_old = copy.deepcopy(self.phi)
-        self.hybrid_energy = 0.0
-        # Historic wavefunction for ITCF.
-        self.phi_right = copy.deepcopy(self.phi)
-        self.weights = numpy.array([1.0])
-        # Number of propagators to store for back propagation / ITCF.
-        num_propg = walker_opts.get('num_propg', 1)
-        # if system.name == "Generic":
-            # self.stack = PropagatorStack(self.stack_size, num_propg,
-                                         # system.nbasis, trial.psi.dtype,
-                                         # BT=None, BTinv=None,
-                                         # diagonal=False)
-        try:
-            excite = trial.excite_ia
-        except AttributeError:
-            excite = None
-        if excite is not None:
-            self.ia = trial.excite_ia
-            self.reortho = self.reortho_excite
-            self.trial_buff =  numpy.copy(trial.full_orbs[:,:self.ia[1]+1])
-        if nbp is not None:
-            self.field_configs = FieldConfig(system.nfields,
-                                             nprop_tot, nbp,
-                                             numpy.complex128)
-        else:
-            self.field_configs = None
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
     def inverse_overlap(self, trial):
@@ -143,12 +139,52 @@ class SingleDetWalker(object):
         ot : float / complex
             Overlap.
         """
-        dup = scipy.linalg.det(self.inv_ovlp[0])
-        ndown = self.ndown
-        ddn = 1.0
-        if ndown > 0:
-            ddn = scipy.linalg.det(self.inv_ovlp[1])
-        return 1.0 / (dup*ddn)
+        sign_a, logdet_a = numpy.linalg.slogdet(self.inv_ovlp[0])
+        nbeta = self.ndown
+        sign_b, logdet_b = 1.0, 0.0
+        if nbeta > 0:
+            sign_b, logdet_b = numpy.linalg.slogdet(self.inv_ovlp[1])
+        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+
+        ot = 1.0/det
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
+
+    def calc_overlap(self, trial):
+        """Caculate overlap with trial wavefunction.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        na = self.ndown
+        Oalpha = numpy.dot(trial.psi[:,:na].conj().T, self.phi[:,:na])
+        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        nb = self.ndown
+        logdet_b, sign_b = 0.0, 1.0
+        if nb > 0:
+            Obeta = numpy.dot(trial.psi[:,na:].conj().T, self.phi[:,na:])
+            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
+        
+        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
+
+        if (self.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            self.phi_boson = boson_trial.value(self.X)
+            ot *= self.phi_boson
+
+        return ot
 
     def update_overlap(self, probs, xi, coeffs):
         """Update overlap.
@@ -177,21 +213,33 @@ class SingleDetWalker(object):
         (self.phi[:,:nup], Rup) = scipy.linalg.qr(self.phi[:,:nup],
                                                   mode='economic')
         Rdown = numpy.zeros(Rup.shape)
-        if (ndown > 0):
-            (self.phi[:,nup:], Rdown) = scipy.linalg.qr(self.phi[:,nup:],
+        if ndown > 0:
+            (self.phi[:,nup:], Rdn) = scipy.linalg.qr(self.phi[:,nup:],
                                                         mode='economic')
-        signs_up = numpy.diag(numpy.sign(numpy.diag(Rup)))
-        if (ndown > 0):
-            signs_down = numpy.diag(numpy.sign(numpy.diag(Rdown)))
-        self.phi[:,:nup] = self.phi[:,:nup].dot(signs_up)
-        if (ndown > 0):
-            self.phi[:,nup:] = self.phi[:,nup:].dot(signs_down)
-        drup = scipy.linalg.det(signs_up.dot(Rup))
-        drdn = 1.0
-        if (ndown > 0):
-            drdn = scipy.linalg.det(signs_down.dot(Rdown))
-        detR = drup * drdn
+        # TODO: FDM This isn't really necessary, the absolute value of the
+        # weight is used for population control so this shouldn't matter.
+        # I think this is a legacy thing.
+        # Wanted detR factors to remain positive, dump the sign in orbitals.
+        Rup_diag = numpy.diag(Rup)
+        signs_up = numpy.sign(Rup_diag)
+        if ndown > 0:
+            Rdn_diag = numpy.diag(Rdn)
+            signs_dn = numpy.sign(Rdn_diag)
+        self.phi[:,:nup] = numpy.dot(self.phi[:,:nup], numpy.diag(signs_up))
+        if ndown > 0:
+            self.phi[:,nup:] = numpy.dot(self.phi[:,nup:], numpy.diag(signs_dn))
+        # include overlap factor
+        # det(R) = \prod_ii R_ii
+        # det(R) = exp(log(det(R))) = exp((sum_i log R_ii) - C)
+        # C factor included to avoid over/underflow
+        log_det = numpy.sum(numpy.log(numpy.abs(Rup_diag)))
+        if ndown > 0:
+            log_det += numpy.sum(numpy.log(numpy.abs(Rdn_diag)))
+        detR = numpy.exp(log_det-self.detR_shift)
+        self.log_detR += numpy.log(detR)
+        self.detR = detR
         self.ot = self.ot / detR
+        self.ovlp = self.ot
         return detR
 
     def reortho_excite(self, trial):
@@ -235,25 +283,30 @@ class SingleDetWalker(object):
     def greens_function(self, trial):
         """Compute walker's green's function.
 
-        Also updates walker's inverse overlap.
-
         Parameters
         ----------
         trial : object
             Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
         """
         nup = self.nup
         ndown = self.ndown
 
         ovlp = numpy.dot(self.phi[:,:nup].T, trial.psi[:,:nup].conj())
-        # self.inv_ovlp[0] = scipy.linalg.inv(ovlp)
         self.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,:nup].T)
         self.G[0] = numpy.dot(trial.psi[:,:nup].conj(), self.Gmod[0])
+        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+        sign_b, log_ovlp_b = 1.0, 0.0
         if ndown > 0:
-            # self.inv_ovlp[1] = scipy.linalg.inv(ovlp)
             ovlp = numpy.dot(self.phi[:,nup:].T, trial.psi[:,nup:].conj())
+            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
             self.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), self.phi[:,nup:].T)
             self.G[1] = numpy.dot(trial.psi[:,nup:].conj(), self.Gmod[1])
+        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-self.log_shift)
+        return det
 
     def rotated_greens_function(self):
         """Compute "rotated" walker's green's function.
@@ -272,7 +325,7 @@ class SingleDetWalker(object):
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-    def local_energy(self, system, two_rdm=None):
+    def local_energy(self, system, two_rdm=None, rchol=None):
         """Compute walkers local energy
 
         Parameters
@@ -285,9 +338,15 @@ class SingleDetWalker(object):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        if (system.control_variate):
-            return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm,C0=self.C0,\
-ecoul0 = self.ecoul0, exxa0=self.exxa0, exxb0=self.exxb0)
+        if system.name == "HubbardHolstein":
+            return local_energy_hh(system, self.G, self.X, self.Lap, Ghalf=self.Gmod)
+        if system.control_variate:
+            return local_energy(system, self.G, Ghalf=self.Gmod,
+                                two_rdm=two_rdm,
+                                C0=self.C0,
+                                ecoul0=self.ecoul0,
+                                exxa0=self.exxa0,
+                                exxb0=self.exxb0)
         else:
             return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
 
@@ -328,48 +387,3 @@ ecoul0 = self.ecoul0, exxa0=self.exxa0, exxb0=self.exxb0)
         exx = exxa + exxb
 
         return ecoul, exxa, exxb
-
-    def get_buffer(self):
-        """Get walker buffer for MPI communication
-
-        Returns
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        if self.field_configs is not None:
-            stack_buff = self.field_configs.get_buffer()
-            return numpy.concatenate((buff,stack_buff))
-        else:
-            return buff
-
-    def set_buffer(self, buff):
-        """Set walker buffer following MPI communication
-
-        Parameters
-        -------
-        buff : dict
-            Relevant walker information for population control.
-        """
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
-        if self.field_configs is not None:
-            self.field_configs.set_buffer(buff[self.buff_size:])

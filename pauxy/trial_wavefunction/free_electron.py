@@ -7,7 +7,7 @@ from pauxy.estimators.greens_function import gab
 
 class FreeElectron(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False):
+    def __init__(self, system, trial, verbose=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing free electron input options.")
@@ -21,10 +21,7 @@ class FreeElectron(object):
         (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0])
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
         self.reference = trial.get('reference', None)
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        self.trial_type = complex
         self.read_in = trial.get('read_in', None)
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
@@ -66,6 +63,7 @@ class FreeElectron(object):
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
         # For interface compatability
+        self.init = self.psi
         self.coeffs = 1.0
         self.ndets = 1
         self.bp_wfn = trial.get('bp_wfn', None)
@@ -73,6 +71,8 @@ class FreeElectron(object):
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
         self.initialisation_time = time.time() - init_time
+        self._mem_required = 0.0
+        self._rchol = None
         if verbose:
             print ("# Finished initialising free electron trial wavefunction.")
 

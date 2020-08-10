@@ -4,6 +4,8 @@ import time
 from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab
 from pauxy.utils.linalg import diagonalise_sorted
+from pauxy.systems.hubbard import decode_basis
+from pauxy.utils.io import get_input_value
 
 class UHF(object):
     r"""UHF trial wavefunction.
@@ -44,7 +46,8 @@ class UHF(object):
         Ground state mean field total energy of trial wavefunction.
     """
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=0):
+    def __init__(self, system, trial={}, verbose=0):
+        assert "Hubbard" in system.name
         if verbose:
             print("# Constructing UHF trial wavefunction")
         self.verbose = verbose
@@ -53,27 +56,38 @@ class UHF(object):
         self.type = "UHF"
         self.initial_wavefunction = trial.get('initial_wavefunction',
                                               'trial')
-        if cplx:
-            self.trial_type = complex
-        else:
-            self.trial_type = float
+        self.trial_type = complex
         # Unpack input options.
-        self.ninitial = trial.get('ninitial', 10)
-        self.nconv = trial.get('nconv', 5000)
-        self.ueff = trial.get('ueff', 0.4)
-        self.deps = trial.get('deps', 1e-8)
-        self.alpha = trial.get('alpha', 0.5)
+        self.ninitial = get_input_value(trial, 'ninitial', default=10,
+                                        verbose=verbose)
+        self.nconv = get_input_value(trial, 'nconv', default=5000,
+                                    verbose=verbose)
+        self.ueff = get_input_value(trial, 'ueff',
+                                    default=0.4,
+                                    verbose=verbose)
+        self.deps = get_input_value(trial, 'deps', default=1e-8,
+                                    verbose=verbose)
+        self.alpha = get_input_value(trial, 'alpha', default=0.5,
+                                     verbose=verbose)
         # For interface compatability
         self.coeffs = 1.0
         self.type = 'UHF'
         self.ndets = 1
-        (self.psi, self.eigs, self.emin, self.error, self.nav) = (
-            self.find_uhf_wfn(system, cplx, self.ueff, self.ninitial,
-                              self.nconv, self.alpha, self.deps, verbose)
-        )
-        if self.error and not parallel:
-            warnings.warn('Error in constructing trial wavefunction. Exiting')
-            sys.exit()
+        self.initial_guess = trial.get('initial', 'random')
+        if self.initial_guess == 'random':
+            if self.verbose:
+                print("# Solving UHF equations.")
+            (self.psi, self.eigs, self.emin, self.error, self.nav) = (
+                self.find_uhf_wfn(system, self.ueff, self.ninitial,
+                                  self.nconv, self.alpha, self.deps, verbose)
+            )
+            if self.error:
+                warnings.warn('Error in constructing trial wavefunction. Exiting')
+                sys.exit()
+        elif self.initial_guess == 'checkerboard':
+            if self.verbose:
+                print("# Using checkerboard breakup.")
+            self.psi, unused = self.checkerboard(system.nbasis, system.nup, system.ndown)
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
         Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
         self.G = numpy.array([Gup, Gdown])
@@ -81,8 +95,10 @@ class UHF(object):
         self.bp_wfn = trial.get('bp_wfn', None)
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+        self._mem_required = 0.0
+        self._rchol = None
 
-    def find_uhf_wfn(self, system, cplx, ueff, ninit,
+    def find_uhf_wfn(self, system, ueff, ninit,
                      nit_max, alpha, deps=1e-8, verbose=0):
         emin = 0
         uold = system.U
@@ -93,7 +109,7 @@ class UHF(object):
         for attempt in range(0, ninit):
             # Set up initial (random) guess for the density.
             (self.trial, eold) = self.initialise(system.nbasis, system.nup,
-                                            system.ndown, cplx)
+                                            system.ndown)
             niup = self.density(self.trial[:,:nup])
             nidown = self.density(self.trial[:,nup:])
             niup_old = self.density(self.trial[:,:nup])
@@ -134,7 +150,8 @@ class UHF(object):
                       " energy found is: {: 8f}".format(attempt, it, eold))
 
         system.U = uold
-        print("# Minimum energy found: {: 8f}".format(min(minima)))
+        if verbose:
+            print("# Minimum energy found: {: 8f}".format(min(minima)))
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
@@ -142,16 +159,12 @@ class UHF(object):
                           "Delta E: %f" % (enew - emin))
             return (trial, numpy.append(e_up, e_down), None, True, None)
 
-    def initialise(self, nbasis, nup, ndown, cplx):
+    def initialise(self, nbasis, nup, ndown):
         (e_up, ev_up) = self.random_starting_point(nbasis)
         (e_down, ev_down) = self.random_starting_point(nbasis)
 
-        if cplx:
-            trial_type = complex
-        else:
-            trial_type = float
         trial = numpy.zeros(shape=(nbasis, nup+ndown),
-                            dtype=trial_type)
+                            dtype=numpy.complex128)
         trial[:,:nup] = ev_up[:,:nup]
         trial[:,nup:] = ev_down[:,:ndown]
         eold = sum(e_up[:nup]) + sum(e_down[:ndown])
@@ -163,6 +176,28 @@ class UHF(object):
         random = 0.5 * (random + random.T)
         (energies, eigv) = diagonalise_sorted(random)
         return (energies, eigv)
+
+    def checkerboard(self, nbasis, nup, ndown):
+        nalpha = 0
+        nbeta = 0
+        wfn = numpy.zeros(shape=(nbasis, nup+ndown),
+                            dtype=numpy.complex128)
+        for i in range(nbasis):
+            x, y = decode_basis(4,4,i)
+            if x % 2 == 0 and y % 2 == 0:
+                wfn[i,nalpha] = 1.0
+                nalpha += 1
+            elif x % 2 == 0 and y % 2 == 1:
+                wfn[i,nup+nbeta] = -1.0
+                nbeta += 1
+            elif x % 2 == 1 and y % 2 == 0:
+                wfn[i,nup+nbeta] = -1.0
+                nbeta += 1
+            elif x % 2 == 1 and y % 2 == 1:
+                wfn[i,nalpha] = 1.0
+                nalpha += 1
+        return wfn, 10
+
 
     def density(self, wfn):
         return numpy.diag(wfn.dot((wfn.conj()).T))

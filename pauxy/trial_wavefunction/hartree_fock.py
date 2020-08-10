@@ -6,8 +6,7 @@ from pauxy.utils.io import read_qmcpack_wfn
 
 class HartreeFock(object):
 
-    def __init__(self, system, cplx, trial, parallel=False, verbose=False,
-                 orbs=None):
+    def __init__(self, system, trial, verbose=False, orbs=None):
         self.verbose = verbose
         if verbose:
             print ("# Parsing Hartree--Fock trial wavefunction input options.")
@@ -82,8 +81,7 @@ class HartreeFock(object):
                                 self.psi[:,:system.nup])
         gdown = numpy.zeros(gup.shape)
         self.gdown_half  = numpy.zeros(self.gup_half.shape)
-        # self.Gfull, g = gab_mod(orbs_full[:,:system.nup],
-                                # orbs_full[:,:system.nup])
+
         if system.ndown > 0:
             gdown, self.gdown_half = gab_mod(self.psi[:,system.nup:],
                                              self.psi[:,system.nup:])
@@ -94,6 +92,8 @@ class HartreeFock(object):
         self.error = False
         self.initialisation_time = time.time() - init_time
         self.init = self.psi
+        self._mem_required = 0.0
+        self._rchol = None
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 
@@ -103,8 +103,7 @@ class HartreeFock(object):
         start = time.time()
         (self.energy, self.e1b, self.e2b) = local_energy(system, self.G,
                                                          Ghalf=[self.gup_half,
-                                                         self.gdown_half],
-                                                         opt=True)
+                                                         self.gdown_half])
         if self.verbose:
             print ("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
                    %(self.energy.real, self.e1b.real, self.e2b.real))

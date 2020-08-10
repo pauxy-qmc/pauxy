@@ -1,2 +1,0 @@
-Imaginary Time Correlation Functions
-====================================

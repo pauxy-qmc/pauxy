@@ -25,3 +25,6 @@ out
 *.core
 *.chk
 *.json
+*_env
+dist
+*egg*
