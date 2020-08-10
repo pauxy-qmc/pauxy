@@ -72,7 +72,10 @@ class Generic(object):
     """
 
     def __init__(self, nelec=None, h1e=None, chol=None, ecore=None, h1e_mod=None,
-                 mu=None, verbose=False, write_ints=False):
+                 mu=None, verbose=False, write_ints=False,
+                 stochastic_ri=False,
+                 nsamples=0,
+                 control_variate=False):
         if verbose:
             print("# Parsing input options.")
         self.name = "Generic"
@@ -80,6 +83,13 @@ class Generic(object):
         self.nup, self.ndown = nelec
         self.nelec = nelec
         self.ne = self.nup + self.ndown
+        self.stochastic_ri = stochastic_ri
+        self.control_variate = control_variate
+        if self.stochastic_ri:
+            self.nsamples = nsamples
+            if self.verbose:
+                print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
+                print("# control_variate = {}".format(self.control_variate))
         self.mu = mu
         self.ecore = ecore
         self.chol_vecs = chol
@@ -119,177 +129,6 @@ class Generic(object):
             self.write_integrals()
         if verbose:
             print("# Finished setting up Generic system object.")
-
-    # def construct_integral_tensors_real(self, trial):
-        # # Half rotated cholesky vectors (by trial wavefunction).
-        # # Assuming nup = ndown here
-        # M = self.nbasis
-        # na = self.nup
-        # nb = self.ndown
-        # if self.verbose:
-            # print("# Constructing half rotated Cholesky vectors.")
-        # # rup = numpy.zeros(shape=(self.nchol, na, M),
-                          # # dtype=numpy.complex128)
-        # # rdn = numpy.zeros(shape=(self.nchol, nb, M),
-                          # # dtype=numpy.complex128)
-        # if self.sparse:
-            # self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
-        # else:
-            # self.hs_pot = self.hs_pot.reshape(M,M,self.nfields)
-        # start = time.time()
-        # # rrup = numpy.einsum('ia,ikn->akn',
-                           # # trial.psi[:,:na].conj(),
-                           # # self.hs_pot,
-                           # # optimize='greedy')
-        # # rdn = numpy.einsum('ia,ikn->akn',
-                           # # trial.psi[:,na:].conj(),
-                           # # self.hs_pot,
-                           # # optimize='greedy')
-        # rup = numpy.tensordot(trial.psi[:,:na].conj(),
-                              # self.hs_pot,
-                              # axes=((0),(0)))
-        # rdn = numpy.tensordot(trial.psi[:,na:].conj(),
-                              # self.hs_pot,
-                              # axes=((0),(0)))
-        # trot = time.time() - start
-        # # This is much faster than einsum.
-        # # for l in range(self.nchol):
-            # # rup[l] = numpy.dot(trial.psi[:,:na].conj().T, self.chol_vecs[l])
-            # # rdn[l] = numpy.dot(trial.psi[:,na:].conj().T, self.chol_vecs[l])
-        # if self.half_rotated_integrals:
-            # start = time.time()
-            # if self.verbose:
-                # print("# Constructing half rotated V_{(ab)(kl)}.")
-            # vakbl_a = (numpy.einsum('akn,bln->akbl', rup, rup, optimize='greedy') -
-                       # numpy.einsum('bkn,aln->akbl', rup, rup, optimize='greedy'))
-            # vakbl_b = (numpy.einsum('akn,bln->akbl', rdn, rdn, optimize='greedy') -
-                       # numpy.einsum('bkn,aln->akbl', rdn, rdn, optimize='greedy'))
-            # tvakbl = time.time() - start
-        # if self.cutoff is not None:
-            # rup[numpy.abs(rup) < self.cutoff] = 0.0
-            # rdn[numpy.abs(rdn) < self.cutoff] = 0.0
-            # if self.half_rotated_integrals:
-                # vakbl_a[numpy.abs(vakbl_a) < self.cutoff] = 0.0
-                # vakbl_b[numpy.abs(vakbl_b) < self.cutoff] = 0.0
-        # if self.half_rotated_integrals:
-            # self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
-                          # csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
-        # if self.sparse:
-            # if self.cutoff is not None:
-                # self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
-            # self.hs_pot = self.hs_pot.reshape((M*M,-1))
-            # self.hs_pot = csr_matrix(self.hs_pot)
-            # self.rot_hs_pot = [csr_matrix(rup.reshape((M*na, -1))),
-                               # csr_matrix(rdn.reshape((M*nb, -1)))]
-        # else:
-            # self.rot_hs_pot = [rup.reshape((M*na, -1)), rdn.reshape((M*nb, -1))]
-            # self.hs_pot = self.hs_pot.reshape((M*M,-1))
-        # self.rchol_vecs = self.rot_hs_pot
-        # if self.verbose:
-            # print("# Time to construct half-rotated Cholesky: %f s"%trot)
-            # if self.sparse:
-                # nnz = self.rchol_vecs[0].nnz
-                # print("# Number of non-zero elements in rotated cholesky: %d"%nnz)
-                # nelem = self.rchol_vecs[0].shape[0] * self.rchol_vecs[0].shape[1]
-                # print("# Sparsity: %f"%(1-float(nnz)/nelem))
-                # mem = (2*nnz*16/(1024.0**3))
-            # else:
-                # mem = self.rchol_vecs[0].nbytes + self.rchol_vecs[1].nbytes
-                # mem /= 1024.0**3
-            # print("# Approximate memory required for half-rotated Cholesky: "
-                  # "{:.6f} GB".format(mem))
-            # if self.half_rotated_integrals:
-                # print("# Time to construct V_{(ak)(bl)}: %f"%tvakbl)
-                # nnz = self.vakbl[0].nnz
-                # print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-                # mem = (2*nnz*16/(1024.0**3))
-                # print("# Approximate memory used %f GB"%mem)
-                # nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
-                # print("# Sparsity: %f"%(1-float(nnz)/nelem))
-
-    # def construct_integral_tensors_cplx(self, trial):
-        # # Half rotated cholesky vectors (by trial wavefunction).
-        # # Assuming nup = ndown here
-        # M = self.nbasis
-        # na = self.nup
-        # nb = self.ndown
-        # if self.verbose:
-            # print("# Constructing complex half rotated HS Potentials.")
-        # rup = numpy.zeros(shape=(self.nfields, na, M),
-                          # dtype=numpy.complex128)
-        # rdn = numpy.zeros(shape=(self.nfields, nb, M),
-                          # dtype=numpy.complex128)
-        # # rup = numpy.einsum('ia,lik->lak',
-                           # # trial.psi[:,:na].conj(),
-                           # # self.hs_pot)
-        # # rdn = numpy.einsum('ia,lik->lak',
-                           # # trial.psi[:,na:].conj(),
-                           # # self.hs_pot)
-        # # This is much faster than einsum.
-        # start = time.time()
-        # if self.sparse:
-            # self.hs_pot = self.hs_pot.toarray().reshape(M,M,self.nfields)
-            # self.hs_pot = self.hs_pot.transpose(2,0,1)
-        # for (n,cn) in enumerate(self.hs_pot):
-            # rup[n] = numpy.dot(trial.psi[:,:na].conj().T, self.hs_pot[n])
-            # rdn[n] = numpy.dot(trial.psi[:,na:].conj().T, self.hs_pot[n])
-        # self.rot_hs_pot = [csr_matrix(rup.reshape((-1,M*na)).T),
-                           # csr_matrix(rdn.reshape((-1,M*nb)).T)]
-        # if self.verbose:
-            # print("# Time to construct half-rotated HS potentials: "
-                  # "%f s"%(time.time()-start))
-            # nnz = self.rot_hs_pot[0].nnz
-            # print("# Number of non-zero elements in rotated potentials: %d"%nnz)
-            # nelem = self.rot_hs_pot[0].shape[0] * self.rot_hs_pot[0].shape[1]
-            # print("# Sparsity: %f"%(1-float(nnz)/nelem))
-            # mem = (2*nnz*16/(1024.0**3))
-            # print("# Approximate memory required %f" " GB"%mem)
-            # print("# Constructing half rotated V_{(ab)(kl)}.")
-        # # This is also much faster than einsum.
-        # Qak = numpy.zeros((self.nchol, M*na), dtype=numpy.complex128)
-        # Rbl = numpy.zeros((self.nchol, M*na), dtype=numpy.complex128)
-        # start = time.time()
-        # for (n,cn) in enumerate(self.chol_vecs):
-            # Qak[n] = numpy.dot(trial.psi[:,:na].conj().T, cn).ravel()
-            # Rbl[n] = numpy.dot(trial.psi[:,:na].conj().T, cn.conj()).ravel()
-        # if self.verbose:
-            # print("# Time to construct Qak, Rbl: %f s"%(time.time()-start))
-        # Makbl = numpy.dot(Qak.T,Rbl)
-        # vakbl_a = (
-            # Makbl -
-            # Makbl.reshape(na,M,na,M).transpose((2,1,0,3)).reshape(na*M,na*M)
-        # )
-        # Qak = numpy.zeros((self.nchol, M*nb), dtype=numpy.complex128)
-        # Rbl = numpy.zeros((self.nchol, M*nb), dtype=numpy.complex128)
-        # for (n,cn) in enumerate(self.chol_vecs):
-            # Qak[n] = numpy.dot(trial.psi[:,na:].conj().T, cn).ravel()
-            # Rbl[n] = numpy.dot(trial.psi[:,na:].conj().T, cn.conj()).ravel()
-        # Makbl = numpy.dot(Qak.T,Rbl)
-        # vakbl_b = (
-            # Makbl -
-            # Makbl.reshape(nb,M,nb,M).transpose((2,1,0,3)).reshape(nb*M,nb*M)
-        # )
-        # self.vakbl = [csr_matrix(vakbl_a.reshape((M*na, M*na))),
-                      # csr_matrix(vakbl_b.reshape((M*nb, M*nb)))]
-        # tvakbl = time.time() - start
-        # # TODO: Stop converting hs pot to dense
-        # if self.sparse:
-            # if self.cutoff is not None:
-                # self.hs_pot[numpy.abs(self.hs_pot) < self.cutoff] = 0
-            # tmp = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            # tmp = tmp.reshape(self.nbasis*self.nbasis, self.nfields)
-            # self.hs_pot = csr_matrix(tmp)
-        # else:
-            # self.hs_pot = numpy.transpose(self.hs_pot, axes=(1,2,0))
-            # self.hs_pot = self.hs_pot.reshape(self.nbasis*self.nbasis, self.nfields)
-        # if self.verbose:
-            # print("# Time to construct V_{(ak)(bl)}: %f s"%(tvakbl))
-            # nnz = self.vakbl[0].nnz
-            # mem = (2*nnz*16/(1024.0**3))
-            # print("# Number of non-zero elements in V_{(ak)(bl)}: %d"%nnz)
-            # print("# Approximate memory used %f GB"%mem)
-            # nelem = self.vakbl[0].shape[0] * self.vakbl[0].shape[1]
-            # print("# Sparsity: %f"%(1-float(nnz)/nelem))
 
     def hijkl(self, i, j, k, l):
         ik = i*self.nbasis + k

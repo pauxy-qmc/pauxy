@@ -124,7 +124,6 @@ def reblock_mixed(groupby, columns, verbose=False):
             reblocked[columns[i]] = v
         analysed.append(reblocked)
 
-
     return pd.concat(analysed, sort=True)
 
 
@@ -296,6 +295,15 @@ def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
         columns = set_info(data, md)
         basic.append(data.drop('Iteration', axis=1))
         mds.append(md)
+    new_columns = []
+    for c in columns:
+        if (c != "E_T"):
+            new_columns += [c]
+    columns = new_columns
+    if (len(files) > 1):
+        print("multi simulations detected")
+        print("grouping based on everything other than E_T")
+        print("columns = {}".format(columns))
     basic = pd.concat(basic).groupby(columns)
     basic_av = reblock_mixed(basic, columns, verbose=verbose)
     base = files[0].split('/')[-1]
@@ -307,7 +315,8 @@ def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
         try:
             fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
         except KeyError:
-            pass
+            print("integrals does not exist under the problem class")
+            fh5['basic/estimates'] = basic_av.values.astype(float)
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
 def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
