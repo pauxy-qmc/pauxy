@@ -72,7 +72,10 @@ class Generic(object):
     """
 
     def __init__(self, nelec=None, h1e=None, chol=None, ecore=None, h1e_mod=None,
-                 mu=None, verbose=False, write_ints=False):
+                 mu=None, verbose=False, write_ints=False,
+                 stochastic_ri=False,
+                 nsamples=0,
+                 control_variate=False):
         if verbose:
             print("# Parsing input options.")
         self.name = "Generic"
@@ -80,10 +83,10 @@ class Generic(object):
         self.nup, self.ndown = nelec
         self.nelec = nelec
         self.ne = self.nup + self.ndown
-        self.stochastic_ri = inputs.get('stochastic_ri', False)
-        self.control_variate = inputs.get('control_variate', False)
+        self.stochastic_ri = stochastic_ri
+        self.control_variate = control_variate
         if self.stochastic_ri:
-            self.nsamples = inputs.get('nsamples', 10)
+            self.nsamples = nsamples
             if self.verbose:
                 print("# stochastic_ri is true for local energy with {} samples".format(self.nsamples))
                 print("# control_variate = {}".format(self.control_variate))

@@ -47,7 +47,7 @@ def local_energy_generic_opt(system, G, Ghalf=None):
     #                  (system.rchol_vecs[1].T).dot(Gdn))
     eos = Gup.dot(system.vakbl[2].dot(Gdn))
     e2b = euu + edd + eos #eud + edu
-    
+
     # pr.disable()
     # pr.print_stats(sort='tottime')
 
@@ -78,7 +78,8 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf, rchol):
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
     nalpha, nbeta = system.nup, system.ndown
     nbasis = system.nbasis
-    naux = rchol[0].shape[1]
+    if rchol is not None:
+        naux = rchol.shape[1]
 
     Ga, Gb = Ghalf[0], Ghalf[1]
     Xa = rchol[:nalpha*nbasis].T.dot(Ga.ravel())
@@ -96,7 +97,7 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf, rchol):
     # exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
     # Tb = numpy.tensordot(Gb, rchol_b, axes=((1),(1)))
     # exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
-    
+
     rchol_a = rchol_a.T
     rchol_b = rchol_b.T
     Ta = numpy.zeros((naux, nalpha, nalpha), dtype=rchol_a.dtype)

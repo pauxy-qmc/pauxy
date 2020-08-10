@@ -74,7 +74,8 @@ class SingleDetWalker(Walker):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
-        self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, self.Gmod, C0=None)
+        self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, Ghalf=self.Gmod,
+                                                      rchol=trial._rchol)
         self.E_L = self.E_L.real
         if system.control_variate:
             self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system)
@@ -348,7 +349,8 @@ class SingleDetWalker(Walker):
                                 exxa0=self.exxa0,
                                 exxb0=self.exxb0)
         else:
-            return local_energy(system, self.G, Ghalf=self.Gmod, two_rdm=two_rdm)
+            return local_energy(system, self.G, Ghalf=self.Gmod,
+                                two_rdm=two_rdm, rchol=rchol)
 
     def local_energy_2body(self, system):
         """Compute walkers two-body local energy

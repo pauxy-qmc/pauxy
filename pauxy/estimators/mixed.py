@@ -379,7 +379,9 @@ def local_energy_hh(system, G, X, Lap, Ghalf=None):
         exit()
 
 # Energy evaluation routines.
-def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol=None):
+def local_energy(system, G, Ghalf=None,
+                 two_rdm=None,
+                 rchol=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -408,26 +410,25 @@ def local_energy(system, G, Ghalf=None, half_rot_ints=False, two_rdm=None, rchol
     elif system.name == "UEG":
         return local_energy_ueg(system, G, two_rdm=two_rdm)
     else:
-        if half_rot_ints:
-            return local_energy_generic_opt(system, G, Ghalf)
-        else:
-            if Ghalf is not None:
-                if (system.stochastic_ri and system.control_variate):
-                    return local_energy_generic_cholesky_opt_stochastic(system, G,
-                                         nsamples=system.nsamples,
-                                         Ghalf=Ghalf,
-                                         rchol=rchol, C0=C0, ecoul0 = ecoul0, exxa0 = exxa0, exxb0 = exxb0)
-                elif system.stochastic_ri and not system.control_variate:
-                    return local_energy_generic_cholesky_opt_stochastic(system, G,
-                                         nsamples=system.nsamples,
-                                         Ghalf=Ghalf,
-                                         rchol=rchol)
-                else:
-                    return local_energy_generic_cholesky_opt(system, G,
-                                                             Ghalf=Ghalf,
-                                                             rchol=rchol)
+        if Ghalf is not None:
+            if system.stochastic_ri and system.control_variate:
+                return local_energy_generic_cholesky_opt_stochastic(system, G,
+                                     nsamples=system.nsamples,
+                                     Ghalf=Ghalf,
+                                     rchol=rchol, C0=C0, ecoul0=ecoul0,
+                                     exxa0=exxa0,
+                                     exxb0=exxb0)
+            elif system.stochastic_ri and not system.control_variate:
+                return local_energy_generic_cholesky_opt_stochastic(system, G,
+                                     nsamples=system.nsamples,
+                                     Ghalf=Ghalf,
+                                     rchol=rchol)
             else:
-                return local_energy_generic_cholesky(system, G)
+                return local_energy_generic_cholesky_opt(system, G,
+                                                         Ghalf=Ghalf,
+                                                         rchol=rchol)
+        else:
+            return local_energy_generic_cholesky(system, G)
 
 def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
     weight = 0

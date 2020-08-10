@@ -95,6 +95,7 @@ class Hubbard(object):
         # "Volume" to define density.
         self.vol = self.nx * self.ny
         self.construct_h1e_mod()
+        self.control_variate = False
 
     def fcidump(self, to_string=False):
         """Dump 1- and 2-electron integrals to file.
