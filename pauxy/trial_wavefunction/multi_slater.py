@@ -278,6 +278,13 @@ class MultiSlater(object):
                     UVT_aa = []
                     UVT_bb = []
                     UVT_ab = []
+
+                    nocca = system.nup
+                    noccb = system.ndown
+                    nvira = system.nbasis - system.nup
+                    nvirb = system.nbasis - system.ndown
+
+                    r_aa = []
                     for i in range(na):
                         for j in range(i, na):
                             Vab = vipjq_aa[i,:,j,:]
@@ -285,13 +292,16 @@ class MultiSlater(object):
                             idx = s > thresh_pno
                             U = U[:,idx]
                             s = s[idx]
+                            r_aa += [s.shape[0] / float(system.nbasis)]
                             VT = VT[idx,:]
                             U = U.dot(numpy.diag(numpy.sqrt(s)))
                             VT = numpy.diag(numpy.sqrt(s)).dot(VT)
-                            # Vab_t = U.dot(VT)
-
                             UVT_aa += [(U, VT)]
-                    
+                    r_aa = numpy.array(r_aa)
+                    r_aa = numpy.mean(r_aa)
+
+
+                    r_bb = []
                     for i in range(nb):
                         for j in range(i, nb):
                             Vab = vipjq_bb[i,:,j,:]
@@ -299,12 +309,17 @@ class MultiSlater(object):
                             idx = s > thresh_pno
                             U = U[:,idx]
                             s = s[idx]
+                            r_bb += [s.shape[0] / float(system.nbasis)]
                             VT = VT[idx,:]
                             U = U.dot(numpy.diag(numpy.sqrt(s)))
                             VT = numpy.diag(numpy.sqrt(s)).dot(VT)
 
                             UVT_bb += [(U, VT)]
 
+                    r_bb = numpy.array(r_bb)
+                    r_bb = numpy.mean(r_bb)
+
+                    r_ab = []
                     for i in range(na):
                         for j in range(nb):
                             Vab = vipjq_ab[i,:,j,:]
@@ -312,13 +327,20 @@ class MultiSlater(object):
                             idx = s > thresh_pno
                             U = U[:,idx]
                             s = s[idx]
+                            r_ab += [s.shape[0] / float(system.nbasis)]
                             VT = VT[idx,:]
                             U = U.dot(numpy.diag(numpy.sqrt(s)))
                             VT = numpy.diag(numpy.sqrt(s)).dot(VT)
 
                             UVT_ab += [(U, VT)]
+                    
+                    r_ab = numpy.array(r_ab)
+                    r_ab = numpy.mean(r_ab)
 
                     self._UVT = [UVT_aa, UVT_bb, UVT_ab]
+                    self._eri = None
+                    if self.verbose:
+                        print("# Average number of orbitals (relative to total) for aa, bb, ab = {}, {}, {}".format(r_aa, r_bb, r_ab))
 
             if self.verbose:
                 print("# Memory required by exact ERIs: "
