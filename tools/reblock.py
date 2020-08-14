@@ -31,12 +31,15 @@ def parse_args(args):
 
     parser = argparse.ArgumentParser(description = __doc__)
     parser.add_argument('-s', '--start', type=float, dest='start_time',
-                        default=0, help='Imaginary time after which we '
+                        default=0, help='Imaginary time in a.u. after which we '
                         'gather statistics.  Default: 0')
     parser.add_argument('-l', '--multi-sim', action='store_true',
                         dest='multi_sim', default=False,
                         help='Average over multiple simulations. By default '
                         'an attempt is made to group results by features.')
+    parser.add_argument('-t', '--average-tau', action='store_true',
+                        dest='av_tau', default=False,
+                        help='Compute average of energy as a function of tau.')
     parser.add_argument('-c', '--correlation', dest='cfunc', action='store_true',
                         default=False, help='Extract correlation functions.')
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -73,7 +76,7 @@ def main(args):
     else:
         files = options.filenames
     analyse_estimates(files, start_time=options.start_time,
-                      multi_sim=options.multi_sim,
+                      multi_sim=options.multi_sim, av_tau=options.av_tau,
                       verbose=options.verbose)
 if __name__ == '__main__':
     main(sys.argv[1:])
