@@ -74,7 +74,10 @@ class Generic(object):
     def __init__(self, nelec=None, h1e=None, chol=None, ecore=None, h1e_mod=None,
                  mu=None, verbose=False, write_ints=False,
                  stochastic_ri=False,
+                 exact_eri=False,
                  nsamples=0,
+                 pno=False,
+                 thresh_pno=None,
                  control_variate=False):
         if verbose:
             print("# Parsing input options.")
@@ -84,7 +87,35 @@ class Generic(object):
         self.nelec = nelec
         self.ne = self.nup + self.ndown
         self.stochastic_ri = stochastic_ri
+        self.pno = pno
+
+        self.thresh_pno = thresh_pno
+
+        if (self.pno):
+            self.ij_list_aa = []
+            self.ij_list_bb = []
+            self.ij_list_ab = []
+            
+            for i in range(self.nup):
+                for j in range(i, self.nup):
+                    self.ij_list_aa += [(i,j)]
+            
+            for i in range(self.ndown):
+                for j in range(i, self.ndown):
+                    self.ij_list_bb += [(i,j)]
+            
+            for i in range(self.nup):
+                for j in range(self.ndown):
+                    self.ij_list_ab += [(i,j)]
+
+        self.exact_eri = exact_eri
         self.control_variate = control_variate
+        if self.exact_eri:
+            if self.verbose:
+                print("# exact_eri is true for local energy")
+        if self.pno:
+            if self.verbose:
+                print("# pno is true for local energy with a threshold of {}".format(self.thresh_pno))
         if self.stochastic_ri:
             self.nsamples = nsamples
             if self.verbose:

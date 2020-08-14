@@ -74,11 +74,21 @@ class SingleDetWalker(Walker):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
-        self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, Ghalf=self.Gmod,
-                                                      rchol=trial._rchol)
-        self.E_L = self.E_L.real
+        
         if system.control_variate:
-            self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system)
+            self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system, rchol=trial._rchol)
+        else:
+            self.ecoul0 = None
+            self.exxa0 = None
+            self.exxb0 = None
+
+        self.E_L, self.e1b0, self.e2b0 = local_energy(system, self.G, Ghalf=self.Gmod,
+                                                      rchol=trial._rchol, eri=trial._eri,
+                                                      C0 = self.C0, ecoul0 = self.ecoul0, 
+                                                      exxa0 = self.exxa0, exxb0 = self.exxb0, 
+                                                      UVT = trial._UVT
+                                                      )
+        self.E_L = self.E_L.real
 
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
@@ -326,7 +336,7 @@ class SingleDetWalker(Walker):
         if (ndown>0):
             self.Gmod[1] = self.phi[:,nup:].dot(self.inv_ovlp[1])
 
-    def local_energy(self, system, two_rdm=None, rchol=None):
+    def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
         """Compute walkers local energy
 
         Parameters
@@ -347,12 +357,12 @@ class SingleDetWalker(Walker):
                                 C0=self.C0,
                                 ecoul0=self.ecoul0,
                                 exxa0=self.exxa0,
-                                exxb0=self.exxb0)
+                                exxb0=self.exxb0, eri=eri, UVT=UVT)
         else:
             return local_energy(system, self.G, Ghalf=self.Gmod,
-                                two_rdm=two_rdm, rchol=rchol)
+                                two_rdm=two_rdm, rchol=rchol, eri=eri, UVT=UVT)
 
-    def local_energy_2body(self, system):
+    def local_energy_2body(self, system, rchol):
         """Compute walkers two-body local energy
 
         Parameters
@@ -366,26 +376,34 @@ class SingleDetWalker(Walker):
             Mixed estimates for walker's energy components.
         """
 
-        # Element wise multiplication.
-        rchol = system.rchol_vecs
-        nalpha, nbeta= system.nup, system.ndown
+        nalpha, nbeta = system.nup, system.ndown
         nbasis = system.nbasis
+        if rchol is not None:
+            naux = rchol.shape[1]
+
         Ga, Gb = self.Gmod[0], self.Gmod[1]
-        Xa = rchol[0].T.dot(Ga.ravel())
-        Xb = rchol[1].T.dot(Gb.ravel())
+        Xa = rchol[:nalpha*nbasis].T.dot(Ga.ravel())
+        Xb = rchol[nalpha*nbasis:].T.dot(Gb.ravel())
         ecoul = numpy.dot(Xa,Xa)
         ecoul += numpy.dot(Xb,Xb)
         ecoul += 2*numpy.dot(Xa,Xb)
-        if system.sparse:
-            rchol_a, rchol_b = [rchol[0].toarray(), rchol[1].toarray()]
-        else:
-            rchol_a, rchol_b = rchol[0], rchol[1]
-        # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
-        # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
-        Ta = numpy.tensordot(Ga, rchol_a.reshape((nalpha,nbasis,-1)), axes=((1),(1)))
-        exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(1,0,2)))
-        Tb = numpy.tensordot(Gb, rchol_b.reshape((nbeta,nbasis,-1)), axes=((1),(1)))
-        exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(1,0,2)))
+        rchol_a, rchol_b = rchol[:nalpha*nbasis], rchol[nalpha*nbasis:]
+
+        rchol_a = rchol_a.T
+        rchol_b = rchol_b.T
+        Ta = numpy.zeros((naux, nalpha, nalpha), dtype=rchol_a.dtype)
+        Tb = numpy.zeros((naux, nbeta, nbeta), dtype=rchol_b.dtype)
+        GaT = Ga.T
+        GbT = Gb.T
+        for x in range(naux):
+            rmi_a = rchol_a[x].reshape((nalpha,nbasis))
+            Ta[x] = rmi_a.dot(GaT)
+            rmi_b = rchol_b[x].reshape((nbeta,nbasis))
+            Tb[x] = rmi_b.dot(GbT)
+        exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
+        exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
+
         exx = exxa + exxb
+        e2b = 0.5 * (ecoul - exx)
 
         return ecoul, exxa, exxb

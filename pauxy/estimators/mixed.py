@@ -21,6 +21,7 @@ from pauxy.estimators.greens_function import gab_mod_ovlp, gab_mod
 from pauxy.estimators.generic import (
     local_energy_generic_opt,
     local_energy_generic,
+    local_energy_generic_pno,
     local_energy_generic_cholesky,
     local_energy_generic_cholesky_opt,
     local_energy_generic_cholesky_opt_stochastic
@@ -157,7 +158,7 @@ class Mixed(object):
                         if self.thermal:
                             E, T, V = w.local_energy(system)
                         else:
-                            E, T, V = w.local_energy(system, rchol=trial._rchol)
+                            E, T, V = w.local_energy(system, rchol=trial._rchol, eri=trial._eri)
                     else:
                         E, T, V = 0, 0, 0
                     self.estimates[self.names.enumer] += wfac * E
@@ -210,7 +211,7 @@ class Mixed(object):
                     if step % self.energy_eval_freq == 0:
                         w.greens_function(trial)
                         if self.eval_energy:
-                            E, T, V = w.local_energy(system, rchol=trial._rchol)
+                            E, T, V = w.local_energy(system, rchol=trial._rchol, eri=trial._eri, UVT=trial._UVT)
                         else:
                             E, T, V = 0, 0, 0
                         self.estimates[self.names.enumer] += w.weight*E.real
@@ -381,7 +382,7 @@ def local_energy_hh(system, G, X, Lap, Ghalf=None):
 # Energy evaluation routines.
 def local_energy(system, G, Ghalf=None,
                  two_rdm=None,
-                 rchol=None):
+                 rchol=None, eri=None, C0=None, ecoul0=None, exxa0=None, exxb0=None, UVT=None):
     """Helper routine to compute local energy.
 
     Parameters
@@ -423,6 +424,11 @@ def local_energy(system, G, Ghalf=None,
                                      nsamples=system.nsamples,
                                      Ghalf=Ghalf,
                                      rchol=rchol)
+            elif system.exact_eri and not system.pno:
+                return local_energy_generic_opt(system, G, Ghalf=Ghalf, eri=eri)
+            elif system.pno:
+                assert(system.exact_eri and system.control_variate)
+                return local_energy_generic_pno(system, G, Ghalf=Ghalf, eri=eri, C0=C0, ecoul0=ecoul0, exxa0=exxa0, exxb0=exxb0, UVT=UVT)
             else:
                 return local_energy_generic_cholesky_opt(system, G,
                                                          Ghalf=Ghalf,
@@ -482,15 +488,22 @@ def eproj(estimates, enum):
     denominator = estimates[enum.edenom]
     return (numerator/denominator).real
 
-def variational_energy(system, psi, coeffs, G=None, GH=None, rchol=None):
+def variational_energy(system, psi, coeffs, G=None, GH=None, rchol=None, eri=None, 
+                       C0 = None,ecoul0 =None,exxa0 = None,exxb0 = None,UVT=None):
     if len(psi.shape) == 2:
         return variational_energy_single_det(system, psi,
                                              G=G, GH=GH,
-                                             rchol=rchol)
+                                             rchol=rchol, eri=eri, 
+                                             C0 = C0, ecoul0 = ecoul0, 
+                                             exxa0 = exxa0, exxb0 = exxb0,
+                                             UVT=UVT)
     elif len(psi) == 1:
         return variational_energy_single_det(system, psi[0],
                                              G=G, GH=GH,
-                                             rchol=rchol)
+                                             rchol=rchol, eri=eri, 
+                                             C0 = C0, ecoul0 = ecoul0, 
+                                             exxa0 = exxa0, exxb0 = exxb0,
+                                             UVT=UVT)
     else:
         return variational_energy_multi_det(system, psi, coeffs)
 
@@ -557,7 +570,11 @@ def variational_energy_ortho_det(system, occs, coeffs):
                 two_body += e2b
     return evar/denom, one_body/denom, two_body/denom
 
-
-def variational_energy_single_det(system, psi, G=None, GH=None, rchol=None):
+def variational_energy_single_det(system, psi, G=None, GH=None, 
+    rchol=None, eri=None,
+    C0=None, 
+    ecoul0=None,
+    exxa0=None,
+    exxb0=None,  UVT=None):
     assert len(psi.shape) == 2
-    return local_energy(system, G, Ghalf=GH, rchol=rchol)
+    return local_energy(system, G, Ghalf=GH, rchol=rchol, eri=eri, C0=C0, ecoul0=ecoul0, exxa0=exxa0, exxb0=exxb0, UVT=UVT)
