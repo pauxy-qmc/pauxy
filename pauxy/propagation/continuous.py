@@ -61,6 +61,15 @@ class Continuous(object):
         self.nfb_trig = 0
         self.nhe_trig = 0
 
+        self.control_variate = options.get('control_variate', False)
+        if (self.control_variate):
+            if verbose:
+                print("# control_variate used in propagator")
+            self.control_variate = True
+            self.psi0 = trial.psi
+        else:
+            self.control_variate = False
+            self.psi0 = None
 
         self.ebound = (2.0/self.dt)**0.5
 
@@ -74,7 +83,7 @@ class Continuous(object):
             self.propagate_walker = self.propagate_walker_phaseless
         self.verbose = verbose
 
-    def apply_exponential(self, phi, VHS, debug=False):
+    def apply_exponential(self, phi, VHS, psi0 = None, debug=False):
         """Apply exponential propagator of the HS transformation
         Parameters
         ----------
@@ -92,13 +101,41 @@ class Continuous(object):
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
-        # Temporary array for matrix exponentiation.
-        Temp = numpy.zeros(phi.shape, dtype=phi.dtype)
+    
+        if (not self.control_variate):
+            # Temporary array for matrix exponentiation.
+            Temp = numpy.zeros(phi.shape, dtype=phi.dtype)
 
-        numpy.copyto(Temp, phi)
-        for n in range(1, self.exp_nmax+1):
-            Temp = VHS.dot(Temp) / n
-            phi += Temp
+            numpy.copyto(Temp, phi)
+            for n in range(1, self.exp_nmax+1):
+                Temp = VHS.dot(Temp) / n
+                phi += Temp
+        else:
+            nbasis = phi.shape[0]
+
+            psi = psi0.copy()
+            Temp = numpy.zeros(psi0.shape, dtype=psi0.dtype)
+            numpy.copyto(Temp, psi)
+            for n in range(1, self.exp_nmax+1):
+                Temp = VHS.dot(Temp) / n
+                psi += Temp
+
+
+            phimpsi = phi - psi0
+            Temp = phi - psi0
+            theta = numpy.zeros((nbasis,1), dtype=numpy.int64)
+            for i in range(1):
+                theta[:,i] = (2*numpy.random.randint(0,2,size=(nbasis))-1)
+
+            for n in range(1, self.exp_nmax+1):
+                Temp = numpy.einsum("mn,nx,lx,lp->mp",VHS, theta, theta, Temp) / n
+                phimpsi += Temp
+
+            
+            phi += psi + (phimpsi) - phi
+            # phi = phimpsi + psi
+
+            # phi += psi
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi
@@ -154,14 +191,14 @@ class Continuous(object):
         VHS = self.propagator.construct_VHS(system, xshifted)
         if len(VHS.shape) == 3:
             # 2.b Apply two-body
-            self.apply_exponential(walker.phi[:,:system.nup], VHS[0])
+            self.apply_exponential(walker.phi[:,:system.nup], VHS[0], psi0=self.psi0[0, :,:system.nup])
             if system.ndown > 0:
-                self.apply_exponential(walker.phi[:,system.nup:], VHS[1])
+                self.apply_exponential(walker.phi[:,system.nup:], VHS[1], psi0=self.psi0[0, :,system.nup:])
         else:
             # 2.b Apply two-body
-            self.apply_exponential(walker.phi[:,:system.nup], VHS)
+            self.apply_exponential(walker.phi[:,:system.nup], VHS, psi0=self.psi0[0, :,:system.nup])
             if system.ndown > 0:
-                self.apply_exponential(walker.phi[:,system.nup:], VHS)
+                self.apply_exponential(walker.phi[:,system.nup:], VHS, psi0=self.psi0[0, :,system.nup:])
 
         return (cmf, cfb, xshifted)
 

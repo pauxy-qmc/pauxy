@@ -393,6 +393,7 @@ class MultiSlater(object):
                 print("# Memory required by half-rotated integrals: "
                       " {:.4f} GB.".format(self._mem_required))
                 print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+
         if comm is not None:
             comm.barrier()
         self._rot_hs_pot = self._rchol
