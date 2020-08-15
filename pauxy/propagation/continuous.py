@@ -196,9 +196,9 @@ class Continuous(object):
                 self.apply_exponential(walker.phi[:,system.nup:], VHS[1], psi0=self.psi0[0, :,system.nup:])
         else:
             # 2.b Apply two-body
-            self.apply_exponential(walker.phi[:,:system.nup], VHS, psi0=self.psi0[0, :,:system.nup])
+            self.apply_exponential(walker.phi[:,:system.nup], VHS)
             if system.ndown > 0:
-                self.apply_exponential(walker.phi[:,system.nup:], VHS, psi0=self.psi0[0, :,system.nup:])
+                self.apply_exponential(walker.phi[:,system.nup:], VHS)
 
         return (cmf, cfb, xshifted)
 
