@@ -13,23 +13,19 @@ def extract_data_sets(files, group, estimator, raw=False):
 
 def extract_data(filename, group, estimator, raw=False):
     fp = get_param(filename, ['propagators', 'free_projection'])
-    try:
-        with h5py.File(filename, 'r') as fh5:
-            dsets = list(fh5[group][estimator].keys())
-            data = numpy.array([fh5[group][estimator][d][:] for d in dsets])
-            if 'rdm' in estimator or raw:
-                return data
-            else:
-                header = fh5[group]['headers'][:]
-                header = numpy.array([h.decode('utf-8') for h in header])
-                df = pd.DataFrame(data)
-                df.columns = header
-                if not fp:
-                    df = df.apply(numpy.real)
-                return df
-    except:
-        print("Problem with {}".format(filename))
-        exit()
+    with h5py.File(filename, 'r') as fh5:
+        dsets = list(fh5[group][estimator].keys())
+        data = numpy.array([fh5[group][estimator][d][:] for d in dsets])
+        if 'rdm' in estimator or raw:
+            return data
+        else:
+            header = fh5[group]['headers'][:]
+            header = numpy.array([h.decode('utf-8') for h in header])
+            df = pd.DataFrame(data)
+            df.columns = header
+            if not fp:
+                df = df.apply(numpy.real)
+            return df
 
 def extract_mixed_estimates(filename, skip=0):
     return extract_data(filename, 'basic', 'energies')[skip:]
@@ -50,11 +46,11 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
         print("# Warning analysis of FP RDM not implemented.")
         return (one_rdm, denom)
     else:
-        if (len(one_rdm.shape) == 4):
+        if len(one_rdm.shape) == 4:
             return one_rdm / denom[:,None,None]
-        elif (len(one_rdm.shape) == 5):
+        elif len(one_rdm.shape) == 5:
             return one_rdm / denom[:,None,None,None]
-        elif (len(one_rdm.shape) == 3):
+        elif len(one_rdm.shape) == 3:
             return one_rdm / denom[:,None]
         else:
             return one_rdm / denom
@@ -134,11 +130,11 @@ def extract_test_data_hdf5(filename):
     # print(data)
     try:
         mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
-    except (KeyError,TypeError):
+    except (KeyError,TypeError,AttributeError):
         mrdm = None
     try:
         brdm = extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm')
-    except (KeyError,TypeError):
+    except (KeyError,TypeError,AttributeError):
         brdm = None
     if mrdm is not None:
         mrdm = mrdm[::4].ravel()
