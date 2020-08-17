@@ -69,6 +69,8 @@ class HubbardHolstein(object):
         self.ypbc = inputs.get('ypbc', True)
         self.xpbc = inputs.get('xpbc', True)
 
+        self.control_variate = False
+
         if self.symmetric:
             # An unusual convention for the sign of the chemical potential is
             # used in Phys. Rev. B 99, 045108 (2018)
