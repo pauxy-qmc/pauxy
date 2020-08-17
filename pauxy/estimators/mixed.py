@@ -267,7 +267,7 @@ class Mixed(object):
             eshift = numpy.array([gs[ns.ehyb],gs[ns.eproj]])
         else:
             eshift = numpy.array([0,0])
-        if self.thermal and comm.rank == 0:
+        if self.thermal and comm.rank == 0 and not free_projection:
             gs[ns.nav] = gs[ns.nav] / gs[ns.weight]
         eshift = comm.bcast(eshift, root=0)
         self.eshift = eshift
