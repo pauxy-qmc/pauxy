@@ -124,7 +124,6 @@ def get_sys_param(filename, param):
 def extract_test_data_hdf5(filename):
     """For use with testcode"""
     data = extract_mixed_estimates(filename).drop(['Iteration', 'Time'], axis=1)[::10].to_dict(orient='list')
-    # print(data)
     try:
         mrdm = extract_rdm(filename, est_type='mixed', rdm_type='one_rdm')
     except (KeyError,TypeError):

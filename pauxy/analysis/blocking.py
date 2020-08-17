@@ -281,34 +281,57 @@ def analyse_back_prop(files, start_time):
         full.append(res)
     return pd.concat(full).sort_values('tau_bp')
 
-def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
+def analyse_estimates(files, start_time, multi_sim=False, av_tau=False,verbose=False):
     mds = []
     basic = []
-    for f in files:
-        md = get_metadata(f)
-        read_rs = get_from_dict(md, ['psi', 'read_rs'])
-        step = get_from_dict(md, ['qmc', 'nsteps'])
-        dt = get_from_dict(md, ['qmc', 'dt'])
-        start = int(start_time/(step*dt)) + 1
-        if read_rs:
-            start = 0
-        data = extract_mixed_estimates(f, start)
-        columns = set_info(data, md)
-        basic.append(data.drop('Iteration', axis=1))
-        mds.append(md)
-    basic = pd.concat(basic).groupby(columns)
-    basic_av = reblock_mixed(basic, columns, verbose=verbose)
-    base = files[0].split('/')[-1]
-    outfile = 'analysed_' + base
-    fmt = lambda x: "{:13.8f}".format(x)
-    print(basic_av.to_string(index=False, float_format=fmt))
-    with h5py.File(outfile, 'w') as fh5:
-        fh5['metadata'] = numpy.array(mds).astype('S')
-        try:
-            fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
-        except KeyError:
-            pass
-        fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
+    if av_tau:
+        data = []
+        for f in files:
+            data.append(extract_mixed_estimates(f))
+        full = pd.concat(data).groupby('Iteration')
+        av = average_tau(full)
+        print(av.apply(numpy.real).to_string())
+    else:
+        for f in files:
+            print("filename = {}".format(f))
+            md = get_metadata(f)
+            read_rs = get_from_dict(md, ['psi', 'read_rs'])
+            step = get_from_dict(md, ['qmc', 'nsteps'])
+            dt = get_from_dict(md, ['qmc', 'dt'])
+            fp = get_from_dict(md, ['propagators', 'free_projection'])
+            start = int(start_time/(step*dt)) + 1
+            if read_rs:
+                start = 0
+            data = extract_mixed_estimates(f, start)
+            columns = set_info(data, md)
+            basic.append(data.drop('Iteration', axis=1))
+            mds.append(md)
+
+        new_columns = []
+        for c in columns:
+            if (c == "E_T"):
+                continue
+            else:
+                new_columns += [c]
+        columns = new_columns
+
+        basic = pd.concat(basic).groupby(columns)
+        if fp:
+            basic_av = reblock_free_projection(basic, columns)
+        else:
+            basic_av = reblock_mixed(basic, columns, verbose=verbose)
+
+        base = files[0].split('/')[-1]
+        outfile = 'analysed_' + base
+        fmt = lambda x: "{:13.8f}".format(x)
+        print(basic_av.to_string(index=False, float_format=fmt))
+        with h5py.File(outfile, 'w') as fh5:
+            fh5['metadata'] = numpy.array(mds).astype('S')
+            try:
+                fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+            except KeyError:
+                pass
+            fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
 def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
     rdm, rdm_err = average_rdm(filename, rdm_type='one_rdm', ix=ix)

@@ -27,6 +27,7 @@ try:
     from jax.config import config
     config.update("jax_enable_x64", True)
     import jax
+    from jax import grad, jit
     import jax.numpy as np
     import jax.scipy.linalg as LA
     import numpy
@@ -35,7 +36,7 @@ except ModuleNotFoundError:
     np = numpy
 
 import math
-
+@jit
 def gab(A, B):
     r"""One-particle Green's function.
 
@@ -71,7 +72,8 @@ def gab(A, B):
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
 
-def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
+@jit
+def local_energy_hubbard_holstein_jax(T,U,g,m,w0, G, X, Lap, Ghalf=None):
     r"""Calculate local energy of walker for the Hubbard-Hostein model.
 
     Parameters
@@ -86,20 +88,18 @@ def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
     (E_L(phi), T, V): tuple
         Local, kinetic and potential energies of given walker phi.
     """
-    ke = np.sum(system.T[0] * G[0] + system.T[1] * G[1])
+    nbasis = T[0].shape[1]
+    ke = np.sum(T[0] * G[0] + T[1] * G[1])
 
-    if system.symmetric:
-        pe = -0.5*system.U*(G[0].trace() + G[1].trace())
-
-    pe = system.U * np.dot(G[0].diagonal(), G[1].diagonal())
+    pe = U * np.dot(G[0].diagonal(), G[1].diagonal())
 
     
-    pe_ph = 0.5 * system.w0 ** 2 * system.m * np.sum(X * X)
+    pe_ph = 0.5 * w0 ** 2 * m * np.sum(X * X)
 
-    ke_ph = -0.5 * np.sum(Lap) / system.m - 0.5 * system.w0 * system.nbasis
+    ke_ph = -0.5 * np.sum(Lap) / m - 0.5 * w0 * nbasis
     
     rho = G[0].diagonal() + G[1].diagonal()
-    e_eph = - system.g * cmath.sqrt(system.m * system.w0 * 2.0) * np.dot(rho, X)
+    e_eph = - g * np.sqrt(m * w0 * 2.0) * np.dot(rho, X)
 
     etot = ke + pe + pe_ph + ke_ph + e_eph
 
@@ -109,25 +109,25 @@ def local_energy_hubbard_holstein_jax(system, G, X, Lap, Ghalf=None):
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
-def gradient(x, system, c0, psi,resctricted):
-    grad = numpy.array(jax.grad(objective_function)(x, system, c0, psi,resctricted))
+def gradient(x, system, c0,resctricted, exporder):
+    grad = numpy.array(jax.grad(objective_function)(x, system, c0,resctricted, exporder))
     return grad
 
-def hessian(x, system, c0, psi,resctricted):
-    H = numpy.array(jax.hessian(objective_function)(x, system, c0, psi,resctricted))
+def hessian(x, system, c0,resctricted, exporder):
+    H = numpy.array(jax.hessian(objective_function)(x, system, c0,resctricted, exporder))
     return H
 
-def hessian_product(x, p, system, c0, psi):
+def hessian_product(x, p, system, c0):
     h = 1e-5
     xph = x + p * h
     xmh = x - p * h
-    gph = gradient(xph, system, c0, psi)
-    gmh = gradient(xmh, system, c0, psi)
+    gph = gradient(xph, system, c0)
+    gmh = gradient(xmh, system, c0)
 
     Hx = (gph - gmh) / (2.0 * h)
     return Hx
 
-def objective_function (x, system, c0, psi, resctricted, exporder = 6):
+def objective_function (x, system, c0, resctricted, exporder):
     shift = x[0:system.nbasis]
 
     nbsf = system.nbasis
@@ -139,8 +139,8 @@ def objective_function (x, system, c0, psi, resctricted, exporder = 6):
     nova = nocca*nvira
     novb = noccb*nvirb
     
-    daia = np.array(x[nbsf:nbsf+nova] )
-    daib = np.array(x[nbsf+nova:nbsf+nova+novb])
+    daia = np.array(x[nbsf:nbsf+nova],dtype=np.float64)
+    daib = np.array(x[nbsf+nova:nbsf+nova+novb],dtype=np.float64)
 
     daia = daia.reshape((nvira, nocca))
     daib = daib.reshape((nvirb, noccb))
@@ -148,8 +148,8 @@ def objective_function (x, system, c0, psi, resctricted, exporder = 6):
     if (resctricted):
         daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
 
-    theta_a = np.zeros((nbsf, nbsf))
-    theta_b = np.zeros((nbsf, nbsf))
+    theta_a = np.zeros((nbsf, nbsf),dtype=np.float64)
+    theta_b = np.zeros((nbsf, nbsf),dtype=np.float64)
 
     theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
     theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
@@ -157,18 +157,18 @@ def objective_function (x, system, c0, psi, resctricted, exporder = 6):
     theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
     theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
 
-    Ua = np.eye(nbsf)
-    tmp = np.eye(nbsf)
+    Ua = np.eye(nbsf,dtype=np.float64)
+    tmp = np.eye(nbsf,dtype=np.float64)
     for i in range(1,exporder):
         tmp = np.einsum("ij,jk->ik", theta_a, tmp)
         Ua += tmp / math.factorial(i)
 
-    C0a = np.array(c0[:nbsf*nbsf].reshape((nbsf,nbsf)))
+    C0a = np.array(c0[:nbsf*nbsf].reshape((nbsf,nbsf)),dtype=np.float64)
     Ca = C0a.dot(Ua)
     Ga = gab(Ca[:,:nocca], Ca[:,:nocca])
     
     if (noccb > 0):
-        C0b = np.array(c0[nbsf*nbsf:].reshape((nbsf,nbsf)))
+        C0b = np.array(c0[nbsf*nbsf:].reshape((nbsf,nbsf)),dtype=np.float64)
         Ub = np.eye(nbsf)
         tmp = np.eye(nbsf)
         for i in range(1,exporder):
@@ -177,11 +177,12 @@ def objective_function (x, system, c0, psi, resctricted, exporder = 6):
         Cb = C0b.dot(Ub)
         Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
 
-    G = np.array([Ga, Gb])
+    G = np.array([Ga, Gb],dtype=np.float64)
     phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
 
     Lap = phi.laplacian(shift)
-    etot, eel, eph = local_energy_hubbard_holstein_jax(system, G, shift, Lap)
+
+    etot, eel, eph = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, G, shift, Lap)
 
     return etot.real
 
@@ -205,6 +206,11 @@ class CoherentState(object):
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
 
         self.reference = options.get('reference', None)
+        self.exporder = options.get('exporder', 6)
+        
+        if verbose:
+            print("# exporder in CoherentState is {}".format(self.exporder))
+
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
 
@@ -438,7 +444,7 @@ class CoherentState(object):
             c0 = numpy.zeros(nbsf*nbsf)
             c0[:nbsf*nbsf] = Ca.ravel()
 #       
-        x[:system.nbasis] = self.shift.copy() # initial guess
+        x[:system.nbasis] = self.shift.real.copy() # initial guess
         # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 
@@ -447,7 +453,9 @@ class CoherentState(object):
         # for i in range (10): # Try 10 times
         # for i in range (3): # Try 10 times
         for i in range (2): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self, self.restricted), jac=gradient, tol=1e-10, method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000, 'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
+            res = minimize(objective_function, x, args=(system, c0, self.restricted, self.exporder), jac=gradient, tol=1e-10,\
+                method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
+                'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
             e = res.fun
             if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
                 self.energy = res.fun
@@ -557,7 +565,7 @@ class CoherentState(object):
             # single coherent state energy
             phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
             Lap = phi.laplacian(self.shift)
-            (energy_single, e1b_single, e2b_single) = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
+            (energy_single, e1b_single, e2b_single) = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, self.G, self.shift, Lap)
 
             num_energy = 0.0
             num_e1b = 0.0
@@ -610,7 +618,7 @@ class CoherentState(object):
         else:            
                 phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
                 Lap = phi.laplacian(self.shift)
-                (self.energy, self.e1b, self.e2b) = local_energy_hubbard_holstein_jax(system, self.G, self.shift, Lap)
+                (self.energy, self.e1b, self.e2b) = local_energy_hubbard_holstein_jax(system.T,system.U,system.g,system.m,system.w0, self.G, self.shift, Lap)
 
         self.energy = complex(self.energy)
         self.e1b = complex(self.e1b)
