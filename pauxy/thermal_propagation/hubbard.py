@@ -61,7 +61,7 @@ class ThermalDiscrete(object):
             dtype = trial.dmat.dtype
         self.BV = numpy.zeros((2,trial.dmat.shape[-1]), dtype=dtype)
         if self.free_projection:
-            self.propagate_walker = self.propagate_walker_free
+            self.propagate_walker = self.propagate_walker_free_site
         else:
             self.propagate_walker = self.propagate_walker_constrained
 
