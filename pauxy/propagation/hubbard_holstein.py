@@ -56,6 +56,10 @@ class HirschDMC(object):
         self.hs_type = 'discrete'
         self.free_projection = options.get('free_projection', False)
         
+        self.symmetric_trotter = options.get('symmetric_trotter', False)
+        if verbose:
+            print("# symmetric_trotter is {}".format(self.symmetric_trotter))        
+
         Ueff = system.U
 
         if verbose:
@@ -273,12 +277,14 @@ class HirschDMC(object):
 
         return ratio*gfratio
     
-    def boson_importance_sampling(self, walker, system, trial):
+    def boson_importance_sampling(self, walker, system, trial, dt):
+
+        sqrtdt = numpy.sqrt(dt)
 
         phiold = trial.value(walker)
 
         #Drift+diffusion
-        driftold = (self.dt / system.m) * trial.gradient(walker)
+        driftold = (dt / system.m) * trial.gradient(walker)
 
         if (self.sorella):
             Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
@@ -291,7 +297,7 @@ class HirschDMC(object):
         
         elocold = numpy.real(elocold)
 
-        dX = numpy.random.normal(loc = 0.0, scale = self.sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
+        dX = numpy.random.normal(loc = 0.0, scale = sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
         Xnew = walker.X + dX + driftold
         
         walker.X = Xnew.copy()
@@ -313,9 +319,9 @@ class HirschDMC(object):
         
         eloc = numpy.real(eloc)
         walker.ot *= (phinew / phiold)
-        walker.weight *= math.exp(-0.5*self.dt*(eloc+elocold-2*self.eshift_boson))
+        walker.weight *= math.exp(-0.5*dt*(eloc+elocold-2*self.eshift_boson))
 
-    def kinetic_importance_sampling(self, walker, system, trial):
+    def kinetic_importance_sampling(self, walker, system, trial, dt):
         r"""Propagate by the kinetic term by direct matrix multiplication.
 
         Parameters
@@ -328,14 +334,17 @@ class HirschDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-
-        self.kinetic(walker.phi, system, self.bt2)
+        # bt2 = [scipy.linalg.expm(-dt*system.T[0]), scipy.linalg.expm(-dt*system.T[1])]
+        # kinetic_real(walker.phi, system, bt2, H1diag=False)
 
         if (not self.sorella):
-            const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-self.dt) / 2.0
+            const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-dt)
             nX = [walker.X, walker.X]
-            Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
-            kinetic_real(walker.phi, system, Veph, H1diag=True)
+            # Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
+            # kinetic_real(walker.phi, system, Veph, H1diag=True)
+            TV = [scipy.linalg.expm(-dt*system.T[0] + numpy.diag(const * nX[0])),\
+                  scipy.linalg.expm(-dt*system.T[1] + numpy.diag(const * nX[1])) ]
+            kinetic_real(walker.phi, system, TV, H1diag=False)
 
         # Update inverse overlap
         walker.inverse_overlap(trial)
@@ -371,15 +380,26 @@ class HirschDMC(object):
         trial : :class:`pauxy.trial_wavefunctioin.Trial`
             Trial wavefunction object.
         """
-
-        if abs(walker.weight) > 0:
-            self.kinetic_importance_sampling(walker, system, trial)
-        if abs(walker.weight) > 0:
-            self.two_body(walker, system, trial)
-        if abs(walker.weight.real) > 0:
-            self.kinetic_importance_sampling(walker, system, trial)
-        if abs(walker.weight.real) > 0:
-            self.boson_importance_sampling(walker, system, trial)
+        if (self.symmetric_trotter):
+            if abs(walker.weight.real) > 0:
+                self.boson_importance_sampling(walker, system, trial, self.dt/2.)
+            if abs(walker.weight) > 0:
+                self.kinetic_importance_sampling(walker, system, trial, self.dt/2.)
+            if abs(walker.weight) > 0:
+                self.two_body(walker, system, trial) # hard-coded to do self.dt
+            if abs(walker.weight.real) > 0:
+                self.kinetic_importance_sampling(walker, system, trial, self.dt/2.)
+            if abs(walker.weight.real) > 0:
+                self.boson_importance_sampling(walker, system, trial, self.dt/2.)
+        else:
+            if abs(walker.weight) > 0:
+                self.kinetic_importance_sampling(walker, system, trial, self.dt/2.)
+            if abs(walker.weight) > 0:
+                self.two_body(walker, system, trial) # hard-coded to do self.dt
+            if abs(walker.weight.real) > 0:
+                self.kinetic_importance_sampling(walker, system, trial, self.dt/2.)
+            if abs(walker.weight.real) > 0:
+                self.boson_importance_sampling(walker, system, trial, self.dt)
 
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight

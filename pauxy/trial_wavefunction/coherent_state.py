@@ -127,6 +127,14 @@ def hessian_product(x, p, system, c0):
     Hx = (gph - gmh) / (2.0 * h)
     return Hx
 
+@jit
+def compute_exp(Ua, tmp, theta_a):
+    for i in range(1,15):
+        tmp = np.einsum("ij,jk->ik", theta_a, tmp)
+        Ua += tmp / math.factorial(i)
+
+    return Ua
+
 def objective_function (x, system, c0, resctricted, exporder):
     shift = x[0:system.nbasis]
 
@@ -159,9 +167,7 @@ def objective_function (x, system, c0, resctricted, exporder):
 
     Ua = np.eye(nbsf,dtype=np.float64)
     tmp = np.eye(nbsf,dtype=np.float64)
-    for i in range(1,exporder):
-        tmp = np.einsum("ij,jk->ik", theta_a, tmp)
-        Ua += tmp / math.factorial(i)
+    Ua = compute_exp(Ua, tmp, theta_a)
 
     C0a = np.array(c0[:nbsf*nbsf].reshape((nbsf,nbsf)),dtype=np.float64)
     Ca = C0a.dot(Ua)
@@ -171,9 +177,7 @@ def objective_function (x, system, c0, resctricted, exporder):
         C0b = np.array(c0[nbsf*nbsf:].reshape((nbsf,nbsf)),dtype=np.float64)
         Ub = np.eye(nbsf)
         tmp = np.eye(nbsf)
-        for i in range(1,exporder):
-            tmp = np.einsum("ij,jk->ik", theta_b, tmp)
-            Ub += tmp / math.factorial(i)
+        Ub = compute_exp(Ub, tmp, theta_b)
         Cb = C0b.dot(Ub)
         Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
 
@@ -209,7 +213,7 @@ class CoherentState(object):
         self.exporder = options.get('exporder', 6)
         
         if verbose:
-            print("# exporder in CoherentState is {}".format(self.exporder))
+            print("# exporder in CoherentState is 15 no matter what you entered like {}".format(self.exporder))
 
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
@@ -285,6 +289,7 @@ class CoherentState(object):
 
             rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
             self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
+            self.shift = self.shift.real
             print("# Initial shift = {}".format(self.shift[0:3]))
 
             if (self.variational):
