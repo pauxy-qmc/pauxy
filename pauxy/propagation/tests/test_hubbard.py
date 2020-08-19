@@ -94,7 +94,7 @@ def test_hubbard_charge():
     trial.psi = trial.psi[0]
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     qmc = dotdict({'dt': 0.01, 'nstblz': 5})
-    options = {'charge_decomposition': True}
+    options = {'charge_decomposition': True, 'single_site_update': False}
     prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     walker = SingleDetWalker(system, trial, nbp=1, nprop_tot=1)
     numpy.random.seed(7)
