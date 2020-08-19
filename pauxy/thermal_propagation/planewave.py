@@ -359,19 +359,19 @@ class PlaneWave(object):
             walker.greens_function(None, slice_ix=walker.stack.ntime_slices,
                                         inplace=True)
 
-        # 3. Compute det(G/G')
-        M0 = numpy.array([scipy.linalg.det(G[0], check_finite=False),
-                          scipy.linalg.det(G[1], check_finite=False)])
-        Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
-                            scipy.linalg.det(walker.G[1], check_finite=False)])
-
+        # 3. Compute log(det(G/G'))
+        M0 = [numpy.linalg.slogdet(G[0]),
+              numpy.linalg.slogdet(G[1])]
+        Mnew = [numpy.linalg.slogdet(walker.G[0]),
+                numpy.linalg.slogdet(walker.G[1])]
         try:
             # Could save M0 rather than recompute.
-            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
-
+            log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
+            sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
+            oratio = sign * numpy.exp(log_o)
             walker.ot = 1.0
             # Constant terms are included in the walker's weight.
-            (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
+            (magn, phase) = cmath.polar(sign*cmath.exp(cmf+cfb+log_o))
             walker.weight *= magn
             walker.phase *= cmath.exp(1j*phase)
         except ZeroDivisionError:
@@ -432,11 +432,11 @@ class PlaneWave(object):
 
         try:
             # Could save M0 rather than recompute.
-            oratio = (ovlp_new[0] * ovlp_new[1]) / (ovlp[0] * ovlp[1])
-
+            log_o = (ovlp_new[0][1] + ovlp_new[1][1]) - (ovlp[0][1] * ovlp[1][1])
+            sign = ovlp_new[0][0]*ovlp_new[1][0]/(ovlp[0][0]*ovlp[1][0])
             walker.ot = 1.0
             # Constant terms are included in the walker's weight.
-            (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
+            (magn, phase) = cmath.polar(sign*cmath.exp(cmf+cfb+log_o))
             walker.weight *= magn
             walker.phase *= cmath.exp(1j*phase)
         except ZeroDivisionError:
@@ -491,23 +491,25 @@ class PlaneWave(object):
             walker.greens_function(None, slice_ix=tix, inplace=True)
 
         # 3. Compute det(G/G')
-        M0 = walker.M0
-        Mnew = numpy.array([scipy.linalg.det(walker.G[0], check_finite=False),
-                            scipy.linalg.det(walker.G[1], check_finite=False)])
-
+        M0 = [numpy.linalg.slogdet(G[0]),
+              numpy.linalg.slogdet(G[1])]
+        Mnew = [numpy.linalg.slogdet(walker.G[0]),
+                numpy.linalg.slogdet(walker.G[1])]
         # Could save M0 rather than recompute.
         try:
-            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+            log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
+            sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
+            oratio = sign * numpy.exp(log_o)
             # Might want to cap this at some point
-            hybrid_energy = cmath.log(oratio) + cfb + cmf
+            hybrid_energy = log_o + cfb + cmf
             Q = cmath.exp(hybrid_energy)
             expQ = self.mf_const_fac * Q
-            (magn, phase) = cmath.polar(expQ)
+            (magn, phase) = cmath.polar(sign*expQ)
             if not math.isinf(magn):
                 # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
                 # Note this doesn't include exponential factor from shifting
                 # propability distribution.
-                dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+                dtheta = cmath.phase(sign*cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
                 walker.M0 = Mnew
@@ -545,24 +547,27 @@ class PlaneWave(object):
         #
         # local index within a stack = walker.stack.counter
         # global stack index = icur
-        ovlp = numpy.asarray(walker.stack.ovlp).copy()
+        ovlp = numpy.asarray(walker.stack.logdet).copy()
+        sgn = numpy.asarray(walker.stack.sgndet).copy()
         walker.stack.update_new(B)
-        ovlp_new = numpy.asarray(walker.stack.ovlp).copy()
+        ovlp_new = numpy.asarray(walker.stack.logdet).copy()
+        sgn_new = numpy.asarray(walker.stack.sgndet).copy()
         walker.G = walker.stack.G.copy()
 
         # Could save M0 rather than recompute.
         try:
-            oratio = (ovlp_new[0] * ovlp_new[1]) / (ovlp[0] * ovlp[1])
+            log_o = (ovlp_new[0] + ovlp_new[1]) - (ovlp[0] + ovlp[1])
+            sign = sgn_new[0]*sgn_new[1]/(sgn[0]*sgn[1])
             # Might want to cap this at some point
-            hybrid_energy = cmath.log(oratio) + cfb + cmf
-            Q = cmath.exp(hybrid_energy)
+            hybrid_energy = log_o + cfb + cmf
+            Q = sign*cmath.exp(hybrid_energy)
             expQ = self.mf_const_fac * Q
             (magn, phase) = cmath.polar(expQ)
             if not math.isinf(magn):
                 # Determine cosine phase from Arg(det(1+A'(x))/det(1+A(x))).
                 # Note this doesn't include exponential factor from shifting
                 # propability distribution.
-                dtheta = cmath.phase(cmath.exp(hybrid_energy-cfb))
+                dtheta = cmath.phase(sign*cmath.exp(hybrid_energy-cfb))
                 cosine_fac = max(0, math.cos(dtheta))
                 walker.weight *= magn * cosine_fac
                 # walker.M0 = Mnew

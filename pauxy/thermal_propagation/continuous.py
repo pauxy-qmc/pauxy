@@ -182,18 +182,22 @@ class Continuous(object):
         # 2. Compute updated green's function.
         walker.stack.update_new(B)
         walker.greens_function(trial, inplace=True)
-        # 3. Compute det(G/G')
-        M0 = [scipy.linalg.det(G[0], check_finite=False),
-              scipy.linalg.det(G[1], check_finite=False)]
-        Mnew = [scipy.linalg.det(walker.G[0], check_finite=False),
-                scipy.linalg.det(walker.G[1], check_finite=False)]
+        # 3. Compute log(det(G/G'))
+        # (sign, logdet)
+        M0 = [numpy.linalg.slogdet(G[0]),
+              numpy.linalg.slogdet(G[1])]
+        Mnew = [numpy.linalg.slogdet(walker.G[0]),
+                numpy.linalg.slogdet(walker.G[1])]
         # Could save M0 rather than recompute.
         try:
             # Could save M0 rather than recompute.
-            oratio = (M0[0] * M0[1]) / (Mnew[0] * Mnew[1])
+            log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
+            sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
+            oratio = sign * numpy.exp(log_o)
             walker.ot = 1.0
             # Constant terms are included in the walker's weight.
-            (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
+            (magn, phase) = cmath.polar(sign*cmath.exp(cmf+cfb+log_o))
+            # (magn, phase) = cmath.polar(cmath.exp(cmf+cfb)*oratio)
             walker.weight *= magn
             walker.phase *= cmath.exp(1j*phase)
         except ZeroDivisionError:

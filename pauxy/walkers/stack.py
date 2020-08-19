@@ -140,7 +140,8 @@ class PropagatorStack:
         self.thresh = thresh
 
         self.lowrank = lowrank
-        self.ovlp = numpy.asarray([1.0, 1.0])
+        self.sgndet = [1.0, 1.0]
+        self.logdet = [0.0, 0.0]
 
         if self.lowrank:
             assert diagonal
@@ -397,7 +398,12 @@ class PropagatorStack:
 
                 M = numpy.einsum("ij,j->ij", tmp, Dbinv).dot(TQ)
                 # self.ovlp[s] = 1.0 / scipy.linalg.det(M, check_finite=False)
-                self.ovlp[s] = scipy.linalg.det(M, check_finite=False)
+                # want log(det(1+A)) = log (det(M^{-1}))
+                #                    = log(1/det(M))
+                #                    = -log(det(M))
+                sdet, logdet = numpy.linalg.slogdet(M)
+                self.logdet[s] = logdet
+                self.sgndet[s] = sdet
 
                 tmp = scipy.linalg.inv(tmp, check_finite=False)
                 A = numpy.einsum("i,ij->ij", Db, tmp.dot(TQinv)) # mT x mT
@@ -458,7 +464,12 @@ class PropagatorStack:
 
                 M = numpy.einsum("ij,j->ij", tmp, Dbinv).dot(TQ)
                 # self.ovlp[s] = 1.0 / scipy.linalg.det(M, check_finite=False)
-                self.ovlp[s] = scipy.linalg.det(M, check_finite=False)
+                # want log(det(1+A)) = log (det(M^{-1}))
+                #                    = log(1/det(M))
+                #                    = -log(det(M))
+                sdet, logdet = numpy.linalg.slogdet(M)
+                self.logdet[s] = -logdet
+                self.sgndet[s] = sdet
 
                 tmp = scipy.linalg.inv(tmp, check_finite=False)
                 A = numpy.einsum("i,ij->ij", Db, tmp.dot(TQinv)) # mT x mT
