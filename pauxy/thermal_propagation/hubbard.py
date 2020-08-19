@@ -16,6 +16,7 @@ class ThermalDiscrete(object):
         self.nstblz = qmc.nstblz
         self.hs_type = 'discrete'
         self.charge_decomp = options.get('charge_decomposition', False)
+        self.force_bias = options.get('force_bias', False)
         if verbose:
             if self.charge_decomp:
                 print("# Using charge decomposition.")
@@ -64,6 +65,8 @@ class ThermalDiscrete(object):
             self.propagate_walker = self.propagate_walker_free
         else:
             self.propagate_walker = self.propagate_walker_constrained
+        if self.force_bias:
+            self.propagate_walker = self.propagate_walker_force_bias
 
     def construct_one_body_propagator(self, system, mu, dt):
         """Construct the one-body propagator Exp(-dt/2 H0)
@@ -174,6 +177,7 @@ class ThermalDiscrete(object):
         walker.phase *= cmath.exp(1j*phase)
 
     def propagate_walker_free_site(self, system, walker, time_slice, eshift):
+        assert not self.charge_decomp
         fields = numpy.random.randint(0, 2, system.nbasis)
         for i in range(0, system.nbasis):
             probs = self.calculate_overlap_ratio(walker, i)
@@ -191,6 +195,68 @@ class ThermalDiscrete(object):
         if walker.stack.time_slice % self.nstblz == 0 and time_slice != 0:
             walker.greens_function(None, walker.stack.time_slice-1)
         self.propagate_greens_function(walker)
+
+    def propagate_walker_force_bias(self, system, walker, time_slice, eshift):
+        r"""Propagate by potential term using discrete HS transform.
+
+        Use dynamic force bias from: PHYSICAL REVIEW A 92, 033603 (2015)
+
+        Parameters
+        ----------
+        """
+        # 1. Compute force bias potential based on current GF.
+        G = walker.greens_function_qr(None, slice_ix=time_slice, inplace=False)
+        nup = system.nup
+        P = one_rdm_from_G(G)
+        nia, nib = P[0].diagonal(), P[1].diagonal()
+        fields = []
+        fb_fac = 1.0
+        if self.charge_decomp:
+            fb_term = nia + nib - 1
+        else:
+            fb_term = nia - nib
+        # 2. Select fields based on force bias.
+        for i in range(system.nbasis):
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
+            norm = pp + pm
+            r = numpy.random.random()
+            if r < pp/norm:
+                fields.append(0)
+                self.BV[0,i] = self.auxf[0,0]
+                self.BV[1,i] = self.auxf[0,1]
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+            else:
+                fields.append(1)
+                self.BV[0,i] = self.auxf[1,0]
+                self.BV[1,i] = self.auxf[1,1]
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+
+        B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
+        walker.stack.update_new(B)
+        walker.greens_function_qr(None, slice_ix=time_slice, inplace=True)
+        # 3. Compute exp(log(det(G)/det(G')))
+        M0 = [numpy.linalg.slogdet(G[0]),
+              numpy.linalg.slogdet(G[1])]
+        Mnew = [numpy.linalg.slogdet(walker.G[0]),
+                numpy.linalg.slogdet(walker.G[1])]
+        wfac = 1.0 + 0j
+        for xi in fields:
+            wfac *= self.aux_wfac[xi]
+        log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
+        sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
+        oratio = fb_fac * wfac * sign * numpy.exp(log_o)
+        if self.free_projection:
+            (magn, phase) = cmath.polar(oratio)
+            walker.weight *= magn
+            walker.phase *= cmath.exp(1j*phase)
+        else:
+            phase = cmath.phase(oratio/fb_fac)
+            if abs(phase) < 0.5*math.pi:
+                walker.weight *= (oratio).real
+            else:
+                walker.weight = 0
+                return
 
 
 class HubbardContinuous(object):
