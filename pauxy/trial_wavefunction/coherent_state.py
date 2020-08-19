@@ -36,6 +36,7 @@ except ModuleNotFoundError:
     np = numpy
 
 import math
+
 @jit
 def gab(A, B):
     r"""One-particle Green's function.
@@ -109,20 +110,20 @@ def local_energy_hubbard_holstein_jax(T,U,g,m,w0, G, X, Lap, Ghalf=None):
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
-def gradient(x, system, c0,resctricted, exporder):
-    grad = numpy.array(jax.grad(objective_function)(x, system, c0,resctricted, exporder))
+def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted):
+    grad = numpy.array(jax.grad(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted))
     return grad
 
-def hessian(x, system, c0,resctricted, exporder):
-    H = numpy.array(jax.hessian(objective_function)(x, system, c0,resctricted, exporder))
+def hessian(x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
+    H = numpy.array(jax.hessian(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted))
     return H
 
-def hessian_product(x, p, system, c0):
+def hessian_product(x, p, nbasis, nup, ndown, T, U, g, m, w0, c0):
     h = 1e-5
     xph = x + p * h
     xmh = x - p * h
-    gph = gradient(xph, system, c0)
-    gmh = gradient(xmh, system, c0)
+    gph = gradient(xph, nbasis, nup, ndown, T, U, g, m, w0, c0)
+    gmh = gradient(xmh, nbasis, nup, ndown, T, U, g, m, w0, c0)
 
     Hx = (gph - gmh) / (2.0 * h)
     return Hx
@@ -135,14 +136,13 @@ def compute_exp(Ua, tmp, theta_a):
 
     return Ua
 
-def objective_function (x, system, c0, resctricted, exporder):
-    shift = x[0:system.nbasis]
-
-    nbsf = system.nbasis
-    nocca = system.nup
-    noccb = system.ndown
-    nvira = system.nbasis - nocca
-    nvirb = system.nbasis - noccb
+def compute_greens_function_from_x (x, nbasis, nup, ndown, c0, restricted):
+    shift = x[0:nbasis]
+    nbsf = nbasis
+    nocca = nup
+    noccb = ndown
+    nvira = nbasis - nocca
+    nvirb = nbasis - noccb
     
     nova = nocca*nvira
     novb = noccb*nvirb
@@ -153,7 +153,7 @@ def objective_function (x, system, c0, resctricted, exporder):
     daia = daia.reshape((nvira, nocca))
     daib = daib.reshape((nvirb, noccb))
 
-    if (resctricted):
+    if (restricted):
         daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
 
     theta_a = np.zeros((nbsf, nbsf),dtype=np.float64)
@@ -182,11 +182,65 @@ def objective_function (x, system, c0, resctricted, exporder):
         Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
 
     G = np.array([Ga, Gb],dtype=np.float64)
-    phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
 
+    return G
+
+def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
+    nbasis = int(round(nbasis))
+    nup = int(round(nup))
+    ndown = int(round(ndown))
+
+    shift = x[0:nbasis]
+
+    nbsf = nbasis
+    nocca = nup
+    noccb = ndown
+    nvira = nbasis - nocca
+    nvirb = nbasis - noccb
+    
+    nova = nocca*nvira
+    novb = noccb*nvirb
+    
+    daia = np.array(x[nbsf:nbsf+nova],dtype=np.float64)
+    daib = np.array(x[nbsf+nova:nbsf+nova+novb],dtype=np.float64)
+
+    daia = daia.reshape((nvira, nocca))
+    daib = daib.reshape((nvirb, noccb))
+
+    if (restricted):
+        daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
+
+    theta_a = np.zeros((nbsf, nbsf),dtype=np.float64)
+    theta_b = np.zeros((nbsf, nbsf),dtype=np.float64)
+
+    theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
+    theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
+
+    theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
+    theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
+
+    Ua = np.eye(nbsf,dtype=np.float64)
+    tmp = np.eye(nbsf,dtype=np.float64)
+    Ua = compute_exp(Ua, tmp, theta_a)
+
+    C0a = np.array(c0[:nbsf*nbsf].reshape((nbsf,nbsf)),dtype=np.float64)
+    Ca = C0a.dot(Ua)
+    Ga = gab(Ca[:,:nocca], Ca[:,:nocca])
+    
+    if (noccb > 0):
+        C0b = np.array(c0[nbsf*nbsf:].reshape((nbsf,nbsf)),dtype=np.float64)
+        Ub = np.eye(nbsf)
+        tmp = np.eye(nbsf)
+        Ub = compute_exp(Ub, tmp, theta_b)
+        Cb = C0b.dot(Ub)
+        Gb = gab(Cb[:,:noccb], Cb[:,:noccb])
+
+    G = np.array([Ga, Gb],dtype=np.float64)
+
+    phi = HarmonicOscillator(m, w0, order=0, shift = shift)
     Lap = phi.laplacian(shift)
 
-    etot, eel, eph = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, G, shift, Lap)
+    etot, eel, eph = local_energy_hubbard_holstein_jax(T,U, g,m,w0, G, shift, Lap)
 
     return etot.real
 
@@ -296,7 +350,7 @@ class CoherentState(object):
             if (self.variational):
                 if (verbose):
                     print("# we will repeat SCF {} times".format(self.maxiter))
-                self.run_variational(system)
+                self.run_variational(system, verbose)
                 print("# Variational Coherent State Energy = {}".format(self.energy))
 
             print("# Optimized shift = {}".format(self.shift[0:3]))
@@ -411,7 +465,7 @@ class CoherentState(object):
 
         return eloc
 
-    def run_variational(self, system):
+    def run_variational(self, system, verbose):
         nbsf = system.nbasis
         nocca = system.nup
         noccb = system.ndown
@@ -445,37 +499,113 @@ class CoherentState(object):
             Cb = Ca.copy()
 
         if (system.ndown > 0):
-            c0 = numpy.zeros(nbsf*nbsf*2)
+            c0 = numpy.zeros(nbsf*nbsf*2, dtype=numpy.float64)
             c0[:nbsf*nbsf] = Ca.ravel()
             c0[nbsf*nbsf:] = Cb.ravel()
         else:
-            c0 = numpy.zeros(nbsf*nbsf)
+            c0 = numpy.zeros(nbsf*nbsf, dtype=numpy.float64)
             c0[:nbsf*nbsf] = Ca.ravel()
 #       
         x[:system.nbasis] = self.shift.real.copy() # initial guess
         # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 
-        xconv = numpy.zeros_like(x)
-        # x += numpy.random.randn(x.shape[0]) * 1e-5
-        # for i in range (10): # Try 10 times
-        # for i in range (3): # Try 10 times
-        for i in range (self.maxiter): # Try 10 times
-            res = minimize(objective_function, x, args=(system, c0, self.restricted, self.exporder), jac=gradient, tol=1e-10,\
-                method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
-                'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
-            e = res.fun
-            if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
-                self.energy = res.fun
-                self.shift = self.shift
-                xconv = res.x.copy()
-            else:
-                break
-            x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
-            x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
+        # xconv = numpy.zeros_like(x)
+        
+        # from jax.experimental import optimizers
+        # opt_init, opt_update, get_params = optimizers.adagrad(step_size=0.5)
+
+        # for i in range (self.maxiter): # Try 10 times
+        #     ehistory = []
+        #     x = numpy.zeros_like(x)
+        #     x[:system.nbasis] = self.shift.real.copy() # initial guess
+        #     x += numpy.random.randn(x.shape[0]) * 1e-2
+        #     x_jax = np.array(x)
+        #     opt_state = opt_init(x_jax)
+
+        #     def update(i, opt_state):
+        #         params = get_params(opt_state)
+        #         gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
+        #             system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+        #         return opt_update(i, gradient, opt_state)
+
+        #     eprev = 10000
+            
+        #     params = get_params(opt_state)
+        #     Gprev = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
+        #     shift_prev = x[:system.nbasis]
+
+        #     for t in range(1000):
+        #         params = get_params(opt_state)
+        #         shift_curr = params[:system.nbasis]
+        #         Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
+        #         ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
+        #             system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+        #         opt_state = update(t, opt_state)
+
+        #         Gdiff = (Gprev-Gcurr).ravel()
+        #         shift_diff = shift_prev - shift_curr
+
+        #         rms = numpy.sum(Gdiff**2) + numpy.sum(shift_diff**2)
+        #         echange = numpy.abs(ecurr - eprev)
+
+        #         if (echange < 1e-8 and rms < 1e-8):
+
+        #             if verbose:
+        #                 print("# {} {} {} {} (converged)".format(t, ecurr, echange, rms))
+        #                 self.energy = ecurr
+        #                 ehistory += [ecurr]
+        #             #     H = hessian(params, float(system.nbasis), float(system.nup), float(system.ndown),\
+        #             # system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+        #             #     eigval, eigvec = numpy.linalg.eigh(H)
+        #             #     print(eigval)
+        #             break
+        #         else:
+        #             eprev = ecurr
+        #             Gprev = Gcurr
+        #             shift_prev = shift_curr
+        #             if (verbose and t % 20 == 0):
+        #                 print("# {} {} {} {}".format(t, ecurr, echange, rms))
+
+        # x = numpy.array(params)
+        # self.shift = x[:nbsf]
+
+        # daia = x[nbsf:nbsf+nova] 
+        # daib = x[nbsf+nova:nbsf+nova+novb]
+        
+        from scipy.optimize import basinhopping
+        minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)}
+
+        def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
+            f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
+            df = gradient(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
+            return f, df
+        
+        def print_fun(x, f, accepted):
+            print("at minimum %.4f accepted %d" % (f, int(accepted)))
+
+        res = basinhopping(func, x, minimizer_kwargs=minimizer_kwargs, callback=print_fun,
+                   niter=self.maxiter)
+        print("global minimium at {}".format(res.fun))
+
+        # for i in range (self.maxiter): # Try 10 times
+        #     res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
+        #             system.T, system.U, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+        #         method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
+        #         'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
+        #     e = res.fun
+        #     if (verbose):
+        #         print("# macro iter {} energy is {}".format(i, e))
+        #     if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
+        #         self.energy = res.fun
+        #         self.shift = self.shift
+        #         xconv = res.x.copy()
+        #     else:
+        #         break
+        #     x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
+        #     x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
 
         self.shift = res.x[:nbsf]
-
         daia = res.x[nbsf:nbsf+nova] 
         daib = res.x[nbsf+nova:nbsf+nova+novb]
 

@@ -4,6 +4,8 @@ import numpy
 import math
 import scipy.linalg
 
+from jax import grad, jit
+
 class HarmonicOscillator(object):
     def __init__(self, m, w, order, shift):
         self.m = m
