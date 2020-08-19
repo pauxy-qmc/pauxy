@@ -59,9 +59,10 @@ class ThermalWalker(Walker):
         self.stack.set_all(trial.dmat)
         self.greens_function_qr_strat(trial)
         self.stack.G = self.G
-        self.M0 = numpy.array([scipy.linalg.det(self.G[0], check_finite=False),
-                               scipy.linalg.det(self.G[1], check_finite=False)])
-        self.stack.ovlp = numpy.array([1.0/self.M0[0], 1.0/self.M0[1]])
+        self.M0 = numpy.array([numpy.linalg.slogdet(self.G[0]),
+                               numpy.linalg.slogdet(self.G[1])])
+        self.stack.sgndet = [self.M0[0][0], self.M0[1][0]]
+        self.stack.logdet = [-self.M0[0][1], -self.M0[1][1]]
 
         # # temporary storage for stacks...
         I = numpy.identity(system.nbasis, dtype=dtype)

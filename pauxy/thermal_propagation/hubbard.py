@@ -158,20 +158,20 @@ class ThermalDiscrete(object):
         walker.greens_function_qr(None, slice_ix=time_slice, inplace=True)
 
         # 3. Compute exp(log(det(G)/det(G')))
-        #    = exp(log(detG)-log(detG'))
-        M0 = numpy.array([numpy.linalg.det(G[0]),
-                          numpy.linalg.det(G[1])])
-        Mnew = numpy.array([numpy.linalg.det(walker.G[0]),
-                            numpy.linalg.det(walker.G[1])])
+        #    = exp(log(detG/log(detG')))
+        M0 = [numpy.linalg.slogdet(G[0]),
+              numpy.linalg.slogdet(G[1])]
+        Mnew = [numpy.linalg.slogdet(walker.G[0]),
+                numpy.linalg.slogdet(walker.G[1])]
         # Could save M0 rather than recompute.
-        oratio = wfac * (M0[0]*M0[1])/(Mnew[0]*Mnew[1])
+        log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
+        sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
+        oratio = wfac * sign * numpy.exp(log_o)
         walker.ot = 1.0
         # Constant terms are included in the walker's weight.
         (magn, phase) = cmath.polar(oratio)
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*phase)
-        # Need to recompute Green's function from scratch before we propagate it
-        # to the next time slice due to stack structure.
 
     def propagate_walker_free_site(self, system, walker, time_slice, eshift):
         fields = numpy.random.randint(0, 2, system.nbasis)
