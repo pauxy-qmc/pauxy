@@ -211,6 +211,7 @@ class CoherentState(object):
 
         self.reference = options.get('reference', None)
         self.exporder = options.get('exporder', 6)
+        self.maxiter = options.get('maxiter', 3)
         
         if verbose:
             print("# exporder in CoherentState is 15 no matter what you entered like {}".format(self.exporder))
@@ -293,6 +294,8 @@ class CoherentState(object):
             print("# Initial shift = {}".format(self.shift[0:3]))
 
             if (self.variational):
+                if (verbose):
+                    print("# we will repeat SCF {} times".format(self.maxiter))
                 self.run_variational(system)
                 print("# Variational Coherent State Energy = {}".format(self.energy))
 
@@ -457,7 +460,7 @@ class CoherentState(object):
         # x += numpy.random.randn(x.shape[0]) * 1e-5
         # for i in range (10): # Try 10 times
         # for i in range (3): # Try 10 times
-        for i in range (2): # Try 10 times
+        for i in range (self.maxiter): # Try 10 times
             res = minimize(objective_function, x, args=(system, c0, self.restricted, self.exporder), jac=gradient, tol=1e-10,\
                 method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
                 'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
