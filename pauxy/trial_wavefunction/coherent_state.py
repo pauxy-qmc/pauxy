@@ -574,7 +574,9 @@ class CoherentState(object):
         # daib = x[nbsf+nova:nbsf+nova+novb]
         
         from scipy.optimize import basinhopping
-        minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)}
+        minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted),
+                            "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
+                                    'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
 
         def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
             f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
@@ -585,7 +587,7 @@ class CoherentState(object):
             print("at minimum %.4f accepted %d" % (f, int(accepted)))
 
         res = basinhopping(func, x, minimizer_kwargs=minimizer_kwargs, callback=print_fun,
-                   niter=self.maxiter)
+                   niter=self.maxiter, niter_success=3)
         print("global minimium at {}".format(res.fun))
 
         # for i in range (self.maxiter): # Try 10 times
