@@ -506,7 +506,15 @@ class CoherentState(object):
             c0 = numpy.zeros(nbsf*nbsf, dtype=numpy.float64)
             c0[:nbsf*nbsf] = Ca.ravel()
 #       
+
         x[:system.nbasis] = self.shift.real.copy() # initial guess
+        for i in range(system.nbasis):
+            if (i%2==0):
+                x[i] *=2.0
+            else:
+                x[i] /=2.0
+        # x[:system.nbasis//2] *= 2.0
+        # x[system.nbasis//2:system.nbasis] /= 2.0
         # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 
