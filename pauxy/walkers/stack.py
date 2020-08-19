@@ -1,6 +1,7 @@
 import numpy
 import scipy.linalg
 from pauxy.utils.misc import get_numeric_names
+from pauxy.walkers.utils import get_numeric_buffer, set_numeric_buffer
 
 class FieldConfig(object):
     """Object for managing stored auxilliary field.
@@ -86,34 +87,15 @@ class FieldConfig(object):
         return (self.configs[:end], self.cos_fac[:end], self.weight_fac[:end])
 
     def get_buffer(self):
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        return buff
+        return get_numeric_buffer(self.__dict__,
+                                  self.buff_names,
+                                  self.buff_size)
 
     def set_buffer(self, buff):
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                if isinstance(self.__dict__[d], int):
-                    self.__dict__[d] = int(buff[s].real)
-                elif isinstance(self.__dict__[d], float):
-                    self.__dict__[d] = buff[s].real
-                else:
-                    self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
+        set_numeric_buffer(self.__dict__,
+                           self.buff_names,
+                           self.buff_size,
+                           buff)
 
     def get_wfac(self):
         cfac = numpy.prod(self.cos_fac[:self.step])
@@ -196,34 +178,15 @@ class PropagatorStack:
         return self.stack[ix]
 
     def get_buffer(self):
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            else:
-                buff[s:s+1] = data
-                s += 1
-        return buff
+        return get_numeric_buffer(self.__dict__,
+                                  self.buff_names,
+                                  self.buff_size)
 
     def set_buffer(self, buff):
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                dsize = data.size
-            else:
-                if isinstance(self.__dict__[d], int):
-                    self.__dict__[d] = int(buff[s].real)
-                elif isinstance(self.__dict__[d], float):
-                    self.__dict__[d] = float(buff[s].real)
-                else:
-                    self.__dict__[d] = buff[s]
-                dsize = 1
-            s += dsize
+        set_numeric_buffer(self.__dict__,
+                           self.buff_names,
+                           self.buff_size,
+                           buff)
 
     def set_all(self, BT):
         # Diagonal = True assumes BT is diagonal and left is also diagonal

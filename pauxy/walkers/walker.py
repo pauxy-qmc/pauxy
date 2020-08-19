@@ -1,5 +1,6 @@
 import numpy
 from pauxy.walkers.stack import FieldConfig
+from pauxy.walkers.utils import get_numeric_buffer, set_numeric_buffer
 
 class Walker(object):
     """Walker base class.
@@ -68,24 +69,9 @@ class Walker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        s = 0
-        buff = numpy.zeros(self.buff_size, dtype=numpy.complex128)
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, (numpy.ndarray)):
-                buff[s:s+data.size] = data.ravel()
-                s += data.size
-            elif isinstance(data, list):
-                for l in data:
-                    if isinstance(l, (numpy.ndarray)):
-                        buff[s:s+l.size] = l.ravel()
-                        s += l.size
-                    elif isinstance(l, (int, float, complex)):
-                        buff[s:s+1] = l
-                        s += 1
-            else:
-                buff[s:s+1] = data
-                s += 1
+        buff = get_numeric_buffer(self.__dict__,
+                                  self.buff_names,
+                                  self.buff_size)
         if self.field_configs is not None:
             stack_buff = self.field_configs.get_buffer()
             return numpy.concatenate((buff,stack_buff))
@@ -103,28 +89,10 @@ class Walker(object):
         buff : dict
             Relevant walker information for population control.
         """
-        s = 0
-        for d in self.buff_names:
-            data = self.__dict__[d]
-            if isinstance(data, numpy.ndarray):
-                self.__dict__[d] = buff[s:s+data.size].reshape(data.shape).copy()
-                s += data.size
-            elif isinstance(data, list):
-                for ix, l in enumerate(data):
-                    if isinstance(l, (numpy.ndarray)):
-                        self.__dict__[d][ix] = buff[s:s+l.size].reshape(l.shape).copy()
-                        s += l.size
-                    elif isinstance(l, (int, float, complex)):
-                        self.__dict__[d][ix] = buff[s]
-                        s += 1
-            else:
-                if isinstance(self.__dict__[d], int):
-                    self.__dict__[d] = int(buff[s].real)
-                elif isinstance(self.__dict__[d], float):
-                    self.__dict__[d] = buff[s].real
-                else:
-                    self.__dict__[d] = buff[s]
-                s += 1
+        set_numeric_buffer(self.__dict__,
+                           self.buff_names,
+                           self.buff_size,
+                           buff)
         if self.field_configs is not None:
             self.field_configs.set_buffer(buff[self.buff_size:])
         if self.stack is not None:
