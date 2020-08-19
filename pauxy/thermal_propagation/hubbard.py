@@ -210,7 +210,7 @@ class ThermalDiscrete(object):
         P = one_rdm_from_G(G)
         nia, nib = P[0].diagonal(), P[1].diagonal()
         fields = []
-        fb_fac = 1.0
+        fb_fac = 0.0
         if self.charge_decomp:
             fb_term = nia + nib - 1
         else:
@@ -225,12 +225,14 @@ class ThermalDiscrete(object):
                 fields.append(0)
                 self.BV[0,i] = self.auxf[0,0]
                 self.BV[1,i] = self.auxf[0,1]
-                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+                # fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+                fb_fac += numpy.log(0.5*norm) - self.gamma*fb_term[i]
             else:
                 fields.append(1)
                 self.BV[0,i] = self.auxf[1,0]
                 self.BV[1,i] = self.auxf[1,1]
-                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+                # fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+                fb_fac += numpy.log(0.5*norm) + self.gamma*fb_term[i]
 
         B = numpy.einsum('ki,kij->kij', self.BV, self.BH1)
         walker.stack.update_new(B)
@@ -240,18 +242,18 @@ class ThermalDiscrete(object):
               numpy.linalg.slogdet(G[1])]
         Mnew = [numpy.linalg.slogdet(walker.G[0]),
                 numpy.linalg.slogdet(walker.G[1])]
-        wfac = 1.0 + 0j
+        wfac = 0.0 + 0j
         for xi in fields:
-            wfac *= self.aux_wfac[xi]
+            wfac += numpy.log(self.aux_wfac[xi])
         log_o = (M0[0][1] + M0[1][1]) - (Mnew[0][1] + Mnew[1][1])
         sign = M0[0][0]*M0[1][0]/(Mnew[0][0]*Mnew[1][0])
-        oratio = fb_fac * wfac * sign * numpy.exp(log_o)
+        oratio = sign * numpy.exp(log_o + wfac + fb_fac)
         if self.free_projection:
             (magn, phase) = cmath.polar(oratio)
             walker.weight *= magn
             walker.phase *= cmath.exp(1j*phase)
         else:
-            phase = cmath.phase(oratio/fb_fac)
+            phase = cmath.phase(oratio/numpy.exp(fb_fac))
             if abs(phase) < 0.5*math.pi:
                 walker.weight *= (oratio).real
             else:

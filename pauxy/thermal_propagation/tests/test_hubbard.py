@@ -166,7 +166,6 @@ def test_propagate_charge():
                              verbose=True)
     numpy.random.seed(7)
     prop.propagate_walker(system, walker_b, 0, 0)
-    print(walker_b.weight, walker_b.phase)
     assert walker_b.weight - 3.274712723693295e-05 == pytest.approx(0.0, abs=1e-8)
     assert walker_b.phase.real == pytest.approx(1.0, abs=1e-8)
 
