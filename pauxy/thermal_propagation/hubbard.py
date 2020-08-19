@@ -66,6 +66,8 @@ class ThermalDiscrete(object):
         else:
             self.propagate_walker = self.propagate_walker_constrained
         if self.force_bias:
+            if verbose:
+                print("# Using dynamic force bias update.")
             self.propagate_walker = self.propagate_walker_force_bias
 
     def construct_one_body_propagator(self, system, mu, dt):
