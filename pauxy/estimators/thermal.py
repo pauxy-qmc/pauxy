@@ -125,7 +125,7 @@ def one_rdm_from_G(G):
     P : :class:`numpy.ndarray`
         Thermal 1RDM.
     """
-    I = numpy.identity(G.shape[-1])
+    I = numpy.identity(G.shape[-1], dtype=G[0].dtype)
     return numpy.array([I-G[0].T, I-G[1].T], dtype=numpy.complex128)
 
 def particle_number(dmat):
