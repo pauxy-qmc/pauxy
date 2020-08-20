@@ -201,9 +201,9 @@ class Mixed(object):
                         E, T, V = w.local_energy(system, two_rdm=self.two_rdm)
                         nav = particle_number(one_rdm_from_G(w.G))
                         self.estimates[self.names.nav] += w.weight * nav
-                        self.estimates[self.names.enumer] += w.weight*E.real
+                        self.estimates[self.names.enumer] += w.weight*E
                         self.estimates[self.names.e1b:self.names.e2b+1] += (
-                                w.weight*numpy.array([T,V]).real
+                                w.weight*numpy.array([T,V])
                         )
                         self.estimates[self.names.edenom] += w.weight
                 else:
@@ -213,9 +213,9 @@ class Mixed(object):
                             E, T, V = w.local_energy(system, rchol=trial._rchol)
                         else:
                             E, T, V = 0, 0, 0
-                        self.estimates[self.names.enumer] += w.weight*E.real
+                        self.estimates[self.names.enumer] += w.weight*E
                         self.estimates[self.names.e1b:self.names.e2b+1] += (
-                                w.weight*numpy.array([T,V]).real
+                                w.weight*numpy.array([T,V])
                         )
                         self.estimates[self.names.edenom] += w.weight
                 self.estimates[self.names.uweight] += w.unscaled_weight
@@ -225,7 +225,7 @@ class Mixed(object):
                 if self.calc_one_rdm:
                     start = self.names.time+1
                     end = self.names.time+1+w.G.size
-                    self.estimates[start:end] += w.weight*w.G.flatten().real
+                    self.estimates[start:end] += w.weight*w.G.flatten()
                 if self.calc_two_rdm is not None:
                     start = end
                     end = end + self.two_rdm.size
