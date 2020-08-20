@@ -643,7 +643,8 @@ class CoherentState(object):
 
         res = basinhopping(func, x, minimizer_kwargs=minimizer_kwargs, callback=print_fun,
                    niter=self.maxiter, niter_success=3)
-        print("global minimium at {}".format(res.fun))
+
+        self.energy = res.fun
 
         # for i in range (self.maxiter): # Try 10 times
         #     res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
