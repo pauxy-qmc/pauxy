@@ -245,16 +245,16 @@ class Hirsch(object):
         else:
             fb_term = nia - nib
         for i in range(system.nbasis):
-            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
-            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i])
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i])
             norm = pp + pm
             r = numpy.random.random()
-            if r < pp/norm:
+            if r < abs(pp/norm):
                 fields.append(0)
-                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i])
             else:
                 fields.append(1)
-                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i])
 
         BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
         BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
