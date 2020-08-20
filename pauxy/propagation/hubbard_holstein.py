@@ -127,11 +127,18 @@ class HirschDMC(object):
 
         shift = trial.shift.copy()
         if (verbose):
-            print("# Shift in propagation = {}".format(shift[:3]))
+            if (len(trial.psi.shape) == 3):
+                print("# Shift in propagation = {}".format(shift[0,:3]))
+            else:
+                print("# Shift in propagation = {}".format(shift[:3]))
 
-        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+        if (len(trial.psi.shape) == 3):
+            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift[0,:])
+            self.eshift_boson = self.boson_trial.local_energy(shift[0,:])
+        else:
+            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+            self.eshift_boson = self.boson_trial.local_energy(shift)
 
-        self.eshift_boson = self.boson_trial.local_energy(shift)
         self.eshift_boson = self.eshift_boson.real
 
         if verbose:
@@ -179,24 +186,45 @@ class HirschDMC(object):
             Number of up electrons.
         """
 
+
         ndown = walker.phi.shape[1] - nup
 
-        for ix, perm in enumerate(trial.perms):
-            psi = trial.psi[perm,:].copy()
-            vup = psi.conj()[i,:nup]
+        if (len(trial.psi.shape) == 3):
 
-            uup = walker.phi[i,:nup]
+            for ix in range(trial.nperms):
+                psi = trial.psi[ix,:,:].copy()
+                vup = psi.conj()[i,:nup]
 
-            q = numpy.dot(walker.inv_ovlp[0][ix], vup)
+                uup = walker.phi[i,:nup]
 
-            walker.Gi[ix,0,i,i] = numpy.dot(uup, q)
-            
-            vdown = psi.conj()[i,nup:]
-            udown = walker.phi[i,nup:]
+                q = numpy.dot(walker.inv_ovlp[0][ix], vup)
 
-            if (ndown > 0):
-                q = numpy.dot(walker.inv_ovlp[1][ix], vdown)
-                walker.Gi[ix,1,i,i] = numpy.dot(udown, q)
+                walker.Gi[ix,0,i,i] = numpy.dot(uup, q)
+                
+                vdown = psi.conj()[i,nup:]
+                udown = walker.phi[i,nup:]
+
+                if (ndown > 0):
+                    q = numpy.dot(walker.inv_ovlp[1][ix], vdown)
+                    walker.Gi[ix,1,i,i] = numpy.dot(udown, q)
+
+        else:
+            for ix, perm in enumerate(trial.perms):
+                psi = trial.psi[perm,:].copy()
+                vup = psi.conj()[i,:nup]
+
+                uup = walker.phi[i,:nup]
+
+                q = numpy.dot(walker.inv_ovlp[0][ix], vup)
+
+                walker.Gi[ix,0,i,i] = numpy.dot(uup, q)
+                
+                vdown = psi.conj()[i,nup:]
+                udown = walker.phi[i,nup:]
+
+                if (ndown > 0):
+                    q = numpy.dot(walker.inv_ovlp[1][ix], vdown)
+                    walker.Gi[ix,1,i,i] = numpy.dot(udown, q)
 
     def update_greens_function_ghf(self, walker, trial, i, nup):
         """Update of walker's Green's function for UHF walker.
@@ -303,7 +331,6 @@ class HirschDMC(object):
         walker.X = Xnew.copy()
         
         phinew = trial.value(walker)
-
         lap = trial.laplacian(walker)
         walker.Lap = lap
         
@@ -319,6 +346,7 @@ class HirschDMC(object):
         
         eloc = numpy.real(eloc)
         walker.ot *= (phinew / phiold)
+
         walker.weight *= math.exp(-0.5*dt*(eloc+elocold-2*self.eshift_boson))
 
     def kinetic_importance_sampling(self, walker, system, trial, dt):
@@ -400,7 +428,7 @@ class HirschDMC(object):
                 self.kinetic_importance_sampling(walker, system, trial, self.dt/2.)
             if abs(walker.weight.real) > 0:
                 self.boson_importance_sampling(walker, system, trial, self.dt)
-
+        
     def boson_free_propagation(self, walker, system, trial, eshift):
         #Change weight
         pot  = 0.25 * system.m * system.w0 * system.w0 * numpy.sum(walker.X * walker.X)

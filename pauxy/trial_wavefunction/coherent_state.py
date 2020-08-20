@@ -282,23 +282,54 @@ class CoherentState(object):
         self.nocca = system.nup
         self.noccb = system.ndown
 
+        self.symmetrize = options.get('symmetrize',False)
+        print("# Symmetrize Coherent State = {}".format(self.symmetrize))
+
         self.wfn_file = options.get('wfn_file', None)
+        
+        self.coeffs = None
+        self.perms = None
+
         if self.wfn_file is not None:
             if verbose:
                 print ("# Reading trial wavefunction from %s"%(self.wfn_file))
             f = h5py.File(self.wfn_file, "r")
-            self.shift = f["shift"][()]
+            self.shift = f["shift"][()].real
             self.psi = f["psi"][()]
             f.close()
-            gup = gab(self.psi[:, :system.nup],
-                                             self.psi[:, :system.nup]).T
-            if (system.ndown > 0):
-                gdown = gab(self.psi[:, system.nup:],
-                                                   self.psi[:, system.nup:]).T
-            else:
-                gdown = numpy.zeros_like(gup)
 
-            self.G = numpy.array([gup, gdown])
+            if (len(self.psi.shape) == 3):
+                if verbose:
+                    print("# MultiCoherent trial detected")
+                self.symmetrize = True
+                self.perms = None
+
+                f = h5py.File(self.wfn_file, "r")
+                self.coeffs = f["coeffs"][()]
+                f.close()
+
+                self.nperms = self.coeffs.shape[0]
+
+                assert(self.nperms == self.psi.shape[0])
+                assert(self.nperms == self.shift.shape[0])
+                self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift[0,:])
+
+                self.G = None
+                if verbose:
+                    print("# A total of {} coherent states are used".format(self.nperms))
+
+            else:
+                gup = gab(self.psi[:, :system.nup],
+                                                 self.psi[:, :system.nup]).T
+                if (system.ndown > 0):
+                    gdown = gab(self.psi[:, system.nup:],
+                                                       self.psi[:, system.nup:]).T
+                else:
+                    gdown = numpy.zeros_like(gup)
+
+                self.G = numpy.array([gup, gdown])
+                self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
+
         else:
             free_electron = options.get('free_electron', False)
             if (free_electron):
@@ -355,22 +386,18 @@ class CoherentState(object):
 
             print("# Optimized shift = {}".format(self.shift[0:3]))
 
+            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
 
-        self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
-
-        self.symmetrize = options.get('symmetrize',False)
         
-        print("# Symmetrize Coherent State = {}".format(self.symmetrize))
-        
-        if (self.symmetrize):
-            self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
-            # self.perms = numpy.array([self.perms[0].copy()]) # Pick only one permanent
-            self.nperms = self.perms.shape[0]
-            norm = 1.0 / numpy.sqrt(self.nperms)
-            self.coeffs = norm * numpy.ones(self.nperms)
-            print("# Number of permutations = {}".format(self.nperms))
-        else:
-            self.coeffs = 1.0
+        if (not len(self.psi.shape) == 3):
+            if (self.symmetrize):
+                self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
+                self.nperms = self.perms.shape[0]
+                norm = 1.0 / numpy.sqrt(self.nperms)
+                self.coeffs = norm * numpy.ones(self.nperms)
+                print("# Number of permutations = {}".format(self.nperms))
+            elif (self.coeffs == None):
+                self.coeffs = 1.0
 
         self.calculate_energy(system)
         
@@ -382,7 +409,7 @@ class CoherentState(object):
         self.initialisation_time = time.time() - init_time
 
         self.spin_projection = options.get('spin_projection',True)
-        if (self.spin_projection): # natural orbital
+        if (self.spin_projection and not self.symmetrize): # natural orbital
             print("# Spin projection is used")
             Pcharge = self.G[0] + self.G[1]
             e, v = numpy.linalg.eigh(Pcharge)
@@ -395,7 +422,11 @@ class CoherentState(object):
             self.init[:, :system.nup] = v[:, :system.nup].copy()
             self.init[:, system.nup:] = v[:, :system.ndown].copy()
         else:
-            self.init = self.psi.copy()
+            if (len(self.psi.shape) == 3):
+                self.init = self.psi[0,:,:].copy()
+            else:
+                self.init = self.psi.copy()
+
 
         # For interface compatability
         self.ndets = 1
@@ -416,11 +447,17 @@ class CoherentState(object):
     def value(self, walker): # value
         if (self.symmetrize):
             phi = 0.0
-            shift0 = self.shift.copy()
-            for i, perm in enumerate(self.perms):
-                shift = shift0[perm].copy()
-                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
-                phi += boson_trial.value(walker.X) * walker.ots[i] * self.coeffs[i]
+            if (len(self.psi.shape) == 3): # multicoherent given
+                for i in range(self.nperms):
+                    shift = self.shift[i,:].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    phi += boson_trial.value(walker.X) * walker.ots[i] * self.coeffs[i].conj()
+            else:
+                shift0 = self.shift.copy()
+                for i, perm in enumerate(self.perms):
+                    shift = shift0[perm].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    phi += boson_trial.value(walker.X) * walker.ots[i] * self.coeffs[i].conj()
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
             phi = boson_trial.value(walker.X)
@@ -430,11 +467,17 @@ class CoherentState(object):
         if (self.symmetrize):
             grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
             denom = self.value(walker)
-            shift0 = self.shift.copy()
-            for i, perm in enumerate(self.perms):
-                shift = shift0[perm].copy()
-                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
-                grad += boson_trial.value(walker.X) * boson_trial.gradient(walker.X) * walker.ots[i] * self.coeffs[i]
+            if (len(self.psi.shape) == 3): # multicoherent given
+                for i in range(self.nperms):
+                    shift = self.shift[i,:].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    grad += boson_trial.value(walker.X) * boson_trial.gradient(walker.X) * walker.ots[i] * self.coeffs[i]
+            else:
+                shift0 = self.shift.copy()
+                for i, perm in enumerate(self.perms):
+                    shift = shift0[perm].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    grad += boson_trial.value(walker.X) * boson_trial.gradient(walker.X) * walker.ots[i] * self.coeffs[i]
             grad /= denom
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
@@ -445,12 +488,19 @@ class CoherentState(object):
         if (self.symmetrize):
             lap = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
             denom = self.value(walker)
-            shift0 = self.shift.copy()
-            for i, perm in enumerate(self.perms):
-                shift = shift0[perm].copy()
-                boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
-                walker.Lapi[i] = boson_trial.laplacian(walker.X)
-                lap += boson_trial.value(walker.X) * walker.Lapi[i] * walker.ots[i] * self.coeffs[i]
+            if (len(self.psi.shape) == 3): # multicoherent given
+                for i in range(self.nperms):
+                    shift = self.shift[i,:].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    walker.Lapi[i] = boson_trial.laplacian(walker.X)
+                    lap += boson_trial.value(walker.X) * walker.Lapi[i] * walker.ots[i] * self.coeffs[i].conj()
+            else:
+                shift0 = self.shift.copy()
+                for i, perm in enumerate(self.perms):
+                    shift = shift0[perm].copy()
+                    boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=shift)
+                    walker.Lapi[i] = boson_trial.laplacian(walker.X)
+                    lap += boson_trial.value(walker.X) * walker.Lapi[i] * walker.ots[i] * self.coeffs[i].conj()
             lap /= denom
         else:
             boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
@@ -513,9 +563,6 @@ class CoherentState(object):
                 x[i] *=2.0
             else:
                 x[i] /=2.0
-        # x[:system.nbasis//2] *= 2.0
-        # x[system.nbasis//2:system.nbasis] /= 2.0
-        # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 
         # xconv = numpy.zeros_like(x)
@@ -703,61 +750,95 @@ class CoherentState(object):
     def calculate_energy(self, system):
         if self.verbose:
             print ("# Computing trial energy.")
-        
         if (self.symmetrize):
-            energy = 0.
-            e1b = 0. 
-            e2b = 0.
+            num_energy = 0.
+            num_e1b = 0. 
+            num_e2b = 0.
             denom = 0.0
+            if (len(self.psi.shape) == 3): # multicoherent given
+                betas = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
+                for iperm in range(self.nperms):
+                    psia = self.psi[iperm, :, :system.nup]
+                    psib = self.psi[iperm, :, system.nup:]
+                    G = [gab(psia, psia),gab(psib, psib)]
+                    shift = self.shift[iperm,:]
+                    beta = betas[iperm,:]
 
-            # single coherent state energy
-            phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
-            Lap = phi.laplacian(self.shift)
-            (energy_single, e1b_single, e2b_single) = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, self.G, self.shift, Lap)
-
-            num_energy = 0.0
-            num_e1b = 0.0
-            num_e2b = 0.0
-
-            psia = self.psi[:, :system.nup]
-            psib = self.psi[:, system.nup:]
-
-            beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
-
-            for iperm in range(self.nperms):
-                ipermutation = self.perms[iperm]
-                psia_iperm = psia[ipermutation, :].copy()
-                psib_iperm = psib[ipermutation, :].copy()
-                beta_iperm = beta[ipermutation].copy()
-
-                num_energy += energy_single * self.coeffs[iperm]**2
-                num_e1b += e1b_single * self.coeffs[iperm]**2
-                num_e2b += e2b_single * self.coeffs[iperm]**2
-
-                denom += self.coeffs[iperm]**2
-
-                for jperm in range(iperm+1, self.nperms):
-                    jpermutation = self.perms[jperm]
-                    psia_jperm = psia[jpermutation, :].copy()
-                    psib_jperm = psib[jpermutation, :].copy()
-                    beta_jperm = beta[jpermutation].copy()
-                    Ga = gab(psia_iperm, psia_jperm)
-                    Gb = gab(psib_iperm, psib_jperm)
-                    rho = Ga.diagonal() + Gb.diagonal()
-
-                    ke = numpy.sum(system.T[0] * Ga + system.T[1] * Gb)
-                    pe = system.U * numpy.dot(Ga.diagonal(), Gb.diagonal())
-                    e_ph = system.w0 * numpy.sum(beta_iperm * beta_jperm) 
-                    e_eph = - system.g * numpy.dot(rho, beta_iperm + beta_jperm)
-
-                    overlap = numpy.linalg.det(psia_iperm.T.dot(psia_jperm)) * numpy.linalg.det(psib_iperm.T.dot(psib_jperm)) * numpy.prod(numpy.exp (- 0.5 * (beta_iperm**2 + beta_jperm**2) + beta_iperm*beta_jperm))
-
-                    num_energy += (ke + pe + e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                    phi = HarmonicOscillator(system.m, system.w0, order=0, shift = shift)
+                    Lap = phi.laplacian(shift)
                     
-                    num_e1b += (ke + pe)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
-                    num_e2b += (e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                    (energy_i, e1b_i, e2b_i) = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, G, shift, Lap)
+                    overlap = numpy.linalg.det(psia.T.dot(psia)) * numpy.linalg.det(psib.T.dot(psib)) * numpy.prod(numpy.exp (- 0.5 * (beta**2 + beta**2) + beta*beta))
 
-                    denom += overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0
+                    num_energy += energy_i * numpy.abs(self.coeffs[iperm])**2 * overlap
+                    num_e1b += e1b_i * numpy.abs(self.coeffs[iperm])**2 * overlap
+                    num_e2b += e2b_i * numpy.abs(self.coeffs[iperm])**2 * overlap
+                    denom += overlap * numpy.abs(self.coeffs[iperm])**2
+
+                    for jperm in range(iperm+1, self.nperms):
+                        psia_j = self.psi[jperm, :, :system.nup]
+                        psib_j = self.psi[jperm, :, system.nup:]
+                        G_j = [gab(psia, psia_j),gab(psib, psib_j)]
+                        beta_j = betas[jperm,:]
+
+                        rho = G_j[0].diagonal() + G_j[1].diagonal()
+                        ke = numpy.sum(system.T[0] * G_j[0] + system.T[1] * G_j[1])
+                        pe = system.U * numpy.dot(G_j[0].diagonal(), G_j[1].diagonal())
+                        e_ph = system.w0 * numpy.sum(beta * beta_j) 
+                        e_eph = - system.g * numpy.dot(rho, beta + beta_j)
+
+                        overlap = numpy.linalg.det(psia.T.dot(psia_j)) * numpy.linalg.det(psib.T.dot(psib_j)) * numpy.prod(numpy.exp (- 0.5 * (beta**2 + beta_j**2) + beta*beta_j))
+
+                        num_energy += (ke + pe + e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                        num_e1b += (ke + pe)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                        num_e2b += (e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+
+                        denom += overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0
+            else:
+                # single coherent state energy
+                phi = HarmonicOscillator(system.m, system.w0, order=0, shift = self.shift)
+                Lap = phi.laplacian(self.shift)
+                (energy_single, e1b_single, e2b_single) = local_energy_hubbard_holstein_jax(system.T,system.U, system.g,system.m,system.w0, self.G, self.shift, Lap)
+
+                psia = self.psi[:, :system.nup]
+                psib = self.psi[:, system.nup:]
+
+                beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
+
+                for iperm in range(self.nperms):
+                    ipermutation = self.perms[iperm]
+                    psia_iperm = psia[ipermutation, :].copy()
+                    psib_iperm = psib[ipermutation, :].copy()
+                    beta_iperm = beta[ipermutation].copy()
+
+                    num_energy += energy_single * self.coeffs[iperm]**2
+                    num_e1b += e1b_single * self.coeffs[iperm]**2
+                    num_e2b += e2b_single * self.coeffs[iperm]**2
+
+                    denom += self.coeffs[iperm]**2
+
+                    for jperm in range(iperm+1, self.nperms):
+                        jpermutation = self.perms[jperm]
+                        psia_jperm = psia[jpermutation, :].copy()
+                        psib_jperm = psib[jpermutation, :].copy()
+                        beta_jperm = beta[jpermutation].copy()
+                        Ga = gab(psia_iperm, psia_jperm)
+                        Gb = gab(psib_iperm, psib_jperm)
+                        rho = Ga.diagonal() + Gb.diagonal()
+
+                        ke = numpy.sum(system.T[0] * Ga + system.T[1] * Gb)
+                        pe = system.U * numpy.dot(Ga.diagonal(), Gb.diagonal())
+                        e_ph = system.w0 * numpy.sum(beta_iperm * beta_jperm) 
+                        e_eph = - system.g * numpy.dot(rho, beta_iperm + beta_jperm)
+
+                        overlap = numpy.linalg.det(psia_iperm.T.dot(psia_jperm)) * numpy.linalg.det(psib_iperm.T.dot(psib_jperm)) * numpy.prod(numpy.exp (- 0.5 * (beta_iperm**2 + beta_jperm**2) + beta_iperm*beta_jperm))
+
+                        num_energy += (ke + pe + e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                        
+                        num_e1b += (ke + pe)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+                        num_e2b += (e_ph + e_eph)*overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0 # 2.0 comes from hermiticity
+
+                        denom += overlap * self.coeffs[iperm] * self.coeffs[jperm] * 2.0
 
             self.energy = num_energy / denom
             self.e1b = num_e1b / denom
