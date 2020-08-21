@@ -106,7 +106,7 @@ def reblock_mixed(groupby, columns, verbose=False):
             short = short.drop(columns+drop, axis=1)
         except KeyError:
             short = short.drop(columns+['index'], axis=1)
-        (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
+        (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short.apply(numpy.real))
         reblocked = pd.DataFrame({'ETotal': [0.0]})
         for c in short.columns:
             try:
@@ -315,7 +315,6 @@ def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
         try:
             fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
         except KeyError:
-            print("integrals does not exist under the problem class")
             fh5['basic/estimates'] = basic_av.values.astype(float)
         fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
