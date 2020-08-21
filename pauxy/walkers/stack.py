@@ -256,7 +256,7 @@ class PropagatorStack:
                                                       dtype=B.dtype)
         self.stack[self.block,0] = B[0].dot(self.stack[self.block,0])
         self.stack[self.block,1] = B[1].dot(self.stack[self.block,1])
-        self.time_slice = self.time_slice + 1
+        self.time_slice = (self.time_slice + 1) % self.ntime_slices
         self.block = self.time_slice // self.stack_size
         self.counter = (self.counter + 1) % self.stack_size
 
