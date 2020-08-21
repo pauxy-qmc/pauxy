@@ -3,6 +3,7 @@ import numpy
 import scipy.linalg
 import json
 import time
+import sys
 from pauxy.systems.hubbard import Hubbard
 from pauxy.estimators.utils import H5EstimatorHelper
 from pauxy.trial_density_matrices.onebody import OneBody
@@ -15,16 +16,17 @@ from pauxy.analysis.blocking import reblock_local_energy
 
 system = Hubbard({'nx': 6, 'ny': 1, 'U': 4.0, 'mu': 2, 'nup': 3, 'ndown': 3})
 
-beta = 2.0
-dt = 0.05
+beta = float(sys.argv[1])
+charge_decomp = int(sys.argv[2])
+isym =  int(sys.argv[3])
+dt =  float(sys.argv[4])
 
 nslice = int(round(beta/dt))
 nsteps = 10
-blocks = 100
-stack_size = 10
-recomp_freq = 10
-charge_decomp = False
-numpy.random.seed(7)
+blocks = 1000
+stack_size = min(nslice, 10)
+recomp_freq = min(nslice, 10)
+charge_decomp = bool(charge_decomp)
 
 from utils import get_aux_fields
 gamma, auxf, delta, aux_wfac = get_aux_fields(system, dt, charge_decomp)
@@ -45,7 +47,7 @@ from greens import (
 # P = one_rdm_from_G(G)
 # e, t, v = local_energy(system, G)
 
-filename = '{:s}.0.h5'.format('charge' if charge_decomp else 'spin')
+filename = '{:s}.{:d}.h5'.format(('charge' if charge_decomp else 'spin'), isym)
 metadata = {
         'system': serialise(system),
         'qmc': {
