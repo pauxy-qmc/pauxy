@@ -208,3 +208,70 @@ def entropy(beta, mu, H):
     # logW = -numpy.trace(scipy.linalg.logm(W))
     # S = -numpy.trace(numpy.dot(W,logW))
     return S
+
+def greens_function_qr_strat(stack, slice_ix=None):
+    """Stable computation of greens function from PropagatorStack"""
+    if slice_ix == None:
+        slice_ix = stack.time_slice
+    bin_ix = slice_ix // stack.stack_size
+    # print(bin_ix, slice_ix, stack.nbins, stack.stack_size)
+    # For final time slice want first block to be the rightmost (for energy
+    # evaluation).
+    if bin_ix == stack.nbins:
+        bin_ix = -1
+
+    assert stack.dtype == numpy.complex128
+    G = numpy.zeros((2,stack.nbasis,stack.nbasis), stack.dtype)
+
+    for spin in [0, 1]:
+        # Need to construct the product A(l) = B_l B_{l-1}..B_L...B_{l+1} in
+        # stable way. Iteratively construct column pivoted QR decompositions
+        # (A = QDT) starting from the rightmost (product of) propagator(s).
+        B = stack.get((bin_ix+1)%stack.nbins)
+
+        (Q1, R1, P1) = scipy.linalg.qr(B[spin], pivoting=True,
+                                       check_finite=False)
+        # Form D matrices
+        D1 = numpy.diag(R1.diagonal())
+        D1inv = numpy.diag(1.0/R1.diagonal())
+        T1 = numpy.einsum('ii,ij->ij', D1inv, R1)
+        # permute them
+        T1[:,P1] = T1 [:, range(stack.nbasis)]
+
+        for i in range(2, stack.nbins+1):
+            ix = (bin_ix + i) % stack.nbins
+            B = stack.get(ix)
+            C2 = numpy.dot(numpy.dot(B[spin], Q1), D1)
+            (Q1, R1, P1) = scipy.linalg.qr(C2, pivoting=True,
+                                           check_finite=False)
+            # Compute D matrices
+            D1inv = numpy.diag(1.0/R1.diagonal())
+            D1 = numpy.diag(R1.diagonal())
+            tmp = numpy.einsum('ii,ij->ij',D1inv, R1)
+            tmp[:,P1] = tmp[:,range(stack.nbasis)]
+            T1 = numpy.dot(tmp, T1)
+
+        # G^{-1} = 1+A = 1+QDT = Q (Q^{-1}T^{-1}+D) T
+        # Write D = Db^{-1} Ds
+        # Then G^{-1} = Q Db^{-1}(Db Q^{-1}T^{-1}+Ds) T
+        Db = numpy.zeros(B[spin].shape, B[spin].dtype)
+        Ds = numpy.zeros(B[spin].shape, B[spin].dtype)
+        for i in range(Db.shape[0]):
+            absDlcr = abs(Db[i,i])
+            if absDlcr > 1.0:
+                Db[i,i] = 1.0 / absDlcr
+                Ds[i,i] = numpy.sign(D1[i,i])
+            else:
+                Db[i,i] = 1.0
+                Ds[i,i] = D1[i,i]
+
+        T1inv = scipy.linalg.inv(T1, check_finite = False)
+        # C = (Db Q^{-1}T^{-1}+Ds)
+        C = numpy.dot(numpy.einsum('ii,ij->ij',Db, Q1.conj().T), T1inv) + Ds
+        Cinv = scipy.linalg.inv(C, check_finite=False)
+
+        # Then G = T^{-1} C^{-1} Db Q^{-1}
+        # Q is unitary.
+        G[spin] = numpy.dot(numpy.dot(T1inv, Cinv),
+                                 numpy.einsum('ii,ij->ij', Db, Q1.conj().T))
+    return G
