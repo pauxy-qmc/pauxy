@@ -22,14 +22,25 @@ from pauxy.estimators.generic import (
 def dump_pauxy(chkfile=None, mol=None, mf=None, hamil_file='afqmc.h5',
                verbose=True, wfn_file='afqmc.h5',
                chol_cut=1e-5, sparse_zero=1e-16, cas=None,
-               ortho_ao=True, sparse=False):
+               ortho_ao=True, ao=False, sparse=False):
     scf_data = load_from_pyscf_chkfile(chkfile)
     mol = scf_data['mol']
     hcore = scf_data['hcore']
     if ortho_ao:
         oao = scf_data['X']
     else:
-        oao = scf_data['mo_coeff']
+        if (ao):
+            print(" # Writing everything in the AO basis")
+            oao = scf_data['X']
+            nbsf = oao.shape[-1]
+            if (len(oao.shape) == 3):
+                oao[1] = numpy.eye(nbsf)
+            else:
+                oao = numpy.eye(nbsf)
+            scf_data['X'] = oao.copy()
+        else:
+            oao = scf_data['mo_coeff']
+
     hcore, chol, nelec, enuc = generate_integrals(mol, hcore, oao,
                                                   chol_cut=chol_cut,
                                                   verbose=verbose,

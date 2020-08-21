@@ -42,7 +42,10 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
                                                            verbose=verbose)
         system = Generic(h1e=hcore, chol=chol, ecore=enuc,
                          h1e_mod=h1e_mod, nelec=nelec,
-                         verbose=verbose)
+                         verbose=verbose,
+                         control_variate=inputs.get('control_variate', False),
+                         stochastic_ri=inputs.get('stochastic_ri', False),
+                         nsamples=inputs.get('nsamples', 10))
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:

@@ -84,6 +84,7 @@ class UEG(object):
         # Fermi energy (inifinite systems).
         self.ef = 0.5*self.kf**2
         self.diagH1 = True
+        self.control_variate = False
 
         skip_cholesky = inputs.get('skip_cholesky', False)
         if verbose:

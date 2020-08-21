@@ -124,7 +124,6 @@ def reblock_mixed(groupby, columns, verbose=False):
             reblocked[columns[i]] = v
         analysed.append(reblocked)
 
-
     return pd.concat(analysed, sort=True)
 
 
@@ -309,9 +308,7 @@ def analyse_estimates(files, start_time, multi_sim=False, av_tau=False,verbose=F
 
         new_columns = []
         for c in columns:
-            if (c == "E_T"):
-                continue
-            else:
+            if (c != "E_T"):
                 new_columns += [c]
         columns = new_columns
 
