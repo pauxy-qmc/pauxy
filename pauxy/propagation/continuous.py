@@ -61,6 +61,11 @@ class Continuous(object):
         self.nfb_trig = 0
         self.nhe_trig = 0
 
+        self.control_variate = options.get('control_variate', False)
+
+        if (self.control_variate):
+            if verbose:
+                print("# control_variate used in propagator")
 
         self.ebound = (2.0/self.dt)**0.5
 
@@ -92,6 +97,7 @@ class Continuous(object):
         if debug:
             copy = numpy.copy(phi)
             c2 = scipy.linalg.expm(VHS).dot(copy)
+    
         # Temporary array for matrix exponentiation.
         Temp = numpy.zeros(phi.shape, dtype=phi.dtype)
 
@@ -99,6 +105,7 @@ class Continuous(object):
         for n in range(1, self.exp_nmax+1):
             Temp = VHS.dot(Temp) / n
             phi += Temp
+            
         if debug:
             print("DIFF: {: 10.8e}".format((c2 - phi).sum() / c2.size))
         return phi

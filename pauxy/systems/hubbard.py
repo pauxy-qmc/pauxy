@@ -54,6 +54,7 @@ class Hubbard(object):
         self.nx = inputs['nx']
         self.ny = inputs['ny']
         self.ktwist = numpy.array(inputs.get('ktwist'))
+        self.control_variate = False
         self.symmetric = inputs.get('symmetric', False)
         if self.symmetric:
             # An unusual convention for the sign of the chemical potential is
