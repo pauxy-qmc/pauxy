@@ -1,3 +1,4 @@
+import cmath
 import numpy
 import scipy.linalg
 from pauxy.walkers.stack import PropagatorStack
@@ -17,18 +18,23 @@ class DiscreteHubbard(object):
         self.charge_decomp = charge_decomp
         self.single_site = single_site
         self.set_aux_fields(system, dt)
+        self.nsites = system.nbasis
         self.set_one_body(system, dt)
         self.stack = PropagatorStack(stack_size, nslice, system.nbasis,
                                      numpy.complex128, lowrank=low_rank)
         self.fields = numpy.random.randint(0, 2, nslice*system.nbasis).reshape(nslice, system.nbasis)
         self.set_initial_stack()
+        if self.single_site:
+            self.update = self.update_single_site
+        else:
+            self.update = None
 
-    def calculate_determinant_ratio(self, G, ibasis):
-        ratio_up = 1.0 + (1.0-G[0,ibasis,ibasis])*delta[xi,0]
-        ratio_dn = 1.0 + (1.0-G[1,ibasis,ibasis])*delta[xi,1]
-        ratio = ratio_up * ratio_dn * aux_wfac[xi]
+    def calculate_determinant_ratio(self, G, ibasis, xi):
+        ratio_up = 1.0 + (1.0-G[0,ibasis,ibasis])*self.delta[xi,0]
+        ratio_dn = 1.0 + (1.0-G[1,ibasis,ibasis])*self.delta[xi,1]
+        ratio = ratio_up * ratio_dn * self.aux_wfac[xi]
         ratio, phi = cmath.polar(ratio)
-        return ratio, numpy.exp(1j*phi)
+        return ratio, phi
 
     def set_initial_stack(self):
         for f in self.fields:
@@ -42,22 +48,25 @@ class DiscreteHubbard(object):
         Bb = numpy.dot(BVb, self.BH1[1])
         return numpy.array([Ba,Bb])
 
-    def update_single_site(self, fields, G, stack, islice):
-        for ibasis in range(system.nbasis):
+    def update_single_site(self, G, islice):
+        config_phase = 1 + 0j
+        for ibasis in range(self.nsites):
             # Propose spin flip
-            field = fields[islice,ibasis]
+            field = self.fields[islice,ibasis]
             if field == 0:
                 xi = 1
             else:
                 xi = 0
-            ratio, phase = calculate_determinant_ratio(walker.G)
+            ratio, phi = self.calculate_determinant_ratio(G, ibasis, xi)
             P = ratio / (1.0 + abs(ratio))
             r = numpy.random.random()
             if r < P:
-                fields[islice,ibasis] = xi
-                update_greens_function(G, ibasis, xi, delta)
-        B = self.construct_bmatrix(self)
-        stack.update(B)
+                self.fields[islice,ibasis] = xi
+                self.update_greens_function(G, ibasis, xi)
+                config_phase += phi
+        B = self.construct_bmatrix(self.fields[islice])
+        self.stack.update(B)
+        return numpy.exp(1j*phi)
 
     def propagate_greens_function(self, G, ifield):
         B = self.construct_bmatrix(self.fields[ifield])

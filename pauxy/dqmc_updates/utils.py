@@ -1,4 +1,5 @@
-from pauxy.updates.hubbard import HubbardDiscrete
+from pauxy.dqmc_updates.hubbard import DiscreteHubbard
+from pauxy.utils.io import get_input_value
 
 def get_update_driver(system, dt, nslice, options={}, verbose=False):
     low_rank = get_input_value(options, 'low_rank', default=False,
@@ -14,10 +15,10 @@ def get_update_driver(system, dt, nslice, options={}, verbose=False):
         charge_decomp = get_input_value(options, 'charge_decomp', default=False,
                                         alias=['charge', 'charge_decomposition'],
                                         verbose=verbose)
-        single_site = get_input_value(options, 'single_site', default=False,
+        single_site = get_input_value(options, 'single_site', default=True,
                                       alias=['single_site_update'],
                                       verbose=verbose)
-        return HubbardDiscrete(system, dt, nslice,
+        return DiscreteHubbard(system, dt, nslice,
                                stack_size=stack_size,
                                dynamic_force=dynamic_force,
                                low_rank=low_rank,
