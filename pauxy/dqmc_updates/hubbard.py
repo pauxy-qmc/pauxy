@@ -19,6 +19,7 @@ class DiscreteHubbard(object):
         self.single_site = single_site
         self.set_aux_fields(system, dt)
         self.nsites = system.nbasis
+        self.free_projection = True # abuse of language
         self.set_one_body(system, dt)
         self.stack = PropagatorStack(stack_size, nslice, system.nbasis,
                                      numpy.complex128, lowrank=low_rank)

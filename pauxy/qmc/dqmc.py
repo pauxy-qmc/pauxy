@@ -16,8 +16,10 @@ from pauxy.estimators.thermal import greens_function_qr_strat
 class DQMC(object):
     """DQMC driver.
 
-
     Parameters
+    ----------
+
+    Attributes
     ----------
     """
     def __init__(self, comm, options=None, system=None, verbose=False):
@@ -67,11 +69,12 @@ class DQMC(object):
         prop_opt = get_input_value(options, 'propagator', default={},
                                    alias=['update','prop'],
                                    verbose=self.verbosity>1)
-        self.prop = get_update_driver(self.system, self.qmc.dt,
-                                      self.qmc.ntime_slices,
-                                      options=prop_opt,
-                                      verbose=verbose)
-        self.qmc.nstblz = min(self.qmc.nstblz, self.prop.stack.stack_size)
+        self.propagators = get_update_driver(self.system,
+                                             self.qmc.dt,
+                                             self.qmc.ntime_slices,
+                                             options=prop_opt,
+                                             verbose=verbose)
+        self.qmc.nstblz = min(self.qmc.nstblz, self.propagators.stack.stack_size)
         self.tsetup = time.time() - self._init_time
         est_opts = get_input_value(options, 'estimators', default={},
                                    alias=['estimates','estimator'],
@@ -95,7 +98,7 @@ class DQMC(object):
         blocks = self.qmc.nblocks
         nsteps = self.qmc.nsteps
         nstblz = self.qmc.nstblz
-        prop = self.prop
+        prop = self.propagators
         G = greens_function_qr_strat(prop.stack, slice_ix=nslice)
         estimators = self.estimators
         for block in range(blocks):

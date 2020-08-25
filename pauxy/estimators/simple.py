@@ -29,7 +29,8 @@ class Energy(object):
                 print("# Writing estimator data to {}.".format(self.filename))
         else:
             self.filename = None
-        self.header = ['Iteration', 'Weight', 'ETotal', 'E1Body', 'E2Body', 'Nav']
+        self.header = ['Iteration', 'Phase', 'ETotal',
+                       'E1Body', 'E2Body', 'Nav']
         self.nstep = nstep
         self.nblock = nblock
         self.data_step = numpy.zeros(5, dtype=numpy.complex128)
