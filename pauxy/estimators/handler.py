@@ -53,7 +53,9 @@ class Estimators(object):
         True if calculating imaginary time correlation functions (ITCFs).
     """
 
-    def __init__(self, estimates, root, qmc, system, trial, BT2, verbose=False):
+    def __init__(self, estimates, root, qmc, system,
+                 trial=None, BT2=None,
+                 verbose=False, dqmc=False):
         if verbose:
             print ("# Setting up estimator object.")
         if root:
@@ -75,9 +77,9 @@ class Estimators(object):
             self.filename = None
         # Sub-members:
         # 1. Back-propagation
-        mixed = estimates.get('mixed', {})
         self.estimators = {}
         dtype = complex
+        mixed = estimates.get('mixed', {})
         self.estimators['mixed'] = Mixed(mixed, system, root, self.filename,
                                          qmc, trial, dtype)
         bp = get_input_value(estimates, 'back_propagation', default=None,
