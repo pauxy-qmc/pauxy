@@ -94,6 +94,8 @@ class HartreeFock(object):
         self.init = self.psi
         self._mem_required = 0.0
         self._rchol = None
+        self._eri = None
+        self._UVT = None
         if verbose:
             print ("# Finished setting up trial wavefunction.")
 

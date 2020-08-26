@@ -50,6 +50,7 @@ class UEG(object):
         self.rs = inputs.get('rs')
         self.ecut = inputs.get('ecut')
         self.ktwist = numpy.array(inputs.get('ktwist', [0,0,0])).reshape(3)
+        self.control_variate = False
         self.mu = inputs.get('mu', None)
         if verbose:
             print("# Number of spin-up electrons: {:d}".format(self.nup))
