@@ -55,6 +55,8 @@ class HubbardHolstein(object):
         self.ne = self.nup + self.ndown
         self.nelec = (self.nup,self.ndown)
 
+        self.control_variate = False
+
         self.t = inputs.get('t', 1.0)
         self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)
@@ -68,6 +70,8 @@ class HubbardHolstein(object):
 
         self.ypbc = inputs.get('ypbc', True)
         self.xpbc = inputs.get('xpbc', True)
+
+        self.control_variate = False
 
         if self.symmetric:
             # An unusual convention for the sign of the chemical potential is

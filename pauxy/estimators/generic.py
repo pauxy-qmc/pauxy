@@ -31,25 +31,125 @@ def local_energy_generic(h1e, eri, G, ecore=0.0, Ghalf=None):
     e2 = euu + edd + eud + edu
     return (e1+e2+ecore, e1+ecore, e2)
 
-def local_energy_generic_opt(system, G, Ghalf=None):
-    # import cProfile
-    # pr = cProfile.Profile()
-    # pr.enable()
+def local_energy_generic_pno(system, G, Ghalf=None, eri=None, C0=None,\
+                             ecoul0 = None, exxa0 = None, exxb0 = None, UVT=None):
+
+    na = system.nup
+    nb = system.ndown
+    M = system.nbasis
+
+    UVT_aa = UVT[0]
+    UVT_bb = UVT[1]
+    UVT_ab = UVT[2]
+
+    Ga, Gb = Ghalf[0], Ghalf[1]
 
     # Element wise multiplication.
     e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
-    Gup = Ghalf[0].ravel()
-    Gdn = Ghalf[1].ravel()
-    euu = 0.5 * Gup.dot(system.vakbl[0].dot(Gup))
-    edd = 0.5 * Gdn.dot(system.vakbl[1].dot(Gdn))
-    # TODO: Fix this. Very dumb.
-    # eos =  numpy.dot((system.rchol_vecs[0].T).dot(Gup),
-    #                  (system.rchol_vecs[1].T).dot(Gdn))
-    eos = Gup.dot(system.vakbl[2].dot(Gdn))
-    e2b = euu + edd + eos #eud + edu
 
-    # pr.disable()
-    # pr.print_stats(sort='tottime')
+    eJaa = 0.0
+    eKaa = 0.0
+
+    if (len(C0.shape) == 3):
+        CT = C0[0,:,:].T
+    else:
+        CT = C0[:,:].T
+
+    GTa = CT[:na,:] # hard-coded to do single slater
+    GTb = CT[na:,:] # hard-coded to do single slater
+
+    for (i,j),(U,VT) in zip(system.ij_list_aa, UVT_aa):
+
+        if (i == j):
+            c = 0.5
+        else:
+            c = 1.0
+
+        theta_i = Ga[i,:]
+        theta_j = Ga[j,:]
+        
+        thetaT_i = GTa[i,:]
+        thetaT_j = GTa[j,:]
+
+        thetaU = numpy.einsum("p,pk->k", theta_i,U)
+        thetaV = numpy.einsum("p,kp->k", theta_j,VT)
+        
+        thetaTU = numpy.einsum("p,pk->k", thetaT_i,U)
+        thetaTV = numpy.einsum("p,kp->k", thetaT_j,VT)
+
+        eJaa += c * (numpy.dot(thetaU, thetaV) - numpy.dot(thetaTU, thetaTV))
+        
+        thetaU = numpy.einsum("p,pk->k", theta_j,U)
+        thetaV = numpy.einsum("p,kp->k", theta_i,VT)
+        thetaTU = numpy.einsum("p,pk->k", thetaT_j,U)
+        thetaTV = numpy.einsum("p,kp->k", thetaT_i,VT)
+        eKaa -= c * (numpy.dot(thetaU, thetaV) - numpy.dot(thetaTU, thetaTV))
+
+    eJbb = 0.0
+    eKbb = 0.0
+
+    for (i,j),(U,VT) in zip(system.ij_list_bb, UVT_bb):
+        if (i == j):
+            c = 0.5
+        else:
+            c = 1.0
+
+        theta_i = Gb[i,:]
+        theta_j = Gb[j,:]
+        thetaT_i = GTb[i,:]
+        thetaT_j = GTb[j,:]
+
+        thetaU = numpy.einsum("p,pk->k", theta_i,U)
+        thetaV = numpy.einsum("p,kp->k", theta_j,VT)
+        thetaTU = numpy.einsum("p,pk->k", thetaT_i,U)
+        thetaTV = numpy.einsum("p,kp->k", thetaT_j,VT)
+        eJbb += c * (numpy.dot(thetaU, thetaV) - numpy.dot(thetaTU, thetaTV))
+        
+        thetaU = numpy.einsum("p,pk->k", theta_j,U)
+        thetaV = numpy.einsum("p,kp->k", theta_i,VT)
+        thetaTU = numpy.einsum("p,pk->k", thetaT_j,U)
+        thetaTV = numpy.einsum("p,kp->k", thetaT_i,VT)
+        eKbb -= c * (numpy.dot(thetaU, thetaV) - numpy.dot(thetaTU, thetaTV))
+
+    eJab = 0.0
+    for (i,j),(U,VT) in zip(system.ij_list_ab, UVT_ab):
+        theta_i = Ga[i,:]
+        theta_j = Gb[j,:]
+        thetaT_i = GTa[i,:]
+        thetaT_j = GTb[j,:]
+        thetaU = numpy.einsum("p,pk->k", theta_i,U)
+        thetaV = numpy.einsum("p,kp->k", theta_j,VT)
+        thetaTU = numpy.einsum("p,pk->k", thetaT_i,U)
+        thetaTV = numpy.einsum("p,kp->k", thetaT_j,VT)
+        eJab +=  (numpy.dot(thetaU, thetaV) - numpy.dot(thetaTU, thetaTV))
+
+    e2b = 0.5*(ecoul0 - exxa0 - exxb0) + eJaa + eJbb + eJab + eKaa + eKbb
+
+    return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
+
+def local_energy_generic_opt(system, G, Ghalf=None, eri=None):
+
+    na = system.nup
+    nb = system.ndown
+    M = system.nbasis
+
+    vipjq_aa = eri[0,:na**2*M**2].reshape((na,M,na,M))
+    vipjq_bb = eri[0,na**2*M**2:na**2*M**2+nb**2*M**2].reshape((nb,M,nb,M))
+    vipjq_ab = eri[0,na**2*M**2+nb**2*M**2:].reshape((na,M,nb,M))
+
+    Ga, Gb = Ghalf[0], Ghalf[1]
+    # Element wise multiplication.
+    e1b = numpy.sum(system.H1[0]*G[0]) + numpy.sum(system.H1[1]*G[1])
+    # Coulomb
+    eJaa = 0.5 * numpy.einsum("irjs,ir,js", vipjq_aa, Ga, Ga)
+    eJbb = 0.5 * numpy.einsum("irjs,ir,js", vipjq_bb, Gb, Gb)
+    eJab = numpy.einsum("irjs,ir,js", vipjq_ab, Ga, Gb)
+
+    eKaa = -0.5 * numpy.einsum("irjs,is,jr", vipjq_aa, Ga, Ga)
+    eKbb = -0.5 * numpy.einsum("irjs,is,jr", vipjq_bb, Gb, Gb)
+
+
+    e2b = eJaa + eJbb + eJab + eKaa + eKbb
 
     return (e1b + e2b + system.ecore, e1b + system.ecore, e2b)
 
@@ -88,6 +188,7 @@ def local_energy_generic_cholesky_opt(system, G, Ghalf, rchol):
     ecoul += numpy.dot(Xb,Xb)
     ecoul += 2*numpy.dot(Xa,Xb)
     rchol_a, rchol_b = rchol[:nalpha*nbasis], rchol[nalpha*nbasis:]
+
     # T_{abn} = \sum_k Theta_{ak} LL_{ak,n}
     # LL_{ak,n} = \sum_i L_{ik,n} A^*_{ia}
     # rchol_a = rchol_a.reshape((nalpha,nbasis, naux))

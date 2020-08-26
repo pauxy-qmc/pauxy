@@ -64,13 +64,64 @@ class MultiSlater(object):
         self._nelec = system.nelec
         self._nbasis = system.nbasis
         self._rchol = None
+        self._UVT = None
+        self._eri = None
         self._mem_required = 0.0
+        self.ecoul0 = None
+        self.exxa0 = None
+        self.exxb0 = None
         write_wfn = options.get('write_wavefunction', False)
         output_file = options.get('output_file', 'wfn.h5')
         if write_wfn:
             self.write_wavefunction(filename=output_file)
         if verbose:
             print ("# Finished setting up trial wavefunction.")
+
+    def local_energy_2body(self, system):
+        """Compute walkers two-body local energy
+
+        Parameters
+        ----------
+        system : object
+            System object.
+
+        Returns
+        -------
+        (E, T, V) : tuple
+            Mixed estimates for walker's energy components.
+        """
+
+        nalpha, nbeta = system.nup, system.ndown
+        nbasis = system.nbasis
+        naux = self._rchol.shape[1]
+
+        Ga, Gb = self.GH[0], self.GH[1]
+        Xa = self._rchol[:nalpha*nbasis].T.dot(Ga.ravel())
+        Xb = self._rchol[nalpha*nbasis:].T.dot(Gb.ravel())
+        ecoul = numpy.dot(Xa,Xa)
+        ecoul += numpy.dot(Xb,Xb)
+        ecoul += 2*numpy.dot(Xa,Xb)
+        rchol_a, rchol_b = self._rchol[:nalpha*nbasis], self._rchol[nalpha*nbasis:]
+
+        rchol_a = rchol_a.T
+        rchol_b = rchol_b.T
+        Ta = numpy.zeros((naux, nalpha, nalpha), dtype=rchol_a.dtype)
+        Tb = numpy.zeros((naux, nbeta, nbeta), dtype=rchol_b.dtype)
+        GaT = Ga.T
+        GbT = Gb.T
+        for x in range(naux):
+            rmi_a = rchol_a[x].reshape((nalpha,nbasis))
+            Ta[x] = rmi_a.dot(GaT)
+            rmi_b = rchol_b[x].reshape((nbeta,nbasis))
+            Tb[x] = rmi_b.dot(GbT)
+        exxa = numpy.tensordot(Ta, Ta, axes=((0,1,2),(0,2,1)))
+        exxb = numpy.tensordot(Tb, Tb, axes=((0,1,2),(0,2,1)))
+
+        exx = exxa + exxb
+        e2b = 0.5 * (ecoul - exx)
+
+        return ecoul, exxa, exxb
+
 
     def calculate_energy(self, system):
         if self.verbose:
@@ -87,7 +138,12 @@ class MultiSlater(object):
             (self.energy, self.e1b, self.e2b) = (
                     variational_energy(system, self.psi, self.coeffs,
                                        G=self.G, GH=self.GH,
-                                       rchol=self._rchol)
+                                       rchol=self._rchol, eri=self._eri, 
+                                       C0 = self.psi,
+                                       ecoul0 = self.ecoul0,
+                                       exxa0 = self.exxa0,
+                                       exxb0 = self.exxb0,
+                                       UVT=self._UVT)
                     )
         if self.verbose:
             print("# (E, E1B, E2B): (%13.8e, %13.8e, %13.8e)"
@@ -202,6 +258,96 @@ class MultiSlater(object):
             chol = system.chol_vecs.reshape((M,M,nchol))
         else:
             chol = system.chol_vecs.toarray().reshape((M,M,nchol))
+
+
+        if (system.exact_eri):
+            shape = (self.ndets,(M**2*(na**2+nb**2) + M**2*(na*nb)))
+            self._eri = get_shared_array(comm, shape, numpy.complex128)
+            self._mem_required = self._eri.nbytes / (1024.0**3.0)
+
+            for i, psi in enumerate(self.psi):
+                vipjq_aa = numpy.einsum("mpX,rqX,mi,rj->ipjq", chol, chol, psi[:,:na].conj(), psi[:,:na].conj(), optimize=True)
+                vipjq_bb = numpy.einsum("mpX,rqX,mi,rj->ipjq", chol, chol, psi[:,na:].conj(), psi[:,na:].conj(), optimize=True)
+                vipjq_ab = numpy.einsum("mpX,rqX,mi,rj->ipjq", chol, chol, psi[:,:na].conj(), psi[:,na:].conj(), optimize=True)
+                self._eri[i,:M**2*na**2] = vipjq_aa.ravel()
+                self._eri[i,M**2*na**2:M**2*na**2+M**2*nb**2] = vipjq_bb.ravel()
+                self._eri[i,M**2*na**2+M**2*nb**2:] = vipjq_ab.ravel()
+
+                if (system.pno):
+                    thresh_pno = system.thresh_pno
+                    UVT_aa = []
+                    UVT_bb = []
+                    UVT_ab = []
+
+                    nocca = system.nup
+                    noccb = system.ndown
+                    nvira = system.nbasis - system.nup
+                    nvirb = system.nbasis - system.ndown
+
+                    r_aa = []
+                    for i in range(na):
+                        for j in range(i, na):
+                            Vab = vipjq_aa[i,:,j,:]
+                            U, s, VT = numpy.linalg.svd(Vab)
+                            idx = s > thresh_pno
+                            U = U[:,idx]
+                            s = s[idx]
+                            r_aa += [s.shape[0] / float(system.nbasis)]
+                            VT = VT[idx,:]
+                            U = U.dot(numpy.diag(numpy.sqrt(s)))
+                            VT = numpy.diag(numpy.sqrt(s)).dot(VT)
+                            UVT_aa += [(U, VT)]
+                    r_aa = numpy.array(r_aa)
+                    r_aa = numpy.mean(r_aa)
+
+
+                    r_bb = []
+                    for i in range(nb):
+                        for j in range(i, nb):
+                            Vab = vipjq_bb[i,:,j,:]
+                            U, s, VT = numpy.linalg.svd(Vab)
+                            idx = s > thresh_pno
+                            U = U[:,idx]
+                            s = s[idx]
+                            r_bb += [s.shape[0] / float(system.nbasis)]
+                            VT = VT[idx,:]
+                            U = U.dot(numpy.diag(numpy.sqrt(s)))
+                            VT = numpy.diag(numpy.sqrt(s)).dot(VT)
+
+                            UVT_bb += [(U, VT)]
+
+                    r_bb = numpy.array(r_bb)
+                    r_bb = numpy.mean(r_bb)
+
+                    r_ab = []
+                    for i in range(na):
+                        for j in range(nb):
+                            Vab = vipjq_ab[i,:,j,:]
+                            U, s, VT = numpy.linalg.svd(Vab)
+                            idx = s > thresh_pno
+                            U = U[:,idx]
+                            s = s[idx]
+                            r_ab += [s.shape[0] / float(system.nbasis)]
+                            VT = VT[idx,:]
+                            U = U.dot(numpy.diag(numpy.sqrt(s)))
+                            VT = numpy.diag(numpy.sqrt(s)).dot(VT)
+
+                            UVT_ab += [(U, VT)]
+                    
+                    r_ab = numpy.array(r_ab)
+                    r_ab = numpy.mean(r_ab)
+
+                    self._UVT = [UVT_aa, UVT_bb, UVT_ab]
+                    self._eri = None
+                    if self.verbose:
+                        print("# Average number of orbitals (relative to total) for aa, bb, ab = {}, {}, {}".format(r_aa, r_bb, r_ab))
+
+            if self.verbose:
+                print("# Memory required by exact ERIs: "
+                      " {:.4f} GB.".format(self._mem_required))
+            if comm is not None:
+                comm.barrier()
+        # else:
         shape = (self.ndets*(M*(na+nb)), nchol)
         self._rchol = get_shared_array(comm, shape, numpy.complex128)
         for i, psi in enumerate(self.psi):
@@ -247,9 +393,12 @@ class MultiSlater(object):
                 print("# Memory required by half-rotated integrals: "
                       " {:.4f} GB.".format(self._mem_required))
                 print("# Time to half rotate {} seconds.".format(time.time()-start_time))
+
         if comm is not None:
             comm.barrier()
         self._rot_hs_pot = self._rchol
+        if(system.control_variate):
+            self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system)
 
     def rot_chol(self, idet=0, spin=None):
         """Helper function"""
