@@ -152,6 +152,13 @@ class UHF(object):
         system.U = uold
         if verbose:
             print("# Minimum energy found: {: 8f}".format(min(minima)))
+            nocca = system.nup
+            noccb = system.ndown
+            MS = numpy.abs(nocca-noccb) / 2.0
+            S2exact = MS * (MS+1.)
+            Sij = psi_accept[:,:nocca].T.dot(psi_accept[:,nocca:])
+            S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+            print("# <S^2> = {: 3f}".format(S2))
         try:
             return (psi_accept, e_accept, min(minima), False, [niup, nidown])
         except UnboundLocalError:
