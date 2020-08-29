@@ -39,7 +39,7 @@ def test_greens_function():
 def test_greens_function_complex():
     options = {'nx': 4, 'ny': 4, 'U': 1, 'mu': 2.0, 'nup': 8, 'ndown': 8}
     system = Hubbard(options, verbose=False)
-    beta = 4
+    beta = 0.5
     dt = 0.05
     nslice = int(round(beta/dt))
     trial = OneBody(system, beta, dt, verbose=False)
@@ -58,8 +58,12 @@ def test_greens_function_complex():
         walker_a.stack.update(B)
     numpy.random.seed(7)
     G1 = walker_a.greens_function_svd(trial, slice_ix=0, inplace=False)
-    G2 = walker_a.greens_function_qr(trial, slice_ix=0, inplace=False)
+    G2, ld = walker_a.greens_function_qr(trial, slice_ix=0, inplace=False)
     G3 = walker_b.greens_function_qr_strat(trial, slice_ix=0, inplace=False)
+    sla = numpy.linalg.slogdet(G2[0])
+    slb = numpy.linalg.slogdet(G2[0])
+    print(ld, sla[0]*(-sla[1])+slb[0]*(-slb[1]))
+    assert False
     assert numpy.linalg.norm(G1-G2) == pytest.approx(0.0, abs=1e-8)
     assert numpy.linalg.norm(G1-G3) == pytest.approx(0.0, abs=1e-8)
     assert numpy.linalg.norm(G2-G3) == pytest.approx(0.0, abs=1e-8)
