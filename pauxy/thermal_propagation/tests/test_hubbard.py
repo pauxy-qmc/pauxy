@@ -214,31 +214,50 @@ def test_update_gf():
     Gnew = walker.greens_function(trial, slice_ix=1, inplace=False)
     assert numpy.linalg.norm(walker.G-Gnew) == pytest.approx(0.0)
 
-# @pytest.mark.unit
-# def test_hubbard_continuous():
-    # options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 2.0, 'nup': 8, 'ndown': 8}
-    # system = Hubbard(options, verbose=False)
-    # beta = 4.0
-    # dt = 0.05
-    # nslice = int(round(beta/dt))
-    # trial = OneBody(system, beta, dt)
-    # numpy.random.seed(7)
-    # qmc = dotdict({'dt': dt, 'nstblz': 10})
-    # prop = ThermalDiscrete(system, trial, qmc, verbose=False)
-    # walker1 = ThermalWalker(system, trial,
-                            # walker_opts={'stack_size': 1, 'low_rank': False},
-                            # verbose=False)
-    # for ts in range(0,nslice):
-        # prop.propagate_walker(system, walker1, ts, 0)
-        # walker1.weight /= 1.0e6
-    # numpy.random.seed(7)
-    # walker2 = ThermalWalker(system, trial,
-                            # walker_opts={'stack_size': 10, 'low_rank': False},
-                            # verbose=False)
-    # energies = []
-    # for ts in range(0,nslice):
-        # prop.propagate_walker(system, walker2, ts, 0)
-        # walker2.weight /= 1.0e6
-    # assert walker1.weight == pytest.approx(walker2.weight)
-    # assert numpy.linalg.norm(walker1.G-walker2.G) == pytest.approx(0)
-    # assert walker1.local_energy(system)[0] == pytest.approx(walker2.local_energy(system)[0])
+@pytest.mark.unit
+def test_hubbard_continuous():
+    options = {'nx': 2, 'ny': 2, 'U': 4, 'mu': 2.0, 'nup': 3, 'ndown': 3}
+    system = Hubbard(options, verbose=False)
+    beta = 10.0
+    dt = 0.05
+    nslice = int(round(beta/dt))
+    trial = OneBody(system, beta, dt, verbose=True)
+    print(trial.P[0].trace())
+    system.mu = trial.mu
+    numpy.random.seed(7)
+    qmc = dotdict({'dt': dt, 'nstblz': 10})
+    from pauxy.thermal_propagation.continuous import Continuous as TContinuous
+    prop_a = TContinuous({'free_projection': True}, qmc, system, trial, verbose=False)
+    from pauxy.propagation.continuous import Continuous as ZContinuous
+    prop_b = ZContinuous(system, trial, qmc, {'free_projection': True}, verbose=False)
+    walker_a = ThermalWalker(system, trial,
+                             walker_opts={'stack_size': 1,
+                                          'low_rank': False},
+                             verbose=False)
+    from pauxy.trial_wavefunction.free_electron import FreeElectron
+    dmat = trial.dmat
+    trial0 = FreeElectron(system, {}, verbose=True)
+    trial0.calculate_energy(system)
+    nup = system.nup
+    p = trial0.eigv_up[:,:nup]
+    # print("this: ", numpy.where(numpy.abs(numpy.dot(p.conj().T, p))>1e-12))
+    pt = trial0.psi.copy()
+    phi = trial0.psi
+    # nslice = 10
+    import scipy.linalg
+    # B = scipy.linalg.expm(-qmc.dt*system.H1[0])#dmat
+    B = trial.dmat[0]
+    for ts in range(0, nslice):
+        B1 = walker_a.stack.get(ts)
+        phi[:,:nup] = numpy.dot(B, phi[:,:nup])
+        # phi[:,nup:] = numpy.dot(B[1], phi[:,nup:])
+    P = one_rdm_from_G(walker_a.G)
+    from pauxy.estimators.mixed import local_energy
+    a1 = numpy.linalg.slogdet(walker_a.G[0])
+    O = numpy.dot(pt[:,:nup].conj().T, phi[:,:nup])
+    # print(O[0,5])
+    # print(numpy.where(numpy.abs(O)>1e-12))
+    a2 = numpy.linalg.slogdet(numpy.dot(pt[:,:nup].conj().T, phi[:,:nup]))
+    ratio = a1[1]
+    print(ratio/beta+trial.mu*5, -(a2[1])/(nslice*dt)+trial.mu*5)
+    assert False
