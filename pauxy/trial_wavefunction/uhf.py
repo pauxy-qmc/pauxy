@@ -89,7 +89,10 @@ class UHF(object):
                 print("# Using checkerboard breakup.")
             self.psi, unused = self.checkerboard(system.nbasis, system.nup, system.ndown)
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
-        Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
+        if (system.ndown > 0):
+            Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
+        else:
+            Gdown = numpy.zeros_like(Gup)
         self.G = numpy.array([Gup, Gdown])
         self.etrial = local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)
@@ -120,7 +123,10 @@ class UHF(object):
                 )
                 # Construct Green's function to compute the energy.
                 Gup = gab(self.trial[:,:nup], self.trial[:,:nup]).T
-                Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
+                if (system.ndown>0):
+                    Gdown = gab(self.trial[:,nup:], self.trial[:,nup:]).T
+                else:
+                    Gdown = numpy.zeros((system.nbasis, system.nbasis))
                 enew = local_energy(system, numpy.array([Gup, Gdown]))[0].real
                 if verbose > 1:
                     print("# %d %f %f" % (it, enew, eold))
