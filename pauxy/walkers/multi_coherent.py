@@ -399,7 +399,7 @@ class MultiCoherentWalker(object):
             denom = sum(self.weights)
             self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
-    def local_energy(self, system, two_rdm=None, rchol=None):
+    def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
         """Compute walkers local energy
 
         Parameters

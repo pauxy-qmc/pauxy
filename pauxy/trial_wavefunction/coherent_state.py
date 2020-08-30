@@ -447,6 +447,8 @@ class CoherentState(object):
 
         self._mem_required = 0.0
         self._rchol = None
+        self._eri = None
+        self._UVT = None
 
         if verbose:
             print ("# Updated coherent.")
