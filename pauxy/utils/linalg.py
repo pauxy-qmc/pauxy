@@ -198,3 +198,27 @@ def get_ortho_ao_mod(S, LINDEP_CUTOFF=1e-14, verbose=False):
     Smod = Us[:,keep].dot(numpy.diag(sdiag[keep])).dot(Us[:,keep].T.conj())
     return Smod, X
 
+def column_pivoted_qr(A):
+    (Q, R, P) = scipy.linalg.qr(A, pivoting=True, check_finite=False)
+    D = R.diagonal()
+    Dinv = 1.0 / D
+    T = numpy.einsum('i,ij->ij', Dinv, R)
+    T[:,P] = T
+    return (Q, D, T)
+
+def column_pivoted_qr_low_rank(A, mL, mR, update=False, thresh=1e-6):
+    (Q, R, P) = scipy.linalg.qr(A, pivoting=True, check_finite=False)
+    if update:
+        D = R.diagonal()[:min(mL,mR)]
+        Dinv = 1.0 / D
+        mT = len(D[numpy.abs(D) > thresh])
+        assert mT <= mL and mT <= mR
+        T = numpy.einsum('i,ij->ij', Dinv[:mT], R[:mT,:])
+        T[:,P] = T[:,range(mR)] # mT x mR
+        return (Q, D, T, mT)
+    else:
+        D = R.diagonal()[:mR]
+        Dinv = 1.0 / D
+        T = numpy.einsum('i,ij->ij', Dinv[:mR], R[:mR,:mR])
+        T[:,P] = T[:,range(mR)]
+        return (Q, D, T)
