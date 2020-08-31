@@ -1,6 +1,7 @@
 import numpy
 import pytest
 from pauxy.systems.hubbard import Hubbard
+from pauxy.systems.ueg import UEG
 from pauxy.trial_density_matrices.onebody import OneBody
 from pauxy.walkers.thermal import ThermalWalker
 from pauxy.utils.misc import dotdict
@@ -34,6 +35,32 @@ def test_greens_function():
     assert numpy.linalg.norm(G1-G2) == pytest.approx(0.0, abs=1e-8)
     assert numpy.linalg.norm(G1-G3) == pytest.approx(0.0, abs=1e-8)
     assert numpy.linalg.norm(G2-G3) == pytest.approx(0.0, abs=1e-8)
+
+@pytest.mark.unit
+def test_greens_function_low_rank():
+    numpy.random.seed(7)
+    # options = {'nx': 4, 'ny': 4, 'U': 4, 'mu': 2.0, 'nup': 1, 'ndown': 1}
+    # system = Hubbard(options, verbose=False)
+    system = UEG({'rs': 4.0, 'nup': 7, 'ndown': 7, 'ecut': 2.5})
+    beta = 4.0
+    dt = 0.05
+    nslice = int(round(beta/dt))
+    trial = OneBody(system, beta, dt, verbose=False)
+    walker_a = ThermalWalker(system, trial, verbose=True,
+            walker_opts={'low_rank': False, 'stack_size': 1})
+    walker_b = ThermalWalker(system, trial, verbose=True,
+            walker_opts={'low_rank': True, 'stack_size': 1})
+    numpy.random.seed(7)
+    for i in range(nslice):
+        X = numpy.random.random(2*system.nbasis*system.nbasis).reshape(2,system.nbasis,system.nbasis)
+        Y = numpy.random.random(2*system.nbasis*system.nbasis).reshape(2,system.nbasis,system.nbasis)
+        B = X + 1j*Y
+        walker_b.stack.update_new(B)
+        walker_a.stack.update_new(B)
+    G1 = walker_a.greens_function(None, slice_ix=None, inplace=False)
+    G2 = walker_b.greens_function(None, slice_ix=None, inplace=False)
+    # assert False
+    assert numpy.linalg.norm(G1-G2) == pytest.approx(0.0)
 
 @pytest.mark.unit
 def test_greens_function_complex():
