@@ -23,17 +23,20 @@ dt =  float(sys.argv[4])
 
 nslice = int(round(beta/dt))
 nsteps = 10
-blocks = 1000
+blocks = 5
 stack_size = min(nslice, 10)
+print("# stack_size: {}".format(stack_size))
 recomp_freq = min(nslice, 10)
 charge_decomp = bool(charge_decomp)
 
+numpy.random.seed(7)
 from utils import get_aux_fields
 gamma, auxf, delta, aux_wfac = get_aux_fields(system, dt, charge_decomp)
 
 stack = PropagatorStack(stack_size, nslice, system.nbasis, numpy.complex128, lowrank=False)
-# stack_a = PropagatorStack(1, nslice, system.nbasis, numpy.complex128, lowrank=False)
+stack_a = PropagatorStack(1, nslice, system.nbasis, numpy.complex128, lowrank=False)
 fields = numpy.random.randint(0, 2, nslice*system.nbasis).reshape(nslice, system.nbasis)
+# print(fields[0])
 
 from utils import get_one_body
 BH1, BH1inv = get_one_body(system, dt)
@@ -67,12 +70,17 @@ with h5py.File(filename, 'w') as fh5:
 output = H5EstimatorHelper(filename, 'basic')
 
 print(format_fixed_width_strings(['Iteration', 'ETotal', 'ETotal_imag', 'Nav',
-    'Nav_imag', 'Sign', 'Time']))
+        'Nav_imag', 'Sign', 'Time']))
 sign = 1.0
 nsites = system.nbasis
 
 G = recompute_greens_function(fields, stack, auxf, BH1, time_slice=nslice,
                               from_scratch=True)
+G_ = recompute_greens_function(fields, stack_a, auxf, BH1, time_slice=nslice,
+                              from_scratch=True)
+# print(G[0,0,0], G_[0,0,0], nslice)
+# assert False
+
 for block in range(blocks):
     etot_block = 0.0 + 0.0j
     nav_block = 0.0 + 0.0j
@@ -88,6 +96,7 @@ for block in range(blocks):
             tslice = time.time()
             G = propagate_greens_function(G, fields[islice],
                                           BH1inv, BH1, auxf)
+            # print(G[0,0,0])
             for ibasis in range(system.nbasis):
                 # Propose spin flip
                 field = fields[islice,ibasis]
@@ -101,6 +110,7 @@ for block in range(blocks):
                 sign *= numpy.sign(ratio)
                 P = abs(ratio) / (1.0 + abs(ratio))
                 r = numpy.random.random()
+                # print(ratio, ibasis, r, P)
                 if r < P:
                     # accept move
                     fields[islice,ibasis] = xi
@@ -109,11 +119,14 @@ for block in range(blocks):
                     update_greens_function(G, ibasis, xi, delta)
                     # update_greens_function(G_a, ibasis, xi, delta)
                     tupdate_gf = time.time() - start
+                # print(G[0,1,1], ibasis)
             tslice = time.time() - tslice
             # Propagate GF
             P = one_rdm_from_G(G)
             e, t, v = local_energy(system, P)
             etot_slice += sign * e
+            # print(etot_slice)
+            # assert False
             nav = P[0].trace() + P[1].trace()
             nav_slice += sign * nav
             sgn_slice += sign
@@ -125,6 +138,8 @@ for block in range(blocks):
                 tre_gf = time.time() - start
         tstep = time.time() - tstep
         etot_block += etot_slice / nslice
+        # print(etot_slice/nslice, nslice)
+        # assert False
         # print(etot_block)
         nav_block += nav_slice / nslice
         sgn_block += sgn_slice / nslice

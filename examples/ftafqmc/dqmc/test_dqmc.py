@@ -13,6 +13,7 @@ import pytest
 @pytest.mark.unit
 def test_update_spin():
     system = Hubbard({'nx': 6, 'ny': 1, 'U': 4.0, 'mu': 2, 'nup': 3, 'ndown': 3})
+    numpy.random.seed(7)
     beta = 0.5
     dt = 0.05
     nslice = 10
@@ -34,6 +35,8 @@ def test_update_spin():
                                    from_scratch=True)
     G3 = recompute_greens_function(fields, stack, auxf, BH1, time_slice=0,
                                    from_scratch=False)
+    print(G1[0,0,0], G2[0,0,0])
+    assert False
     assert numpy.linalg.norm(G1-G2) == pytest.approx(0.0)
     assert numpy.linalg.norm(G1-G3) == pytest.approx(0.0)
 
