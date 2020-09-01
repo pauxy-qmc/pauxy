@@ -203,16 +203,17 @@ def column_pivoted_qr(A):
     D = R.diagonal()
     Dinv = 1.0 / D
     T = numpy.einsum('i,ij->ij', Dinv, R)
-    T[:,P] = T
+    T[:,P] = T[:,range(T.shape[1])]
     return (Q, D, T)
 
-def column_pivoted_qr_low_rank(A, mL, mR, update=False, thresh=1e-6):
+def column_pivoted_qr_low_rank(A, update=False, thresh=1e-6):
     (Q, R, P) = scipy.linalg.qr(A, pivoting=True, check_finite=False)
+    mL = A.shape[0]
+    mR = A.shape[1]
     if update:
         D = R.diagonal()[:min(mL,mR)]
         Dinv = 1.0 / D
         mT = len(D[numpy.abs(D) > thresh])
-        assert mT <= mL and mT <= mR
         T = numpy.einsum('i,ij->ij', Dinv[:mT], R[:mT,:])
         T[:,P] = T[:,range(mR)] # mT x mR
         return (Q, D, T, mT)
