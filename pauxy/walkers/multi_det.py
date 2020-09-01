@@ -199,7 +199,7 @@ class MultiDetWalker(Walker):
             self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
         return tot_ovlp
 
-    def local_energy(self, system, two_rdm=None, rchol=None):
+    def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
         """Compute walkers local energy
 
         Parameters
