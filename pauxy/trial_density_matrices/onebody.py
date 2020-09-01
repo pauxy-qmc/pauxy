@@ -49,7 +49,7 @@ class OneBody(object):
         self.deps = options.get('threshold', 1e-6)
         self.mu = options.get('mu', None)
 
-        self.num_slices = int(beta/dt)
+        self.num_slices = int(round(beta/dt))
         self.stack_size = options.get("stack_size", None)
 
         if (self.stack_size == None):
