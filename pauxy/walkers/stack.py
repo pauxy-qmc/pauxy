@@ -150,7 +150,10 @@ class PropagatorStack:
                                 numpy.eye(self.nbasis, dtype=dtype)])
 
         if self.lowrank:
-            self.update_new = self.update_low_rank
+            if self.diagonal_trial:
+                self.update_new = self.update_low_rank
+            else:
+                self.update_new = self.update_low_rank_non_diag
         else:
             self.update_new = self.update_full_rank
 
@@ -191,7 +194,6 @@ class PropagatorStack:
         if self.diagonal_trial:
             for i in range(0, self.ntime_slices):
                 ix = i // self.stack_size # bin index
-                # Commenting out these two. It is only useful for Hubbard
                 self.left[ix,0] = numpy.diag(numpy.multiply(BT[0].diagonal(),self.left[ix,0].diagonal()))
                 self.left[ix,1] = numpy.diag(numpy.multiply(BT[1].diagonal(),self.left[ix,1].diagonal()))
                 self.stack[ix,0] = self.left[ix,0].copy()
@@ -243,21 +245,37 @@ class PropagatorStack:
                 # for ix in range(2, self.nbins):
                 for ix in range(1, self.nbins):
                     B = self.stack[ix]
-                    C2 = (numpy.einsum('ii,i->i',B[spin],self.Dl[spin]))
+                    C2 = numpy.einsum('ii,i->i',B[spin],self.Dl[spin])
                     self.Dl[spin] = C2
         else:
             for spin in [0, 1]:
                 B = self.stack[0][spin]
                 Q, D, T = column_pivoted_qr(B)
+                mR = len(D[numpy.abs(D)>self.thresh])
+                # print(T, Q, D)
                 for ix in range(1, self.nbins):
+                    mR = len(D[numpy.abs(D)>self.thresh])
                     B = self.stack[ix][spin]
-                    C = numpy.dot(B, Q)
-                    C = numpy.einsum('ij,j->ij', C, D)
-                    (Q, D, Tnew) = column_pivoted_qr(C)
-                    T = numpy.dot(Tnew, T)
-                self.Tl[spin] = T
+                    C = numpy.dot(B, Q[:,:mR])
+                    C = numpy.einsum('ij,j->ij', C[:,:mR], D[:mR])
+                    (Q, D, Tnew, mT) = column_pivoted_qr_low_rank(C, update=True, thresh=self.thresh)
+                    T = numpy.dot(Tnew, T[:mR,:])
+                self.Tl[spin,:mT,:] = T
                 self.Ql[spin] = Q
-                self.Dl[spin] = D
+                self.Dl[spin,:mT] = D
+                self.Dl[spin,mT:] = 0.0
+                mR = len(D[numpy.abs(D)>self.thresh])
+                Db, Ds = split_diagonal(D, mR, dtype=B.dtype)
+                sdet, logdet, TQinv, QDT = determinant_low_rank(T, Q, D,
+                                                                Db, Ds,
+                                                                mR, mR)
+                self.sgndet[spin] = sdet
+                self.logdet[spin] = logdet
+                self.greens_function_low_rank(QDT, TQinv,
+                                              T, Q, D,
+                                              Db, mR, mR, mR, spin,
+                                              dtype=B[spin].dtype)
+        mL = len(self.Dl[0,numpy.abs(self.Dl[0])>self.thresh])
 
     def update(self, B):
         if self.counter == 0:
@@ -301,7 +319,7 @@ class PropagatorStack:
     def update_low_rank(self, B):
         assert not self.averaging
         # Diagonal = True assumes BT is diagonal and left is also diagonal
-        assert (self.diagonal_trial)
+        assert self.diagonal_trial
 
         if self.counter == 0:
             self.Tl = self.left[self.block]
@@ -323,8 +341,8 @@ class PropagatorStack:
             # 3. Compute (Qr Dr)
             Ccr = numpy.einsum('ij,j->ij',self.Qr[s][:,:mR], self.Dr[s][:mR]) # N x mR
             if next_block > self.block: # Do QR and update here?
-                # If moving past block in next step need to do recompute QR 
-                (Qlcr, Dlcr, T) = column_pivoted_qr_low_rank(Ccr, mL, mR)
+                # If moving past block in next step need to do recompute QR
+                (Qlcr, Dlcr, T) = column_pivoted_qr_low_rank(Ccr)
                 self.Dr[s][:mR] = Dlcr
                 self.Dr[s][mR:] = 0.0
                 self.Qr[s] = Qlcr
@@ -341,7 +359,7 @@ class PropagatorStack:
 
             # 5. Compute A = q d t
             # a. Compute CPQR of Clcr = (QD)
-            Qlcr, Dlcr, T, mT = column_pivoted_qr_low_rank(Clcr, mL, mR,
+            Qlcr, Dlcr, T, mT = column_pivoted_qr_low_rank(Clcr,
                                                            update=True,
                                                            thresh=self.thresh)
             # b. Compute Tlcr = (Tlcr) tr
@@ -356,11 +374,93 @@ class PropagatorStack:
                                                             Db, Ds,
                                                             mT, mL)
             self.sgndet[s] = sdet
-            self.logdet[s] = logdet 
+            self.logdet[s] = logdet
+
             # 8. Update Green's function:
             self.greens_function_low_rank(QDT, TQinv,
                                           Tlcr, Qlcr, Dlcr,
-                                          Db, mT, mL, s,
+                                          Db, mL, mR, mT, s,
+                                          dtype=B[s].dtype)
+
+        self.mT = mT
+        self.time_slice = self.time_slice + 1 # Count the time slice
+        self.block = self.time_slice // self.stack_size # move to the next block if necessary
+        self.counter = (self.counter + 1) % self.stack_size # Counting within a stack
+
+    def update_low_rank_non_diag(self, B):
+        assert not self.averaging
+        # Diagonal = True assumes BT is diagonal and left is also diagonal
+
+        mR = B.shape[-1] # initial mR
+        mL = B.shape[-1] # initial mL
+        mT = B.shape[-1] # initial mT
+        next_block = (self.time_slice+1) // self.stack_size # move to the next block if necessary
+        for s in [0,1]:
+            # 1. Update Left stack by BTinv
+            mR = len(self.Dr[s][numpy.abs(self.Dr[s])>self.thresh])
+            # print("tl: ", self.Dl[s])
+            self.Tl[s] = numpy.dot(self.Tl[s], self.BTinv[s])
+            mL = len(self.Dl[s][numpy.abs(self.Dl[s])>self.thresh])
+
+            # 2. Update Right stack by added propagator B
+            self.Qr[s][:,:mR] = numpy.dot(B[s], self.Qr[s][:,:mR]) # N x mR
+            self.Qr[s][:,mR:] = 0.0
+
+            # 3. Ccr = B qR dR
+            Ccr = numpy.einsum('ij,j->ij', self.Qr[s][:,:mR], self.Dr[s][:mR]) # N x mR
+            # 4. Clcr = dL tL Ccr
+            if next_block > self.block: # Do QR and update here?
+                # If moving past block in next step need to do recompute QR
+                # right block
+                (Qlcr, Dlcr, T) = column_pivoted_qr_low_rank(Ccr)
+                self.Dr[s][:mR] = Dlcr
+                self.Dr[s][mR:] = 0.0
+                self.Qr[s] = Qlcr
+                Tlcr = numpy.dot(T, self.Tr[s][:mR,:]) # mR x N
+                self.Tr[s][:mR,:] = Tlcr
+                # left block
+                Clc = numpy.einsum('ij,j->ij', self.Ql[s][:,:mL], self.Dl[s][:mL]) # N x mL
+                (Qlc, Dlc, T) = column_pivoted_qr_low_rank(Clc)
+                self.Dl[s][:mL] = Dlc
+                self.Dl[s][mL:] = 0.0
+                self.Ql[s] = Qlc
+                Tlcr = numpy.dot(T, self.Tl[s][:mL,:]) # mL x N
+                self.Tl[s][:mL,:] = Tlcr
+                A1 = numpy.einsum('i,ij->ij', self.Dl[s][:mL], self.Tl[s,:mL,:])
+                A2 = numpy.einsum('ij,j->ij', Qlcr[:,:mR], Dlcr[:mR]) # mL x mR
+                # print(A1.shape, A2.shape)
+                Clcr = numpy.dot(A1,A2)
+            else:
+                Clcr = numpy.dot(numpy.einsum('i,ij->ij', self.Dl[s][:mL], self.Tl[s,:mL,:]), Ccr[:,:mR]) # mL x mR
+            BB = numpy.dot(numpy.dot(self.Qr[s], numpy.diag(self.Dr[s])), self.Tr[s])
+            # 5. Compute A = q d t
+            # a. Compute CPQR of Clcr = (QD)
+            # self.Qr[s] = numpy.dot(scipy.linalg.inv(B[s]), self.Qr[s])
+            # self.Tl[s] = numpy.dot(self.Tl[s], self.BT[s])
+            # Clcr = numpy.dot(numpy.einsum('i,ij->ij', self.Dl[s][:mL], self.Tl[s,:mL,:]),
+                             # numpy.einsum('ij,j->ij', self.Qr[s][:mL,:mR],
+                                 # self.Dr[s][:mR])) # mL x mR
+            Qlcr, Dlcr, T, mT = column_pivoted_qr_low_rank(Clcr, update=True, thresh=self.thresh)
+            # b. Qlcr = qL Qlcr
+            Qlcr = numpy.dot(self.Ql[s,:,:mL], Qlcr) # N x mT
+            # c. Compute Tlcr = (Tlcr) tr
+            Tlcr = numpy.dot(T, self.Tr[s][:mR,:]) # mT x N
+
+            # 6. Split diagonal into Db and Ds needed for stratification.
+            Db, Ds = split_diagonal(Dlcr, mT, dtype=B[s].dtype)
+
+            # 7. Compute det(1+A) = det(1+qdt) = det(1+dtq)
+            sdet, logdet, TQinv, QDT = determinant_low_rank(Tlcr, Qlcr,
+                                                            Dlcr,
+                                                            Db, Ds,
+                                                            mT, mL)
+            self.sgndet[s] = sdet
+            self.logdet[s] = logdet
+
+            # 8. Update Green's function:
+            self.greens_function_low_rank(QDT, TQinv,
+                                          Tlcr, Qlcr, Dlcr,
+                                          Db, mL, mR, mT, s,
                                           dtype=B[s].dtype)
 
         self.mT = mT
@@ -370,14 +470,18 @@ class PropagatorStack:
 
     def greens_function_low_rank(self, QDT, TQinv,
                                  Tlcr, Qlcr, Dlcr,
-                                 Db, mT, mL, spin,
+                                 Db, mL, mR, mT, spin,
                                  dtype=numpy.float64):
         # [QT^{-1}db + ds]^{-1}
+        # print(mL, mR, mT)
+        assert QDT.shape == (mT, mT)
         QDTinv = scipy.linalg.inv(QDT, check_finite=False)
+        # print(QDTinv.shape)
         # Db ([QT^{-1}db + ds]^{-1} [TQ]^{-1})
         A = numpy.einsum("i,ij->ij", Db, QDTinv.dot(TQinv)) # mT x mT
         Qlcr_pad = numpy.zeros((self.nbasis, self.nbasis), dtype=dtype)
-        Qlcr_pad[:mL,:mT] = Qlcr[:,:mT]
+        # print(mL, mR, mT, Qlcr.shape)
+        Qlcr_pad[:mL,:mT] = Qlcr[:mL,:mT]
         self.CT[spin][:,:] = 0.0
         self.CT[spin][:,:mT] = (A.dot(Tlcr)).T.conj()
         self.theta[spin][:,:] = 0.0
@@ -407,8 +511,6 @@ def determinant_low_rank(Tlcr, Qlcr, Dlcr, Db, Ds, mT, mL):
     # M = 1 + A, mT x mT
     M = numpy.einsum("ij,j->ij", QDT, Dbinv).dot(TQ)
     # self.ovlp[s] = 1.0 / scipy.linalg.det(M, check_finite=False)
-    # want log(det(1+A)) = log (det(M^{-1}))
-    #                    = log(1/det(M))
-    #                    = -log(det(M))
+    # want log(det(1+A)) = log (det(M))
     sdet, logdet = numpy.linalg.slogdet(M)
-    return sdet, -logdet, TQinv, QDT
+    return sdet, logdet, TQinv, QDT
