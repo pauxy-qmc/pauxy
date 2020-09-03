@@ -63,6 +63,13 @@ class MultiDetWalker(Walker):
         self.nb = system.nbasis
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
+        self.noisy_overlap = walker_opts.get('noisy_overlap', False)
+        self.noise_level = walker_opts.get('noise_level', -5)
+
+        if (verbose):
+            if (self.noisy_overlap):
+                print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
+
     def overlap_direct(self, trial):
         nup = self.nup
         for (i, det) in enumerate(trial.psi):
@@ -131,7 +138,12 @@ class MultiDetWalker(Walker):
             det_Odn = scipy.linalg.det(Odn)
             self.ovlps[ix] = det_Oup * det_Odn
             self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
-        return sum(self.weights)
+        
+        ovlp = sum(self.weights)
+
+        if(self.noisy_overlap):
+            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+        return ovlp
 
     def reortho(self, trial):
         """reorthogonalise walker.
