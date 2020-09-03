@@ -245,28 +245,49 @@ class PropagatorStack:
                 # for ix in range(2, self.nbins):
                 for ix in range(1, self.nbins):
                     B = self.stack[ix]
-                    C2 = numpy.einsum('ii,i->i',B[spin],self.Dl[spin])
+                    C2 = numpy.einsum('ii,i->i', B[spin], self.Dl[spin])
                     self.Dl[spin] = C2
+                mR = len(self.Dl[spin][numpy.abs(self.Dl[spin])>self.thresh])
+                Qlcr, Dlcr, T, mT = column_pivoted_qr_low_rank(numpy.diag(C2),
+                                                               update=True,
+                                                               thresh=self.thresh)
+                # b. Compute Tlcr = (Tlcr) tr
+                # print(mT, mR, T.shape, self.Tr[spin,:mR,:].shape)
+                Tlcr = numpy.dot(T[:,:mR], self.Tr[spin][:mR,:]) # mT x N
+                # 6. Split diagonal into Db and Ds needed for stratification.
+                Db, Ds = split_diagonal(Dlcr, mT, dtype=B[spin].dtype)
+                # 7. Compute det(1+A) = det(1+qdt) = det(1+dtq)
+                sdet, logdet, TQinv, QDT = determinant_low_rank(Tlcr, Qlcr,
+                                                                Dlcr,
+                                                                Db, Ds,
+                                                                mT, mT)
+                self.sgndet[spin] = sdet
+                # print("this: ", Qlcr.shape)
+                self.logdet[spin] = logdet
+                # print("this: ", Qlcr.shape)
+                self.greens_function_low_rank(QDT, TQinv,
+                                              Tlcr, Qlcr, Dlcr,
+                                              Db, mR, mR, mR, spin,
+                                              dtype=B[spin].dtype)
         else:
             for spin in [0, 1]:
                 B = self.stack[0][spin]
-                Q, D, T = column_pivoted_qr(B)
-                mR = len(D[numpy.abs(D)>self.thresh])
-                # print(T, Q, D)
+                eig, eigv = numpy.linalg.eigh(B)
+                D = eig.copy()
+                self.Dl[spin] = eig.copy()
+                Q = eigv.copy()
+                T = eigv.conj().T.copy()
                 for ix in range(1, self.nbins):
-                    mR = len(D[numpy.abs(D)>self.thresh])
-                    B = self.stack[ix][spin]
-                    C = numpy.dot(B, Q[:,:mR])
-                    C = numpy.einsum('ij,j->ij', C[:,:mR], D[:mR])
-                    (Q, D, Tnew, mT) = column_pivoted_qr_low_rank(C, update=True, thresh=self.thresh)
-                    T = numpy.dot(Tnew, T[:mR,:])
-                self.Tl[spin,:mT,:] = T
-                self.Ql[spin] = Q
-                self.Dl[spin,:mT] = D
-                self.Dl[spin,mT:] = 0.0
-                mR = len(D[numpy.abs(D)>self.thresh])
-                Db, Ds = split_diagonal(D, mR, dtype=B.dtype)
-                sdet, logdet, TQinv, QDT = determinant_low_rank(T, Q, D,
+                    C2 = D * self.Dl[spin]
+                    self.Dl[spin] = C2
+                mR = len(self.Dl[spin][numpy.abs(self.Dl[spin])>self.thresh])
+                # mR = B.shape[0]#len(self.Dl[spin][numpy.abs(self.Dl[spin])>self.thresh])
+                T = T[:mR,:]
+                Q = Q[:,:mR]
+                self.Ql[spin,:,:mR] = Q
+                self.Tl[spin,:mR,:] = T
+                Db, Ds = split_diagonal(self.Dl[spin], mR, dtype=B.dtype)
+                sdet, logdet, TQinv, QDT = determinant_low_rank(T, Q, self.Dl[spin],
                                                                 Db, Ds,
                                                                 mR, mR)
                 self.sgndet[spin] = sdet
@@ -472,14 +493,17 @@ class PropagatorStack:
                                  Tlcr, Qlcr, Dlcr,
                                  Db, mL, mR, mT, spin,
                                  dtype=numpy.float64):
+        # print(Qlcr.shape)
         # [QT^{-1}db + ds]^{-1}
         # print(mL, mR, mT)
         assert QDT.shape == (mT, mT)
         QDTinv = scipy.linalg.inv(QDT, check_finite=False)
         # print(QDTinv.shape)
         # Db ([QT^{-1}db + ds]^{-1} [TQ]^{-1})
+        # print(Qlcr.shape)
         A = numpy.einsum("i,ij->ij", Db, QDTinv.dot(TQinv)) # mT x mT
         Qlcr_pad = numpy.zeros((self.nbasis, self.nbasis), dtype=dtype)
+        # print(Qlcr.shape)
         # print(mL, mR, mT, Qlcr.shape)
         Qlcr_pad[:mL,:mT] = Qlcr[:mL,:mT]
         self.CT[spin][:,:] = 0.0
