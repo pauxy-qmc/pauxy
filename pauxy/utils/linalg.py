@@ -216,6 +216,7 @@ def column_pivoted_qr_low_rank(A, update=False, thresh=1e-6):
         mT = len(D[numpy.abs(D) > thresh])
         T = numpy.einsum('i,ij->ij', Dinv[:mT], R[:mT,:])
         T[:,P] = T[:,range(mR)] # mT x mR
+        assert T.shape == (mT, mR)
         return (Q, D, T, mT)
     else:
         D = R.diagonal()[:mR]
