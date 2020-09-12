@@ -373,11 +373,13 @@ class HirschDMC(object):
 
         if (not self.sorella):
             const = (-system.g * cmath.sqrt(system.m * system.w0 * 2.0)) * (-dt)
+            const = const.real
             nX = [walker.X, walker.X]
             # Veph = [numpy.diag( numpy.exp(const * nX[0]) ),numpy.diag( numpy.exp(const * nX[1]) )]
             # kinetic_real(walker.phi, system, Veph, H1diag=True)
             TV = [scipy.linalg.expm(-dt*system.T[0] + numpy.diag(const * nX[0])),\
                   scipy.linalg.expm(-dt*system.T[1] + numpy.diag(const * nX[1])) ]
+            #print(walker.phi.dtype, walker.X.dtype, const)
             kinetic_real(walker.phi, system, TV, H1diag=False)
 
         # Update inverse overlap
