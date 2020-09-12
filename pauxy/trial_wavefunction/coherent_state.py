@@ -130,7 +130,7 @@ def hessian_product(x, p, nbasis, nup, ndown, T, U, g, m, w0, c0):
 
 @jit
 def compute_exp(Ua, tmp, theta_a):
-    for i in range(1,15):
+    for i in range(1,50):
         tmp = np.einsum("ij,jk->ik", theta_a, tmp)
         Ua += tmp / math.factorial(i)
 
@@ -286,6 +286,7 @@ class CoherentState(object):
         self.nocca = system.nup
         self.noccb = system.ndown
 
+        self.algorithm = options.get('algorithm',"bfgs")
         self.symmetrize = options.get('symmetrize',False)
         print("# Symmetrize Coherent State = {}".format(self.symmetrize))
 
@@ -385,7 +386,53 @@ class CoherentState(object):
             rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
             self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
             self.shift = self.shift.real
-            print("# Initial shift = {}".format(self.shift[0:3]))
+            print("# Initial shift = {}".format(self.shift[0:5]))
+
+            self.init_guess_file = options.get('init_guess_file', None)
+            if (self.init_guess_file is not None):
+                if verbose:
+                    print ("# Reading initial guess from %s"%(self.init_guess_file))
+                f = h5py.File(self.init_guess_file, "r")
+                self.shift = f["shift"][()].real
+                self.psi = f["psi"][()]
+                self.G = f["G"][()]
+                f.close()
+
+            self.init_guess_file_stripe = options.get('init_guess_file_stripe', None)
+            if (self.init_guess_file_stripe is not None):
+                if verbose:
+                    print ("# Reading initial guess from %s and generating an intial guess"%(self.init_guess_file_stripe))
+                f = h5py.File(self.init_guess_file_stripe, "r")
+                shift = f["shift"][()].real
+                psi = f["psi"][()]
+                G = f["G"][()]
+                f.close()
+                ny = system.nbasis // shift.shape[0]
+                assert(ny == system.ny)
+
+                self.shift = numpy.zeros(system.nbasis)
+                for i in range(ny):
+                    self.shift[system.nx * i: system.nx * i+system.nx] = shift.copy()
+                
+                for s in [0,1]:
+                    self.G[s] = numpy.zeros_like(self.G[s])
+                    for i in range(ny):
+                        offset = system.nx*i
+                        for j in range(system.nx):
+                            for k in range(system.nx):
+                                self.G[s][offset+j,offset+k] = G[s][j,k]
+
+                beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
+                Focka = system.T[0] - 2.0 * system.g * numpy.diag(beta) + system.U * numpy.diag(self.G[1].diagonal())
+                Fockb = system.T[1] - 2.0 * system.g * numpy.diag(beta) + system.U * numpy.diag(self.G[0].diagonal())
+
+                Focka = Focka.real
+                Fockb = Fockb.real
+
+                ea, va = numpy.linalg.eigh(Focka)
+                eb, vb = numpy.linalg.eigh(Fockb)
+                self.psi[:,:system.nup] = va[:,:system.nup]
+                self.psi[:,system.nup:] = vb[:,:system.ndown]
 
             if (self.variational):
                 if (verbose):
@@ -393,7 +440,7 @@ class CoherentState(object):
                 self.run_variational(system, verbose)
                 print("# Variational Coherent State Energy = {}".format(self.energy))
 
-            print("# Optimized shift = {}".format(self.shift[0:3]))
+            print("# Optimized shift = {}".format(self.shift[0:5]))
 
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
 
@@ -570,116 +617,119 @@ class CoherentState(object):
 #       
 
         x[:system.nbasis] = self.shift.real.copy() # initial guess
-        for i in range(system.nbasis):
-            if (i%2==0):
-                x[i] *= 2.0
-            elif (i%2==1):
-                x[i] /= 2.0
+        if (self.init_guess_file is None and self.init_guess_file_stripe is None):
+            for i in range(system.nbasis):
+                if (int(i//8)%8==0):
+                    x[i] /= 4.0
+                else:
+                    x[i] *= 4.0
+                # elif (int(i//8)%2==1):
+                    # x[i] /= 4.0
         self.energy = 1e6
 
-        from jax.experimental import optimizers
-        opt_init, opt_update, get_params = optimizers.adagrad(step_size=0.5)
-        # opt_init, opt_update, get_params = optimizers.sgd(step_size=0.05)
+        if (self.algorithm == "adagrad"):
+            from jax.experimental import optimizers
+            opt_init, opt_update, get_params = optimizers.adagrad(step_size=0.5)
 
-        for i in range (self.maxiter): # Try 10 times
-            ehistory = []
-            # x = numpy.zeros_like(x)
-            # x[:system.nbasis] = self.shift.real.copy() # initial guess
-            # x += numpy.random.randn(x.shape[0]) * 1e-2
-            x_jax = np.array(x)
-            opt_state = opt_init(x_jax)
+            for i in range (self.maxiter): # Try 10 times
+                ehistory = []
+                x_jax = np.array(x)
+                opt_state = opt_init(x_jax)
 
-            def update(i, opt_state):
+                def update(i, opt_state):
+                    params = get_params(opt_state)
+                    gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
+                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+                    return opt_update(i, gradient, opt_state)
+
+                eprev = 10000
+                
                 params = get_params(opt_state)
-                gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                    system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
-                return opt_update(i, gradient, opt_state)
+                Gprev = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
+                shift_prev = x[:system.nbasis]
 
-            eprev = 10000
+                for t in range(1000):
+                    params = get_params(opt_state)
+                    shift_curr = params[:system.nbasis]
+                    Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
+                    ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
+                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+                    opt_state = update(t, opt_state)
+
+                    Gdiff = (Gprev-Gcurr).ravel()
+                    shift_diff = shift_prev - shift_curr
+
+                    # rms = numpy.sum(Gdiff**2)/system.nbasis**2 + numpy.sum(shift_diff**2) / system.nbasis
+                    rms = numpy.max(numpy.abs(Gdiff)) + numpy.max(numpy.abs(shift_diff))
+                    echange = numpy.abs(ecurr - eprev)
+
+                    if (echange < 1e-10 and rms < 1e-10):
+
+                        if verbose:
+                            print("# {} {} {} {} (converged)".format(t, ecurr, echange, rms))
+                            self.energy = ecurr
+                            ehistory += [ecurr]
+                        break
+                    else:
+                        eprev = ecurr
+                        Gprev = Gcurr
+                        shift_prev = shift_curr
+                        if (verbose and t % 20 == 0):
+                            if (t == 0):
+                                print("# {} {}".format(t, ecurr))
+                            else:
+                                print("# {} {} {} {}".format(t, ecurr, echange, rms))
+
+            x = numpy.array(params)
+            self.shift = x[:nbsf]
+
+            daia = x[nbsf:nbsf+nova] 
+            daib = x[nbsf+nova:nbsf+nova+novb]
+        elif self.algorithm == "basin_hopping":
+            from scipy.optimize import basinhopping
+            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted),
+                                "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 500,\
+                                        'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
+
+            def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
+                f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
+                df = gradient(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
+                return f, df
             
-            params = get_params(opt_state)
-            Gprev = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
-            shift_prev = x[:system.nbasis]
+            def print_fun(x, f, accepted):
+                print("at minimum %.4f accepted %d" % (f, int(accepted)))
 
-            for t in range(1000):
-                params = get_params(opt_state)
-                shift_curr = params[:system.nbasis]
-                Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
-                ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                    system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
-                opt_state = update(t, opt_state)
+            res = basinhopping(func, x, minimizer_kwargs=minimizer_kwargs, callback=print_fun,
+                       niter=self.maxiter, niter_success=3)
 
-                Gdiff = (Gprev-Gcurr).ravel()
-                shift_diff = shift_prev - shift_curr
+            self.energy = res.fun
 
-                rms = numpy.sum(Gdiff**2) + numpy.sum(shift_diff**2)
-                echange = numpy.abs(ecurr - eprev)
+            self.shift = res.x[:nbsf]
+            daia = res.x[nbsf:nbsf+nova] 
+            daib = res.x[nbsf+nova:nbsf+nova+novb]
 
-                if (echange < 1e-8 and rms < 1e-8):
-
-                    if verbose:
-                        print("# {} {} {} {} (converged)".format(t, ecurr, echange, rms))
-                        self.energy = ecurr
-                        ehistory += [ecurr]
-                    #     H = hessian(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                    # system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
-                    #     eigval, eigvec = numpy.linalg.eigh(H)
-                    #     print(eigval)
-                    break
+        elif self.algorithm == "bfgs":
+            for i in range (self.maxiter): # Try 10 times
+                res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
+                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                    method='L-BFGS-B',\
+                    options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 500,\
+                    'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
+                e = res.fun
+                if (verbose):
+                    print("# macro iter {} energy is {}".format(i, e))
+                if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
+                    self.energy = res.fun
+                    self.shift = self.shift
+                    xconv = res.x.copy()
                 else:
-                    eprev = ecurr
-                    Gprev = Gcurr
-                    shift_prev = shift_curr
-                    if (verbose and t % 20 == 0):
-                        if (t == 0):
-                            print("# {} {}".format(t, ecurr))
-                        else:
-                            print("# {} {} {} {}".format(t, ecurr, echange, rms))
+                    break
+                x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
+                x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
 
-        x = numpy.array(params)
-        self.shift = x[:nbsf]
-
-        daia = x[nbsf:nbsf+nova] 
-        daib = x[nbsf+nova:nbsf+nova+novb]
-        
-        # from scipy.optimize import basinhopping
-        # minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted),
-        #                     "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
-        #                             'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
-
-        # def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
-        #     f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
-        #     df = gradient(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
-        #     return f, df
-        
-        # def print_fun(x, f, accepted):
-        #     print("at minimum %.4f accepted %d" % (f, int(accepted)))
-
-        # res = basinhopping(func, x, minimizer_kwargs=minimizer_kwargs, callback=print_fun,
-        #            niter=self.maxiter, niter_success=3)
-
-        # self.energy = res.fun
-
-        # for i in range (self.maxiter): # Try 10 times
-        #     res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
-        #             system.T, system.U, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
-        #         method='L-BFGS-B', options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 15000,\
-        #         'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
-        #     e = res.fun
-        #     if (verbose):
-        #         print("# macro iter {} energy is {}".format(i, e))
-        #     if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
-        #         self.energy = res.fun
-        #         self.shift = self.shift
-        #         xconv = res.x.copy()
-        #     else:
-        #         break
-        #     x[:system.nbasis] = numpy.random.randn(self.shift.shape[0]) * 1e-1 + xconv[:nbsf]
-        #     x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:]
-
-        # self.shift = res.x[:nbsf]
-        # daia = res.x[nbsf:nbsf+nova] 
-        # daib = res.x[nbsf+nova:nbsf+nova+novb]
+            self.shift = res.x[:nbsf]
+            daia = res.x[nbsf:nbsf+nova] 
+            daib = res.x[nbsf+nova:nbsf+nova+novb]
 
         daia = daia.reshape((nvira, nocca))
         daib = daib.reshape((nvirb, noccb))
@@ -704,8 +754,12 @@ class CoherentState(object):
             Ub = expm(theta_b)
             Cb = C0b.dot(Ub)
 
-        self.psi[:,:nocca] = Ca[:,:nocca]
-        self.psi[:,nocca:] = Cb[:,:noccb]
+        Cocca, detpsi = reortho(Ca[:,:nocca])
+        Coccb, detpsi = reortho(Cb[:,:noccb])
+
+        self.psi[:,:nocca] = Cocca
+        self.psi[:,nocca:] = Coccb
+
         self.update_electronic_greens_function(system)
 
 
@@ -714,7 +768,6 @@ class CoherentState(object):
         Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
         S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
         print("# <S^2> = {: 3f}".format(S2))
-
 
     def update_electronic_greens_function(self, system, verbose=0):
         gup = gab(self.psi[:, :system.nup],
