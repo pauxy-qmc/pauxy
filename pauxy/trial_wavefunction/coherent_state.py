@@ -331,7 +331,7 @@ class CoherentState(object):
                 else:
                     gdown = numpy.zeros_like(gup)
 
-                self.G = numpy.array([gup, gdown])
+                self.G = numpy.array([gup, gdown], dtype=self.psi.dtype)
                 self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
 
         else:
