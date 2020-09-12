@@ -716,7 +716,6 @@ class CoherentState(object):
         print("# <S^2> = {: 3f}".format(S2))
 
 
-        
     def update_electronic_greens_function(self, system, verbose=0):
         gup = gab(self.psi[:, :system.nup],
                                          self.psi[:, :system.nup]).T
