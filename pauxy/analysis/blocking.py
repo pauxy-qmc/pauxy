@@ -20,6 +20,8 @@ from pauxy.analysis.extraction import (
 from pauxy.utils.misc import get_from_dict
 from pauxy.utils.linalg import get_ortho_ao_mod
 
+from pauxy.analysis.autocorr import reblock_by_autocorr
+
 
 def average_single(frame, delete=True, multi_sym=False):
     if multi_sym:
@@ -93,7 +95,6 @@ def average_fp(frame):
                                                  2*cov_nd/(nsamp*re_num*re_den))**0.5
     return results
 
-
 def reblock_mixed(groupby, columns, verbose=False):
     analysed = []
     for group, frame in groupby:
@@ -106,6 +107,7 @@ def reblock_mixed(groupby, columns, verbose=False):
             short = short.drop(columns+drop, axis=1)
         except KeyError:
             short = short.drop(columns+['index'], axis=1)
+        
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
         reblocked = pd.DataFrame({'ETotal': [0.0]})
         for c in short.columns:
@@ -124,7 +126,14 @@ def reblock_mixed(groupby, columns, verbose=False):
             reblocked[columns[i]] = v
         analysed.append(reblocked)
 
-    return pd.concat(analysed, sort=True)
+    final = pd.concat(analysed, sort=True)
+
+    y = short["ETotal"].values
+    reblocked_ac = reblock_by_autocorr(y)
+    for c in reblocked_ac.columns:
+        final[c] = reblocked_ac[c].values
+
+    return final
 
 
 def reblock_free_projection(frame):
