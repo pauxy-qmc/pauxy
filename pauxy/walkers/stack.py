@@ -43,7 +43,7 @@ class FieldConfig(object):
         self.ib = (self.ib + 1) % self.nfields
         # Completed field configuration for this walker?
         if self.ib == 0:
-            self.step = (self.step + 1) % self.nprop_tot
+            self.step = (self.step + 1)
             # Completed this block of back propagation steps?
             if self.step % self.nbp == 0:
                 self.block = (self.block + 1) % self.nblock
