@@ -39,7 +39,7 @@ class FieldConfig(object):
         config : int
             Auxilliary field configuration.
         """
-        if self.nbp == 0:
+        if self.configs.shape[0] == 1:
             return
         self.configs[self.step, self.ib] = config
         self.ib = (self.ib + 1) % self.nfields
