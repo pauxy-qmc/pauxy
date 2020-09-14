@@ -174,7 +174,7 @@ def test_hubbard_diff():
     trial = MultiSlater(system, (coeffs, wfn))
     qmc = dotdict({'dt': 0.01, 'nstblz': 5, 'nwalkers': 10})
     options = {'free_projection': True}
-    walkers = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    walkers = Walkers(system, trial, qmc)
     # Discrete
     prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     for w in walkers.walkers:
@@ -193,7 +193,7 @@ def test_hubbard_diff():
     # assert detR2 == pytest.approx(0.25934872296001504)
     # CP
     trial = MultiSlater(system, (coeffs, wfn))
-    walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    walkers2 = Walkers(system, trial, qmc)
     options = {'free_projection': False}
     prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     for w in walkers2.walkers:
@@ -229,7 +229,7 @@ def test_hubbard_ortho():
     qmc = dotdict({'dt': 0.01, 'nstblz': 5, 'nwalkers': 10, 'ntot_walkers': 10})
     options = {'free_projection': True}
     wopt = {'population_control': 'pair_branch', 'use_log_shift': True}
-    walkers = Walkers(system, trial, qmc, walker_opts=wopt, nbp=1, nprop_tot=1)
+    walkers = Walkers(system, trial, qmc, walker_opts=wopt)
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
     # Discrete
@@ -251,7 +251,7 @@ def test_hubbard_ortho():
             # print([(w.weight).real for w in walkers.walkers])
     # CP
     trial = MultiSlater(system, (coeffs, wfn))
-    walkers2 = Walkers(system, trial, qmc, nbp=1, nprop_tot=1)
+    walkers2 = Walkers(system, trial, qmc)
     options = {'free_projection': False}
     prop = Hirsch(system, trial, qmc, options=options, verbose=True)
     numpy.random.seed(7)

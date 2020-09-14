@@ -39,8 +39,6 @@ class FieldConfig(object):
         config : int
             Auxilliary field configuration.
         """
-        if self.configs.shape[0] == 1:
-            return
         self.configs[self.step, self.ib] = config
         self.ib = (self.ib + 1) % self.nfields
         # Completed field configuration for this walker?
