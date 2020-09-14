@@ -338,6 +338,8 @@ class CoherentState(object):
 
         self._mem_required = 0.0
         self._rchol = None
+        self._eri = None
+        self._UVT = None
 
         if verbose:
             print ("# Updated coherent.")
@@ -438,7 +440,7 @@ class CoherentState(object):
             c0 = numpy.zeros(nbsf*nbsf)
             c0[:nbsf*nbsf] = Ca.ravel()
 #       
-        x[:system.nbasis] = self.shift.copy() # initial guess
+        x[:system.nbasis] = self.shift.real.copy() # initial guess
         # self.shift = numpy.zeros(nbsf)
         self.energy = 1e6
 

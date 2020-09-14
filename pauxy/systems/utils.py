@@ -43,9 +43,12 @@ def get_system(sys_opts=None, verbose=0, chol_cut=1e-5, comm=None):
         system = Generic(h1e=hcore, chol=chol, ecore=enuc,
                          h1e_mod=h1e_mod, nelec=nelec,
                          verbose=verbose,
-                         control_variate=inputs.get('control_variate', False),
-                         stochastic_ri=inputs.get('stochastic_ri', False),
-                         nsamples=inputs.get('nsamples', 10))
+                         control_variate=sys_opts.get('control_variate', False),
+                         stochastic_ri=sys_opts.get('stochastic_ri', False),
+                         exact_eri=sys_opts.get('exact_eri', False),
+                         pno=sys_opts.get('pno', False),
+                         thresh_pno=sys_opts.get('thresh_pno', 1e-14),
+                         nsamples=sys_opts.get('nsamples', 10))
     elif sys_opts['name'] == 'UEG':
         system = UEG(sys_opts, verbose)
     else:
