@@ -196,7 +196,7 @@ class BackPropagation(object):
             else:
                 # BP-PhL
                 weight = wnm.weight
-            
+
             self.estimates[:self.nreg] += weight*energies
             self.estimates[self.nreg] += weight
 
@@ -208,7 +208,7 @@ class BackPropagation(object):
                 start = end
                 end = end + self.two_rdm.size
                 self.estimates[start:end] += weight*self.two_rdm.flatten()
-            
+
             if self.eval_ekt:
                 start = end
                 end = end + self.ekt_fock_1p.size
