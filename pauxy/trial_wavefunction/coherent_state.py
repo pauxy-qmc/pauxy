@@ -270,6 +270,8 @@ class CoherentState(object):
         self.reference = options.get('reference', None)
         self.exporder = options.get('exporder', 6)
         self.maxiter = options.get('maxiter', 3)
+        self.maxscf = options.get('maxscf', 500)
+        self.ueff = options.get('ueff', system.U)
         
         if verbose:
             print("# exporder in CoherentState is 15 no matter what you entered like {}".format(self.exporder))
@@ -287,8 +289,12 @@ class CoherentState(object):
         self.noccb = system.ndown
 
         self.algorithm = options.get('algorithm',"bfgs")
+        self.random_guess = options.get('random_guess',False)
         self.symmetrize = options.get('symmetrize',False)
-        print("# Symmetrize Coherent State = {}".format(self.symmetrize))
+        if verbose:
+            print("# random guess = {}".format(self.random_guess))
+        if verbose:
+            print("# Symmetrize Coherent State = {}".format(self.symmetrize))
 
         self.wfn_file = options.get('wfn_file', None)
         
@@ -338,9 +344,9 @@ class CoherentState(object):
         else:
             free_electron = options.get('free_electron', False)
             if (free_electron):
-                trial_elec = FreeElectron(system, trial=options, verbose=0)
+                trial_elec = FreeElectron(system, trial=options, verbose=self.verbose)
             else:
-                trial_elec = UHF(system, trial=options, verbose=0)
+                trial_elec = UHF(system, trial=options, verbose=self.verbose)
 
             self.psi[:, :system.nup] = trial_elec.psi[:, :system.nup]
             if (system.ndown > 0):
@@ -423,8 +429,8 @@ class CoherentState(object):
                                 self.G[s][offset+j,offset+k] = G[s][j,k]
 
                 beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
-                Focka = system.T[0] - 2.0 * system.g * numpy.diag(beta) + system.U * numpy.diag(self.G[1].diagonal())
-                Fockb = system.T[1] - 2.0 * system.g * numpy.diag(beta) + system.U * numpy.diag(self.G[0].diagonal())
+                Focka = system.T[0] - 2.0 * system.g * numpy.diag(beta) + self.ueff * numpy.diag(self.G[1].diagonal())
+                Fockb = system.T[1] - 2.0 * system.g * numpy.diag(beta) + self.ueff * numpy.diag(self.G[0].diagonal())
 
                 Focka = Focka.real
                 Fockb = Fockb.real
@@ -464,7 +470,7 @@ class CoherentState(object):
 
         self.initialisation_time = time.time() - init_time
 
-        self.spin_projection = options.get('spin_projection',True)
+        self.spin_projection = options.get('spin_projection',False)
         if (self.spin_projection and not self.symmetrize): # natural orbital
             print("# Spin projection is used")
             Pcharge = self.G[0] + self.G[1]
@@ -618,13 +624,15 @@ class CoherentState(object):
 
         x[:system.nbasis] = self.shift.real.copy() # initial guess
         if (self.init_guess_file is None and self.init_guess_file_stripe is None):
-            for i in range(system.nbasis):
-                if (int(i//8)%8==0):
-                    x[i] /= 4.0
-                else:
-                    x[i] *= 4.0
-                # elif (int(i//8)%2==1):
-                    # x[i] /= 4.0
+            if (self.random_guess):
+                for i in range(system.nbasis):
+                    x[i] = numpy.random.randn(1)
+            else:
+                for i in range(system.nbasis):
+                    if (i%2==0):
+                        x[i] /= 2.0
+                    else:
+                        x[i] *= 2.0
         self.energy = 1e6
 
         if (self.algorithm == "adagrad"):
@@ -639,7 +647,7 @@ class CoherentState(object):
                 def update(i, opt_state):
                     params = get_params(opt_state)
                     gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
                     return opt_update(i, gradient, opt_state)
 
                 eprev = 10000
@@ -653,7 +661,7 @@ class CoherentState(object):
                     shift_curr = params[:system.nbasis]
                     Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
                     ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted)
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
                     opt_state = update(t, opt_state)
 
                     Gdiff = (Gprev-Gcurr).ravel()
@@ -687,8 +695,8 @@ class CoherentState(object):
             daib = x[nbsf+nova:nbsf+nova+novb]
         elif self.algorithm == "basin_hopping":
             from scipy.optimize import basinhopping
-            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, system.U, system.g, system.m, system.w0, c0, self.restricted),
-                                "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 500,\
+            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted),
+                                "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                                         'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
 
             def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
@@ -711,9 +719,9 @@ class CoherentState(object):
         elif self.algorithm == "bfgs":
             for i in range (self.maxiter): # Try 10 times
                 res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, system.U, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
                     method='L-BFGS-B',\
-                    options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': 500,\
+                    options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                     'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
                 e = res.fun
                 if (verbose):
@@ -767,6 +775,15 @@ class CoherentState(object):
         S2exact = MS * (MS+1.)
         Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
         S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+
+
+        # nocca = system.nup
+        # noccb = system.ndown
+        # MS = numpy.abs(nocca-noccb) / 2.0
+        # S2exact = MS * (MS+1.)
+        # Sij = psi_accept[:,:nocca].T.dot(psi_accept[:,nocca:])
+        # S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+
         print("# <S^2> = {: 3f}".format(S2))
 
     def update_electronic_greens_function(self, system, verbose=0):
