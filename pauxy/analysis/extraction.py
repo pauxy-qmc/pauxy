@@ -39,13 +39,19 @@ def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=Non
         splits = get_param(filename, ['estimators', 'estimators',
                                       'back_prop', 'splits'])
         ix = splits[0][-1]
-    denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
-    one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix), raw=True)
+    if est_type == 'back_propagated':
+        denom = extract_data(filename, est_type, 'denominator_{}'.format(ix), raw=True)
+        one_rdm = extract_data(filename, est_type, rdm_type+'_{}'.format(ix), raw=True)
+    else:
+        one_rdm = extract_data(filename, est_type, rdm_type, raw=True)
+        denom = None
     fp = get_param(filename, ['propagators','free_projection'])
     if fp:
         print("# Warning analysis of FP RDM not implemented.")
         return (one_rdm, denom)
     else:
+        if denom is None:
+            return one_rdm
         if len(one_rdm.shape) == 4:
             return one_rdm / denom[:,None,None]
         elif len(one_rdm.shape) == 5:
