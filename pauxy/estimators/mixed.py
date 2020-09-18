@@ -279,11 +279,11 @@ class Mixed(object):
             if self.calc_one_rdm:
                 start = self.nreg
                 end = self.nreg+self.G.size
-                rdm = gs[start:end].reshape(self.G.shape)
+                rdm = gs[start:end].reshape(self.G.shape) / nsteps
                 self.output.push(rdm/gs[ns.weight], 'one_rdm')
             if self.calc_two_rdm:
                 start = self.nreg + self.G.size
-                rdm = gs[start:].reshape(self.two_rdm.shape)
+                rdm = gs[start:].reshape(self.two_rdm.shape) / nsteps
                 self.output.push(rdm/gs[ns.weight], 'two_rdm')
             self.output.increment()
         self.zero()
