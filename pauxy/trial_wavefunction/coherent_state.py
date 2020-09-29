@@ -110,12 +110,12 @@ def local_energy_hubbard_holstein_jax(T,U,g,m,w0, G, X, Lap, Ghalf=None):
 
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
-def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted):
-    grad = numpy.array(jax.grad(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted))
+def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted,restricted_shift):
+    grad = numpy.array(jax.grad(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted,restricted_shift))
     return grad
 
 def hessian(x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
-    H = numpy.array(jax.hessian(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted))
+    H = numpy.array(jax.hessian(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted,restricted_shift))
     return H
 
 def hessian_product(x, p, nbasis, nup, ndown, T, U, g, m, w0, c0):
@@ -187,7 +187,7 @@ def compute_greens_function_from_x (x, nbasis, nup, ndown, c0, restricted):
 
     return G
 
-def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
+def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, restricted_shift):
     nbasis = int(round(nbasis))
     nup = int(round(nup))
     ndown = int(round(ndown))
@@ -240,6 +240,9 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
         Gb = np.zeros_like(Ga)
 
     G = np.array([Ga, Gb],dtype=np.float64)
+
+    if (restricted_shift):
+        shift = jax.ops.index_update(shift, jax.ops.index[:nbasis], x[0])
 
     phi = HarmonicOscillator(m, w0, order=0, shift = shift)
     Lap = phi.laplacian(shift)
@@ -387,7 +390,12 @@ class CoherentState(object):
 
             self.variational = options.get('variational',True)
             self.restricted = options.get('restricted',False)
-            print("# restricted = {}".format(self.restricted))
+            if (verbose):
+                print("# restricted = {}".format(self.restricted))
+
+            self.restricted_shift = options.get('restricted_shift',False)
+            if (verbose):
+                print("# restricted_shift = {}".format(self.restricted_shift))
 
             rho = [numpy.diag(self.G[0]), numpy.diag(self.G[1])]
             self.shift = numpy.sqrt(system.w0*2.0 * system.m) * system.g * (rho[0]+ rho[1]) / (system.m * system.w0**2)
@@ -490,6 +498,12 @@ class CoherentState(object):
             else:
                 self.init = self.psi.copy()
 
+        MS = numpy.abs(nocca-noccb) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
+        self.S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+        if (verbose):
+            print("# <S^2> = {: 3f}".format(self.S2))
 
         # For interface compatability
         self.ndets = 1
