@@ -214,11 +214,11 @@ class Mixed(object):
                             E, T, V = w.local_energy(system, rchol=trial._rchol, eri=trial._eri, UVT=trial._UVT)
                         else:
                             E, T, V = 0, 0, 0
-                        self.estimates[self.names.enumer] += w.weight*E.real
+                        self.estimates[self.names.enumer] += w.weight*w.le_oratio*E.real
                         self.estimates[self.names.e1b:self.names.e2b+1] += (
-                                w.weight*numpy.array([T,V]).real
+                                w.weight*w.le_oratio*numpy.array([T,V]).real
                         )
-                        self.estimates[self.names.edenom] += w.weight
+                        self.estimates[self.names.edenom] += w.weight * w.le_oratio
                 self.estimates[self.names.uweight] += w.unscaled_weight
                 self.estimates[self.names.weight] += w.weight
                 self.estimates[self.names.ovlp] += w.weight * abs(w.ot)
@@ -436,7 +436,7 @@ def local_energy(system, G, Ghalf=None,
         else:
             return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None, extra_ratio=1.0):
+def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
     weight = 0
     energies = 0
     denom = 0
@@ -445,7 +445,7 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None, extra_
         energies += w * numpy.array(local_energy(system, G, rchol = rchol))
         denom += w
 
-    return tuple(extra_ratio * energies/denom)
+    return tuple(energies/denom)
 
 def local_energy_multi_det_hh(system, Gi, weights, X, Lapi, two_rdm=None):
     weight = 0

@@ -39,16 +39,10 @@ class MultiSlater(object):
             print("# split_trial_local_energy = {}".format(self.split_trial_local_energy))
 
         if (self.split_trial_local_energy):
-            # print("# taking the determinant with the largest coefficient as the local energy trial")
+            print("# taking the determinant with the largest coefficient as the local energy trial")
             imax = numpy.argmax(numpy.abs(self.coeffs))
             self.le_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
             self.le_psi = numpy.array([self.psi[imax,:,:]], dtype=self.psi.dtype)
-            print("self.le_coeffs = {}".format(self.le_coeffs))
-            print("self.le_psi = {}".format(self.le_psi))
-            print("self.coeffs = {}".format(self.coeffs))
-            print("self.psi = {}".format(self.psi))
-            # self.le_coeffs = self.coeffs
-            # self.le_psi = self.psi
             self.le_ortho_expansion = self.ortho_expansion
         else:
             self.le_psi = self.psi.copy()

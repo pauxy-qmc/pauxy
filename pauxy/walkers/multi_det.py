@@ -75,12 +75,12 @@ class MultiDetWalker(Walker):
         self.nb = system.nbasis
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
-        self.noisy_overlap = walker_opts.get('noisy_overlap', False)
-        self.noise_level = walker_opts.get('noise_level', -5)
+        # self.noisy_overlap = walker_opts.get('noisy_overlap', False)
+        # self.noise_level = walker_opts.get('noise_level', -5)
 
-        if (verbose):
-            if (self.noisy_overlap):
-                print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
+        # if (verbose):
+        #     if (self.noisy_overlap):
+        #         print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -153,8 +153,8 @@ class MultiDetWalker(Walker):
         
         ovlp = sum(self.weights)
 
-        if(self.noisy_overlap):
-            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+        # if(self.noisy_overlap):
+        #     ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
 
         return ovlp
 
@@ -250,9 +250,7 @@ class MultiDetWalker(Walker):
                 self.le_weights[ix] = trial.le_coeffs[ix].conj() * self.ovlps[ix]
 
             # self.le_weights *= (tot_ovlp_energy / tot_ovlp)
-            # self.le_oratio = tot_ovlp_energy / tot_ovlp
-            self.le_oratio = tot_ovlp / tot_ovlp_energy
-            print("tot_ovlp_energy = {}".format(tot_ovlp_energy))
+            self.le_oratio = tot_ovlp_energy / tot_ovlp
         return tot_ovlp
 
     def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
@@ -272,12 +270,12 @@ class MultiDetWalker(Walker):
             return local_energy_multi_det(system, self.le_Gi,
                                           self.le_weights,
                                           two_rdm=None,
-                                          rchol=None, extra_ratio = self.le_oratio)
+                                          rchol=None)
         else:
             return local_energy_multi_det(system, self.Gi,
                                           self.weights,
                                           two_rdm=None,
-                                          rchol=None, extra_ratio = 1.0)
+                                          rchol=None)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0
