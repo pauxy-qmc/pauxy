@@ -6,6 +6,7 @@ import numpy
 import numpy
 import scipy.linalg
 from pauxy.utils.io import fcidump_header
+from pauxy.systems.hubbard_holstein import kinetic
 
 
 class Hubbard(object):
@@ -65,6 +66,10 @@ class Hubbard(object):
             self._alt_convention = True
         else:
             self._alt_convention = False
+        
+        self.ypbc = inputs.get('ypbc', True)
+        self.xpbc = inputs.get('xpbc', True)
+
         self.nbasis = self.nx * self.ny
         self.nactive = self.nbasis
         self.nfv = 0
@@ -80,7 +85,7 @@ class Hubbard(object):
             self.T = kinetic_pinning_alt(self.t, self.nbasis, self.nx, self.ny)
         else:
             self.T = kinetic(self.t, self.nbasis, self.nx,
-                             self.ny, self.ktwist)
+                             self.ny, self.ktwist, xpbc=self.xpbc, ypbc=self.ypbc)
         self.H1 = self.T
         self.Text = scipy.linalg.block_diag(self.T[0], self.T[1])
         self.P = transform_matrix(self.nbasis, self.kpoints,
@@ -167,62 +172,6 @@ def transform_matrix(nbasis, kpoints, kc, nx, ny):
 
     return U
 
-
-def kinetic(t, nbasis, nx, ny, ks):
-    """Kinetic part of the Hamiltonian in our one-electron basis.
-
-    Parameters
-    ----------
-    t : float
-        Hopping parameter
-    nbasis : int
-        Number of one-electron basis functions.
-    nx : int
-        Number of x lattice sites.
-    ny : int
-        Number of y lattice sites.
-
-    Returns
-    -------
-    T : numpy.array
-        Hopping Hamiltonian matrix.
-    """
-
-    if ks.all() is None:
-        T = numpy.zeros((nbasis, nbasis), dtype=float)
-    else:
-        T = numpy.zeros((nbasis, nbasis), dtype=complex)
-
-    for i in range(0, nbasis):
-        xy1 = decode_basis(nx, ny, i)
-        for j in range(i+1, nbasis):
-            xy2 = decode_basis(nx, ny, j)
-            dij = abs(xy1-xy2)
-            if sum(dij) == 1:
-                T[i, j] = -t
-            # Take care of periodic boundary conditions
-            # there should be a less stupid way of doing this.
-            if ny == 1 and dij == [nx-1]:
-                if ks.all() is not None:
-                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
-                else:
-                    phase = 1.0
-                T[i,j] += -t * phase
-            elif (dij==[nx-1, 0]).all():
-                if ks.all() is not None:
-                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
-                else:
-                    phase = 1.0
-                T[i, j] += -t * phase
-            elif (dij==[0, ny-1]).all():
-                if ks.all() is not None:
-                    phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
-                else:
-                    phase = 1.0
-                T[i, j] += -t * phase
-
-    # This only works because the diagonal of T is zero.
-    return numpy.array([T+T.conj().T, T+T.conj().T])
 
 def kinetic_pinning(t, nbasis, nx, ny):
     r"""Kinetic part of the Hamiltonian in our one-electron basis.

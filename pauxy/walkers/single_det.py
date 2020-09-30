@@ -63,6 +63,7 @@ class SingleDetWalker(Walker):
 
         self.inverse_overlap(trial)
         self.ot = self.calc_overlap(trial)
+        self.le_oratio = 1.0
         self.ovlp = self.ot
 
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),

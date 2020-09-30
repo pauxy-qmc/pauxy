@@ -55,6 +55,8 @@ class HubbardHolstein(object):
         self.ne = self.nup + self.ndown
         self.nelec = (self.nup,self.ndown)
 
+        self.control_variate = False
+
         self.t = inputs.get('t', 1.0)
         self.lmbda = inputs.get('lambda', 1.0)
         self.w0 = inputs.get('w0', 1.0)
@@ -100,6 +102,14 @@ class HubbardHolstein(object):
             print("# nbasis = {}".format(self.nbasis))
             print("# t, U = {}, {}".format(self.t, self.U))
             print("# m, w0, g, lambda = {}, {}, {}, {}".format(self.m, self.w0, self.g, self.lmbda))
+        
+        self.lang_firsov = inputs.get('lang_firsov', False)
+        self.gamma_lf = 0.0
+        if (self.lang_firsov):
+            self.gamma_lf = self.g * numpy.sqrt(2.0 / (self.m * self.w0**3))
+            self.Ueff = self.U + self.gamma_lf**2 * self.m * self.w0**2 - 2.0 * self.g * self.gamma_lf * numpy.sqrt(2.0 * self.m * self.w0)
+            print("# gamma_lf = {}".format(self.gamma_lf))
+            print("# Ueff = {}".format(self.Ueff))
 
         self.nactive = self.nbasis
         self.nfv = 0

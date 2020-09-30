@@ -20,6 +20,8 @@ from pauxy.analysis.extraction import (
 from pauxy.utils.misc import get_from_dict
 from pauxy.utils.linalg import get_ortho_ao_mod
 
+from pauxy.analysis.autocorr import reblock_by_autocorr
+
 
 def average_single(frame, delete=True, multi_sym=False):
     if multi_sym:
@@ -93,7 +95,6 @@ def average_fp(frame):
                                                  2*cov_nd/(nsamp*re_num*re_den))**0.5
     return results
 
-
 def reblock_mixed(groupby, columns, verbose=False):
     analysed = []
     for group, frame in groupby:
@@ -106,6 +107,7 @@ def reblock_mixed(groupby, columns, verbose=False):
             short = short.drop(columns+drop, axis=1)
         except KeyError:
             short = short.drop(columns+['index'], axis=1)
+        
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
         reblocked = pd.DataFrame({'ETotal': [0.0]})
         for c in short.columns:
@@ -124,7 +126,14 @@ def reblock_mixed(groupby, columns, verbose=False):
             reblocked[columns[i]] = v
         analysed.append(reblocked)
 
-    return pd.concat(analysed, sort=True)
+    final = pd.concat(analysed, sort=True)
+
+    y = short["ETotal"].values
+    reblocked_ac = reblock_by_autocorr(y)
+    for c in reblocked_ac.columns:
+        final[c] = reblocked_ac[c].values
+
+    return final
 
 
 def reblock_free_projection(frame):
@@ -280,44 +289,55 @@ def analyse_back_prop(files, start_time):
         full.append(res)
     return pd.concat(full).sort_values('tau_bp')
 
-def analyse_estimates(files, start_time, multi_sim=False, verbose=False):
+def analyse_estimates(files, start_time, multi_sim=False, av_tau=False,verbose=False):
     mds = []
     basic = []
-    for f in files:
-        md = get_metadata(f)
-        read_rs = get_from_dict(md, ['psi', 'read_rs'])
-        step = get_from_dict(md, ['qmc', 'nsteps'])
-        dt = get_from_dict(md, ['qmc', 'dt'])
-        start = int(start_time/(step*dt)) + 1
-        if read_rs:
-            start = 0
-        data = extract_mixed_estimates(f, start)
-        columns = set_info(data, md)
-        basic.append(data.drop('Iteration', axis=1))
-        mds.append(md)
-    new_columns = []
-    for c in columns:
-        if (c != "E_T"):
-            new_columns += [c]
-    columns = new_columns
-    if (len(files) > 1):
-        print("multi simulations detected")
-        print("grouping based on everything other than E_T")
-        print("columns = {}".format(columns))
-    basic = pd.concat(basic).groupby(columns)
-    basic_av = reblock_mixed(basic, columns, verbose=verbose)
-    base = files[0].split('/')[-1]
-    outfile = 'analysed_' + base
-    fmt = lambda x: "{:13.8f}".format(x)
-    print(basic_av.to_string(index=False, float_format=fmt))
-    with h5py.File(outfile, 'w') as fh5:
-        fh5['metadata'] = numpy.array(mds).astype('S')
-        try:
-            fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
-        except KeyError:
-            print("integrals does not exist under the problem class")
-            fh5['basic/estimates'] = basic_av.values.astype(float)
-        fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
+    if av_tau:
+        data = []
+        for f in files:
+            data.append(extract_mixed_estimates(f))
+        full = pd.concat(data).groupby('Iteration')
+        av = average_tau(full)
+        print(av.apply(numpy.real).to_string())
+    else:
+        for f in files:
+            print("filename = {}".format(f))
+            md = get_metadata(f)
+            read_rs = get_from_dict(md, ['psi', 'read_rs'])
+            step = get_from_dict(md, ['qmc', 'nsteps'])
+            dt = get_from_dict(md, ['qmc', 'dt'])
+            fp = get_from_dict(md, ['propagators', 'free_projection'])
+            start = int(start_time/(step*dt)) + 1
+            if read_rs:
+                start = 0
+            data = extract_mixed_estimates(f, start)
+            columns = set_info(data, md)
+            basic.append(data.drop('Iteration', axis=1))
+            mds.append(md)
+
+        new_columns = []
+        for c in columns:
+            if (c != "E_T"):
+                new_columns += [c]
+        columns = new_columns
+
+        basic = pd.concat(basic).groupby(columns)
+        if fp:
+            basic_av = reblock_free_projection(basic, columns)
+        else:
+            basic_av = reblock_mixed(basic, columns, verbose=verbose)
+
+        base = files[0].split('/')[-1]
+        outfile = 'analysed_' + base
+        fmt = lambda x: "{:13.8f}".format(x)
+        print(basic_av.to_string(index=False, float_format=fmt))
+        with h5py.File(outfile, 'w') as fh5:
+            fh5['metadata'] = numpy.array(mds).astype('S')
+            try:
+                fh5['basic/estimates'] = basic_av.drop('integrals',axis=1).values.astype(float)
+            except KeyError:
+                pass
+            fh5['basic/headers'] = numpy.array(basic_av.columns.values).astype('S')
 
 def analyse_ekt_ipea(filename, ix=None, cutoff=1e-14, screen_factor=1):
     rdm, rdm_err = average_rdm(filename, rdm_type='one_rdm', ix=ix)

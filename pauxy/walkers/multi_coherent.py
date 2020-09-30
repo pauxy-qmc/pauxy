@@ -58,10 +58,17 @@ class MultiCoherentWalker(object):
         self.ots = numpy.zeros(self.nperms, dtype=dtype)
 
         if system.name == "HubbardHolstein":
-
-            perm = random.choice(trial.perms)
-            # perm = trial.perms[0]
-            shift = trial.shift[perm].copy()
+            if (len(trial.psi.shape) == 3):
+                idx = random.choice(numpy.arange(trial.nperms))
+                shift = trial.shift[idx,:].copy()
+            else:
+                perm = random.choice(trial.perms)
+                shift = trial.shift[perm].copy()
+            if (len(trial.psi.shape) == 3):
+                shift = trial.shift[0,:].copy()
+            else:
+                shift = trial.shift.copy()
+            
             self.X = numpy.real(shift).copy()
 
             tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
@@ -84,15 +91,22 @@ class MultiCoherentWalker(object):
             self.Lap = tmptrial.laplacian(self.X)
             self.Lapi = numpy.zeros(shape = (self.nperms, system.nbasis), dtype=dtype)
             
-            shift0 = trial.shift.copy()
-            for i, perm in enumerate(trial.perms):
-                shift = shift0[perm].copy()
-                boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
-                self.Lapi[i] = boson_trial.laplacian(self.X)
+            if (len(trial.psi.shape) == 3):
+                for i in range(trial.nperms):
+                    shift = trial.shift[i,:].copy()
+                    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+                    self.Lapi[i] = boson_trial.laplacian(self.X)
+            else:
+                shift0 = trial.shift.copy()
+                for i, perm in enumerate(trial.perms):
+                    shift = shift0[perm].copy()
+                    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+                    self.Lapi[i] = boson_trial.laplacian(self.X)
 
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
         self.ot = self.overlap_direct(trial)
+        self.le_oratio = 1.0
         # Hubbard specific functionality
         self.R = numpy.zeros(shape=(trial.nperms, 2), dtype=self.phi.dtype)
         # TODO: fix name.
@@ -134,28 +148,45 @@ class MultiCoherentWalker(object):
     def overlap_direct(self, trial):
         nup = self.nup
 
-        shift0 = trial.shift.copy()
-        psi0 = trial.psi.copy()
+        if(len(trial.psi.shape) == 3):
+            for i in range(trial.nperms):
+                det = trial.psi[i,:,:].copy()
+                shift = trial.shift[i,:].copy()
+                
+                trial.boson_trial.update_shift(shift)
+                self.phi_boson[i] = trial.boson_trial.value(self.X)
 
-        for i, perm in enumerate(trial.perms):
+                Oup = numpy.dot(det[:,:nup].conj().T, self.phi[:,:nup])
+                Odn = numpy.dot(det[:,nup:].conj().T, self.phi[:,nup:])
+                
+                self.ots[i] = scipy.linalg.det(Oup) * scipy.linalg.det(Odn)
+                if abs(self.ots[i]) > 1e-16:
+                    self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
+                    self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
+                self.weights[i] = trial.coeffs[i].conj() * self.ots[i] * self.phi_boson[i]
+        else:
+            shift0 = trial.shift.copy()
+            psi0 = trial.psi.copy()
 
-            det = psi0[perm,:].copy()
-            shift = shift0[perm].copy()
-            
-            trial.boson_trial.update_shift(shift)
-            self.phi_boson[i] = trial.boson_trial.value(self.X)
+            for i, perm in enumerate(trial.perms):
 
-            Oup = numpy.dot(det[:,:nup].conj().T, self.phi[:,:nup])
-            Odn = numpy.dot(det[:,nup:].conj().T, self.phi[:,nup:])
-            
-            self.ots[i] = scipy.linalg.det(Oup) * scipy.linalg.det(Odn)
-            if abs(self.ots[i]) > 1e-16:
-                self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
-                self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
-            self.weights[i] = trial.coeffs[i].conj() * self.ots[i] * self.phi_boson[i]
+                det = psi0[perm,:].copy()
+                shift = shift0[perm].copy()
+                
+                trial.boson_trial.update_shift(shift)
+                self.phi_boson[i] = trial.boson_trial.value(self.X)
 
-        trial.boson_trial.update_shift(shift0)
-        trial.psi = psi0.copy()
+                Oup = numpy.dot(det[:,:nup].conj().T, self.phi[:,:nup])
+                Odn = numpy.dot(det[:,nup:].conj().T, self.phi[:,nup:])
+                
+                self.ots[i] = scipy.linalg.det(Oup) * scipy.linalg.det(Odn)
+                if abs(self.ots[i]) > 1e-16:
+                    self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
+                    self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
+                self.weights[i] = trial.coeffs[i].conj() * self.ots[i] * self.phi_boson[i]
+
+            trial.boson_trial.update_shift(shift0)
+            trial.psi = psi0.copy()
 
         return sum(self.weights)
 
@@ -168,22 +199,36 @@ class MultiCoherentWalker(object):
             Trial wavefunction.
         """
         nup = self.nup
-        psi0 = trial.psi.copy()
-        shift0 = trial.shift.copy()
 
-        for indx, perm in enumerate(trial.perms):
-            t = psi0[perm,:].copy()
-            shift = shift0[perm].copy()
-            trial.boson_trial.update_shift(shift)
-            self.phi_boson[indx] = trial.boson_trial.value(self.X)
+        if(len(trial.psi.shape) == 3):
+            for indx in range(trial.nperms):
+                t = trial.psi[indx,:,:].copy()
+                shift = trial.shift[indx,:].copy()
+                trial.boson_trial.update_shift(shift)
+                self.phi_boson[indx] = trial.boson_trial.value(self.X)
 
-            Oup = numpy.dot(t[:,:nup].conj().T, self.phi[:,:nup])
-            self.inv_ovlp[0][indx,:,:] = scipy.linalg.inv(Oup)
-            Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
-            self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
+                Oup = numpy.dot(t[:,:nup].conj().T, self.phi[:,:nup])
+                self.inv_ovlp[0][indx,:,:] = scipy.linalg.inv(Oup)
+                Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
+                self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
 
-        trial.psi = psi0.copy()
-        trial.boson_trial.update_shift(shift0)
+        else:
+            psi0 = trial.psi.copy()
+            shift0 = trial.shift.copy()
+
+            for indx, perm in enumerate(trial.perms):
+                t = psi0[perm,:].copy()
+                shift = shift0[perm].copy()
+                trial.boson_trial.update_shift(shift)
+                self.phi_boson[indx] = trial.boson_trial.value(self.X)
+
+                Oup = numpy.dot(t[:,:nup].conj().T, self.phi[:,:nup])
+                self.inv_ovlp[0][indx,:,:] = scipy.linalg.inv(Oup)
+                Odn = numpy.dot(t[:,nup:].conj().T, self.phi[:,nup:])
+                self.inv_ovlp[1][indx,:,:] = scipy.linalg.inv(Odn)
+
+            trial.psi = psi0.copy()
+            trial.boson_trial.update_shift(shift0)
     
     def update_inverse_overlap(self, trial, vtup, vtdown, i):
         """Update inverse overlap matrix given a single row update of walker.
@@ -202,16 +247,28 @@ class MultiCoherentWalker(object):
         nup = self.nup
         ndown = self.ndown
 
-        for ix, perm in enumerate(trial.perms):
-            psi = trial.psi[perm,:].copy()
-            if (nup> 0):
-                self.inv_ovlp[0][ix] = (
-                    sherman_morrison(self.inv_ovlp[0][ix], psi[i,:nup].conj(), vtup)
-                )
-            if (ndown> 0):
-                self.inv_ovlp[1][ix] = (
-                    sherman_morrison(self.inv_ovlp[1][ix], psi[i,nup:].conj(), vtdown)
-                )
+        if(len(trial.psi.shape) == 3):
+            for ix in range(trial.nperms):
+                psi = trial.psi[ix,:,:].copy()
+                if (nup> 0):
+                    self.inv_ovlp[0][ix] = (
+                        sherman_morrison(self.inv_ovlp[0][ix], psi[i,:nup].conj(), vtup)
+                    )
+                if (ndown> 0):
+                    self.inv_ovlp[1][ix] = (
+                        sherman_morrison(self.inv_ovlp[1][ix], psi[i,nup:].conj(), vtdown)
+                    )
+        else:
+            for ix, perm in enumerate(trial.perms):
+                psi = trial.psi[perm,:].copy()
+                if (nup> 0):
+                    self.inv_ovlp[0][ix] = (
+                        sherman_morrison(self.inv_ovlp[0][ix], psi[i,:nup].conj(), vtup)
+                    )
+                if (ndown> 0):
+                    self.inv_ovlp[1][ix] = (
+                        sherman_morrison(self.inv_ovlp[1][ix], psi[i,nup:].conj(), vtdown)
+                    )
 
     def calc_otrial(self, trial):
         """Caculate overlap with trial wavefunction.
@@ -226,18 +283,30 @@ class MultiCoherentWalker(object):
         ovlp : float / complex
             Overlap.
         """
-        shift0 = trial.shift.copy()
-        for ix, perm in enumerate(trial.perms):
-            det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
-            det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
-            self.ots[ix] = det_O_up * det_O_dn
-            
-            shift = shift0[perm].copy()
-            trial.boson_trial.update_shift(shift)
+        if(len(trial.psi.shape) == 3):
+            for ix in range(trial.nperms):
+                det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
+                det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
+                self.ots[ix] = det_O_up * det_O_dn
+                
+                shift = trial.shift[ix,:].copy()
+                trial.boson_trial.update_shift(shift)
 
-            self.phi_boson[ix] = trial.boson_trial.value(self.X)
-            self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix] * self.phi_boson[ix]
-        trial.boson_trial.update_shift(shift0)
+                self.phi_boson[ix] = trial.boson_trial.value(self.X)
+                self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix] * self.phi_boson[ix]
+        else:
+            shift0 = trial.shift.copy()
+            for ix, perm in enumerate(trial.perms):
+                det_O_up = 1.0 / scipy.linalg.det(self.inv_ovlp[0][ix])
+                det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
+                self.ots[ix] = det_O_up * det_O_dn
+                
+                shift = shift0[perm].copy()
+                trial.boson_trial.update_shift(shift)
+
+                self.phi_boson[ix] = trial.boson_trial.value(self.X)
+                self.weights[ix] = trial.coeffs[ix].conj() * self.ots[ix] * self.phi_boson[ix]
+            trial.boson_trial.update_shift(shift0)
         return sum(self.weights)
 
     def reortho(self, trial):
@@ -298,23 +367,40 @@ class MultiCoherentWalker(object):
         """
         nup = self.nup
 
-        psi0 = trial.psi.copy()
+        if(len(trial.psi.shape) == 3):
 
-        for ix, perm in enumerate(trial.perms):
-            t = psi0[perm,:].copy()
+            for ix in range(trial.nperms):
+                t = trial.psi[ix,:,:].copy()
 
-            # construct "local" green's functions for each component of psi_T
-            self.Gi[ix,0,:,:] = (
-                    (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
-            )
-            self.Gi[ix,1,:,:] = (
-                    (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
-            )
-        trial.psi = psi0.copy()
-        denom = sum(self.weights)
-        self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
+                # construct "local" green's functions for each component of psi_T
+                self.Gi[ix,0,:,:] = (
+                        (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
+                )
+                self.Gi[ix,1,:,:] = (
+                        (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
+                )
+            denom = sum(self.weights)
+            self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
-    def local_energy(self, system, two_rdm=None, rchol=None):
+        else:
+
+            psi0 = trial.psi.copy()
+
+            for ix, perm in enumerate(trial.perms):
+                t = psi0[perm,:].copy()
+
+                # construct "local" green's functions for each component of psi_T
+                self.Gi[ix,0,:,:] = (
+                        (self.phi[:,:nup].dot(self.inv_ovlp[0][ix]).dot(t[:,:nup].conj().T)).T
+                )
+                self.Gi[ix,1,:,:] = (
+                        (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
+                )
+            trial.psi = psi0.copy()
+            denom = sum(self.weights)
+            self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
+
+    def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
         """Compute walkers local energy
 
         Parameters
