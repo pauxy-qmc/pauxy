@@ -34,6 +34,10 @@ try:
 except ModuleNotFoundError:
     import numpy
     np = numpy
+    def jit(function):
+       def wrapper():
+           function
+       return wrapper()
 
 import math
 
