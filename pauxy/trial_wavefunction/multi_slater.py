@@ -38,8 +38,9 @@ class MultiSlater(object):
         if verbose:
             print("# split_trial_local_energy = {}".format(self.split_trial_local_energy))
 
-        if (self.split_trial_local_energy):
-            print("# taking the determinant with the largest coefficient as the local energy trial")
+        if self.split_trial_local_energy:
+            if verbose:
+                print("# taking the determinant with the largest coefficient as the local energy trial")
             imax = numpy.argmax(numpy.abs(self.coeffs))
             self.le_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
             self.le_psi = numpy.array([self.psi[imax,:,:]], dtype=self.psi.dtype)
