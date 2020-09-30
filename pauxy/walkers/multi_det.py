@@ -249,8 +249,10 @@ class MultiDetWalker(Walker):
                                               )
                 self.le_weights[ix] = trial.le_coeffs[ix].conj() * self.ovlps[ix]
 
-            self.le_weights *= (tot_ovlp_energy / tot_ovlp)
-
+            # self.le_weights *= (tot_ovlp_energy / tot_ovlp)
+            # self.le_oratio = tot_ovlp_energy / tot_ovlp
+            self.le_oratio = tot_ovlp / tot_ovlp_energy
+            print("tot_ovlp_energy = {}".format(tot_ovlp_energy))
         return tot_ovlp
 
     def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
@@ -270,12 +272,12 @@ class MultiDetWalker(Walker):
             return local_energy_multi_det(system, self.le_Gi,
                                           self.le_weights,
                                           two_rdm=None,
-                                          rchol=None)
+                                          rchol=None, extra_ratio = self.le_oratio)
         else:
             return local_energy_multi_det(system, self.Gi,
                                           self.weights,
                                           two_rdm=None,
-                                          rchol=None)
+                                          rchol=None, extra_ratio = 1.0)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0

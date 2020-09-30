@@ -436,7 +436,7 @@ def local_energy(system, G, Ghalf=None,
         else:
             return local_energy_generic_cholesky(system, G)
 
-def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
+def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None, extra_ratio=1.0):
     weight = 0
     energies = 0
     denom = 0
@@ -444,7 +444,8 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
         # construct "local" green's functions for each component of A
         energies += w * numpy.array(local_energy(system, G, rchol = rchol))
         denom += w
-    return tuple(energies/denom)
+
+    return tuple(extra_ratio * energies/denom)
 
 def local_energy_multi_det_hh(system, Gi, weights, X, Lapi, two_rdm=None):
     weight = 0
