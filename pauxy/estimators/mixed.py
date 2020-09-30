@@ -442,7 +442,7 @@ def local_energy_multi_det(system, Gi, weights, two_rdm=None, rchol=None):
     denom = 0
     for w, G in zip(weights, Gi):
         # construct "local" green's functions for each component of A
-        energies += w * numpy.array(local_energy(system, G, rchol=None))
+        energies += w * numpy.array(local_energy(system, G, rchol = rchol))
         denom += w
     return tuple(energies/denom)
 

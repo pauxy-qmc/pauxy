@@ -54,6 +54,18 @@ class MultiDetWalker(Walker):
         # Green's functions for various elements of the trial wavefunction.
         self.Gi = numpy.zeros(shape=(self.ndets, 2, system.nbasis,
                                      system.nbasis), dtype=dtype)
+        
+        self.split_trial_local_energy = trial.split_trial_local_energy
+
+        if(trial.split_trial_local_energy):
+            self.le_ndets = trial.le_psi.shape[0]
+            self.le_Gi = numpy.zeros(shape=(self.le_ndets, 2, system.nbasis,
+                                         system.nbasis), dtype=dtype)
+            if weights == 'zeros':
+                self.le_weights = numpy.zeros(self.le_ndets, dtype=dtype)
+            else:
+                self.le_weights = numpy.ones(self.le_ndets, dtype=dtype)
+
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
@@ -143,6 +155,7 @@ class MultiDetWalker(Walker):
 
         if(self.noisy_overlap):
             ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+
         return ovlp
 
     def reortho(self, trial):
@@ -209,6 +222,35 @@ class MultiDetWalker(Walker):
                                           )
             self.ovlps[ix] = ovlp
             self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
+
+        if(self.split_trial_local_energy):
+            tot_ovlp_energy = 0.0
+            for (ix, detix) in enumerate(trial.le_psi):
+                # construct "local" green's functions for each component of psi_T
+                Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
+                # det(A) = det(A^T)
+                ovlp = scipy.linalg.det(Oup)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Oup)
+                self.le_Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        self.phi[:,:nup].T)
+                                              )
+                Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
+                ovlp *= scipy.linalg.det(Odn)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Odn)
+                tot_ovlp_energy += trial.le_coeffs[ix].conj()*ovlp
+                self.le_Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        self.phi[:,nup:].T)
+                                              )
+                self.le_weights[ix] = trial.le_coeffs[ix].conj() * self.ovlps[ix]
+
+            self.le_weights *= (tot_ovlp_energy / tot_ovlp)
+
         return tot_ovlp
 
     def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
@@ -224,10 +266,16 @@ class MultiDetWalker(Walker):
         (E, T, V) : tuple
             Mixed estimates for walker's energy components.
         """
-        return local_energy_multi_det(system, self.Gi,
-                                      self.weights,
-                                      two_rdm=None,
-                                      rchol=None)
+        if (self.split_trial_local_energy):
+            return local_energy_multi_det(system, self.le_Gi,
+                                          self.le_weights,
+                                          two_rdm=None,
+                                          rchol=None)
+        else:
+            return local_energy_multi_det(system, self.Gi,
+                                          self.weights,
+                                          two_rdm=None,
+                                          rchol=None)
 
     def contract_one_body(self, ints, trial):
         numer = 0.0
