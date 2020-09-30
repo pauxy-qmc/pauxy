@@ -66,6 +66,7 @@ class MultiGHFWalker(object):
         self.G = numpy.zeros(shape=(2*system.nbasis, 2*system.nbasis),
                              dtype=self.phi.dtype)
         self.ots = numpy.zeros(trial.ndets, dtype=self.phi.dtype)
+        self.le_oratio = 1.0
         # Contains overlaps of the current walker with the trial wavefunction.
         if wfn0 != 'GHF':
             self.ot = self.calc_otrial(trial)

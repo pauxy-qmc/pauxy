@@ -93,6 +93,7 @@ class UHF(object):
             Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
         else:
             Gdown = numpy.zeros_like(Gup)
+        self.le_oratio = 1.0
         self.G = numpy.array([Gup, Gdown])
         self.etrial = local_energy(system, self.G)[0].real
         self.bp_wfn = trial.get('bp_wfn', None)

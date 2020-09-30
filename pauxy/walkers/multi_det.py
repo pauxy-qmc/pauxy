@@ -48,6 +48,7 @@ class MultiDetWalker(Walker):
         self.ot = self.overlap_direct(trial)
         # TODO: fix name.
         self.ovlp = self.ot
+        self.le_oratio = 1.0
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
                   .format(self.ot.real))
@@ -74,6 +75,8 @@ class MultiDetWalker(Walker):
         self.greens_function(trial)
         self.nb = system.nbasis
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
+
+        self.le_oratio = 1.0
 
         # self.noisy_overlap = walker_opts.get('noisy_overlap', False)
         # self.noise_level = walker_opts.get('noise_level', -5)
