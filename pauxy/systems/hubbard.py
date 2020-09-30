@@ -173,62 +173,6 @@ def transform_matrix(nbasis, kpoints, kc, nx, ny):
     return U
 
 
-# def kinetic(t, nbasis, nx, ny, ks):
-#     """Kinetic part of the Hamiltonian in our one-electron basis.
-
-#     Parameters
-#     ----------
-#     t : float
-#         Hopping parameter
-#     nbasis : int
-#         Number of one-electron basis functions.
-#     nx : int
-#         Number of x lattice sites.
-#     ny : int
-#         Number of y lattice sites.
-
-#     Returns
-#     -------
-#     T : numpy.array
-#         Hopping Hamiltonian matrix.
-#     """
-
-#     if ks.all() is None:
-#         T = numpy.zeros((nbasis, nbasis), dtype=float)
-#     else:
-#         T = numpy.zeros((nbasis, nbasis), dtype=complex)
-
-#     for i in range(0, nbasis):
-#         xy1 = decode_basis(nx, ny, i)
-#         for j in range(i+1, nbasis):
-#             xy2 = decode_basis(nx, ny, j)
-#             dij = abs(xy1-xy2)
-#             if sum(dij) == 1:
-#                 T[i, j] = -t
-#             # Take care of periodic boundary conditions
-#             # there should be a less stupid way of doing this.
-#             if ny == 1 and dij == [nx-1]:
-#                 if ks.all() is not None:
-#                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1]))
-#                 else:
-#                     phase = 1.0
-#                 T[i,j] += -t * phase
-#             elif (dij==[nx-1, 0]).all():
-#                 if ks.all() is not None:
-#                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[1,0]))
-#                 else:
-#                     phase = 1.0
-#                 T[i, j] += -t * phase
-#             elif (dij==[0, ny-1]).all():
-#                 if ks.all() is not None:
-#                     phase = cmath.exp(1j*numpy.dot(cmath.pi*ks,[0,1]))
-#                 else:
-#                     phase = 1.0
-#                 T[i, j] += -t * phase
-
-#     # This only works because the diagonal of T is zero.
-#     return numpy.array([T+T.conj().T, T+T.conj().T])
-
 def kinetic_pinning(t, nbasis, nx, ny):
     r"""Kinetic part of the Hamiltonian in our one-electron basis.
 
