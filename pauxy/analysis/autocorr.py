@@ -54,17 +54,21 @@ def reblock_by_autocorr(y, name = "ETotal"):
     for n, tac in zip(Ndata, tacs):
         print("nsamples, tac = {}, {}".format(n,tac))
     
-    block_size = int(numpy.round(numpy.max(tacs)))
-    nblocks = len(y) // block_size
-    yblocked = []
-    
-    for i in range(nblocks):
-        offset = i*block_size
-        yblocked += [numpy.mean(y[offset:offset+block_size])]
-    
-    yavg = numpy.mean(yblocked)
-    ystd = numpy.std(yblocked) / numpy.sqrt(nblocks)
+    #block_size = int(numpy.round(numpy.max(tacs)))
+    try:
+        block_size = int(numpy.round(tacs[0]))
+        nblocks = len(y) // block_size
+        yblocked = []
+        
+        for i in range(nblocks):
+            offset = i*block_size
+            yblocked += [numpy.mean(y[offset:offset+block_size])]
+        
+        yavg = numpy.mean(yblocked)
+        ystd = numpy.std(yblocked) / numpy.sqrt(nblocks)
 
-    df = pd.DataFrame({"%s_ac"%name:[yavg], "%s_error_ac"%name:[ystd], "%s_nsamp_ac"%name:[nblocks], "ac":[block_size]})
+        df = pd.DataFrame({"%s_ac"%name:[yavg], "%s_error_ac"%name:[ystd], "%s_nsamp_ac"%name:[nblocks], "ac":[block_size]})
+    except:
+        df = pd.DataFrame({})
 
     return df
