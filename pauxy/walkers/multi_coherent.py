@@ -106,6 +106,7 @@ class MultiCoherentWalker(object):
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
         self.ot = self.overlap_direct(trial)
+        self.le_oratio = 1.0
         # Hubbard specific functionality
         self.R = numpy.zeros(shape=(trial.nperms, 2), dtype=self.phi.dtype)
         # TODO: fix name.

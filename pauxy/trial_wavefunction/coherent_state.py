@@ -34,6 +34,10 @@ try:
 except ModuleNotFoundError:
     import numpy
     np = numpy
+    def jit(function):
+       def wrapper():
+           function
+       return wrapper()
 
 import math
 
@@ -468,7 +472,7 @@ class CoherentState(object):
                 print("# Number of permutations = {}".format(self.nperms))
             elif (self.coeffs == None):
                 self.coeffs = 1.0
-
+                
         self.calculate_energy(system)
         
         if (self.symmetrize):

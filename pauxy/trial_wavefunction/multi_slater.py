@@ -23,6 +23,7 @@ class MultiSlater(object):
         self.name = "MultiSlater"
         self.type = "MultiSlater"
         # TODO : Fix for MSD.
+        # This is for the overlap trial
         if len(wfn) == 3:
             # CI type expansion.
             self.from_phmsd(system, wfn, orbs)
@@ -31,6 +32,24 @@ class MultiSlater(object):
             self.psi = wfn[1]
             self.coeffs = numpy.array(wfn[0], dtype=numpy.complex128)
             self.ortho_expansion = False
+
+        self.split_trial_local_energy = options.get('split_trial_local_energy', False)
+
+        if verbose:
+            print("# split_trial_local_energy = {}".format(self.split_trial_local_energy))
+
+        if self.split_trial_local_energy:
+            if verbose:
+                print("# taking the determinant with the largest coefficient as the local energy trial")
+            imax = numpy.argmax(numpy.abs(self.coeffs))
+            self.le_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
+            self.le_psi = numpy.array([self.psi[imax,:,:]], dtype=self.psi.dtype)
+            self.le_ortho_expansion = self.ortho_expansion
+        else:
+            self.le_psi = self.psi.copy()
+            self.le_coeffs = self.coeffs.copy()
+            self.le_ortho_expansion = self.ortho_expansion
+
         if self.verbose:
             if self.ortho_expansion:
                 print("# Assuming orthogonal trial wavefunction expansion.")

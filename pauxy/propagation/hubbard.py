@@ -565,7 +565,7 @@ def calculate_overlap_ratio_single_det_charge(walker, delta, trial, i):
         Basis index.
     """
 
-def construct_propagator_matrix(system, BT2, config, conjt=False):
+def construct_propagator_matrix(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
     For use with discrete transformation.
@@ -586,10 +586,13 @@ def construct_propagator_matrix(system, BT2, config, conjt=False):
     B : :class:`numpy.ndarray`
         Full projector matrix.
     """
-    bv_up = numpy.diag(numpy.array([system.auxf[xi, 0] for xi in config]))
-    bv_down = numpy.diag(numpy.array([system.auxf[xi, 1] for xi in config]))
-    Bup = BT2[0].dot(bv_up).dot(BT2[0])
-    Bdown = BT2[1].dot(bv_down).dot(BT2[1])
+    gamma = numpy.arccosh(numpy.exp(0.5*dt*system.U))
+    auxf = numpy.array([[numpy.exp(gamma), numpy.exp(-gamma)],
+                        [numpy.exp(-gamma), numpy.exp(gamma)]])
+    bv_up = numpy.array([auxf[int(xi.real), 0] for xi in config])
+    bv_down = numpy.array([auxf[int(xi.real), 1] for xi in config])
+    Bup = BT2[0].dot(numpy.einsum('i,ij->ij', bv_up, BT2[0]))
+    Bdown = BT2[1].dot(numpy.einsum('i,ij->ij', bv_down, BT2[1]))
 
     if conjt:
         return numpy.array([Bup.conj().T, Bdown.conj().T])
@@ -628,15 +631,17 @@ def construct_propagator_matrix_ghf(system, BT2, config, conjt=False):
     else:
         return B
 
-def back_propagate(system, psi, trial, nstblz, BT2, dt):
+def back_propagate(phi, configs, system, nstblz, BT2, dt, store=False):
     r"""Perform back propagation for UHF style wavefunction.
 
     Parameters
     ---------
+    phi : :class:`numpy.ndarray`
+        Wavefunction to back prapagate
+    configs : :class:`FieldConfigs`
+        Walker field configuration stack.
     system : system object in general.
         Container for model input options.
-    psi : :class:`pauxy.walkers.Walkers` object
-        CPMC wavefunction.
     trial : :class:`pauxy.trial_wavefunction.X' object
         Trial wavefunction class.
     nstblz : int
@@ -652,18 +657,19 @@ def back_propagate(system, psi, trial, nstblz, BT2, dt):
         Back propagated list of walkers.
     """
 
-    psi_bp = [SingleDetWalker({}, system, trial, index=w) for w in range(len(psi))]
     nup = system.nup
-    for (iw, w) in enumerate(psi):
-        # propagators should be applied in reverse order
-        for (i, c) in enumerate(w.field_configs.get_block()[0][::-1]):
-            B = construct_propagator_matrix(system, BT2,
-                                            c, conjt=True)
-            psi_bp[iw].phi[:,:nup] = B[0].dot(psi_bp[iw].phi[:,:nup])
-            psi_bp[iw].phi[:,nup:] = B[1].dot(psi_bp[iw].phi[:,nup:])
-            if i != 0 and i % nstblz == 0:
-                psi_bp[iw].reortho(trial)
-    return psi_bp
+    psi_store = []
+    for (i, c) in enumerate(configs.get_block()[0][::-1]):
+        B = construct_propagator_matrix(system, BT2,
+                                        c, dt, conjt=True)
+        phi[:,:nup] = B[0].dot(phi[:,:nup])
+        phi[:,nup:] = B[1].dot(phi[:,nup:])
+        if i != 0 and i % nstblz == 0:
+            (phi[:,:nup], R) = reortho(phi[:,:nup])
+            (phi[:,nup:], R) = reortho(phi[:,nup:])
+        if store:
+            psi_store.append(phi.copy())
+    return psi_store
 
 def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     r"""Perform back propagation for GHF style wavefunction.
