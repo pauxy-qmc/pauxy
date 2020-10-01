@@ -502,6 +502,9 @@ class CoherentState(object):
             else:
                 self.init = self.psi.copy()
 
+
+        nocca = system.nup
+        noccb = system.ndown
         MS = numpy.abs(nocca-noccb) / 2.0
         S2exact = MS * (MS+1.)
         Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
