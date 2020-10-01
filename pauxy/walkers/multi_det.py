@@ -250,7 +250,7 @@ class MultiDetWalker(Walker):
                                               numpy.dot(inv_ovlp,
                                                         self.phi[:,nup:].T)
                                               )
-                self.le_weights[ix] = trial.le_coeffs[ix].conj() * self.ovlps[ix]
+                self.le_weights[ix] = trial.le_coeffs[ix].conj() * ovlp
 
             # self.le_weights *= (tot_ovlp_energy / tot_ovlp)
             self.le_oratio = tot_ovlp_energy / tot_ovlp
