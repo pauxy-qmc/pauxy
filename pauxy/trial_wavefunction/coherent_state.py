@@ -503,14 +503,15 @@ class CoherentState(object):
                 self.init = self.psi.copy()
 
 
-        nocca = system.nup
-        noccb = system.ndown
-        MS = numpy.abs(nocca-noccb) / 2.0
-        S2exact = MS * (MS+1.)
-        Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
-        self.S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
-        if (verbose):
-            print("# <S^2> = {: 3f}".format(self.S2))
+        if (not len(self.psi.shape) == 3):
+            nocca = system.nup
+            noccb = system.ndown
+            MS = numpy.abs(nocca-noccb) / 2.0
+            S2exact = MS * (MS+1.)
+            Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
+            self.S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+            if (verbose):
+                print("# <S^2> = {: 3f}".format(self.S2))
 
         # For interface compatability
         self.ndets = 1
