@@ -665,7 +665,7 @@ class CoherentState(object):
                 def update(i, opt_state):
                     params = get_params(opt_state)
                     gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift)
                     return opt_update(i, gradient, opt_state)
 
                 eprev = 10000
@@ -677,7 +677,7 @@ class CoherentState(object):
                 for t in range(1000):
                     params = get_params(opt_state)
                     shift_curr = params[:system.nbasis]
-                    Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
+                    Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted, self.restricted_shift)
                     ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
                         system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
                     opt_state = update(t, opt_state)
@@ -713,7 +713,7 @@ class CoherentState(object):
             daib = x[nbsf+nova:nbsf+nova+novb]
         elif self.algorithm == "basin_hopping":
             from scipy.optimize import basinhopping
-            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted),
+            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift),
                                 "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                                         'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
 
@@ -737,7 +737,7 @@ class CoherentState(object):
         elif self.algorithm == "bfgs":
             for i in range (self.maxiter): # Try 10 times
                 res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift), jac=gradient, tol=1e-10,\
                     method='L-BFGS-B',\
                     options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                     'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})

@@ -242,7 +242,8 @@ class Continuous(object):
         Returns
         -------
         """
-        ovlp = walker.greens_function(trial)
+        # ovlp = walker.greens_function(trial)
+        ovlp = walker.greens_function_fb(trial)
         # 2. Update Slater matrix
         # 2.a Apply one-body
         # if (self.stochastic_ri):

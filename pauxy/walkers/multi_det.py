@@ -67,12 +67,25 @@ class MultiDetWalker(Walker):
             else:
                 self.le_weights = numpy.ones(self.le_ndets, dtype=dtype)
 
+        self.split_trial_force_bias = trial.split_trial_force_bias
+        if(trial.split_trial_force_bias):
+            self.fb_ndets = trial.fb_psi.shape[0]
+            self.fb_Gi = numpy.zeros(shape=(self.fb_ndets, 2, system.nbasis,
+                                         system.nbasis), dtype=dtype)
+            if weights == 'zeros':
+                self.fb_weights = numpy.zeros(self.fb_ndets, dtype=dtype)
+            else:
+                self.fb_weights = numpy.ones(self.fb_ndets, dtype=dtype)
+
+            self.fb_ovlps = numpy.zeros(self.fb_ndets, dtype=dtype)
+
         # Actual green's function contracted over determinant index in Gi above.
         # i.e., <psi_T|c_i^d c_j|phi>
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
-        self.greens_function(trial)
+        # self.greens_function(trial)
+        self.greens_function_fb(trial)
         self.nb = system.nbasis
         self.buff_names, self.buff_size = get_numeric_names(self.__dict__)
 
@@ -190,6 +203,71 @@ class MultiDetWalker(Walker):
         detR = drup * drdn
         self.ot = self.ot / detR
         return detR
+    def greens_function_fb(self, trial):
+        """Compute walker's green's function for force bias.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        """
+        nup = self.nup
+        tot_ovlp = 0.0
+        for (ix, detix) in enumerate(trial.psi):
+            # construct "local" green's functions for each component of psi_T
+            Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
+            # det(A) = det(A^T)
+            ovlp = scipy.linalg.det(Oup)
+            if abs(ovlp) < 1e-16:
+                continue
+            inv_ovlp = scipy.linalg.inv(Oup)
+            self.Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,:nup].T)
+                                          )
+            Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
+            ovlp *= scipy.linalg.det(Odn)
+            if abs(ovlp) < 1e-16:
+                continue
+            inv_ovlp = scipy.linalg.inv(Odn)
+            tot_ovlp += trial.coeffs[ix].conj()*ovlp
+            self.Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                          numpy.dot(inv_ovlp,
+                                                    self.phi[:,nup:].T)
+                                          )
+            self.ovlps[ix] = ovlp
+            self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
+
+        if(self.split_trial_force_bias):
+            tot_ovlp_fb = 0.0
+            for (ix, detix) in enumerate(trial.fb_psi):
+                # construct "local" green's functions for each component of psi_T
+                Oup = numpy.dot(self.phi[:,:nup].T, detix[:,:nup].conj())
+                # det(A) = det(A^T)
+                ovlp = scipy.linalg.det(Oup)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Oup)
+                self.fb_Gi[ix,0,:,:] = numpy.dot(detix[:,:nup].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        self.phi[:,:nup].T)
+                                              )
+                Odn = numpy.dot(self.phi[:,nup:].T, detix[:,nup:].conj())
+                ovlp *= scipy.linalg.det(Odn)
+                if abs(ovlp) < 1e-16:
+                    continue
+                inv_ovlp = scipy.linalg.inv(Odn)
+                tot_ovlp_fb += trial.fb_coeffs[ix].conj()*ovlp
+                self.fb_Gi[ix,1,:,:] = numpy.dot(detix[:,nup:].conj(),
+                                              numpy.dot(inv_ovlp,
+                                                        self.phi[:,nup:].T)
+                                              )
+                self.fb_ovlps[ix] = ovlp
+                self.fb_weights[ix] = trial.fb_coeffs[ix].conj() * ovlp
+
+            # self.fb_oratio = tot_ovlp_fb / tot_ovlp
+
+        return tot_ovlp
 
     def greens_function(self, trial):
         """Compute walker's green's function.
@@ -283,8 +361,16 @@ class MultiDetWalker(Walker):
     def contract_one_body(self, ints, trial):
         numer = 0.0
         denom = 0.0
-        for i, Gi in enumerate(self.Gi):
-            ofac = trial.coeffs[i].conj()*self.ovlps[i]
-            numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
-            denom += ofac
+
+        if (self.split_trial_force_bias):
+            for i, Gi in enumerate(self.fb_Gi):
+                ofac = trial.fb_coeffs[i].conj()*self.fb_ovlps[i]
+                numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
+                denom += ofac
+        else:
+            for i, Gi in enumerate(self.Gi):
+                ofac = trial.coeffs[i].conj()*self.ovlps[i]
+                numer += ofac * numpy.dot((Gi[0]+Gi[1]).ravel(),ints.ravel())
+                denom += ofac
+        
         return numer / denom

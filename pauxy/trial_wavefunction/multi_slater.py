@@ -34,7 +34,6 @@ class MultiSlater(object):
             self.ortho_expansion = False
 
         self.split_trial_local_energy = options.get('split_trial_local_energy', False)
-
         if verbose:
             print("# split_trial_local_energy = {}".format(self.split_trial_local_energy))
 
@@ -42,13 +41,30 @@ class MultiSlater(object):
             if verbose:
                 print("# taking the determinant with the largest coefficient as the local energy trial")
             imax = numpy.argmax(numpy.abs(self.coeffs))
-            self.le_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
             self.le_psi = numpy.array([self.psi[imax,:,:]], dtype=self.psi.dtype)
+            self.le_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
             self.le_ortho_expansion = self.ortho_expansion
         else:
-            self.le_psi = self.psi.copy()
-            self.le_coeffs = self.coeffs.copy()
-            self.le_ortho_expansion = self.ortho_expansion
+            self.le_psi = None
+            self.le_coeffs = None
+            self.le_ortho_expansion = None
+
+        self.split_trial_force_bias = options.get('split_trial_force_bias', False)
+        if verbose:
+            print("# split_trial_force_bias = {}".format(self.split_trial_force_bias))
+
+        if self.split_trial_force_bias:
+            if verbose:
+                print("# taking the determinant with the largest coefficient as the force bias trial")
+            imax = numpy.argmax(numpy.abs(self.coeffs))
+            self.fb_psi = numpy.array([self.psi[imax,:,:]], dtype=self.psi.dtype)
+            self.fb_coeffs = numpy.array([self.coeffs[imax]], dtype=numpy.complex128)
+            self.fb_ortho_expansion = self.ortho_expansion
+        else:
+            self.fb_psi = None
+            self.fb_coeffs = None
+            self.fb_ortho_expansion = None
+
 
         if self.verbose:
             if self.ortho_expansion:
