@@ -58,10 +58,10 @@ def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
         # exchange_greens_function(nq, system.ikpq_i, system.ikpq_kpq, system.ipmq_i,system.ipmq_pmq, Gprod[s],G[s])
         # coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,  system.ipmq_i, system.ipmq_pmq,Gkpq[s], Gpmq[s],G[s])
         for iq in range(nq):
-            Gkpq[s,iq], Gpmq[s,iq] = coulomb_greens_function_per_qvec(system.ikpq_i[iq], 
-                                                                    system.ikpq_kpq[iq], 
-                                                                    system.ipmq_i[iq], 
-                                                                    system.ipmq_pmq[iq], 
+            Gkpq[s,iq], Gpmq[s,iq] = coulomb_greens_function_per_qvec(system.ikpq_i[iq],
+                                                                    system.ikpq_kpq[iq],
+                                                                    system.ipmq_i[iq],
+                                                                    system.ipmq_pmq[iq],
                                                                     G[s])
             Gprod[s,iq] = exchange_greens_function_per_qvec(system.ikpq_i[iq],
                                                             system.ikpq_kpq[iq],
@@ -119,20 +119,22 @@ def fock_ueg(system, G):
     Gpmq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
 
     for s in [0, 1]:
-        coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,  system.ipmq_i,system.ipmq_pmq, Gkpq[s],Gpmq[s],G[s])
+        coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,
+                                system.ipmq_i, system.ipmq_pmq,
+                                Gkpq[s], Gpmq[s], G[s])
 
 
     for (iq, q) in enumerate(system.qvecs):
-        for idxi, i in enumerate(system.basis[0:system.nbasis]):
-            for idxj, j in enumerate(system.basis[0:system.nup]):
+        for idxi, i in enumerate(system.basis):
+            for idxj, j in enumerate(system.basis):
                 jpq = j + q
                 idxjpq = system.lookup_basis(jpq)
                 if (idxjpq is not None) and (idxjpq == idxi):
-                    J[0][idxj,idxi] += (1.0/(2.0*system.vol)) * system.vqvec[iq] * (Gpmq[0][iq] + Gpmq[1][iq])
-    
+                    J[0][idxj,idxi] += (1.0/(2.0*system.vol)) * system.vqvec[iq] * (Gkpq[0][iq] + Gkpq[1][iq])
+
     for (iq, q) in enumerate(system.qvecs):
-        for idxi, i in enumerate(system.basis[0:system.nbasis]):
-            for idxj, j in enumerate(system.basis[0:system.nup]):
+        for idxi, i in enumerate(system.basis):
+            for idxj, j in enumerate(system.basis):
                 jpq = j - q
                 idxjmq = system.lookup_basis(jpq)
                 if (idxjmq is not None) and (idxjmq == idxi):
@@ -151,7 +153,7 @@ def fock_ueg(system, G):
                     K[s][idxj, idxpmq] += - (1.0/(2.0*system.vol)) * system.vqvec[iq] * G[s][idxjpq, idxp]
 
     for s in [0, 1]:
-        Fock[s] = T[s] + J[s] + 0.5*K[s]
+        Fock[s] = T[s] + J[s] + K[s]
 
     return Fock
 
@@ -183,7 +185,7 @@ def unit_test():
     zCa = numpy.random.randn(nbsf, na)
     rCb = numpy.random.randn(nbsf, nb)
     zCb = numpy.random.randn(nbsf, nb)
-    
+
     Ca = rCa + 1j * zCa
     Cb = rCb + 1j * zCb
 
