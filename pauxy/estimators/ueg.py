@@ -5,6 +5,7 @@ import scipy.linalg
 try:
     from pauxy.estimators.ueg_kernels  import (
             exchange_greens_function_per_qvec,
+            coulomb_greens_function_per_qvec,
             build_J_opt, build_K_opt
             )
 except ImportError:
