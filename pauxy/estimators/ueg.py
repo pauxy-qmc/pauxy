@@ -3,12 +3,10 @@ import numpy
 import scipy.linalg
 
 try:
-    from pauxy.estimators.ueg_kernels  import  exchange_greens_function_per_qvec
-except ImportError:
-    pass
-
-try:
-    from pauxy.estimators.ueg_kernels  import  coulomb_greens_function_per_qvec
+    from pauxy.estimators.ueg_kernels  import (
+            exchange_greens_function_per_qvec,
+            build_J_opt, build_K_opt
+            )
 except ImportError:
     pass
 
@@ -88,41 +86,11 @@ def local_energy_ueg(system, G, Ghalf=None, two_rdm=None):
 
     return (ke+pe, ke, pe)
 
-def fock_ueg(system, G):
-    """Fock matrix computation for uniform electron gas
-    Parameters
-    ----------
-    system :
-        system class
-    G :
-        Green's function
-    Returns
-    -------
-    etot : float
-        total energy
-    ke : float
-        kinetic energy
-    pe : float
-        potential energy
-    """
-    # ke = numpy.einsum('sij,sji->',system.H1,G)
-    T = [system.H1[0], system.H1[1]] # kinetic energy integrals
-    nbsf = system.nbasis
-    nq = numpy.shape(system.qvecs)[0]
+# JHLFML
+def build_J(system, Gpmq, Gkpq):
 
-    Fock = [numpy.zeros((nbsf, nbsf), dtype = numpy.complex128), numpy.zeros((nbsf, nbsf), dtype = numpy.complex128)]
-    J = [numpy.zeros((nbsf, nbsf), dtype = numpy.complex128), numpy.zeros((nbsf, nbsf), dtype = numpy.complex128)]
-    K = [numpy.zeros((nbsf, nbsf), dtype = numpy.complex128), numpy.zeros((nbsf, nbsf), dtype = numpy.complex128)]
-
-
-    Gkpq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
-    Gpmq =  numpy.zeros((2,len(system.qvecs)), dtype=numpy.complex128)
-
-    for s in [0, 1]:
-        coulomb_greens_function(nq, system.ikpq_i, system.ikpq_kpq,
-                                system.ipmq_i, system.ipmq_pmq,
-                                Gkpq[s], Gpmq[s], G[s])
-
+    J = [numpy.zeros((system.nbasis, system.nbasis), dtype = numpy.complex128),
+         numpy.zeros((system.nbasis, system.nbasis), dtype = numpy.complex128)]
 
     for (iq, q) in enumerate(system.qvecs):
         for idxi, i in enumerate(system.basis):
@@ -142,18 +110,59 @@ def fock_ueg(system, G):
 
     J[1] = J[0]
 
+    return J
+
+def build_K(system, G):
+    K = numpy.zeros((2,system.nbasis, system.nbasis), dtype = numpy.complex128)
     for s in [0, 1]:
-        for iq in range(nq):
+        for iq in range(len(system.vqvec)):
             for (idxjmq,idxj) in zip(system.ipmq_pmq[iq],system.ipmq_i[iq]):
                 for (idxkpq,idxk) in zip(system.ikpq_kpq[iq],system.ikpq_i[iq]):
-                    K[s][idxj, idxkpq] += - (1.0/(2.0*system.vol)) * system.vqvec[iq] * G[s][idxjmq, idxk]
-        for iq in range(nq):
+                    K[s, idxj, idxkpq] += - (1.0/(2.0*system.vol)) * system.vqvec[iq] * G[s][idxjmq, idxk]
+        for iq in range(len(system.vqvec)):
             for (idxjpq,idxj) in zip(system.ikpq_kpq[iq],system.ikpq_i[iq]):
                 for (idxpmq,idxp) in zip(system.ipmq_pmq[iq],system.ipmq_i[iq]):
-                    K[s][idxj, idxpmq] += - (1.0/(2.0*system.vol)) * system.vqvec[iq] * G[s][idxjpq, idxp]
+                    K[s, idxj, idxpmq] += - (1.0/(2.0*system.vol)) * system.vqvec[iq] * G[s][idxjpq, idxp]
+    return K
+
+
+def fock_ueg(sys, G):
+    """Fock matrix computation for uniform electron gas
+
+    Parameters
+    ----------
+    sys : :class`pauxy.systems.ueg.UEG`
+        UEG system class.
+    G : :class:`numpy.ndarray`
+        Green's function.
+    Returns
+    -------
+    F : :class:`numpy.ndarray`
+        Fock matrix (2, nbasis, nbasis).
+    """
+    nbsf = sys.nbasis
+    nq = len(sys.qvecs)
+    assert nq == len(sys.vqvec)
+
+    Fock = numpy.zeros((2, nbsf, nbsf), dtype=numpy.complex128)
+    Gkpq =  numpy.zeros((2, nq), dtype=numpy.complex128)
+    Gpmq =  numpy.zeros((2, nq), dtype=numpy.complex128)
 
     for s in [0, 1]:
-        Fock[s] = T[s] + J[s] + K[s]
+        coulomb_greens_function(nq, sys.ikpq_i, sys.ikpq_kpq,
+                                sys.ipmq_i, sys.ipmq_pmq,
+                                Gkpq[s], Gpmq[s], G[s])
+
+    J = build_J_opt(nq, sys.vqvec, sys.vol, sys.nbasis,
+                     sys.ikpq_i, sys.ikpq_kpq, sys.ipmq_i, sys.ipmq_pmq,
+                     Gkpq, Gpmq)
+
+    K = build_K_opt(nq, sys.vqvec, sys.vol, sys.nbasis,
+                    sys.ikpq_i, sys.ikpq_kpq, sys.ipmq_i, sys.ipmq_pmq,
+                    G)
+
+    for s in [0, 1]:
+        Fock[s] = sys.H1[s] + J[s] + K[s]
 
     return Fock
 

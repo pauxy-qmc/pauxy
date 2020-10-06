@@ -6,6 +6,7 @@ import scipy.sparse
 import sys
 import subprocess
 import types
+import time
 from functools import  reduce
 
 
@@ -272,9 +273,11 @@ def get_sys_info(sha1, branch, uuid, nranks):
             print("# Package {:s} not found.".format(lib))
     return info
 
-
-def unit_test():
-    print(get_git_revision_hash())
-
-if __name__=="__main__":
-    unit_test()
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        res = func(*args, **kwargs)
+        end = time.time()
+        print(" # Time : {} ".format(end-start))
+        return res
+    return wrapper
