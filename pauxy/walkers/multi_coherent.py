@@ -380,6 +380,20 @@ class MultiCoherentWalker(object):
                         (self.phi[:,nup:].dot(self.inv_ovlp[1][ix]).dot(t[:,nup:].conj().T)).T
                 )
             denom = sum(self.weights)
+
+            na = system.ndown
+            Oalpha = numpy.dot(walker.phi[:,:na].conj().T, walker.phi[:,:na])
+            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            nb = system.ndown
+            logdet_b, sign_b = 0.0, 1.0
+            if nb > 0:
+                Obeta = numpy.dot(walker.phi[:,na:].conj().T, walker.phi[:,na:])
+                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+            ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+
+            ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+
+            self.le_oratio = denom / (denom + ovlp_shift)
             self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
         else:

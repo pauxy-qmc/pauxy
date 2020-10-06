@@ -480,6 +480,12 @@ class CoherentState(object):
         else:
             print("# Coherent State energy = {}".format(self.energy))
 
+        self.overlap_shift = options.get('overlap_shift', 0.00)
+        self.boson_overlap_shift = options.get('boson_overlap_shift', 0.00)
+        if verbose:
+            print("# overlap_shift is {}".format(self.overlap_shift))
+            print("# boson_overlap_shift is {}".format(self.boson_overlap_shift))
+            
         self.initialisation_time = time.time() - init_time
 
         self.spin_projection = options.get('spin_projection',False)
