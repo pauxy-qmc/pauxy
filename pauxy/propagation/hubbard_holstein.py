@@ -73,6 +73,11 @@ class HirschDMC(object):
 
         self.sorella = options.get('sorella', False)
         self.charge = options.get('charge', False)
+        self.overlap_shift = options.get('overlap_shift', 0.00)
+        self.boson_overlap_shift = options.get('boson_overlap_shift', 0.00)
+        if verbose:
+            print("# overlap_shift is {}".format(self.overlap_shift))
+            print("# boson_overlap_shift is {}".format(self.boson_overlap_shift))
 
         if (self.sorella == True):
             self.charge = True
@@ -351,7 +356,8 @@ class HirschDMC(object):
             eloc = trial.bosonic_local_energy(walker)
         
         eloc = numpy.real(eloc)
-        walker.ot *= (phinew / phiold)
+        #walker.ot *= (phinew / phiold)
+        walker.ot *= ((phinew+self.boson_overlap_shift) / (phiold+self.boson_overlap_shift))
 
         walker.weight *= math.exp(-0.5*dt*(eloc+elocold-2*self.eshift_boson))
 
@@ -386,6 +392,18 @@ class HirschDMC(object):
         walker.inverse_overlap(trial)
         # Update walker weight
         ot_new = walker.calc_otrial(trial)
+
+        na = system.ndown
+        Oalpha = numpy.dot(walker.phi[:,:na].conj().T, walker.phi[:,:na])
+        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        nb = system.ndown
+        logdet_b, sign_b = 0.0, 1.0
+        if nb > 0:
+            Obeta = numpy.dot(walker.phi[:,na:].conj().T, walker.phi[:,na:])
+            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+        ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+
+        ot_new += self.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
         
         ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
