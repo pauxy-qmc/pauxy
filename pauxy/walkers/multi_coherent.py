@@ -381,19 +381,18 @@ class MultiCoherentWalker(object):
                 )
             denom = sum(self.weights)
 
-            na = system.ndown
-            Oalpha = numpy.dot(walker.phi[:,:na].conj().T, walker.phi[:,:na])
+            Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
             sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
-            nb = system.ndown
             logdet_b, sign_b = 0.0, 1.0
-            if nb > 0:
-                Obeta = numpy.dot(walker.phi[:,na:].conj().T, walker.phi[:,na:])
+            if self.ndown > 0:
+                Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
                 sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
             ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
 
             ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
 
             self.le_oratio = denom / (denom + ovlp_shift)
+
             self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
         else:
@@ -412,6 +411,19 @@ class MultiCoherentWalker(object):
                 )
             trial.psi = psi0.copy()
             denom = sum(self.weights)
+
+            Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
+            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            logdet_b, sign_b = 0.0, 1.0
+            if self.ndown > 0:
+                Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
+                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+            ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+
+            ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+
+            self.le_oratio = denom / (denom + ovlp_shift)
+            
             self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
     def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
