@@ -508,10 +508,10 @@ class CoherentState(object):
             else:
                 self.init = self.psi.copy()
         if (not self.symmetrize):
-            MS = numpy.abs(nocca-noccb) / 2.0
+            MS = numpy.abs(self.nocca-self.noccb) / 2.0
             S2exact = MS * (MS+1.)
-            Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
-            self.S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+            Sij = self.psi[:,:self.nocca].T.dot(self.psi[:,self.nocca:])
+            self.S2 = S2exact + min(self.nocca, self.noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
             if (verbose):
                 print("# <S^2> = {: 3f}".format(self.S2))
 
