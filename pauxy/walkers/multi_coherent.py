@@ -35,7 +35,11 @@ class MultiCoherentWalker(object):
         self.unscaled_weight = self.weight
         self.alive = 1
         self.phase = 1 + 0j
+        
+        self.nb = system.nbasis
         self.nup = system.nup
+        self.ndown = system.ndown
+
         self.E_L = 0.0
         self.phi = copy.deepcopy(trial.init)
         self.nperms = trial.nperms
@@ -124,9 +128,6 @@ class MultiCoherentWalker(object):
                              dtype=dtype)
         # Contains overlaps of the current walker with the trial wavefunction.
         self.greens_function(trial)
-        self.nb = system.nbasis
-        self.nup = system.nup
-        self.ndown = system.ndown
         # Historic wavefunction for back propagation.
         self.phi_old = copy.deepcopy(self.phi)
         # Historic wavefunction for ITCF.
@@ -423,7 +424,7 @@ class MultiCoherentWalker(object):
             ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
 
             self.le_oratio = denom / (denom + ovlp_shift)
-            
+
             self.G = numpy.einsum('i,isjk->sjk', self.weights, self.Gi) / denom
 
     def local_energy(self, system, two_rdm=None, rchol=None, eri=None, UVT=None):
