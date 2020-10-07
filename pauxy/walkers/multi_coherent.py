@@ -109,7 +109,8 @@ class MultiCoherentWalker(object):
 
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
-        self.ot = self.overlap_direct(trial)
+        self.ot = self.overlap_direct(trial) 
+        self.ot += trial.overlap_shift * numpy.sign(self.ot)
         self.le_oratio = 1.0
         # Hubbard specific functionality
         self.R = numpy.zeros(shape=(trial.nperms, 2), dtype=self.phi.dtype)
@@ -382,15 +383,15 @@ class MultiCoherentWalker(object):
                 )
             denom = sum(self.weights)
 
-            Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
-            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
-            logdet_b, sign_b = 0.0, 1.0
-            if self.ndown > 0:
-                Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
-                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
-            ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+            # Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
+            # sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            # logdet_b, sign_b = 0.0, 1.0
+            # if self.ndown > 0:
+            #     Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
+            #     sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+            # ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
 
-            ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+            ovlp_shift = trial.overlap_shift * numpy.sign(denom)
 
             self.le_oratio = denom / (denom + ovlp_shift)
 
@@ -413,15 +414,16 @@ class MultiCoherentWalker(object):
             trial.psi = psi0.copy()
             denom = sum(self.weights)
 
-            Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
-            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
-            logdet_b, sign_b = 0.0, 1.0
-            if self.ndown > 0:
-                Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
-                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
-            ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+            # Oalpha = numpy.dot(self.phi[:,:nup].conj().T, self.phi[:,:nup])
+            # sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            # logdet_b, sign_b = 0.0, 1.0
+            # if self.ndown > 0:
+            #     Obeta = numpy.dot(self.phi[:,nup:].conj().T, self.phi[:,nup:])
+            #     sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+            # ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
 
-            ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+            # ovlp_shift = trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+            ovlp_shift = trial.overlap_shift * numpy.sign(denom)
 
             self.le_oratio = denom / (denom + ovlp_shift)
 

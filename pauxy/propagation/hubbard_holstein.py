@@ -316,6 +316,8 @@ class HirschDMC(object):
         sqrtdt = numpy.sqrt(dt)
 
         phiold = trial.value(walker)
+        # hacking to add some shift to overlap
+        ot_old = walker.calc_otrial(trial)
 
         #Drift+diffusion
         driftold = (dt / system.m) * trial.gradient(walker)
@@ -351,8 +353,12 @@ class HirschDMC(object):
             eloc = trial.bosonic_local_energy(walker)
         
         eloc = numpy.real(eloc)
-        #walker.ot *= (phinew / phiold)
-        walker.ot *= ((phinew+trial.boson_overlap_shift) / (phiold+trial.boson_overlap_shift))
+
+        # hacking to add some shift to overlap
+        ot_new = walker.calc_otrial(trial)
+        # walker.ot *= (phinew*ovlp + numpy.sign(ovlp)*trial.overlap_shift) / (phiold*ovlp + numpy.sign(ovlp)*trial.overlap_shift)
+        # walker.ot *= ((phinew+trial.boson_overlap_shift) / (phiold+trial.boson_overlap_shift))
+        walker.ot *= ((ot_new+numpy.sign(ot_new)*trial.overlap_shift) / (ot_old+numpy.sign(ot_old)*trial.overlap_shift))
 
         walker.weight *= math.exp(-0.5*dt*(eloc+elocold-2*self.eshift_boson))
 
@@ -389,19 +395,22 @@ class HirschDMC(object):
         ot_new = walker.calc_otrial(trial)
 
         # hacking to add some shift to overlap
-        na = system.ndown
-        Oalpha = numpy.dot(walker.phi[:,:na].conj().T, walker.phi[:,:na])
-        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
-        nb = system.ndown
-        logdet_b, sign_b = 0.0, 1.0
-        if nb > 0:
-            Obeta = numpy.dot(walker.phi[:,na:].conj().T, walker.phi[:,na:])
-            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
-        ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
+        # na = system.ndown
+        # Oalpha = numpy.dot(walker.phi[:,:na].conj().T, walker.phi[:,:na])
+        # sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        # nb = system.ndown
+        # logdet_b, sign_b = 0.0, 1.0
+        # if nb > 0:
+        #     Obeta = numpy.dot(walker.phi[:,na:].conj().T, walker.phi[:,na:])
+        #     sign_b, logdet_b = numpy.linalg.slogdet(Obeta)           
+        # ovlp = sign_a*sign_b*numpy.exp(logdet_a+logdet_b)
 
-        ot_new += trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
+        # ot_new += trial.overlap_shift * numpy.sqrt(numpy.abs(ovlp))
         
-        ratio = (ot_new/walker.ot)
+        ot_new += trial.overlap_shift * numpy.sign(ot_new)
+        # ratio = ((ot_new+numpy.sign(ot_new)*trial.overlap_shift) / (ot_old+numpy.sign(ot_old)*trial.overlap_shift))
+        
+        ratio = ot_new/walker.ot
         phase = cmath.phase(ratio)
 
         if abs(phase) < 0.5*math.pi:
