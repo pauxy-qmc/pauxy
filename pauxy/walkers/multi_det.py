@@ -57,7 +57,6 @@ class MultiDetWalker(Walker):
         # TODO: fix name.
         self.ovlp = self.ot
         self.le_oratio = 1.0
-        print("self.ovlp = {}".format(self.ovlp))
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
                   .format(self.ot.real))
