@@ -57,6 +57,7 @@ class MultiDetWalker(Walker):
         # TODO: fix name.
         self.ovlp = self.ot
         self.le_oratio = 1.0
+        print("self.ovlp = {}".format(self.ovlp))
         if verbose:
             print("# Initial overlap of walker with trial wavefunction: {:13.8e}"
                   .format(self.ot.real))
@@ -99,7 +100,8 @@ class MultiDetWalker(Walker):
 
         ovlp = sum(self.weights)
         if(self.noisy_overlap):
-            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+            noise = numpy.random.normal(scale=10**(self.noise_level),size=1)[0] + 1.j * numpy.random.normal(scale=10**(self.noise_level),size=1)[0]
+            ovlp += noise
 
         return ovlp
 
@@ -140,7 +142,8 @@ class MultiDetWalker(Walker):
         ovlp = sum(self.weights)
 
         if(self.noisy_overlap):
-            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+            noise = numpy.random.normal(scale=10**(self.noise_level),size=1)[0] + 1.j * numpy.random.normal(scale=10**(self.noise_level),size=1)[0]
+            ovlp += noise
 
         return ovlp
 
@@ -169,7 +172,8 @@ class MultiDetWalker(Walker):
         ovlp = sum(self.weights)
 
         if(self.noisy_overlap):
-            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+            noise = numpy.random.normal(scale=10**(self.noise_level),size=1)[0] + 1.j * numpy.random.normal(scale=10**(self.noise_level),size=1)[0]
+            ovlp += noise
 
         return ovlp
 
