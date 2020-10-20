@@ -45,6 +45,14 @@ class MultiDetWalker(Walker):
         self.ovlps = numpy.zeros(self.ndets, dtype=dtype)
         # Compute initial overlap. Avoids issues with singular matrices for
         # PHMSD.
+
+        self.noisy_overlap = walker_opts.get('noisy_overlap', False)
+        self.noise_level = walker_opts.get('noise_level', -5)
+
+        if (verbose):
+            if (self.noisy_overlap):
+                print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
+        
         self.ot = self.overlap_direct(trial)
         # TODO: fix name.
         self.ovlp = self.ot
@@ -78,13 +86,6 @@ class MultiDetWalker(Walker):
 
         self.le_oratio = 1.0
 
-        self.noisy_overlap = walker_opts.get('noisy_overlap', False)
-        self.noise_level = walker_opts.get('noise_level', -5)
-
-        if (verbose):
-            if (self.noisy_overlap):
-                print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
-
     def overlap_direct(self, trial):
         nup = self.nup
         for (i, det) in enumerate(trial.psi):
@@ -99,7 +100,7 @@ class MultiDetWalker(Walker):
         ovlp = sum(self.weights)
         if(self.noisy_overlap):
             ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
-            
+
         return ovlp
 
     def inverse_overlap(self, trial):
