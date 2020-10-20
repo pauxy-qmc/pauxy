@@ -95,7 +95,12 @@ class MultiDetWalker(Walker):
                 self.inv_ovlp[0][i] = scipy.linalg.inv(Oup)
                 self.inv_ovlp[1][i] = scipy.linalg.inv(Odn)
             self.weights[i] = trial.coeffs[i].conj() * self.ovlps[i]
-        return sum(self.weights)
+
+        ovlp = sum(self.weights)
+        if(self.noisy_overlap):
+            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+            
+        return ovlp
 
     def inverse_overlap(self, trial):
         """Compute inverse overlap matrix from scratch.
