@@ -320,7 +320,8 @@ class HirschDMC(object):
         ot_old = walker.calc_otrial(trial)
 
         #Drift+diffusion
-        driftold = (dt / system.m) * trial.gradient(walker) * (ot_old / (ot_old + trial.overlap_shift))
+        #driftold = (dt / system.m) * trial.gradient(walker) * (ot_old / (ot_old + trial.overlap_shift))
+        driftold = (dt / system.m) * trial.gradient(walker)
 
         if (self.sorella):
             Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
@@ -331,7 +332,7 @@ class HirschDMC(object):
         else:
             elocold = trial.bosonic_local_energy(walker)
         
-        elocold = numpy.real(elocold) * (ot_old / (ot_old + trial.overlap_shift))
+        elocold = numpy.real(elocold) #* (ot_old / (ot_old + trial.overlap_shift))
 
         dX = numpy.random.normal(loc = 0.0, scale = sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
         Xnew = walker.X + dX + driftold
@@ -355,7 +356,7 @@ class HirschDMC(object):
         # hacking to add some shift to overlap
         ot_new = walker.calc_otrial(trial)
 
-        eloc = numpy.real(eloc) * (ot_new / (ot_new + trial.overlap_shift))
+        eloc = numpy.real(eloc)# * (ot_new / (ot_new + trial.overlap_shift))
 
         # walker.ot *= (phinew*ovlp + numpy.sign(ovlp)*trial.overlap_shift) / (phiold*ovlp + numpy.sign(ovlp)*trial.overlap_shift)
         # walker.ot *= ((phinew+trial.boson_overlap_shift) / (phiold+trial.boson_overlap_shift))
