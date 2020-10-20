@@ -78,12 +78,12 @@ class MultiDetWalker(Walker):
 
         self.le_oratio = 1.0
 
-        # self.noisy_overlap = walker_opts.get('noisy_overlap', False)
-        # self.noise_level = walker_opts.get('noise_level', -5)
+        self.noisy_overlap = walker_opts.get('noisy_overlap', False)
+        self.noise_level = walker_opts.get('noise_level', -5)
 
-        # if (verbose):
-        #     if (self.noisy_overlap):
-        #         print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
+        if (verbose):
+            if (self.noisy_overlap):
+                print("# Overlap measurement is noisy with a level {}".format(self.noise_level))
 
     def overlap_direct(self, trial):
         nup = self.nup
@@ -130,7 +130,13 @@ class MultiDetWalker(Walker):
             det_O_dn = 1.0 / scipy.linalg.det(self.inv_ovlp[1][ix])
             self.ovlps[ix] = det_O_up * det_O_dn
             self.weights[ix] = trial.coeffs[ix].conj() * self.ovlps[ix]
-        return sum(self.weights)
+
+        ovlp = sum(self.weights)
+
+        if(self.noisy_overlap):
+            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+
+        return ovlp
 
     def calc_overlap(self, trial):
         """Caculate overlap with trial wavefunction.
@@ -156,8 +162,8 @@ class MultiDetWalker(Walker):
         
         ovlp = sum(self.weights)
 
-        # if(self.noisy_overlap):
-        #     ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
+        if(self.noisy_overlap):
+            ovlp += numpy.random.normal(scale=10**(self.noise_level),size=1)
 
         return ovlp
 
