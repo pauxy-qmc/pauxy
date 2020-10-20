@@ -241,8 +241,8 @@ class UHF(object):
         self.alpha = get_input_value(trial, 'alpha', default=0.5,
                                      verbose=verbose)
 
-        self.variational = get_input_value(trial, 'variational', default=True,
-                                     verbose=verbose)
+        # self.variational = get_input_value(trial, 'variational', default=True,
+        #                              verbose=verbose)
         self.restricted = get_input_value(trial, 'restricted', default=False,
                                      verbose=verbose)
         self.maxiter = get_input_value(trial, 'maxiter',default= 3, verbose=verbose)
@@ -288,10 +288,10 @@ class UHF(object):
         self.virt[:,:system.nbasis-system.nup] = psia[:,system.nup:]
         self.virt[:,system.nbasis-system.nup:] = psib[:,system.ndown:]
         
-        if (self.variational):
-            if (verbose):
-                print("# we will repeat SCF {} times".format(self.maxiter))
-            self.run_variational(system, verbose)
+        # if (self.variational):
+        if (verbose):
+            print("# we will repeat SCF {} times".format(self.maxiter))
+        self.run_variational(system, verbose)
 
         Gup = gab(self.psi[:,:system.nup], self.psi[:,:system.nup]).T
         if (system.ndown > 0):
@@ -502,7 +502,7 @@ class UHF(object):
                     system.T, self.ueff, c0, self.restricted), jac=gradient, tol=1e-10,\
                 method='L-BFGS-B',\
                 options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
-                'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
+                'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
             e = res.fun
             if (verbose):
                 print("# macro iter {} energy is {}".format(i, e))
