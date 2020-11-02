@@ -135,6 +135,7 @@ class ThermalAFQMC(object):
             self.trial = get_trial_density_matrix(self.system,
                                                   self.qmc.beta,
                                                   self.qmc.dt,
+                                                  options = trial_opts,
                                                   comm=comm,
                                                   verbose=verbose)
 

@@ -41,6 +41,11 @@ class PlaneWave(object):
             print("# Number of fields = %i"%system.nfields)
             print("# Using lowrank propagation: {}".format(self.lowrank))
 
+
+        if system.mu == None:
+            print("# No chemical potential set to system so using trial.mu = {}".format(trial.mu))
+            system.mu = trial.mu
+
         self.vbias = numpy.zeros(system.nfields, dtype=numpy.complex128)
 
         # Constant core contribution modified by mean field shift.

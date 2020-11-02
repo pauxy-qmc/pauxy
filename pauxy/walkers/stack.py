@@ -480,7 +480,8 @@ class PropagatorStack:
 
             # self.CT = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
             # self.theta = numpy.zeros(shape=(2, nbasis, nbasis),dtype=dtype)
-        # print("# mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
+
+        print("# mL, mR, mT = {}, {}, {}".format(mL, mR, mT))
 
         # print("ovlp = {}".format(self.ovlp))
         self.mT = mT

@@ -24,7 +24,6 @@ class OneBody(object):
                 self.H1 = system.h1e
         else:
             self.H1 = H1
-
         if verbose:
             print("# beta in OneBody: {}".format(beta))
             print("# dt in OneBody: {}".format(dt))
@@ -83,7 +82,6 @@ class OneBody(object):
             sign = -1
         dtau = self.stack_size * dt
         self.dtau = dtau
-
         if self.mu is None:
             self.rho = numpy.array([scipy.linalg.expm(-dtau*(self.H1[0])),
                                     scipy.linalg.expm(-dtau*(self.H1[1]))])
