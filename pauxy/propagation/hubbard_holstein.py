@@ -321,7 +321,7 @@ class HirschDMC(object):
 
         #Drift+diffusion
         #driftold = (dt / system.m) * trial.gradient(walker) * (ot_old / (ot_old + trial.overlap_shift))
-        driftold = (dt / system.m) * trial.gradient(walker)
+        driftold = (dt / (system.m * trial.scale_exponent)) * trial.gradient(walker)
 
         if (self.sorella):
             Ev = 0.5 * system.m * system.w0**2 * (1.0 - 2.0 * system.g ** 2 / (system.w0 * system.U)) * numpy.sum(walker.X*walker.X)
