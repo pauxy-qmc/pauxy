@@ -16,6 +16,8 @@ class MeanField(OneBody):
     def __init__(self, system, beta, dt, options={}, H1=None, verbose=False):
         OneBody.__init__(self, system, beta, dt,
                          options=options, H1=H1, verbose=verbose)
+        if verbose:
+            print(" # Building THF density matrix.")
         self.alpha = options.get('alpha', 0.75)
         self.max_scf_it = options.get('max_scf_it', self.max_it)
         self.max_macro_it = options.get('max_macro_it', self.max_it)

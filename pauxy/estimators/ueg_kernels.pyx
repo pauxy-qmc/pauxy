@@ -127,7 +127,40 @@ def exchange_greens_function_fft (long nocc, long nbsf,
             CTdagger_i_cube[gmap] = CTdagger_i
 
             lQ_ij =  numpy.flip(convolve(Gh_j_cube, CTdagger_i_cube, mesh))[qmap]
-            
+
             Gprod += lQ_ji*lQ_ij
-    
+
     return Gprod
+
+def build_J_opt(long nq, double[:] vqvec, double vol, long nbsf, list kpq_i,
+                list kpq, list pmq_i, list pmq,
+                double complex[:,:] Gkpq, double complex[:,:] Gpmq):
+
+    cdef numpy.ndarray J = numpy.zeros([2, nbsf, nbsf], dtype=DTYPE_CX)
+    cdef int i, j
+    for iq in range(nq):
+        for i, j in zip(pmq_i[iq], pmq[iq]):
+            J[0,j,i] += (1.0/(2.0*vol)) * vqvec[iq] * (Gpmq[0][iq] + Gpmq[1][iq])
+        for i, j in zip(kpq_i[iq], kpq[iq]):
+            J[0,j,i] += (1.0/(2.0*vol)) * vqvec[iq] * (Gkpq[0][iq] + Gkpq[1][iq])
+
+    J[1] = J[0]
+
+    return J
+
+def build_K_opt(long nq, double[:] vqvec, double vol, long nbsf, list kpq_i,
+                list kpq, list pmq_i, list pmq,
+                double complex[:,:,:] G):
+
+    cdef numpy.ndarray K = numpy.zeros([2, nbsf, nbsf], dtype=DTYPE_CX)
+    cdef int iq, s, idxjmq, idxkpq, idxk, idxjpq, idxj, idxpmq, idxp
+
+    for s in range(2):
+        for iq in range(nq):
+            for (idxjmq,idxj) in zip(pmq[iq],pmq_i[iq]):
+                for (idxkpq,idxk) in zip(kpq[iq],kpq_i[iq]):
+                    K[s, idxj, idxkpq] += - (1.0/(2.0*vol)) * vqvec[iq] * G[s, idxjmq, idxk]
+            for (idxjpq,idxj) in zip(kpq[iq],kpq_i[iq]):
+                for (idxpmq,idxp) in zip(pmq[iq],pmq_i[iq]):
+                    K[s, idxj, idxpmq] += - (1.0/(2.0*vol)) * vqvec[iq] * G[s][idxjpq, idxp]
+    return K

@@ -57,16 +57,16 @@ class Estimators(object):
         if verbose:
             print ("# Setting up estimator object.")
         if root:
-            index = estimates.get('index', 0)
+            self.index = estimates.get('index', 0)
             self.filename = estimates.get('filename', None)
             self.basename = estimates.get('basename', 'estimates')
             if self.filename is None:
                 overwrite = estimates.get('overwrite', True)
-                self.filename = self.basename + '.%s.h5' % index
+                self.filename = self.basename + '.%s.h5' % self.index
                 while os.path.isfile(self.filename) and not overwrite:
-                    index = int(self.filename.split('.')[1])
-                    index = index + 1
-                    self.filename = self.basename + '.%s.h5' % index
+                    self.index = int(self.filename.split('.')[1])
+                    self.index = self.index + 1
+                    self.filename = self.basename + '.%s.h5' % self.index
             with h5py.File(self.filename, 'w') as fh5:
                 pass
             if verbose:
@@ -121,7 +121,7 @@ class Estimators(object):
 
     def increment_file_number(self):
         self.index = self.index + 1
-        h5f_name = 'estimates.%s.h5' % self.index
+        self.filename = self.basename + '.%s.h5' % self.index
 
     def print_step(self, comm, nprocs, step, nsteps=None, free_projection=False):
         """Print QMC estimates.

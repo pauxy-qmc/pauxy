@@ -6,7 +6,9 @@ import scipy.sparse
 import sys
 import subprocess
 import types
+import time
 from functools import  reduce
+import socket
 
 
 def get_git_revision_hash():
@@ -245,6 +247,8 @@ def get_sys_info(sha1, branch, uuid, nranks):
     mem = get_node_mem()
     print('# Approximate memory available per node: {:.4f} GB.'.format(mem))
     print('# Running on {:d} MPI rank{:s}.'.format(nranks, 's' if nranks > 1 else ''))
+    hostname = socket.gethostname()
+    print('# Root processor name: {}'.format(hostname))
     py_ver = sys.version.splitlines()
     print("# Python interpreter: {:s}".format(' '.join(py_ver)))
     info = {'nranks': nranks, 'python': py_ver, 'branch': branch, 'sha1': sha1}
@@ -272,9 +276,11 @@ def get_sys_info(sha1, branch, uuid, nranks):
             print("# Package {:s} not found.".format(lib))
     return info
 
-
-def unit_test():
-    print(get_git_revision_hash())
-
-if __name__=="__main__":
-    unit_test()
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        res = func(*args, **kwargs)
+        end = time.time()
+        print(" # Time : {} ".format(end-start))
+        return res
+    return wrapper
