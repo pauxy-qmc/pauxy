@@ -137,6 +137,7 @@ class ThermalAFQMC(object):
                                                   self.qmc.dt,
                                                   options = trial_opts,
                                                   comm=comm,
+                                                  options=trial_opts,
                                                   verbose=verbose)
 
         self.qmc.ntot_walkers = self.qmc.nwalkers
