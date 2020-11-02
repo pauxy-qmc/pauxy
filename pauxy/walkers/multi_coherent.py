@@ -75,7 +75,7 @@ class MultiCoherentWalker(object):
             
             self.X = numpy.real(shift).copy()
 
-            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+            tmptrial = HarmonicOscillator(m=system.m * trial.scale_exponent, w=system.w0, order=0, shift = shift)
 
             sqtau = numpy.sqrt(0.005)
             nstep = 250
@@ -98,13 +98,13 @@ class MultiCoherentWalker(object):
             if (len(trial.psi.shape) == 3):
                 for i in range(trial.nperms):
                     shift = trial.shift[i,:].copy()
-                    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+                    boson_trial = HarmonicOscillator(m = system.m * trial.scale_exponent, w = system.w0, order = 0, shift=shift)
                     self.Lapi[i] = boson_trial.laplacian(self.X)
             else:
                 shift0 = trial.shift.copy()
                 for i, perm in enumerate(trial.perms):
                     shift = shift0[perm].copy()
-                    boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+                    boson_trial = HarmonicOscillator(m = system.m * trial.scale_exponent, w = system.w0, order = 0, shift=shift)
                     self.Lapi[i] = boson_trial.laplacian(self.X)
 
         # Compute initial overlap. Avoids issues with singular matrices for

@@ -139,10 +139,10 @@ class HirschDMC(object):
                 print("# Shift in propagation = {}".format(shift[:3]))
 
         if (len(trial.psi.shape) == 3):
-            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift[0,:])
+            self.boson_trial = HarmonicOscillator(m = system.m * trial.scale_exponent, w = system.w0, order = 0, shift=shift[0,:])
             self.eshift_boson = self.boson_trial.local_energy(shift[0,:])
         else:
-            self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=shift)
+            self.boson_trial = HarmonicOscillator(m = system.m * trial.scale_exponent, w = system.w0, order = 0, shift=shift)
             self.eshift_boson = self.boson_trial.local_energy(shift)
 
         self.eshift_boson = self.eshift_boson.real

@@ -40,7 +40,7 @@ class SingleDetWalker(Walker):
             shift = trial.shift.copy()
             self.X = numpy.real(shift).copy()
 
-            tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
+            tmptrial = HarmonicOscillator(m=system.m * trial.scale_exponent, w=system.w0, order=0, shift = shift)
 
             sqtau = numpy.sqrt(0.005)
             nstep = 250
@@ -161,7 +161,7 @@ class SingleDetWalker(Walker):
         ot = 1.0/det
 
         if (self.phi_boson is not None):
-            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            boson_trial = HarmonicOscillator(m=trial.m * trial.scale_exponent, w=trial.w0, order=0, shift = trial.shift)
             self.phi_boson = boson_trial.value(self.X)
             ot *= self.phi_boson
 
@@ -192,7 +192,7 @@ class SingleDetWalker(Walker):
         ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-self.log_shift)
 
         if (self.phi_boson is not None):
-            boson_trial = HarmonicOscillator(m=trial.m, w=trial.w0, order=0, shift = trial.shift)
+            boson_trial = HarmonicOscillator(m=trial.m * trial.scale_exponent, w=trial.w0, order=0, shift = trial.shift)
             self.phi_boson = boson_trial.value(self.X)
             ot *= self.phi_boson
 
