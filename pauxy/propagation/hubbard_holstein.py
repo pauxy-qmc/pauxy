@@ -334,7 +334,7 @@ class HirschDMC(object):
         
         elocold = numpy.real(elocold) #* (ot_old / (ot_old + trial.overlap_shift))
 
-        dX = numpy.random.normal(loc = 0.0, scale = sqrtdt/numpy.sqrt(system.m), size=(system.nbasis))
+        dX = numpy.random.normal(loc = 0.0, scale = sqrtdt/numpy.sqrt(system.m * trial.scale_exponent), size=(system.nbasis))
         Xnew = walker.X + dX + driftold
         
         walker.X = Xnew.copy()
