@@ -128,6 +128,8 @@ class ThermalAFQMC(object):
         self.cplx = True
         if trial is not None:
             self.trial = trial
+            if verbose:
+                print("# Trial density matrix passed from input: {} ".format(self.trial.__class__.__name__))
         else:
             trial_opts = get_input_value(options, 'trial', default={},
                                          alias=['trial_density'],

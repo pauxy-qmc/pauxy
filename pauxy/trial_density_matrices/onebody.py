@@ -26,6 +26,7 @@ class OneBody(object):
             self.H1 = H1
 
         if verbose:
+            print("# Building OneBody density matrix.")
             print("# beta in OneBody: {}".format(beta))
             print("# dt in OneBody: {}".format(dt))
 
