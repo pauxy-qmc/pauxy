@@ -112,6 +112,8 @@ def local_energy_hubbard_holstein_jax(T,U,g,m,w0, G, X, Lap, Ghalf=None):
     Eel = ke + pe
     Eeb = e_eph
 
+    # print("ke, pe, eeph, eph = {}, {}, {}, {}".format(ke,pe,e_eph,pe_ph+ke_ph))
+
     return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 
 def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted,restricted_shift):
@@ -501,6 +503,11 @@ class CoherentState(object):
                 self.init = self.psi[0,:,:].copy()
             else:
                 self.init = self.psi.copy()
+        
+        nocca = system.nup
+        noccb = system.ndown
+        nvira = system.nbasis-system.nup
+        nvirb = system.nbasis-system.ndown
 
         MS = numpy.abs(nocca-noccb) / 2.0
         S2exact = MS * (MS+1.)
@@ -737,10 +744,10 @@ class CoherentState(object):
         elif self.algorithm == "bfgs":
             for i in range (self.maxiter): # Try 10 times
                 res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted,self.restricted_shift), jac=gradient, tol=1e-10,\
                     method='L-BFGS-B',\
                     options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
-                    'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})
+                    'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
                 e = res.fun
                 if (verbose):
                     print("# macro iter {} energy is {}".format(i, e))
