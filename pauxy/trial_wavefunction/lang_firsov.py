@@ -1,12 +1,14 @@
 import itertools
 import cmath
+import h5py
 from pauxy.systems.hubbard import Hubbard
 from pauxy.trial_wavefunction.free_electron import FreeElectron
+from pauxy.trial_wavefunction.coherent_state import CoherentState, gab, compute_exp
 from pauxy.trial_wavefunction.harmonic_oscillator import HarmonicOscillator
 from pauxy.estimators.ci import simple_fci_bose_fermi, simple_fci
 from pauxy.estimators.hubbard import local_energy_hubbard_holstein, local_energy_hubbard
 from pauxy.systems.hubbard_holstein import HubbardHolstein
-from pauxy.utils.linalg import reortho
+from pauxy.utils.linalg import reortho, overlap
 
 from pauxy.estimators.greens_function import gab_spin
 
@@ -36,15 +38,31 @@ except ModuleNotFoundError:
     import numpy
     np = numpy
 
-def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted, relax_gamma):
-    grad = numpy.array(jax.grad(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted, relax_gamma))
+def projected_virtuals(psia):
+
+    nup = psia.shape[1]
+    nbasis = psia.shape[0]
+    Ca = numpy.zeros((nbasis, nbasis), dtype = numpy.complex128)
+    Ca[:,:nup] = psia.copy()
+
+    # projected virtual
+    P = numpy.eye(nbasis) - psia.dot(psia.T)
+    u, s, v = numpy.linalg.svd(P)
+    count = 0
+    for i, sv in enumerate(s):
+        if (sv > 1e-10):
+            Ca[:,nup+count] = u[:,i]
+            count += 1
+        if (nup + count == nbasis):
+            break
+    
+    return Ca
+
+def gradient(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted):
+    grad = numpy.array(jax.grad(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted))
     return grad
 
-def hessian(x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, relax_gamma):
-    H = numpy.array(jax.hessian(objective_function)(x, nbasis, nup, ndown, T, U, g, m, w0, c0,restricted,relax_gamma))
-    return H
-
-def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted,relax_gamma):
+def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted):
     nbasis = int(round(nbasis))
     nup = int(round(nup))
     ndown = int(round(ndown))
@@ -58,8 +76,8 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted,re
     nova = nocca*nvira
     novb = noccb*nvirb
     
-    daia = np.array(x[:nova],dtype=np.float64)
-    daib = np.array(x[nova:nova+novb],dtype=np.float64)
+    daia = np.array(x[nbsf:nbsf+nova],dtype=np.float64)
+    daib = np.array(x[nbsf+nova:nbsf+nova+novb],dtype=np.float64)
 
     daia = daia.reshape((nvira, nocca))
     daib = daib.reshape((nvirb, noccb))
@@ -96,48 +114,47 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted,re
 
     G = np.array([Ga, Gb],dtype=np.float64)
 
-    ni = np.diag(G[0]+G[1])
-    nia = np.diag(G[0])
-    nib = np.diag(G[1])
 
-    sqrttwomw = np.sqrt(m * w0*2.0)
-    phi = np.zeros(nbsf)
+    beta = x[0:nbasis]
+
+    ti = x[nbsf+nova+novb:]
+
+    rho = G[0].diagonal() + G[1].diagonal()
+    rhoa = G[0].diagonal()
+    rhob = G[1].diagonal()
+
+    Tscaling = np.zeros_like(T[0])
+
+    factor = np.exp(-0.25*ti**2)
+    Tscaling = np.einsum("i,j->ij",factor,factor)
     
-    gamma = np.array(x[nova+novb:], dtype=np.float64)
+    ke = np.sum(T[0] * G[0] * Tscaling + T[1] * G[1] * Tscaling)
+    ke += np.sum(rho *(ti*ti*w0/2.0 - g * ti * np.sqrt(2.0)))
+    
+    eph = w0 * np.sum(beta*beta) 
+    
+    eeph = 2.0 * np.sum(rho * beta * (ti * w0  / np.sqrt(2.0) - g ))
 
-    if (not relax_gamma):
-        gamma = g * np.sqrt(2.0 /(m *w0**3)) * np.ones(nbsf)
-
-    Eph = w0 * np.sum(phi*phi)
-    Eeph = np.sum ((gamma * m * w0**2 - g * sqrttwomw) * 2.0 * phi / sqrttwomw * ni)
-    Eeph += np.sum((gamma**2 * m*w0**2 / 2.0 - g * gamma * sqrttwomw) * ni)
-
-    Eee = np.sum((U*np.ones(nbsf) + gamma**2 * m*w0**2 - 2.0 * g * gamma * sqrttwomw) * nia * nib)
-
-    alpha = gamma * numpy.sqrt(m * w0 / 2.0)
-    const = np.exp(-alpha**2/2.)
-    const_mat = np.array((nbsf,nbsf),dtype=np.float64)
-    const_mat = np.einsum("i,j->ij",const,const)
-
-    Ekin = np.sum(const_mat* T[0] * G[0] + const_mat*T[1] * G[1])
-    etot = Eph + Eeph + Eee + Ekin
+    pe = U * np.dot(G[0].diagonal(), G[1].diagonal())
+    pe += w0 * np.sum(G[0].diagonal()*G[1].diagonal()*ti*ti)
+    pe -= 2.0 * g * np.sqrt(2.0) * np.sum(G[0].diagonal()*G[1].diagonal()*ti)
+    
+    etot = ke + pe + eeph + eph
 
     return etot.real
 
-
 class LangFirsov(object):
 
-    def __init__(self, system, trial, verbose=False):
+    def __init__(self, system, options, verbose=False):
         self.verbose = verbose
         if verbose:
             print ("# Parsing free electron input options.")
         init_time = time.time()
         self.name = "lang_firsov"
         self.type = "lang_firsov"
-        
         self.trial_type = complex
 
-        self.initial_wavefunction = trial.get('initial_wavefunction',
+        self.initial_wavefunction = options.get('initial_wavefunction',
                                               'lang_firsov')
         if verbose:
             print ("# Diagonalising one-body Hamiltonian.")
@@ -145,9 +162,15 @@ class LangFirsov(object):
         (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0])
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
 
-        self.restricted = trial.get('restricted', False)
-        self.reference = trial.get('reference', None)
-        self.read_in = trial.get('read_in', None)
+        self.reference = options.get('reference', None)
+        self.exporder = options.get('exporder', 6)
+        self.maxiter = options.get('maxiter', 3)
+        self.maxscf = options.get('maxscf', 500)
+        self.ueff = options.get('ueff', system.U)
+        
+        if verbose:
+            print("# exporder in CoherentState is 15 no matter what you entered like {}".format(self.exporder))
+
         self.psi = numpy.zeros(shape=(system.nbasis, system.nup+system.ndown),
                                dtype=self.trial_type)
 
@@ -156,99 +179,172 @@ class LangFirsov(object):
         self.m = system.m
         self.w0 = system.w0
 
+        self.nbasis = system.nbasis
         self.nocca = system.nup
         self.noccb = system.ndown
 
-        if self.read_in is not None:
+        self.algorithm = options.get('algorithm',"bfgs")
+        self.random_guess = options.get('random_guess',False)
+        self.symmetrize = options.get('symmetrize',False)
+
+        self.linearize = options.get('linearize',True)
+        if verbose:
+            print("# random guess = {}".format(self.random_guess))
+
+        self.dry_run = options.get('dry_run',True)
+        if verbose:
+            print("# dry_run = {}".format(self.dry_run))
+            if (self.dry_run):
+                print("# dry run should reproduce the coherent state result (i.e., no Lang-Firsov amplitudes)")
+
+        if (self.linearize):
+            print("# Linearize Lang-Firsov State for the evaluation of local energy and overlap")
+        else:
+            print("# exact application of Lang-Firsov AFQMC is unsupported")
+            exit()
+
+        print("# Linearize Lang-Firsov State = {}".format(self.linearize))
+        print("# Symmetrize Lang-Firsov State = {}".format(self.symmetrize))
+
+        if (self.symmetrize):
+            print("# Symmetrize Lang-Firsov State currently unsupported")
+            exit()
+
+
+        self.wfn_file = options.get('wfn_file', None)
+        self.variational = options.get('variational', True)
+        
+        self.coeffs = None
+        self.perms = None
+
+        if self.wfn_file is not None:
             if verbose:
-                print ("# Reading trial wavefunction from %s"%(self.read_in))
-            try:
-                self.psi = numpy.load(self.read_in)
-                self.psi = self.psi.astype(self.trial_type)
-            except OSError:
+                print ("# Reading trial wavefunction from %s"%(self.wfn_file))
+            f = h5py.File(self.wfn_file, "r")
+            self.shift = f["shift"][()].real
+            self.psi = f["psi"][()]
+            self.tis = f["tis"][()] # Lang-Firsov amplitudes
+            f.close()
+
+            if (len(self.psi.shape) == 3):
                 if verbose:
-                    print("# Trial wavefunction is not in native numpy form.")
-                    print("# Assuming Fortran GHF format.")
-                orbitals = read_fortran_complex_numbers(self.read_in)
-                tmp = orbitals.reshape((2*system.nbasis, system.ne),
-                                       order='F')
-                ups = []
-                downs = []
-                # deal with potential inconsistency in ghf format...
-                for (i, c) in enumerate(tmp.T):
-                    if all(abs(c[:system.nbasis]) > 1e-10):
-                        ups.append(i)
-                    else:
-                        downs.append(i)
-                self.psi[:, :system.nup] = tmp[:system.nbasis, ups]
-                self.psi[:, system.nup:] = tmp[system.nbasis:, downs]
-        else:
-            # I think this is slightly cleaner than using two separate
-            # matrices.
-            if self.reference is not None:
-                self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
-                self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
+                    print("# MultiLangFirsov trial detected")
+                print("# MultiLangFirsov trial currently unsupported")
+                exit()
+                self.symmetrize = True
+                self.perms = None
+
+                f = h5py.File(self.wfn_file, "r")
+                self.coeffs = f["coeffs"][()]
+                f.close()
+
+                self.nperms = self.coeffs.shape[0]
+
+                assert(self.nperms == self.psi.shape[0])
+                assert(self.nperms == self.shift.shape[0])
+
+                self.G = None
+                if verbose:
+                    print("# A total of {} coherent states are used".format(self.nperms))
+
             else:
-                self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
-                self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
-                
-                nocca = system.nup
-                noccb = system.ndown
-                nvira = system.nbasis-system.nup
-                nvirb = system.nbasis-system.ndown
-                self.virt = numpy.zeros((system.nbasis, nvira+nvirb))
+                gup = gab(self.psi[:, :system.nup],
+                                                 self.psi[:, :system.nup]).T
+                if (system.ndown > 0):
+                    gdown = gab(self.psi[:, system.nup:],
+                                                       self.psi[:, system.nup:]).T
+                else:
+                    gdown = numpy.zeros_like(gup)
 
-                self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
-                self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+                self.G = numpy.array([gup, gdown], dtype=self.psi.dtype)
 
-        gup = gab(self.psi[:, :system.nup],
-                                         self.psi[:, :system.nup]).T
-        if (system.ndown > 0):
-            gdown = gab(self.psi[:, system.nup:],
-                                               self.psi[:, system.nup:]).T
         else:
-            gdown = numpy.zeros_like(gup)
+            trial = CoherentState(system, options=options, verbose=self.verbose)
+            self.boson_trial = trial.boson_trial
+            self.restricted = trial.restricted
+            self.init_guess_file = trial.init_guess_file
+            self.psi = trial.psi.copy()
+            self.shift = trial.shift.copy()
+            self.beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
+            self.coeffs = trial.coeffs
+            self.tis = numpy.zeros_like(self.shift)
+            self.G = trial.G.copy()
+            nocca = system.nup
+            noccb = system.ndown
+            nvira = system.nbasis - system.nup
+            nvirb = system.nbasis - system.ndown
+            self.virt = numpy.zeros((system.nbasis, nvira+nvirb),dtype=self.psi.dtype)
+            Ca = projected_virtuals(self.psi[:,:system.nup])
+            Cb = projected_virtuals(self.psi[:,system.nup:])
+            self.virt[:,:nvira] = Ca[:,system.nup:]
+            self.virt[:,nvira:] = Cb[:,system.ndown:]
 
-        self.G = numpy.array([gup, gdown])
+            if (self.variational and not self.dry_run):
+                if (verbose):
+                    print("# we will repeat SCF {} times".format(self.maxiter))
+                self.run_variational(system, verbose)
+                print("# Variational Lang-Firsov state energy = {}".format(self.energy))
 
-        self.relax_gamma = trial.get('relax_gamma',False)
+            print("# Optimized shift = {}".format(self.shift[0:5]))
+            print("# Optimized amplitudes = {}".format(self.tis[0:5]))
+
+            ovlp_a = numpy.linalg.det(overlap(trial.psi[:,:nocca],self.psi[:,:nocca]))
+            ovlp_b = numpy.linalg.det(overlap(trial.psi[:,nocca:],self.psi[:,nocca:]))
+            print("# Overlap with coherent state = {}".format(ovlp_a*ovlp_b))
+
+        self.calculate_energy(system)
+        print("# Lang-Firsov trial state energy = {}".format(self.energy))
+
+        self.initialisation_time = time.time() - init_time
+
+        self.spin_projection = options.get('spin_projection',False)
+        if (self.spin_projection and not self.symmetrize): # natural orbital
+            print("# Spin projection is used")
+            Pcharge = self.G[0] + self.G[1]
+            e, v = numpy.linalg.eigh(Pcharge)
+            self.init = numpy.zeros_like(self.psi)
+
+            idx = e.argsort()[::-1]
+            e = e[idx]
+            v = v[:,idx]
+
+            self.init[:, :system.nup] = v[:, :system.nup].copy()
+            if (system.ndown > 0):
+                self.init[:, system.nup:] = v[:, :system.ndown].copy()
+        else:
+            if (len(self.psi.shape) == 3):
+                self.init = self.psi[0,:,:].copy()
+            else:
+                self.init = self.psi.copy()
+        
+        nocca = system.nup
+        noccb = system.ndown
+        nvira = system.nbasis-system.nup
+        nvirb = system.nbasis-system.ndown
+
+        MS = numpy.abs(nocca-noccb) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
+        self.S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+        if (verbose):
+            print("# <S^2> = {: 3f}".format(self.S2))
 
         # For interface compatability
-        self.coeffs = 1.0
         self.ndets = 1
-        self.bp_wfn = trial.get('bp_wfn', None)
+        self.bp_wfn = options.get('bp_wfn', None)
         self.error = False
         self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
         self.eigs.sort()
 
-        self.gamma = system.g * numpy.sqrt(2.0 / (system.m*system.w0**3)) * numpy.ones(system.nbasis)
-        print("# Initial gamma = {}".format(self.gamma))
-        self.run_variational(system)
-
-        print("# Variational Lang-Firsov Energy = {}".format(self.energy))
-
-        
-        self.initialisation_time = time.time() - init_time
-        self.init = self.psi.copy()
-
-        self.shift = numpy.zeros(system.nbasis)
-        self.calculate_energy(system)
-
+        self._mem_required = 0.0
         self._rchol = None
         self._eri = None
         self._UVT = None
 
-        print("# Lang-Firsov optimized gamma = {}".format(self.gamma))
-        print("# Lang-Firsov optimized shift = {}".format(self.shift))
-        print("# Lang-Firsov optimized energy = {}".format(self.energy))
-
         if verbose:
-            print ("# Updated lang_firsov.")
+            print ("# Finished initialising variational Lang-Firsov trial wavefunction.")
 
-        if verbose:
-            print ("# Finished initialising Lang-Firsov trial wavefunction.")
-
-    def run_variational(self, system):
+    def run_variational(self, system, verbose):
         nbsf = system.nbasis
         nocca = system.nup
         noccb = system.ndown
@@ -258,77 +354,107 @@ class LangFirsov(object):
         nova = nocca*nvira
         novb = noccb*nvirb
 #         
-        x = numpy.zeros(nova+novb)
+        x = numpy.zeros(system.nbasis + nova + novb + system.nbasis, dtype=numpy.float64)
+        if (x.shape[0] == 0):
+            gup = numpy.zeros((nbsf, nbsf))
+            for i in range(nocca):
+                gup[i,i] = 1.0
+            gdown = numpy.zeros((nbsf, nbsf))
+            for i in range(noccb):
+                gdown[i,i] = 1.0
+            self.G = numpy.array([gup, gdown])
+            self.shift = numpy.zeros(nbsf)
+            self.calculate_energy(system)
+            return
 
         Ca = numpy.zeros((nbsf,nbsf))
-        Ca[:,:nocca] = self.psi[:,:nocca]
-        Ca[:,nocca:] = self.virt[:,:nvira]
+        Ca[:,:nocca] = numpy.real(self.psi[:,:nocca])
+        Ca[:,nocca:] = numpy.real(self.virt[:,:nvira])
         Cb = numpy.zeros((nbsf,nbsf))
-        Cb[:,:noccb] = self.psi[:,nocca:]
-        Cb[:,noccb:] = self.virt[:,nvira:]
-#         
+        Cb[:,:noccb] = numpy.real(self.psi[:,nocca:])
+        Cb[:,noccb:] = numpy.real(self.virt[:,nvira:])
+        
+        if (self.restricted):
+            Cb = Ca.copy()
+
         if (system.ndown > 0):
-            c0 = numpy.zeros(nbsf*nbsf*2)
+            c0 = numpy.zeros(nbsf*nbsf*2, dtype=numpy.float64)
             c0[:nbsf*nbsf] = Ca.ravel()
             c0[nbsf*nbsf:] = Cb.ravel()
         else:
-            c0 = numpy.zeros(nbsf*nbsf)
+            c0 = numpy.zeros(nbsf*nbsf, dtype=numpy.float64)
             c0[:nbsf*nbsf] = Ca.ravel()
-
-        if self.relax_gamma:
-            xtmp = numpy.zeros(nova+novb+nbsf)
-            xtmp[:nova+novb] = x
-            xtmp[nova+novb:nova+novb+nbsf] = self.gamma
-            x = xtmp.copy()
 #       
-        self.shift = numpy.zeros(nbsf)
-        self.energy = 1e6
-        
-        for i in range (5): # Try 10 times
-            res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown), system.T, system.U, system.g, system.m, system.w0, c0, self.restricted, self.relax_gamma), method='L-BFGS-B', jac=gradient, options={'disp':False})
-            e = res.fun
-            
-            if (self.verbose):
-                print("# macro iter {} energy is {}".format(i, e))
-            if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
-                self.energy = res.fun
-                xconv = res.x.copy()
-            else:
-                break
-            x = numpy.random.randn(x.shape[0]) * 1e-1 + xconv
 
-        daia = res.x[:nova] 
-        daib = res.x[nova:nova+novb]
-        
-        if (self.relax_gamma):
-            self.gamma = res.x[nova+novb:]
+        x[:system.nbasis] = self.beta.real.copy() # initial guess
+        self.energy = 1e6
+
+        if self.algorithm == "bfgs":
+            for i in range (self.maxiter): # Try 10 times
+                res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                    method='L-BFGS-B',\
+                    options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
+                    'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False})
+                e = res.fun
+                if (verbose):
+                    print("# macro iter {} energy is {}".format(i, e))
+                if (e < self.energy and numpy.abs(self.energy - e) > 1e-6):
+                    self.energy = res.fun
+                    self.shift = self.shift
+                    xconv = res.x.copy()
+                else:
+                    break
+                x[:system.nbasis] = numpy.random.randn(nbsf) * 1e-1 + xconv[:nbsf]
+                x[nbsf:nbsf+nova+novb] = numpy.random.randn(nova+novb) * 1e-1 + xconv[nbsf:nbsf+nova+novb]
+                x[nbsf+nova+novb:] = numpy.random.randn(nbsf) * 1e-1 + xconv[nbsf+nova+novb:]
+
+            self.beta = res.x[:nbsf]
+            self.shift = self.beta / numpy.sqrt(system.m * system.w0 /2.0)
+            daia = res.x[nbsf:nbsf+nova] 
+            daib = res.x[nbsf+nova:nbsf+nova+novb]
+            self.tis = res.x[nbsf+nova+novb:]
+        else:
+            print("# Unknown optimizer")
+            exit()
 
         daia = daia.reshape((nvira, nocca))
         daib = daib.reshape((nvirb, noccb))
 
-        Ua = numpy.zeros((nbsf, nbsf))
-        Ub = numpy.zeros((nbsf, nbsf))
+        if (self.restricted):
+            daib = daia.copy()
 
-        Ua[nocca:nbsf,:nocca] = daia.copy()
-        Ua[:nocca, nocca:nbsf] = -daia.T.copy()
+        theta_a = numpy.zeros((nbsf, nbsf))
+        theta_a[nocca:nbsf,:nocca] = daia.copy()
+        theta_a[:nocca, nocca:nbsf] = -daia.T.copy()
 
-        Ub[noccb:nbsf,:noccb] = daib.copy()
-        Ub[:noccb, noccb:nbsf] = -daib.T.copy()
-
-        if (nocca > 0):
-            C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
-            Ua = expm(Ua)
-            Ca = C0a.dot(Ua)
+        theta_b = numpy.zeros((nbsf, nbsf))
+        theta_b[noccb:nbsf,:noccb] = daib.copy()
+        theta_b[:noccb, noccb:nbsf] = -daib.T.copy()
+        
+        Ua = expm(theta_a)
+        C0a = c0[:nbsf*nbsf].reshape((nbsf,nbsf))
+        Ca = C0a.dot(Ua)
 
         if (noccb > 0):
             C0b = c0[nbsf*nbsf:].reshape((nbsf,nbsf))
-            Ub = expm(Ub)
+            Ub = expm(theta_b)
             Cb = C0b.dot(Ub)
 
-        self.psi[:,:nocca] = Ca[:,:nocca]
-        self.psi[:,nocca:] = Cb[:,:noccb]
+        Cocca, detpsi = reortho(Ca[:,:nocca])
+        Coccb, detpsi = reortho(Cb[:,:noccb])
+
+        self.psi[:,:nocca] = Cocca
+        self.psi[:,nocca:] = Coccb
 
         self.update_electronic_greens_function(system)
+
+        MS = numpy.abs(nocca-noccb) / 2.0
+        S2exact = MS * (MS+1.)
+        Sij = self.psi[:,:nocca].T.dot(self.psi[:,nocca:])
+        S2 = S2exact + min(nocca, noccb) - numpy.sum(numpy.abs(Sij*Sij).ravel())
+
+        print("# <S^2> = {: 3f}".format(S2))
         
     def update_electronic_greens_function(self, system, verbose=0):
         gup = gab(self.psi[:, :system.nup],
@@ -340,224 +466,263 @@ class LangFirsov(object):
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
 
-    def update_wfn(self, system, V, verbose=0):
-        (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0]+V[0])
-        (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1]+V[1])
+    def calc_elec_overlap(self, walker):
+        """Caculate overlap with walker wavefunction (electronic only).
 
-        # I think this is slightly cleaner than using two separate
-        # matrices.
-        if self.reference is not None:
-            self.psi[:, :system.nup] = self.eigv_up[:, self.reference]
-            self.psi[:, system.nup:] = self.eigv_dn[:, self.reference]
-        else:
-            self.psi[:, :system.nup] = self.eigv_up[:, :system.nup]
-            self.psi[:, system.nup:] = self.eigv_dn[:, :system.ndown]
-            nocca = system.nup
-            noccb = system.ndown
-            nvira = system.nbasis-system.nup
-            nvirb = system.nbasis-system.ndown
+        Parameters
+        ----------
+        walker : object
+            walker wavefunction object.
 
-            self.virt[:, :nvira] = self.eigv_up[:,nocca:nocca+nvira]
-            self.virt[:, nvira:nvira+nvirb] = self.eigv_dn[:,noccb:noccb+nvirb]
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        na = walker.nup
+        Oalpha = numpy.dot(self.psi[:,:na].conj().T, walker.phi[:,:na])
+        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        nb = walker.ndown
+        logdet_b, sign_b = 0.0, 1.0
+        if nb > 0:
+            Obeta = numpy.dot(self.psi[:,na:].conj().T, walker.phi[:,na:])
+            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
         
-        gup = gab(self.psi[:, :system.nup],
-                                         self.psi[:, :system.nup]).T
+        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
 
+        return ot
 
-        h1 = system.T[0] + V[0]
+    def value(self, walker): # value
 
-        if (system.ndown == 0):
-            gdown = numpy.zeros_like(gup)
-        else:
-            gdown = gab(self.psi[:, system.nup:],
-                                           self.psi[:, system.nup:]).T
-        self.eigs = numpy.append(self.eigs_up, self.eigs_dn)
-        self.eigs.sort()
-        self.G = numpy.array([gup, gdown])
+        if (self.linearize):
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            phi = boson_trial.value(walker.X)
+            dphi = boson_trial.gradient(walker.X) * phi
 
-#   Compute D_{jj} 
-    def compute_Dvec(self, walker):
+            elec_ot = self.calc_elec_overlap(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal()) * elec_ot
 
-        phi0 = self.shift.copy()
-        nbsf = walker.X.shape[0]
-        D = numpy.zeros(nbsf)
-        for i in range(nbsf):
-            phi = phi0.copy()
-            phi[i] += self.gamma
-            
-            # QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=X)
-            # D[i] = QHO.value(walker.X)
+            term1 = phi * elec_ot
+            term2 = - numpy.sum(self.tis * rho * dphi)
 
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi0[i])
-            denom = QHO.value(walker.X[i])
-            
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi[i])
-            num = QHO.value(walker.X[i])
+            overlap = term1 + term2 
 
-            D[i] = num/denom
-
-        return D
-
-#   Compute \sum_i \partial_i D_{jj} = A_{jj}
-    def compute_dDvec(self, walker):
-
-        phi0 = self.shift.copy()
-        nbsf = walker.X.shape[0]
-        dD = numpy.zeros(nbsf)
-        
-        for i in range(nbsf):
-            phi = phi0.copy()
-            phi[i] += self.gamma
-            # QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=X[i])
-            # dD[i] = QHO.gradient(walker.X[i]) * QHO.value(walker.X[i]) # gradient is actually grad / value
-            
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi0[i])
-            denom = QHO.gradient(walker.X[i])
-
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi[i])
-            num = QHO.gradient(walker.X[i])
-
-            dD[i] = num/denom
-        return dD
-
-
-#   Compute \sum_i \partial_i^2 D_{jj} = A_{jj}
-    def compute_d2Dvec(self, walker):
-
-        phi0 = self.shift.copy()
-        nbsf = walker.X.shape[0]
-        d2D = numpy.zeros(nbsf)
-        
-        for i in range(nbsf):
-            phi = phi0.copy()
-            phi[i] += self.gamma
-
-            # QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi[i])
-            # d2D[i] = QHO.laplacian(walker.X[i]) * QHO.value(walker.X[i]) # gradient is actually grad / value
-            
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi0[i])
-            denom = QHO.laplacian(walker.X[i])
-
-            QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=phi[i])
-            num = QHO.laplacian(walker.X[i])
-
-            d2D[i] = num/denom
-
-        return d2D
-
+        return overlap
 
 #   Compute  <\psi_T | \partial_i D | \psi> / <\psi_T| D | \psi>
-    def gradient(self, walker):
+    def gradient(self, walker): # gradient / value
+        if (self.linearize):
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            phi = boson_trial.value(walker.X)
+            dphi = boson_trial.gradient(walker.X) * phi
+            ddphi = boson_trial.hessian(walker.X) * phi # hessian
 
-        psi0 = self.psi.copy()
-        
-        nbsf = walker.X.shape[0]
-        
-        grad = numpy.zeros(nbsf)
-
-        # Compute denominator
-        # Dvec = self.compute_Dvec(walker)
-        # self.psi = numpy.einsum("m,mi->mi",Dvec, psi0)
-        # ot_denom = walker.calc_otrial(self)
-        self.psi[:,:self.nocca] = numpy.einsum("m,mi->mi",Dvec, psi0a)
-        self.psi[:,self.nocca:] = psi0b
-        walker.inverse_overlap(self)
-        ot_denom = walker.calc_otrial(self)
-
-        self.psi[:,:self.nocca] = psi0a
-        self.psi[:,self.nocca:] = numpy.einsum("m,mi->mi",Dvec, psi0b)
-        walker.inverse_overlap(self)
-        ot_denom += walker.calc_otrial(self)
-
-        # Compute numerator
-        dD = self.compute_dDvec(walker)
-
-        for i in range (nbsf):
-            dDvec = numpy.zeros_like(dD)
-            dDvec[i] = dD[i]
+            grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
             
-            self.psi[:,:self.nocca] = numpy.einsum("m,mi->mi",dDvec, psi0a)
-            self.psi[:,self.nocca:] = psi0b
-            walker.inverse_overlap(self)
-            ot_num = walker.calc_otrial(self)
+            denom = self.value(walker)
             
-            self.psi[:,:self.nocca] = psi0a
-            self.psi[:,self.nocca:] = numpy.einsum("m,mi->mi",dDvec, psi0b)
-            walker.inverse_overlap(self)
-            ot_num += walker.calc_otrial(self)
-            grad[i] = ot_num / ot_denom
-        
-        self.psi = psi0.copy()
+            elec_ot = self.calc_elec_overlap(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())*elec_ot
+
+            term1 = dphi * elec_ot
+            term2 = -numpy.einsum("i,ik->k",self.tis*rho,ddphi)
+            grad = (term1+term2) / denom
+
         return grad
 
 #   Compute  <\psi_T | \partial_i^2 D | \psi> / <\psi_T| D | \psi>
     def laplacian(self, walker):
+        if (self.linearize):
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            phi = boson_trial.value(walker.X)
+            d2phi = boson_trial.laplacian(walker.X) * phi
+            dd2phi = boson_trial.grad_laplacian(walker.X) * phi
 
-        psi0 = self.psi.copy()
+            lap = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
+            
+            denom = self.value(walker)
+            
+            elec_ot = self.calc_elec_overlap(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())*elec_ot
 
-        psi0a = psi0[:,:self.nocca]
-        psi0b = psi0[:,self.nocca:]
-        
-        nbsf = walker.X.shape[0]
-        lap = numpy.zeros(nbsf)
+            term1 = d2phi * elec_ot
+            term2 = -numpy.einsum("i,ik->i", self.tis*rho, dd2phi)
 
-        # Compute denominator
-        Dvec = self.compute_Dvec(walker)
-        self.psi[:,:self.nocca] = numpy.einsum("m,mi->mi",Dvec, psi0a)
-        self.psi[:,self.nocca:] = numpy.einsum("m,mi->mi",Dvec, psi0b)
-        walker.inverse_overlap(self)
-        ot_denom = walker.calc_otrial(self)
-        self.psi = psi0.copy()
-        
-        # Compute numerator
-        d2D = self.compute_d2Dvec(walker)
-
-        QHO = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
-        QHO_lap = QHO.laplacian(walker.X)
-
-        for i in range (nbsf):
-            d2Dvec = Dvec.copy()
-            d2Dvec[i] = d2D[i]
-
-            self.psi[:,:self.nocca] = numpy.einsum("m,mi->mi",d2Dvec, psi0a)
-            self.psi[:,self.nocca:] = numpy.einsum("m,mi->mi",d2Dvec, psi0b)
-            walker.inverse_overlap(self)
-            ot_num = walker.calc_otrial(self)
-
-            lap[i] = ot_num / ot_denom * QHO_lap[i]
-        
-        self.psi = psi0.copy()
+            lap = (term1+term2) / denom
 
         return lap
 
     def calculate_energy(self, system):
         if self.verbose:
             print ("# Computing trial energy.")
-        sqrttwomw = numpy.sqrt(system.m * system.w0*2.0)
-        # alpha = self.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
-        phi = self.shift * numpy.sqrt(system.m * system.w0 / 2.0)
 
-        nia = numpy.diag(self.G[0])
-        if (system.ndown == 0):
-            nib = numpy.zeros_like(nia)
-        else:
-            nib = numpy.diag(self.G[1])
-        ni = nia + nib
+        beta = self.beta
+        tis = self.tis
 
-        Eph = system.w0 * numpy.sum(phi*phi)
-        Eeph = numpy.sum ((self.gamma * system.w0 - system.g * sqrttwomw) * 2.0 * phi / sqrttwomw * ni)
-        Eeph += numpy.sum((self.gamma**2 * system.w0 / 2.0 - system.g * self.gamma * sqrttwomw) * ni)
+        rho = self.G[0].diagonal() + self.G[1].diagonal()
+        rhoa = self.G[0].diagonal()
+        rhob = self.G[1].diagonal()
 
-        Eee = numpy.sum((system.U*numpy.ones(system.nbasis) + self.gamma**2 * system.w0 - 2.0 * system.g * self.gamma * sqrttwomw) * nia * nib)
+        Tscaling = numpy.zeros_like(system.T[0])
+        factor = numpy.exp(-0.25*tis**2)
+        Tscaling = numpy.einsum("i,j->ij",factor,factor)
+        
+        ke = numpy.sum(system.T[0] * self.G[0] * Tscaling + system.T[1] * self.G[1] * Tscaling)
+        ke += numpy.sum(rho *(tis*tis*system.w0/2.0 - system.g * tis * numpy.sqrt(2.0)))
+        
+        eph = system.w0 * numpy.sum(beta*beta) 
+        
+        eeph = 2.0 * numpy.sum(rho * beta * (tis * system.w0  / numpy.sqrt(2.0) - system.g ))
+
+        pe = system.U * numpy.dot(rhoa, rhob)
+        pe += system.w0 * numpy.sum(rhoa*rhob*tis*tis)
+        pe -= 2.0 * system.g * numpy.sqrt(2.0) * numpy.sum(rhoa*rhob*tis)
+        
+        self.energy = ke + pe + eeph + eph
+        self.energy = self.energy.real
+        
+        print("# Eee, Ekin, Eph, Eeph = {}, {}, {}, {}".format(pe.real, ke.real, eph.real, eeph.real))
+
+    def calc_otrial(self, walker):
+
+        ot = self.value(walker)
+
+        return ot
+
+    def inverse_overlap(self, walker):
+        ''' place holder. this should never be actually used'''
+        return
+    
+    def calc_overlap(self, walker):
+
+        ot = self.value(walker)
+
+        return ot
+
+    def greens_function(self, walker):
+        """Compute walker's green's function.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
+        """
+        nup = walker.nup
+        ndown = walker.ndown
+
+        ovlp = numpy.dot(walker.phi[:,:nup].T, self.psi[:,:nup].conj())
+        walker.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
+        walker.G[0] = numpy.dot(self.psi[:,:nup].conj(), walker.Gmod[0])
+        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+        sign_b, log_ovlp_b = 1.0, 0.0
+        if ndown > 0:
+            ovlp = numpy.dot(walker.phi[:,nup:].T, self.psi[:,nup:].conj())
+            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+            walker.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
+            walker.G[1] = numpy.dot(self.psi[:,nup:].conj(), walker.Gmod[1])
+        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
+        return det
+
+    def fb_greens_function(self, walker):
+        """Compute walker's green's function for applying the force bias.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
+        """
+        self.greens_function(walker)
+
+        if (self.linearize):
+            boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+            phi = boson_trial.value(walker.X)
+            dphi = boson_trial.gradient(walker.X) * phi
+
+            elec_ot = self.calc_elec_overlap(walker)
+            term1 = [walker.G[0] * elec_ot * phi, walker.G[1] * elec_ot * phi]
+
+            # kdelta = numpy.eye(self.nbasis)
+
+            # Gipq_aa = numpy.einsum("ki,kj->kij", kdelta, walker.G[0])
+            # Gipq_aa += numpy.einsum("ij,kk->kij", walker.G[0], walker.G[0])
+            # Gipq_aa -= numpy.einsum("ik,kj->kij", walker.G[0], walker.G[0])
+
+            # Gipq_bb = numpy.einsum("ki,kj->kij", kdelta, walker.G[1])
+            # Gipq_bb += numpy.einsum("ij,kk->kij", walker.G[1], walker.G[1])
+            # Gipq_bb -= numpy.einsum("ik,kj->kij", walker.G[1], walker.G[1])
+
+            # Gipq_ba = numpy.einsum("kk,ij->kij", walker.G[1], walker.G[0])
+            # Gipq_ab = numpy.einsum("kk,ij->kij", walker.G[0], walker.G[1])
 
 
-        alpha = self.gamma * numpy.sqrt(system.m * system.w0 / 2.0)
-        const = numpy.exp(-alpha**2/2.)
-        const_mat = numpy.einsum("i,j->ij",const,const)
+            # # dphi already includes phi
+            # term2_a = -numpy.einsum("k,kij->ij", self.tis * dphi, Gipq_aa + Gipq_ba) * elec_ot
+            # term2_b = -numpy.einsum("k,kij->ij", self.tis * dphi, Gipq_bb + Gipq_ab) * elec_ot
 
-        Ekin = numpy.sum(const_mat * system.T[0] * self.G[0] + const_mat * system.T[1] * self.G[1])
+            tdphi = self.tis*dphi
+            # note that here we don't multiply it by elec_ot
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
+
+            term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0]) - numpy.sum(tdphi*rho) * walker.G[0]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True)
+            term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1]) - numpy.sum(tdphi*rho) * walker.G[1]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True)
+
+            term2_a *= elec_ot
+            term2_b *= elec_ot
+
+            denom = self.value(walker)
+
+            G = [(term1[0]+term2_a)/denom, (term1[1]+term2_b)/denom]
+        return G
 
 
-        self.energy = Eph + Eeph + Eee + Ekin
-        print("# Eee, Ekin, Eph, Eeph = {}, {}, {}, {}".format(Eee, Ekin, Eph, Eeph))
+    def bosonic_local_energy(self, walker):
+
+        ke   = - 0.5 * numpy.sum(self.laplacian(walker)) / self.m
+        pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
+        eloc = ke+pot - 0.5 * self.w0 * self.nbasis # No zero-point energy
+
+        return eloc
+
+
+    def local_energy(self, system, walker):
+
+        lap = self.laplacian(walker) # compute walker's laplacian
+        G = self.fb_greens_function(walker) # compute the true walker's one-body greens function (not just electronic)
+
+        ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
+
+        if system.symmetric: # super dumb thing that I never understood
+            pe = -0.5*system.U*(G[0].trace() + G[1].trace())
+
+        # two-body needs to be coded up!
+        # pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal()) 
+        pe = 0.0
+        assert(numpy.abs(system.U) < 1e-8)
+
+        
+        pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(walker.X * walker.X)
+
+        ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
+        
+        rho = G[0].diagonal() + G[1].diagonal()
+        e_eph = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X)
+
+
+        etot = ke + pe + pe_ph + ke_ph + e_eph
+
+        Eph = ke_ph + pe_ph
+        Eel = ke + pe
+        Eeb = e_eph
+
+        return (etot, ke+pe, ke_ph+pe_ph+e_eph)
 

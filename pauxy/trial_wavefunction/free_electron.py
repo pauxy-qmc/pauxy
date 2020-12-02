@@ -20,6 +20,7 @@ class FreeElectron(object):
             print ("# Diagonalising one-body Hamiltonian.")
         (self.eigs_up, self.eigv_up) = diagonalise_sorted(system.T[0])
         (self.eigs_dn, self.eigv_dn) = diagonalise_sorted(system.T[1])
+
         self.reference = trial.get('reference', None)
         self.trial_type = complex
         self.read_in = trial.get('read_in', None)

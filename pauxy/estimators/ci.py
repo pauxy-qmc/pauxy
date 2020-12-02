@@ -113,14 +113,20 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
     if (verbose):
         for isite in range(system.nbasis):
             rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+            rhoiup = scipy.sparse.csr_matrix((ndets, ndets))
+            rhoidn = scipy.sparse.csr_matrix((ndets, ndets))
             for i, di in enumerate(dets):
                 for d in di:
                     ii, spin_ii = map_orb(d, system.nbasis)
                     if (ii == isite):
                         rhoi[i,i] += 1.0
+                        if(spin_ii == 0):
+                            rhoiup[i,i] += 1.0
+                        if(spin_ii == 1):
+                            rhoidn[i,i] += 1.0
             rho = scipy.sparse.kron(Ib, rhoi)
             nocc1 =  eigvec[:,0].T.conj().dot(rho.dot(eigvec[:,0]))
-            print("i, nocc = {}, {}".format(isite, nocc1))
+            print("i, nelec = {}, {}".format(isite, nocc1))
 
         for isite in range(system.nbasis):
             bi = scipy.sparse.csr_matrix((nperms, nperms))
@@ -144,10 +150,52 @@ def simple_fci_bose_fermi(system, nboson_max = 1, gen_dets=False, occs=None, ham
             xi = scipy.sparse.kron(xib, Iel)
 
             X =  eigvec[:,0].T.conj().dot(xi.dot(eigvec[:,0]))
-            print("i, X = {}, {}".format(isite, X))
+            Nb =  eigvec[:,0].T.conj().dot(ni.dot(eigvec[:,0]))
+            print("i, X, nph = {}, {}, {}".format(isite, X, Nb))
+            # print("Eb = {}".format(Nb * system.w0 * 4.))
+
+        for isite in range(system.nbasis):
+            rhoi = scipy.sparse.csr_matrix((ndets, ndets))
+            for i, di in enumerate(dets):
+                for d in di:
+                    ii, spin_ii = map_orb(d, system.nbasis)
+                    if (ii == isite):
+                        rhoi[i,i] += 1.0
+            
+            bi = scipy.sparse.csr_matrix((nperms, nperms))
+            for i, iperm in enumerate(perms):
+                ni = numpy.sum(iperm)
+                offset_i = numpy.sum(blkboson[:ni+1]) # block size sum
+                if (ni == nboson_max):
+                    continue
+
+                for j, jperm in enumerate(perms[offset_i:offset_i+blkboson[ni+1]]):
+                    diff = numpy.array(iperm) - numpy.array(jperm)
+                    ndiff = numpy.sum(numpy.abs(diff))
+                    if (ndiff == 1 and diff[isite] == -1):
+                        factor = math.sqrt(numpy.array(iperm)[isite]+1)
+                        bi[i,j+offset_i] = 1.0 * factor
+
+            xi = (bi + bi.T)/numpy.sqrt(2.0 * system.m * system.w0)
+
+            srhoi = scipy.sparse.csr_matrix(rhoi)
+            sxi = scipy.sparse.csr_matrix(xi)
+
+            Xrhoi = scipy.sparse.kron(sxi, srhoi)
+
+            rhoi_tot = scipy.sparse.kron(Ib, srhoi)
+            Xi_tot = scipy.sparse.kron(sxi, Iel)
+
+            Xrhorho = Xi_tot.dot(rhoi_tot).dot(rhoi_tot)
+
+            avg_Xrhoi =  eigvec[:,0].T.conj().dot(Xrhoi.dot(eigvec[:,0]))
+            avg_rhoirhoi =  eigvec[:,0].T.conj().dot(rhoi_tot.dot(rhoi_tot).dot(eigvec[:,0]))
+            avg_Xrhorho =  eigvec[:,0].T.conj().dot(Xrhorho.dot(eigvec[:,0]))
+            print("i, <X*rho>, <rho*rho>, <X*rho*rho> = {}, {}, {}, {}".format(isite, avg_Xrhoi, avg_rhoirhoi, avg_Xrhorho))
 
         print("# Eel, Eb, Eeb, Etot = {}, {}, {}, {}".format(Eel, Eb, Eeb, Eel+Eb+Eeb))
 
+    print("# eigval = {}".format(eigval))
     if gen_dets:
         return (eigval, eigvec), (dets,numpy.array(oa),numpy.array(ob))
     elif hamil:

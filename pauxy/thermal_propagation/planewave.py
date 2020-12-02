@@ -46,6 +46,10 @@ class PlaneWave(object):
         # Constant core contribution modified by mean field shift.
         mf_core = system.ecore
 
+        if system.mu == None: # if this is not set
+            print("# Setting system.mu = trial.mu")
+            system.mu = trial.mu
+
         self.construct_one_body_propagator(system, qmc.dt)
 
         self.BT = trial.dmat

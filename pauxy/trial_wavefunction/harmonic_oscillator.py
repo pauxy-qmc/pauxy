@@ -31,6 +31,19 @@ class HarmonicOscillator(object):
         lap = self.m * self.m * self.w * self.w * (X-self.xavg) * (X-self.xavg) - self.w * self.m
         return lap
 #-------------------------
+    def hessian(self,X): # hessian / value
+        grad = self.gradient(X)
+        H = numpy.einsum("i,j->ij",grad,grad) - self.w * self.m * numpy.eye(X.shape[0]) # extra term for the diagonal
+        return H
+#-------------------------
+#   note that this is not a symmetric matrix
+#   di dj dj
+    def grad_laplacian(self,X): # (gradient of laplacian)/ value
+        grad = self.gradient(X)
+        lap = self.laplacian(X)
+        gl = numpy.einsum("i,j->ij",grad,lap) - 2.0 * self.w * self.m * numpy.diag(grad) # extra term for the diagonal
+        return gl
+#-------------------------
     def local_energy(self, X):
 
         nsites = X.shape[0]

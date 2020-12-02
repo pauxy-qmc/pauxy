@@ -534,6 +534,131 @@ class CoherentState(object):
         if verbose:
             print ("# Finished initialising Coherent State trial wavefunction.")
 
+    def calc_otrial(self, walker):
+        """Caculate overlap with walker wavefunction using inverse overlap.
+
+        Parameters
+        ----------
+        walkre : object
+            Walker wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        sign_a, logdet_a = numpy.linalg.slogdet(walker.inv_ovlp[0])
+        nbeta = walker.ndown
+        sign_b, logdet_b = 1.0, 0.0
+        if nbeta > 0:
+            sign_b, logdet_b = numpy.linalg.slogdet(walker.inv_ovlp[1])
+        det = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
+
+        ot = 1.0/det
+
+        # if (walker.phi_boson is not None):
+        boson_trial = HarmonicOscillator(m=self.m, w=self.w0, order=0, shift = self.shift)
+        walker.phi_boson = boson_trial.value(walker.X)
+        ot *= walker.phi_boson
+
+        return ot
+
+    def inverse_overlap(self, walker):
+        """Compute inverse overlap matrix from scratch.
+
+        Parameters
+        ----------
+        walker : :class:`numpy.ndarray`
+            walker wavefunction.
+        """
+        nup = walker.nup
+        ndown = walker.ndown
+
+        walker.inv_ovlp[0] = (
+            scipy.linalg.inv((self.psi[:,:nup].conj()).T.dot(walker.phi[:,:nup]))
+        )
+
+        walker.inv_ovlp[1] = numpy.zeros(walker.inv_ovlp[0].shape)
+        if (ndown>0):
+            walker.inv_ovlp[1] = (
+                scipy.linalg.inv((self.psi[:,nup:].conj()).T.dot(walker.phi[:,nup:]))
+            )
+    
+    def calc_overlap(self, walker):
+        """Caculate overlap with walker wavefunction from scratch.
+
+        Parameters
+        ----------
+        walker : object
+            Trial wavefunction object.
+
+        Returns
+        -------
+        ot : float / complex
+            Overlap.
+        """
+        na = walker.nup
+        Oalpha = numpy.dot(self.psi[:,:na].conj().T, walker.phi[:,:na])
+        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+        nb = walker.ndown
+        logdet_b, sign_b = 0.0, 1.0
+        if nb > 0:
+            Obeta = numpy.dot(self.psi[:,na:].conj().T, walker.phi[:,na:])
+            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
+        
+        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
+
+        if (walker.phi_boson is not None):
+            boson_trial = HarmonicOscillator(m=self.m, w=self.w0, order=0, shift = self.shift)
+            walker.phi_boson = boson_trial.value(walker.X)
+            ot *= walker.phi_boson
+
+        return ot
+    
+    def greens_function(self, walker):
+        """Compute walker's green's function.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
+        """
+        nup = walker.nup
+        ndown = walker.ndown
+
+        ovlp = numpy.dot(walker.phi[:,:nup].T, self.psi[:,:nup].conj())
+        walker.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
+        walker.G[0] = numpy.dot(self.psi[:,:nup].conj(), walker.Gmod[0])
+        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+        sign_b, log_ovlp_b = 1.0, 0.0
+        if ndown > 0:
+            ovlp = numpy.dot(walker.phi[:,nup:].T, self.psi[:,nup:].conj())
+            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+            walker.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
+            walker.G[1] = numpy.dot(self.psi[:,nup:].conj(), walker.Gmod[1])
+        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
+        return det
+
+    def fb_greens_function(self, walker):
+        """Compute walker's green's function for the force-bias evaluation.
+
+        Parameters
+        ----------
+        trial : object
+            Trial wavefunction object.
+        Returns
+        -------
+        det : float64 / complex128
+            Determinant of overlap matrix.
+        """
+        self.greens_function(walker)
+
+        return walker.G
+
     def value(self, walker): # value
         if (self.symmetrize):
             phi = 0.0
@@ -961,3 +1086,13 @@ class CoherentState(object):
         self.energy = complex(self.energy)
         self.e1b = complex(self.e1b)
         self.e2b = complex(self.e2b)
+
+
+    def local_energy(self, system, walker):
+
+        lap = self.laplacian(walker) # compute walker's laplacian
+        self.greens_function(walker) # compute walker's greens function
+
+        etot, eel, everythingelse = local_energy_hubbard_holstein(system, walker.G, walker.X, lap)
+
+        return (etot, eel, everythingelse)

@@ -209,11 +209,18 @@ class Mixed(object):
                         self.estimates[self.names.edenom] += w.weight
                 else:
                     if step % self.energy_eval_freq == 0:
-                        w.greens_function(trial)
-                        if self.eval_energy:
-                            E, T, V = w.local_energy(system, rchol=trial._rchol, eri=trial._eri, UVT=trial._UVT)
+                        if (system.name == "HubbardHolstein"):
+                            # trial.greens_function(w) # greens function and other necessary bits should be recomputed inside trial.local_energy
+                            if self.eval_energy:
+                                E, T, V = trial.local_energy(system, w) # should take hamiltonian instead of system as an argument in the future
+                            else:
+                                E, T, V = 0, 0, 0
                         else:
-                            E, T, V = 0, 0, 0
+                            w.greens_function(trial)
+                            if self.eval_energy:
+                                E, T, V = w.local_energy(system, rchol=trial._rchol, eri=trial._eri, UVT=trial._UVT)
+                            else:
+                                E, T, V = 0, 0, 0
                         self.estimates[self.names.enumer] += w.weight*w.le_oratio*E.real
                         self.estimates[self.names.e1b:self.names.e2b+1] += (
                                 w.weight*w.le_oratio*numpy.array([T,V]).real

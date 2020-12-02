@@ -32,7 +32,6 @@ class HirschDMC(object):
     """
 
     def __init__(self, system, trial, qmc, options={}, verbose=False):
-
         if verbose:
             print("# Parsing discrete propagator input options.")
             print("# Using discrete Hubbard--Stratonovich transformation.")
@@ -62,7 +61,7 @@ class HirschDMC(object):
 
         Ueff = system.U
 
-        self.lang_firsov = inputs.get('lang_firsov', False)
+        self.lang_firsov = options.get('lang_firsov', False)
         self.gamma_lf = 0.0
         if (self.lang_firsov):
             self.gamma_lf = system.gamma_lf
@@ -71,22 +70,23 @@ class HirschDMC(object):
         if verbose:
             print("# Ueff = {}".format(Ueff))
 
+        single_site = options.get('single_site_update', True)
+        if single_site:
+            if verbose:
+                print("# Using classic single-site update.")
+            self.two_body = self.two_body_single_site
+        else:
+            if verbose:
+                print("# Using dynamic force bias update.")
+            self.two_body = self.two_body_direct
+
         self.sorella = options.get('sorella', False)
-        self.charge = options.get('charge', False)
+        self.charge_decomp = options.get('charge_decomposition', False)
 
         if (self.sorella == True):
-            self.charge = True
-
-        if (not self.charge):
-            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
-            if verbose:
-                print("# Spin decomposition is used")
-            # field by spin
-            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
-                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
-            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+            self.charge_decomp = True
         
-        else:
+        if (self.charge_decomp):
             if verbose:
                 print("# Charge decomposition is used")
             
@@ -95,18 +95,30 @@ class HirschDMC(object):
             if (self.sorella):
                 if verbose:
                     print("# Sorella decomposition is used")
-                self.charge_factor = numpy.array([numpy.exp(-0.5*self.gamma), numpy.exp(0.5*self.gamma)])
+                self.aux_wfac = numpy.array([numpy.exp(-0.5*self.gamma), numpy.exp(0.5*self.gamma)])
             else:
-                self.charge_factor = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
+                self.aux_wfac = numpy.array([numpy.exp(-self.gamma), numpy.exp(self.gamma)]) * numpy.exp(0.5*qmc.dt*Ueff)
 
             if verbose:
-                print("# charge_factor = {}".format(self.charge_factor))
+                print("# aux_wfac = {}".format(self.aux_wfac))
 
             # field by spin
             self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(self.gamma)],
                                     [numpy.exp(-self.gamma), numpy.exp(-self.gamma)]])
             if (not self.sorella):
                 self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+
+        else:
+
+            self.gamma = arccosh(numpy.exp(0.5*qmc.dt*Ueff))
+            if verbose:
+                print("# Spin decomposition is used")
+            # field by spin
+            self.auxf = numpy.array([[numpy.exp(self.gamma), numpy.exp(-self.gamma)],
+                                    [numpy.exp(-self.gamma), numpy.exp(self.gamma)]])
+            self.auxf = self.auxf * numpy.exp(-0.5*qmc.dt*Ueff)
+            self.aux_wfac = numpy.array([1.0, 1.0])
+
 
         self.hybrid = False
 
@@ -247,8 +259,67 @@ class HirschDMC(object):
             Number of up electrons.
         """
         walker.greens_function(trial)
+
+    def two_body_direct(self, walker, system, trial):
+        r"""Propagate by potential term using discrete HS transform.
+
+        Use dynamic force bias from: PHYSICAL REVIEW A 92, 033603 (2015)
+
+        Parameters
+        ----------
+        walker : :class:`pauxy.walker` object
+            Walker object to be updated. On output we have acted on phi by
+            B_V(x) and updated the weight appropriately. Updates inplace.
+        system : :class:`pauxy.system.System`
+            System object.
+        trial : :class:`pauxy.trial_wavefunctioin.Trial`
+            Trial wavefunction object.
+        """
+        nup = system.nup
+        # fields = numpy.random.randint(2, size=system.nbasis)
+        # walker.greens_function(trial)
+        
+        # Green's function specifically for force bias
+        G = trial.fb_greens_function(walker)
+        nia, nib = G[0].diagonal(), G[1].diagonal()
+        fields = []
+        fb_fac = 1.0
+        if self.charge_decomp:
+            fb_term = nia + nib - 1
+        else:
+            fb_term = nia - nib
+        for i in range(system.nbasis):
+            pp = 0.5*numpy.exp(self.gamma*fb_term[i]).real
+            pm = 0.5*numpy.exp(-self.gamma*fb_term[i]).real
+            norm = pp + pm
+            r = numpy.random.random()
+            if r < pp/norm:
+                fields.append(0)
+                fb_fac *= 0.5 * norm * numpy.exp(-self.gamma*fb_term[i]).real
+            else:
+                fields.append(1)
+                fb_fac *= 0.5 * norm * numpy.exp(self.gamma*fb_term[i]).real
+
+        BVa = numpy.diag([self.auxf[xi,0] for xi in fields])
+        BVb = numpy.diag([self.auxf[xi,1] for xi in fields])
+        walker.phi[:,:nup] = numpy.dot(BVa, walker.phi[:,:nup])
+        walker.phi[:,nup:] = numpy.dot(BVb, walker.phi[:,nup:])
+        # ovlp = walker.calc_overlap(trial)
+        ovlp = trial.calc_overlap(walker)
+        wfac = 1.0 + 0j
+        for xi in fields:
+            wfac *= self.aux_wfac[xi]
+        ratio = wfac * ovlp / walker.ot
+        phase = cmath.phase(ratio)
+        if abs(phase) < 0.5*math.pi:
+            walker.ot = ovlp
+            walker.ovlp = ovlp
+            walker.weight *= (fb_fac*ratio).real
+        else:
+            walker.weight = 0
+            return
     
-    def two_body(self, walker, system, trial):
+    def two_body_single_site(self, walker, system, trial):
         r"""Propagate by potential term using discrete HS transform.
 
         Parameters
@@ -269,8 +340,8 @@ class HirschDMC(object):
             self.update_greens_function(walker, trial, i, nup)
             # Ratio of determinants for the two choices of auxilliary fields
             probs = self.calculate_overlap_ratio(walker, delta, trial, i)
-            if (self.charge):
-                probs *= self.charge_factor
+            if (self.charge_decomp):
+                probs *= self.aux_wfac
 
             if (self.sorella):
                 const = -self.gamma * system.g * math.sqrt(2.0 * system.m * system.w0) / system. U * walker.X[i]
@@ -383,9 +454,11 @@ class HirschDMC(object):
             kinetic_real(walker.phi, system, TV, H1diag=False)
 
         # Update inverse overlap
-        walker.inverse_overlap(trial)
+        # walker.inverse_overlap(trial)
+        trial.inverse_overlap(walker) # now trial implements overlap business
         # Update walker weight
-        ot_new = walker.calc_otrial(trial)
+        # ot_new = walker.calc_otrial(trial)
+        ot_new = trial.calc_otrial(walker) # now trial implements overlap business
         
         ratio = (ot_new/walker.ot)
         phase = cmath.phase(ratio)
@@ -495,8 +568,8 @@ class HirschDMC(object):
                 vtdown = walker.phi[i,nup:] * delta[xi, 1]
                 walker.phi[i,:nup] = walker.phi[i,:nup] + vtup
                 walker.phi[i,nup:] = walker.phi[i,nup:] + vtdown
-                if (self.charge):
-                    walker.weight *= self.charge_factor[xi]
+                if (self.charge_decomp):
+                    walker.weight *= self.aux_wfac[xi]
         
         kinetic_real(walker.phi, system, Veph, H1diag=True)
 

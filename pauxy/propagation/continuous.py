@@ -192,12 +192,19 @@ class Continuous(object):
         # 3. Apply kinetic projector.
         kinetic_real(walker.phi, system, self.propagator.BH1)
         ovlp_new = walker.calc_overlap(trial)
+
         # Constant terms are included in the walker's weight.
         (magn, dtheta) = cmath.polar(cmath.exp(cmf+self.dt*eshift))
         walker.weight *= magn
         walker.phase *= cmath.exp(1j*dtheta)
         walker.ot = ovlp_new
         walker.ovlp = ovlp_new
+
+        # print(cmath.exp(1j*dtheta))
+        # if numpy.abs(walker.phase - walker.phase.real) > 1e-10:
+            # print("walker.phase = {}".format(walker.phase))
+        # print("ovlp_new = {}".format(ovlp_new))
+        print("ovlp = {}, {}".format(ovlp_new.real, ovlp_new.imag))
 
     def apply_bound_hybrid(self, ehyb, eshift):
         # For initial steps until first estimator communication eshift will be

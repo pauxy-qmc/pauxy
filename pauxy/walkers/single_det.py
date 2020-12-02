@@ -32,6 +32,7 @@ class SingleDetWalker(Walker):
         Walker.__init__(self, system, trial,
                         walker_opts=walker_opts, index=index,
                         nprop_tot=nprop_tot, nbp=nbp)
+
         self.inv_ovlp = [0.0, 0.0]
 
         self.phi_boson = None
@@ -60,12 +61,6 @@ class SingleDetWalker(Walker):
             self.Lap = tmptrial.laplacian(self.X)
             self.phi_boson = tmptrial.value(self.X)
 
-
-        self.inverse_overlap(trial)
-        self.ot = self.calc_overlap(trial)
-        self.le_oratio = 1.0
-        self.ovlp = self.ot
-
         self.G = numpy.zeros(shape=(2, system.nbasis, system.nbasis),
                              dtype=trial.psi.dtype)
         self.C0 = trial.psi.copy()
@@ -75,6 +70,16 @@ class SingleDetWalker(Walker):
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
         self.greens_function(trial)
+
+        self.inverse_overlap(trial)
+        
+        if system.name == "HubbardHolstein":
+            self.ot = trial.calc_overlap(self)
+        else:
+            self.ot = self.calc_overlap(trial)
+
+        self.le_oratio = 1.0
+        self.ovlp = self.ot
         
         if system.control_variate:
             self.ecoul0, self.exxa0, self.exxb0 = self.local_energy_2body(system, rchol=trial._rchol)
@@ -180,7 +185,7 @@ class SingleDetWalker(Walker):
         ot : float / complex
             Overlap.
         """
-        na = self.ndown
+        na = self.nup
         Oalpha = numpy.dot(trial.psi[:,:na].conj().T, self.phi[:,:na])
         sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
         nb = self.ndown
