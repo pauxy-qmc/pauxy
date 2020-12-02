@@ -278,7 +278,7 @@ class HirschDMC(object):
         nup = system.nup
         # fields = numpy.random.randint(2, size=system.nbasis)
         # walker.greens_function(trial)
-        
+
         # Green's function specifically for force bias
         G = trial.fb_greens_function(walker)
         nia, nib = G[0].diagonal(), G[1].diagonal()

@@ -678,11 +678,11 @@ class LangFirsov(object):
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
             term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0]) * elec_ot\
-            - numpy.sum(tdphi*rho) * walker.G[0] * elec_ot * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot * elec_ot
+            - numpy.sum(tdphi*rho) * walker.G[0] * elec_ot\
+            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot
             term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1]) * elec_ot\
-            - numpy.sum(tdphi*rho) * walker.G[1] * elec_ot * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot * elec_ot
+            - numpy.sum(tdphi*rho) * walker.G[1] * elec_ot\
+            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot
 
             term2_a *= phi
             term2_b *= phi
@@ -744,18 +744,17 @@ class LangFirsov(object):
 
         # e_eph here...
         rho = walker.G[0].diagonal() + walker.G[1].diagonal()
-        e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
-
         kdelta = numpy.eye(system.nbasis)
         nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1]) * elec_ot\
-             + numpy.einsum("i,k->ki", rho,rho) * elec_ot * elec_ot\
-             - walker.G[0] * walker.G[0].T * elec_ot * elec_ot\
-             - walker.G[1] * walker.G[1].T * elec_ot * elec_ot
+             + numpy.einsum("i,k->ki", rho,rho)  * elec_ot\
+             - walker.G[0] * walker.G[0].T  * elec_ot\
+             - walker.G[1] * walker.G[1].T  * elec_ot
         
-        e_eph_term2 = +system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi\
-                      +system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("i,ii->",self.tis,nkni) * phi
+        e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
+        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi
+        e_eph_term3 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("i,ii->",self.tis,nkni) * phi
 
-        e_eph = (e_eph_term1+ e_eph_term2) / denom
+        e_eph = (e_eph_term1+ e_eph_term2 + e_eph_term3) / denom
 
         # phonon energy here
         # ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
