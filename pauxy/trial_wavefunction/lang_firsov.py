@@ -693,8 +693,25 @@ class LangFirsov(object):
 
     def bosonic_local_energy(self, walker):
 
+        self.greens_function(walker) # update walker's electronic Green's function
+        denom = self.value(walker)
+
         ke   = - 0.5 * numpy.sum(self.laplacian(walker)) / self.m
-        pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
+        
+
+        # pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
+
+        phi = boson_trial.value(walker.X)
+        dphi = boson_trial.gradient(walker.X)
+        elec_ot = self.calc_elec_overlap(walker)
+        rho = walker.G[0].diagonal() + walker.G[1].diagonal()
+
+        pot_term1 = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * elec_ot * phi
+        pot_term2 = -0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * numpy.sum(rho*self.tis*dphi) * elec_ot * phi
+        pot_term3 = -self.m * self.w0 * self.w0 * numpy.sum(walker.X * rho * self.tis) * elec_ot * phi
+
+        pot = (pot_term1 + pot_term2 + pot_term3)/denom
+
         eloc = ke+pot - 0.5 * self.w0 * self.nbasis # No zero-point energy
 
         return eloc
@@ -733,7 +750,8 @@ class LangFirsov(object):
              - walker.G[0] * walker.G[0].T * elec_ot * elec_ot\
              - walker.G[1] * walker.G[1].T * elec_ot * elec_ot
         
-        e_eph_term2 = +system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi
+        e_eph_term2 = +system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi\
+                      +system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.sum("i,ii->",self.tis,nkni) * phi
 
         e_eph = (e_eph_term1+ e_eph_term2) / denom
 
