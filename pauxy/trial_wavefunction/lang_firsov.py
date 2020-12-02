@@ -676,10 +676,10 @@ class LangFirsov(object):
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
             term2_a = numpy.einsum("i,ij->ij",tdphi, walker.G[0]) * elec_ot\
-            numpy.sum(tdphi*rho) * walker.G[0] * elec_ot * elec_ot\
+            + numpy.sum(tdphi*rho) * walker.G[0] * elec_ot * elec_ot\
             - numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot * elec_ot
             term2_b = numpy.einsum("i,ij->ij",tdphi, walker.G[1]) * elec_ot\
-            numpy.sum(tdphi*rho) * walker.G[1] * elec_ot * elec_ot\
+            + numpy.sum(tdphi*rho) * walker.G[1] * elec_ot * elec_ot\
             - numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot * elec_ot
 
             term2_a *= phi
