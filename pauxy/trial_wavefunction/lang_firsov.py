@@ -191,7 +191,7 @@ class LangFirsov(object):
         if verbose:
             print("# random guess = {}".format(self.random_guess))
 
-        self.dry_run = options.get('dry_run',True)
+        self.dry_run = options.get('dry_run',False)
         if verbose:
             print("# dry_run = {}".format(self.dry_run))
             if (self.dry_run):
@@ -695,29 +695,43 @@ class LangFirsov(object):
 
 
     def local_energy(self, system, walker):
+        
+        assert (self.linearize)
 
+        boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
+        phi = boson_trial.value(walker.X)
+        dphi = boson_trial.gradient(walker.X) * phi
+        elec_ot = self.calc_elec_overlap(walker)
+
+        denom = self.value(walker)
         lap = self.laplacian(walker) # compute walker's laplacian
+        self.greens_function(walker) # update walker's electronic Green's function
         G = self.fb_greens_function(walker) # compute the true walker's one-body greens function (not just electronic)
 
         ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])
 
-        if system.symmetric: # super dumb thing that I never understood
-            pe = -0.5*system.U*(G[0].trace() + G[1].trace())
-
         # two-body needs to be coded up!
+        # if system.symmetric: # super dumb thing that I never understood
+        #     pe = -0.5*system.U*(G[0].trace() + G[1].trace())
         # pe = system.U * numpy.dot(G[0].diagonal(), G[1].diagonal()) 
         pe = 0.0
         assert(numpy.abs(system.U) < 1e-8)
 
-        
-        pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(walker.X * walker.X)
+        # e_eph here...
+        rho = walker.G[0].diagonal() + walker.G[1].diagonal()
+        e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
 
+        kdelta = numpy.eye(system.nbasis)
+        nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1]) + numpy.einsum("i,k->ki", rho,rho) - walker.G[0] * walker.G[0].T - walker.G[1] * walker.G[1].T
+        
+        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpu.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot
+
+        e_eph = (e_eph_term1+ e_eph_term2) / denom
+
+        # phonon energy here
         ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
+        pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(walker.X * walker.X)
         
-        rho = G[0].diagonal() + G[1].diagonal()
-        e_eph = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X)
-
-
         etot = ke + pe + pe_ph + ke_ph + e_eph
 
         Eph = ke_ph + pe_ph
@@ -725,4 +739,6 @@ class LangFirsov(object):
         Eeb = e_eph
 
         return (etot, ke+pe, ke_ph+pe_ph+e_eph)
+
+
 
