@@ -761,15 +761,11 @@ class LangFirsov(object):
         # ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
         # pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(walker.X * walker.X)
 
-        eph = self.bosonic_local_energy(walker)
+        e_ph = self.bosonic_local_energy(walker)
         
-        etot = ke + pe + pe_ph + eph
+        etot = ke + pe + e_ph + e_eph
 
-        Eph = ke_ph + pe_ph
-        Eel = ke + pe
-        Eeb = e_eph
-
-        return (etot, ke+pe, eph+e_eph)
+        return (etot, ke+pe, e_ph+e_eph)
 
 
 
