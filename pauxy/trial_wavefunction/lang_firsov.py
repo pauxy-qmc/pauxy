@@ -724,7 +724,7 @@ class LangFirsov(object):
         kdelta = numpy.eye(system.nbasis)
         nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1]) + numpy.einsum("i,k->ki", rho,rho) - walker.G[0] * walker.G[0].T - walker.G[1] * walker.G[1].T
         
-        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpu.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot
+        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot
 
         e_eph = (e_eph_term1+ e_eph_term2) / denom
 
