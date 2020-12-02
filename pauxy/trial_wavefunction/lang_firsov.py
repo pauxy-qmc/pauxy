@@ -505,7 +505,7 @@ class LangFirsov(object):
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
             term1 = phi * elec_ot
-            term2 = - numpy.sum(self.tis * rho * dphi) * phi * elec_ot
+            term2 = numpy.sum(self.tis * rho * dphi) * phi * elec_ot
 
             overlap = term1 + term2 
 
@@ -529,7 +529,7 @@ class LangFirsov(object):
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
             term1 = dphi * elec_ot * phi
-            term2 = -numpy.einsum("i,ik->k",self.tis*rho,ddphi) * elec_ot * phi
+            term2 = numpy.einsum("i,ik->k",self.tis*rho,ddphi) * elec_ot * phi
             grad = (term1+term2) / denom
 
         return grad
@@ -552,7 +552,7 @@ class LangFirsov(object):
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
             term1 = d2phi * elec_ot * phi
-            term2 = -numpy.einsum("i,ik->k", self.tis*rho, dd2phi) * elec_ot * phi
+            term2 = numpy.einsum("i,ik->k", self.tis*rho, dd2phi) * elec_ot * phi
 
             lap = (term1+term2) / denom
 
@@ -675,10 +675,12 @@ class LangFirsov(object):
             # note that here we don't multiply it by elec_ot
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
-            term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0]) * elec_ot - numpy.sum(tdphi*rho) * walker.G[0] * elec_ot * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot * elec_ot
-            term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1]) * elec_ot - numpy.sum(tdphi*rho) * walker.G[1] * elec_ot * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot * elec_ot
+            term2_a = numpy.einsum("i,ij->ij",tdphi, walker.G[0]) * elec_ot\
+            numpy.sum(tdphi*rho) * walker.G[0] * elec_ot * elec_ot\
+            - numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot * elec_ot
+            term2_b = numpy.einsum("i,ij->ij",tdphi, walker.G[1]) * elec_ot\
+            numpy.sum(tdphi*rho) * walker.G[1] * elec_ot * elec_ot\
+            - numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot * elec_ot
 
             term2_a *= phi
             term2_b *= phi
@@ -728,9 +730,10 @@ class LangFirsov(object):
         kdelta = numpy.eye(system.nbasis)
         nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1]) * elec_ot\
              + numpy.einsum("i,k->ki", rho,rho) * elec_ot * elec_ot\
-             - walker.G[0] * walker.G[0].T * elec_ot * elec_ot - walker.G[1] * walker.G[1].T * elec_ot * elec_ot
+             - walker.G[0] * walker.G[0].T * elec_ot * elec_ot\
+             - walker.G[1] * walker.G[1].T * elec_ot * elec_ot
         
-        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi
+        e_eph_term2 = -system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi
 
         e_eph = (e_eph_term1+ e_eph_term2) / denom
 
