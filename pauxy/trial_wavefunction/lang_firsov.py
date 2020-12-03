@@ -225,6 +225,8 @@ class LangFirsov(object):
             self.psi = f["psi"][()]
             self.tis = f["tis"][()] # Lang-Firsov amplitudes
             f.close()
+            self.beta = self.shift * numpy.sqrt(system.m * system.w0 /2.0)
+            self.boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
 
             if (len(self.psi.shape) == 3):
                 if verbose:
@@ -285,14 +287,15 @@ class LangFirsov(object):
                 self.run_variational(system, verbose)
                 print("# Variational Lang-Firsov state energy = {}".format(self.energy))
 
-            print("# Optimized shift = {}".format(self.shift[0:5]))
-            print("# Optimized amplitudes = {}".format(self.tis[0:5]))
-
-            self.boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
-
             ovlp_a = numpy.linalg.det(overlap(trial.psi[:,:nocca],self.psi[:,:nocca]))
             ovlp_b = numpy.linalg.det(overlap(trial.psi[:,nocca:],self.psi[:,nocca:]))
             print("# Overlap with coherent state = {}".format(ovlp_a*ovlp_b))
+
+
+        print("# Optimized shift = {}".format(self.shift[0:5]))
+        print("# Optimized amplitudes = {}".format(self.tis[0:5]))
+
+        self.boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
 
         self.calculate_energy(system)
         print("# Lang-Firsov trial state energy = {}".format(self.energy))
@@ -695,24 +698,18 @@ class LangFirsov(object):
 
     def bosonic_local_energy(self, walker):
 
-        self.greens_function(walker) # update walker's electronic Green's function
-        denom = self.value(walker)
-
         ke   = - 0.5 * numpy.sum(self.laplacian(walker)) / self.m
-        
+        pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
 
-        # pot  = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X)
-
-        phi = self.boson_trial.value(walker.X)
-        dphi = self.boson_trial.gradient(walker.X)
-        elec_ot = self.calc_elec_overlap(walker)
-        rho = walker.G[0].diagonal() + walker.G[1].diagonal()
-
-        pot_term1 = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * elec_ot * phi
-        pot_term2 = -0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * numpy.sum(rho*self.tis*dphi) * elec_ot * phi
-        pot_term3 = -self.m * self.w0 * self.w0 * numpy.sum(walker.X * rho * self.tis) * elec_ot * phi
-
-        pot = (pot_term1 + pot_term2 + pot_term3)/denom
+        # self.greens_function(walker) # update walker's electronic Green's function
+        # denom = self.value(walker)
+        # phi = self.boson_trial.value(walker.X)
+        # dphi = self.boson_trial.gradient(walker.X)
+        # elec_ot = self.calc_elec_overlap(walker)
+        # rho = walker.G[0].diagonal() + walker.G[1].diagonal()
+        # pot_term1 = 0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * elec_ot * phi
+        # pot_term2 = -0.5 * self.m * self.w0 * self.w0 * numpy.sum(walker.X * walker.X) * numpy.sum(rho*self.tis*dphi) * elec_ot * phi
+        # pot = (pot_term1 + pot_term2)/denom
 
         eloc = ke+pot - 0.5 * self.w0 * self.nbasis # No zero-point energy
 
@@ -745,16 +742,14 @@ class LangFirsov(object):
         # e_eph here...
         rho = walker.G[0].diagonal() + walker.G[1].diagonal()
         kdelta = numpy.eye(system.nbasis)
-        nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1]) * elec_ot\
-             + numpy.einsum("i,k->ki", rho,rho)  * elec_ot\
-             - walker.G[0] * walker.G[0].T  * elec_ot\
-             - walker.G[1] * walker.G[1].T  * elec_ot
+        nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1])\
+             + numpy.einsum("i,k->ki", rho,rho) \
+             - walker.G[0] * walker.G[0].T - walker.G[1] * walker.G[1].T 
         
         e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
-        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * phi
-        e_eph_term3 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("i,ii->",self.tis,nkni) * phi
+        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot * phi
 
-        e_eph = (e_eph_term1+ e_eph_term2 + e_eph_term3) / denom
+        e_eph = (e_eph_term1+ e_eph_term2) / denom
 
         # phonon energy here
         # ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
