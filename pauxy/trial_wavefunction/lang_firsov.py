@@ -188,6 +188,7 @@ class LangFirsov(object):
         self.symmetrize = options.get('symmetrize',False)
 
         self.linearize = options.get('linearize',True)
+        self.linearize2 = options.get('linearize2',False)
         if verbose:
             print("# random guess = {}".format(self.random_guess))
 
@@ -199,11 +200,16 @@ class LangFirsov(object):
 
         if (self.linearize):
             print("# Linearize Lang-Firsov State for the evaluation of local energy and overlap")
+            self.linearize2 = False
+        elif (self.linearize2):
+            print("# Second linearization implementation to do bdagger instead of bdagger-b")
+            self.linearize = False
         else:
             print("# exact application of Lang-Firsov AFQMC is unsupported")
             exit()
 
         print("# Linearize Lang-Firsov State = {}".format(self.linearize))
+        print("# Linearize2 Lang-Firsov State = {}".format(self.linearize2))
         print("# Symmetrize Lang-Firsov State = {}".format(self.symmetrize))
 
         if (self.symmetrize):
@@ -513,6 +519,21 @@ class LangFirsov(object):
             term2 = -numpy.sum(self.tis * rho * dphi) * phi * elec_ot
 
             overlap = term1 + term2 
+        elif(self.linearize2):
+
+            phi = self.boson_trial.value(walker.X)
+            dphi = self.boson_trial.gradient(walker.X)
+
+            elec_ot = self.calc_elec_overlap(walker)
+
+            self.greens_function(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
+
+            term1 = phi * elec_ot
+            term2 = -numpy.sum(self.tis * rho * dphi) * phi * elec_ot
+            term3 = numpy.sum(self.tis*self.beta*rho) * elec_ot * phi / numpy.sqrt(2.0)
+
+            overlap = term1 + term2 + term3
 
         return overlap
 
@@ -536,6 +557,24 @@ class LangFirsov(object):
             term1 = dphi * elec_ot * phi
             term2 = -numpy.einsum("i,ik->k",self.tis*rho,ddphi) * elec_ot * phi
             grad = (term1+term2) / denom
+        elif(self.linearize2):
+            phi = self.boson_trial.value(walker.X)
+            dphi = self.boson_trial.gradient(walker.X)
+            ddphi = self.boson_trial.hessian(walker.X) # hessian
+
+            grad = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
+            
+            denom = self.value(walker)
+            
+            elec_ot = self.calc_elec_overlap(walker)
+
+            self.greens_function(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
+
+            term1 = dphi * elec_ot * phi
+            term2 = -numpy.einsum("i,ik->k",self.tis*rho,ddphi) * elec_ot * phi
+            term3 = dphi * numpy.sum(self.tis*self.beta*rho) * elec_ot * phi / numpy.sqrt(2.0)
+            grad = (term1+term2+term3) / denom
 
         return grad
 
@@ -560,6 +599,25 @@ class LangFirsov(object):
             term2 = -numpy.einsum("i,ik->k", self.tis*rho, dd2phi) * elec_ot * phi
 
             lap = (term1+term2) / denom
+        elif(self.linearize2):
+            phi = self.boson_trial.value(walker.X)
+            d2phi = self.boson_trial.laplacian(walker.X)
+            dd2phi = self.boson_trial.grad_laplacian(walker.X)
+
+            lap = numpy.zeros(self.nbasis, dtype=walker.phi.dtype)
+            
+            denom = self.value(walker)
+            
+            elec_ot = self.calc_elec_overlap(walker)
+            
+            self.greens_function(walker)
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
+
+            term1 = d2phi * elec_ot * phi
+            term2 = -numpy.einsum("i,ik->k", self.tis*rho, dd2phi) * elec_ot * phi
+            term3 = d2phi * numpy.sum(self.tis*self.beta*rho) * elec_ot * phi / numpy.sqrt(2.0)
+
+            lap = (term1+term2+term3) / denom
 
         return lap
 
@@ -680,19 +738,46 @@ class LangFirsov(object):
             # note that here we don't multiply it by elec_ot
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
-            term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0]) * elec_ot\
-            - numpy.sum(tdphi*rho) * walker.G[0] * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True) * elec_ot
-            term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1]) * elec_ot\
-            - numpy.sum(tdphi*rho) * walker.G[1] * elec_ot\
-            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True) * elec_ot
+            term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0])\
+            - numpy.sum(tdphi*rho) * walker.G[0]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True)
+            term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1])\
+            - numpy.sum(tdphi*rho) * walker.G[1]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True)
 
-            term2_a *= phi
-            term2_b *= phi
+            term2_a *= phi * elec_ot
+            term2_b *= phi * elec_ot
 
             denom = self.value(walker)
 
             G = [(term1[0]+term2_a)/denom, (term1[1]+term2_b)/denom]
+        elif (self.linearize):
+            
+            phi = self.boson_trial.value(walker.X)
+            dphi = self.boson_trial.gradient(walker.X)
+
+            elec_ot = self.calc_elec_overlap(walker)
+            term1 = [walker.G[0] * elec_ot * phi, walker.G[1] * elec_ot * phi]
+
+            tdphi = self.tis*dphi + self.tis*self.beta/numpy.sqrt(2.0)
+            
+            # note that here we don't multiply it by elec_ot
+            rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
+
+            term2_a = -numpy.einsum("i,ij->ij",tdphi, walker.G[0])\
+            - numpy.sum(tdphi*rho) * walker.G[0]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[0], tdphi, walker.G[0], optimize=True)
+            term2_b = -numpy.einsum("i,ij->ij",tdphi, walker.G[1])\
+            - numpy.sum(tdphi*rho) * walker.G[1]\
+            + numpy.einsum("ik,k,kj->ij",walker.G[1], tdphi, walker.G[1], optimize=True)
+
+            term2_a *= phi * elec_ot
+            term2_b *= phi * elec_ot
+
+            denom = self.value(walker)
+
+            G = [(term1[0]+term2_a)/denom, (term1[1]+term2_b)/denom]
+
         return G
 
 
@@ -740,21 +825,21 @@ class LangFirsov(object):
         assert(numpy.abs(system.U) < 1e-8)
 
         # e_eph here...
-        rho = walker.G[0].diagonal() + walker.G[1].diagonal()
-        kdelta = numpy.eye(system.nbasis)
-        nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1])\
-             + numpy.einsum("i,k->ki", rho,rho) \
-             - walker.G[0] * walker.G[0].T - walker.G[1] * walker.G[1].T 
+        # rho = walker.G[0].diagonal() + walker.G[1].diagonal()
+        # kdelta = numpy.eye(system.nbasis)
+        # nkni = numpy.einsum("ki,ki->ki", kdelta, walker.G[0]+walker.G[1])\
+        #      + numpy.einsum("i,k->ki", rho,rho) \
+        #      - walker.G[0] * walker.G[0].T - walker.G[1] * walker.G[1].T 
         
-        e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
-        e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot * phi
+        # e_eph_term1 = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X) * elec_ot * phi
+        # e_eph_term2 = system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.einsum("k,ki,i->", self.tis*dphi, nkni, walker.X, optimize=True) * elec_ot * phi
 
-        e_eph = (e_eph_term1+ e_eph_term2) / denom
+        # e_eph = (e_eph_term1+ e_eph_term2) / denom
+
+        rho = G[0].diagonal() + G[1].diagonal()
+        e_eph = - system.g * numpy.sqrt(system.m * system.w0 * 2.0) * numpy.dot(rho, walker.X)
 
         # phonon energy here
-        # ke_ph = -0.5 * numpy.sum(lap) / system.m - 0.5 * system.w0 * system.nbasis
-        # pe_ph = 0.5 * system.w0 ** 2 * system.m * numpy.sum(walker.X * walker.X)
-
         e_ph = self.bosonic_local_energy(walker)
         
         etot = ke + pe + e_ph + e_eph
