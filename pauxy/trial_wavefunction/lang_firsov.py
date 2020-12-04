@@ -751,7 +751,7 @@ class LangFirsov(object):
             denom = self.value(walker)
 
             G = [(term1[0]+term2_a)/denom, (term1[1]+term2_b)/denom]
-        elif (self.linearize):
+        elif (self.linearize2):
             
             phi = self.boson_trial.value(walker.X)
             dphi = self.boson_trial.gradient(walker.X)
