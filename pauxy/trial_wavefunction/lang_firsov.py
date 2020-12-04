@@ -803,7 +803,7 @@ class LangFirsov(object):
 
     def local_energy(self, system, walker):
         
-        assert (self.linearize)
+        assert (self.linearize or self.linearize2)
 
         # boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
         phi = self.boson_trial.value(walker.X)
