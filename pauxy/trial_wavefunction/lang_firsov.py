@@ -759,7 +759,7 @@ class LangFirsov(object):
             elec_ot = self.calc_elec_overlap(walker)
             term1 = [walker.G[0] * elec_ot * phi, walker.G[1] * elec_ot * phi]
 
-            tdphi = self.tis*dphi + self.tis*self.beta/numpy.sqrt(2.0)
+            tdphi = self.tis*dphi - self.tis*self.beta/numpy.sqrt(2.0)
             
             # note that here we don't multiply it by elec_ot
             rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
