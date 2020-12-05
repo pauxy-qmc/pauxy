@@ -476,7 +476,7 @@ class LangFirsov(object):
                                            self.psi[:, system.nup:]).T
         self.G = numpy.array([gup, gdown])
 
-    def calc_elec_overlap(self, walker):
+    def calc_elec_overlap(self, walker, index = None):
         """Caculate overlap with walker wavefunction (electronic only).
 
         Parameters
@@ -490,15 +490,26 @@ class LangFirsov(object):
             Overlap.
         """
         na = walker.nup
-        Oalpha = numpy.dot(self.psi[:,:na].conj().T, walker.phi[:,:na])
-        sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
-        nb = walker.ndown
-        logdet_b, sign_b = 0.0, 1.0
-        if nb > 0:
-            Obeta = numpy.dot(self.psi[:,na:].conj().T, walker.phi[:,na:])
-            sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
-        
-        ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
+        if (index == None):
+            Oalpha = numpy.dot(self.psi[:,:na].conj().T, walker.phi[:,:na])
+            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            nb = walker.ndown
+            logdet_b, sign_b = 0.0, 1.0
+            if nb > 0:
+                Obeta = numpy.dot(self.psi[:,na:].conj().T, walker.phi[:,na:])
+                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
+            
+            ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
+        else:
+            Oalpha = numpy.dot(self.psi[index,:,:na].conj().T, walker.phi[:,:na])
+            sign_a, logdet_a = numpy.linalg.slogdet(Oalpha)
+            nb = walker.ndown
+            logdet_b, sign_b = 0.0, 1.0
+            if nb > 0:
+                Obeta = numpy.dot(self.psi[index,:,na:].conj().T, walker.phi[:,na:])
+                sign_b, logdet_b = numpy.linalg.slogdet(Obeta)
+            
+            ot = sign_a*sign_b*numpy.exp(logdet_a+logdet_b-walker.log_shift)
 
         return ot
 
@@ -527,9 +538,9 @@ class LangFirsov(object):
                     phi = boson_trial.value(walker.X)
                     dphi = boson_trial.gradient(walker.X)
 
-                    elec_ot = self.calc_elec_overlap(walker)
+                    elec_ot = self.calc_elec_overlap(walker, iperm)
 
-                    self.greens_function(walker)
+                    self.greens_function(walker, iperm)
                     rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
                     term1 = phi * elec_ot
@@ -585,9 +596,9 @@ class LangFirsov(object):
                     dphi = boson_trial.gradient(walker.X)
                     ddphi = boson_trial.hessian(walker.X) # hessian
 
-                    elec_ot = self.calc_elec_overlap(walker)
+                    elec_ot = self.calc_elec_overlap(walker, iperm)
 
-                    self.greens_function(walker)
+                    self.greens_function(walker, iperm)
                     rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
                     term1 = dphi * elec_ot * phi
@@ -649,9 +660,9 @@ class LangFirsov(object):
                     d2phi = boson_trial.laplacian(walker.X)
                     dd2phi = boson_trial.grad_laplacian(walker.X)
 
-                    elec_ot = self.calc_elec_overlap(walker)
+                    elec_ot = self.calc_elec_overlap(walker, iperm)
                     
-                    self.greens_function(walker)
+                    self.greens_function(walker, iperm)
                     rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
                     term1 = d2phi * elec_ot * phi
@@ -728,7 +739,7 @@ class LangFirsov(object):
 
         return ot
 
-    def greens_function(self, walker):
+    def greens_function(self, walker, index = None):
         """Compute walker's green's function.
 
         Parameters
@@ -743,17 +754,30 @@ class LangFirsov(object):
         nup = walker.nup
         ndown = walker.ndown
 
-        ovlp = numpy.dot(walker.phi[:,:nup].T, self.psi[:,:nup].conj())
-        walker.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
-        walker.G[0] = numpy.dot(self.psi[:,:nup].conj(), walker.Gmod[0])
-        sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
-        sign_b, log_ovlp_b = 1.0, 0.0
-        if ndown > 0:
-            ovlp = numpy.dot(walker.phi[:,nup:].T, self.psi[:,nup:].conj())
-            sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
-            walker.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
-            walker.G[1] = numpy.dot(self.psi[:,nup:].conj(), walker.Gmod[1])
-        det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
+        if (index == None):
+            ovlp = numpy.dot(walker.phi[:,:nup].T, self.psi[:,:nup].conj())
+            walker.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
+            walker.G[0] = numpy.dot(self.psi[:,:nup].conj(), walker.Gmod[0])
+            sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+            sign_b, log_ovlp_b = 1.0, 0.0
+            if ndown > 0:
+                ovlp = numpy.dot(walker.phi[:,nup:].T, self.psi[:,nup:].conj())
+                sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+                walker.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
+                walker.G[1] = numpy.dot(self.psi[:,nup:].conj(), walker.Gmod[1])
+            det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
+        else:
+            ovlp = numpy.dot(walker.phi[:,:nup].T, self.psi[index,:,:nup].conj())
+            walker.Gmod[0] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,:nup].T)
+            walker.G[0] = numpy.dot(self.psi[index,:,:nup].conj(), walker.Gmod[0])
+            sign_a, log_ovlp_a = numpy.linalg.slogdet(ovlp)
+            sign_b, log_ovlp_b = 1.0, 0.0
+            if ndown > 0:
+                ovlp = numpy.dot(walker.phi[:,nup:].T, self.psi[index,:,nup:].conj())
+                sign_b, log_ovlp_b = numpy.linalg.slogdet(ovlp)
+                walker.Gmod[1] = numpy.dot(scipy.linalg.inv(ovlp), walker.phi[:,nup:].T)
+                walker.G[1] = numpy.dot(self.psi[index,:,nup:].conj(), walker.Gmod[1])
+            det = sign_a*sign_b*numpy.exp(log_ovlp_a+log_ovlp_b-walker.log_shift)
         return det
 
     def fb_greens_function(self, walker):
@@ -821,11 +845,12 @@ class LangFirsov(object):
                      numpy.zeros((self.nbasis,self.nbasis), dtype=walker.phi.dtype)]
 
                 for iperm in range(self.nperms):
+                    self.greens_function(walker, iperm)
                     boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift[iperm,:])
                     phi = boson_trial.value(walker.X)
                     dphi = boson_trial.gradient(walker.X)
 
-                    elec_ot = self.calc_elec_overlap(walker)
+                    elec_ot = self.calc_elec_overlap(walker,iperm)
                     term1 = [walker.G[0] * elec_ot * phi, walker.G[1] * elec_ot * phi]
 
                     tdphi = self.tis*dphi - self.tis*self.beta/numpy.sqrt(2.0)
@@ -910,7 +935,7 @@ class LangFirsov(object):
 
         denom = self.value(walker)
         lap = self.laplacian(walker) # compute walker's laplacian
-        self.greens_function(walker) # update walker's electronic Green's function
+        # self.greens_function(walker) # update walker's electronic Green's function
         G = self.full_greens_function(walker) # compute the true walker's one-body greens function (not just electronic)
 
         ke = numpy.sum(system.T[0] * G[0] + system.T[1] * G[1])

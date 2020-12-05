@@ -143,7 +143,10 @@ class AFQMC(object):
                 # self.trial.half_rotate(self.system, self.shared_comm)
         mem = get_node_mem()
         if comm.rank == 0:
-            self.trial.calculate_energy(self.system)
+            try:
+                self.trial.calculate_energy(self.system)
+            except:
+                print("# trial energy evalauation not implemented for this")
         comm.barrier()
         prop_opt = options.get('propagator', {})
         self.propagators = get_propagator_driver(self.system, self.trial,

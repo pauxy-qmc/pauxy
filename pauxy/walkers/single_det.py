@@ -69,15 +69,20 @@ class SingleDetWalker(Walker):
                                  dtype=trial.psi.dtype),
                      numpy.zeros(shape=(system.ndown, system.nbasis),
                                  dtype=trial.psi.dtype)]
-        self.greens_function(trial)
 
-        self.inverse_overlap(trial)
-        
         if system.name == "HubbardHolstein":
+            if (len(trial.psi.shape) == 3):
+                trial.greens_function(self,0)
+            else:
+                trial.greens_function(self)
+
+            trial.inverse_overlap(self)
             self.ot = trial.calc_overlap(self)
         else:
+            self.greens_function(trial)
+            self.inverse_overlap(trial)
             self.ot = self.calc_overlap(trial)
-
+        
         self.le_oratio = 1.0
         self.ovlp = self.ot
         
