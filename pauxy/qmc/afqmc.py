@@ -214,7 +214,11 @@ class AFQMC(object):
         self.setup_timers()
         w0 = self.psi.walkers[0]
         eshift = 0
-        (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol, eri=self.trial._eri, UVT=self.trial._UVT)
+        try:
+            (etot, e1b, e2b) = w0.local_energy(self.system, rchol=self.trial._rchol, eri=self.trial._eri, UVT=self.trial._UVT)
+        except:
+            if (comm.rank == 0):
+                print("# walker class does not implement local_energy anymore")
         # Calculate estimates for initial distribution of walkers.
         self.estimators.estimators['mixed'].update(self.system, self.qmc,
                                                    self.trial, self.psi, 0,

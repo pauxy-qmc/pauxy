@@ -666,8 +666,8 @@ class LangFirsov(object):
                     rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
 
                     term1 = d2phi * elec_ot * phi
-                    term2 = -numpy.einsum("i,ik->k", self.tis*rho, dd2phi) * elec_ot * phi
-                    term3 = d2phi * numpy.sum(self.tis*self.beta*rho) * elec_ot * phi / numpy.sqrt(2.0)
+                    term2 = -numpy.einsum("i,ik->k", self.tis[iperm,:]*rho, dd2phi) * elec_ot * phi
+                    term3 = d2phi * numpy.sum(self.tis[iperm,:]*self.beta[iperm,:]*rho) * elec_ot * phi / numpy.sqrt(2.0)
 
                     lap += self.coeffs[iperm] * (term1+term2+term3) / denom
             else:
@@ -807,9 +807,9 @@ class LangFirsov(object):
         det : float64 / complex128
             Determinant of overlap matrix.
         """
-        self.greens_function(walker)
 
         if (self.linearize):
+            self.greens_function(walker)
             # boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
             phi = self.boson_trial.value(walker.X)
             dphi = self.boson_trial.gradient(walker.X)
@@ -853,7 +853,7 @@ class LangFirsov(object):
                     elec_ot = self.calc_elec_overlap(walker,iperm)
                     term1 = [walker.G[0] * elec_ot * phi, walker.G[1] * elec_ot * phi]
 
-                    tdphi = self.tis*dphi - self.tis*self.beta/numpy.sqrt(2.0)
+                    tdphi = self.tis[iperm,:]*dphi - self.tis[iperm,:]*self.beta[iperm,:]/numpy.sqrt(2.0)
                     
                     # note that here we don't multiply it by elec_ot
                     rho = (walker.G[0].diagonal() + walker.G[1].diagonal())
@@ -876,6 +876,8 @@ class LangFirsov(object):
 
             else:
             
+                self.greens_function(walker)
+                
                 phi = self.boson_trial.value(walker.X)
                 dphi = self.boson_trial.gradient(walker.X)
 
@@ -931,7 +933,7 @@ class LangFirsov(object):
         # boson_trial = HarmonicOscillator(m = self.m, w = self.w0, order = 0, shift=self.shift)
         phi = self.boson_trial.value(walker.X)
         dphi = self.boson_trial.gradient(walker.X)
-        elec_ot = self.calc_elec_overlap(walker)
+        # elec_ot = self.calc_elec_overlap(walker)
 
         denom = self.value(walker)
         lap = self.laplacian(walker) # compute walker's laplacian

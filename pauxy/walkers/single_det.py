@@ -38,8 +38,13 @@ class SingleDetWalker(Walker):
         self.phi_boson = None
 
         if system.name == "HubbardHolstein":
-            shift = trial.shift.copy()
-            self.X = numpy.real(shift).copy()
+            if (len(trial.psi.shape) == 3):
+                index = numpy.random.randint(trial.psi.shape[0], size=1)[0]
+                shift = trial.shift[index,:].copy()
+                self.X = numpy.real(shift).copy()
+            else:
+                shift = trial.shift.copy()
+                self.X = numpy.real(shift).copy()
 
             tmptrial = HarmonicOscillator(m=system.m, w=system.w0, order=0, shift = shift)
 
