@@ -101,13 +101,12 @@ def reblock_mixed(groupby, columns, verbose=False):
         drop = ['index', 'Time', 'EDenom', 'ENumer', 'Weight', 'Overlap',
                 'WeightFactor', 'EHybrid']
         if not verbose:
-            drop += ['E1Body', 'E2Body']
+            drop += ['E1Body', 'E2Body','E_T']
         short = frame.reset_index()
         try:
             short = short.drop(columns+drop, axis=1)
         except KeyError:
             short = short.drop(columns+['index'], axis=1)
-        
         (data_len, blocked_data, covariance) = pyblock.pd_utils.reblock(short)
         reblocked = pd.DataFrame({'ETotal': [0.0]})
         for c in short.columns:
