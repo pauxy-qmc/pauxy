@@ -219,9 +219,11 @@ def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
         print(" # Frozen core energy : %13.8e"%ecore.real)
     return h1e, chol, ecore
 
-def ao2mo_chol(eri, C):
+def ao2mo_chol(eri, C, verbose=False):
     nb = C.shape[-1]
     for i, cv in enumerate(eri):
+        if verbose and i % 100 == 0:
+            print(" # ao2mo cholesky % complete = {} %".format(100*float(i)/len(eri)))
         half = numpy.dot(cv.reshape(nb,nb), C)
         eri[i] = numpy.dot(C.conj().T, half).ravel()
 
