@@ -25,8 +25,6 @@ class BackPropagation(object):
         Input options for BP estimates.
     root : bool
         True if on root/master processor.
-    h5f : :class:`h5py.File`
-        Output file object.
     qmc : :class:`pauxy.state.QMCOpts` object.
         Container for qmc input options.
     system : system object

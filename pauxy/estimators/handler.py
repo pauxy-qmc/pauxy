@@ -102,9 +102,11 @@ class Estimators(object):
         self.calc_itcf = itcf is not None
         if self.calc_itcf:
             itcf['stack_size'] = estimates.get('stack_size',1)
-            self.estimators['itcf'] = ITCF(itcf, qmc, trial, root, self.filename,
-                                           system, dtype, BT2)
+            self.estimators['itcf'] = ITCF(itcf, root, self.filename,
+                                           qmc, system, trial,
+                                           dtype, BT2)
             self.nprop_tot = self.estimators['itcf'].nprop_tot
+            self.nbp = self.estimators['itcf'].neqlb
         if verbose:
             print ("# Finished settting up estimator object.")
 

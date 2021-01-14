@@ -565,7 +565,7 @@ def calculate_overlap_ratio_single_det_charge(walker, delta, trial, i):
         Basis index.
     """
 
-def construct_propagator_matrix(system, BT2, config, dt, conjt=False):
+def construct_propagator_matrix_hubbard(system, BT2, config, dt, conjt=False):
     """Construct the full projector from a configuration of auxiliary fields.
 
     For use with discrete transformation.
@@ -660,7 +660,7 @@ def back_propagate(phi, configs, system, nstblz, BT2, dt, store=False):
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs.get_block()[0][::-1]):
-        B = construct_propagator_matrix(system, BT2,
+        B = construct_propagator_matrix_hubbard(system, BT2,
                                         c, dt, conjt=True)
         phi[:,:nup] = B[0].dot(phi[:,:nup])
         phi[:,nup:] = B[1].dot(phi[:,nup:])
@@ -711,7 +711,7 @@ def back_propagate_ghf(system, psi, trial, nstblz, BT2, dt):
     return psi_bp
 
 
-def back_propagate_single(phi_in, configs, weights,
+def back_propagate_hubbard(phi_in, configs, weights,
                           system, nstblz, BT2, store=False):
     r"""Perform back propagation for single walker.
 
@@ -741,7 +741,7 @@ def back_propagate_single(phi_in, configs, weights,
     nup = system.nup
     psi_store = []
     for (i, c) in enumerate(configs[::-1]):
-        B = construct_propagator_matrix(system, BT2, c, conjt=True)
+        B = construct_propagator_matrix_hubbard(system, BT2, c, conjt=True)
         phi_in[:,:nup] = B[0].dot(phi_in[:,:nup])
         phi_in[:,nup:] = B[1].dot(phi_in[:,nup:])
         if i != 0 and i % nstblz == 0:

@@ -33,6 +33,9 @@ def extract_mixed_estimates(filename, skip=0):
 def extract_bp_estimates(filename, skip=0):
     return extract_data(filename, 'back_propagated', 'energies')[skip:]
 
+def extract_itcf(filename, skip=0):
+    return extract_data(filename, 'ITCF', 'greens_function', raw=True)
+
 def extract_rdm(filename, est_type='back_propagated', rdm_type='one_rdm', ix=None):
     rdmtot = []
     if ix is None:

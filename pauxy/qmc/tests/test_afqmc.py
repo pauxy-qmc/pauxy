@@ -277,11 +277,47 @@ def test_generic_single_det():
     assert rdm[0,1].trace() == pytest.approx(nelec[1])
     assert rdm[11,0,1,3].real == pytest.approx(-0.121883381144845)
 
+@pytest.mark.driver
+def test_generic_itcf():
+    nmo = 11
+    nelec = (3,3)
+    options = {
+            'verbosity': 0,
+            'qmc': {
+                'timestep': 0.05,
+                'num_steps': 10,
+                'blocks': 12,
+                'rng_seed': 8,
+            },
+            'trial': {
+                'name': 'MultiSlater'
+            },
+            'estimator': {
+                'itcf': {
+                    'stable': True,
+                    'mode': 'diagonal',
+                    'restore_weights': True,
+                    'tau_eqlb': 2.0,
+                    'tau_max': 4.0,
+                }
+            }
+        }
+    numpy.random.seed(7)
+    h1e, chol, enuc, eri = generate_hamiltonian(nmo, nelec, cplx=False)
+    sys_opts = {'sparse': True}
+    sys = Generic(nelec=nelec, h1e=numpy.array([h1e,h1e]),
+                  chol=chol.reshape((-1,nmo*nmo)).T.copy(),
+                  ecore=enuc)
+    comm = MPI.COMM_WORLD
+    afqmc = AFQMC(comm=comm, system=sys, options=options)
+    afqmc.run(comm=comm, verbose=0)
+    afqmc.finalise(verbose=0)
+
 def teardown_module(self):
     cwd = os.getcwd()
     files = ['estimates.0.h5']
-    for f in files:
-        try:
-            os.remove(cwd+'/'+f)
-        except OSError:
-            pass
+    # for f in files:
+        # try:
+            # os.remove(cwd+'/'+f)
+        # except OSError:
+            # pass

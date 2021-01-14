@@ -68,7 +68,7 @@ class GenericContinuous(object):
 
             .. math::
 
-                \bar{v}_n = \sum_{ik\sigma} v_{(ik),n} G_{ik\sigma}
+                \\bar{v}_n = \\sum_{ik\sigma} \\v_{(ik),n} G_{ik\\sigma}
 
         """
         if system.sparse:
@@ -90,8 +90,8 @@ class GenericContinuous(object):
 
         .. math::
 
-            H1 \rightarrow H1 - v0
-            v0_{ik} = \sum_n v_{(ik),n} \bar{v}_n
+            H1 \\rightarrow H1 - v0
+            v0_{ik} = \\sum_n v_{(ik),n} \\bar{v}_n
 
         Parameters
         ----------
@@ -206,9 +206,9 @@ def construct_propagator_matrix_generic(system, BT2, config, dt, conjt=False):
     Bdown = BT2[1].dot(EXP_VHS).dot(BT2[1])
 
     if conjt:
-        return [Bup.conj().T, Bdown.conj().T]
+        return numpy.array([Bup.conj().T, Bdown.conj().T])
     else:
-        return [Bup, Bdown]
+        return numpy.array([Bup, Bdown])
 
 
 # def back_propagate(system, psi, trial, nstblz, BT2, dt):
