@@ -39,6 +39,7 @@ and run the following in the top-level pauxy directory
 
     $ pip install -r requirements.txt
     $ python setup.py build_ext --inplace
+    $ python setup.py install
 
 You may also need to set your PYTHONPATH appropriately.
 
