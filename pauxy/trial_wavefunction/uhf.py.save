@@ -1,7 +1,6 @@
 import copy
 import numpy
 import time
-import warnings
 from pauxy.estimators.mixed import local_energy
 from pauxy.estimators.greens_function import gab
 from pauxy.utils.linalg import diagonalise_sorted
@@ -75,7 +74,7 @@ class UHF(object):
         self.type = 'UHF'
         self.ndets = 1
         self.initial_guess = trial.get('initial', 'random')
-        self.restricted_hf = trial.get('restricted_hf', False)
+        self.restricted)
         if self.initial_guess == 'random':
             if self.verbose:
                 print("# Solving UHF equations.")
@@ -95,38 +94,6 @@ class UHF(object):
             Gdown = gab(self.psi[:,system.nup:], self.psi[:,system.nup:]).T
         else:
             Gdown = numpy.zeros_like(Gup)
-
-        print("density matrix:", self.density_matrix(self.psi))
-        print("spin up densities:", numpy.reshape(self.density(self.psi[:,:system.nup]), (system.nx, system.ny)))
-        print("spin down densities:", numpy.reshape(self.density(self.psi[:,system.ndown:]), (system.nx, system.ny)))
-        numpy.savetxt("dmat.csv", numpy.real(self.density_matrix(self.psi)), delimiter = ',')
-
-        niup_final = numpy.reshape(self.density(self.psi[:,:system.nup]), (system.nx, system.ny))
-        nidown_final = numpy.reshape(self.density(self.psi[:,system.ndown:]), (system.nx, system.ny))
-
-        SDW_OP = 0
-
-        for i in range(4):
-            for j in range(4):
-                SDW_OP += numpy.abs(niup_final[i,j] - nidown_final[i,j])/16
-
-        CDW_OP = 0
-
-        nitotal_final = niup_final + nidown_final
-
-        for i in range(4):
-            for j in range(4):
-                CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[(i+1)%4,j])/32
-                CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[i, (j+1)%4])/32
-
-        #for i in range(4):
-        #    for j in range(4):
-        #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[(i+1)%4,j])/64*rel_weight
-        #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[i, (j+1)%4])/64*rel_weight
- 
-        print("SDW order parameter:", SDW_OP)
-        print("CDW order parameter:", CDW_OP)
-
         self.le_oratio = 1.0
         self.G = numpy.array([Gup, Gdown])
         self.etrial = local_energy(system, self.G)[0].real
@@ -168,8 +135,6 @@ class UHF(object):
                 enew = local_energy(system, numpy.array([Gup, Gdown]))[0].real
                 if verbose:
                     print("# it %d enew  %f  eold  %f" % (it, enew, eold))
-                    #print(niup)
-                    #print(nidown)
                 sc = self.self_consistant(enew, eold, niup, niup_old, nidown,
                                           nidown_old, it, deps, verbose)
                 if sc:
@@ -191,16 +156,11 @@ class UHF(object):
                     niup = mixup
                     nidown = mixdown
                     eold = enew
-                # temp fix until converge
-                if it == (nit_max-1):
-                    minima.append(enew)
-                    psi_accept = copy.deepcopy(self.trial)
-                    e_accept = numpy.append(e_up, e_down)
             if verbose:
                 print("# SCF cycle: {:3d}. After {:4d} steps the minimum UHF"
                       " energy found is: {: 8f}".format(attempt, it, eold))
-                #print(niup)
-                #print(nidown)
+                print(niup)
+                print(nidown)
 
 
         system.U = uold
@@ -222,8 +182,8 @@ class UHF(object):
 
     def initialise(self, nbasis, nup, ndown):
         (e_up, ev_up) = self.random_starting_point(nbasis)
-        if (self.restricted_hf):
-            (e_down, ev_down) = (e_up, ev_up)
+        if self.restricted_hf:
+            (e_down, ev_down) = (e_up, ev_up) #self.random_starting_point(nbasis)
         else:
             (e_down, ev_down) = self.random_starting_point(nbasis)
 
@@ -250,29 +210,25 @@ class UHF(object):
             x, y = decode_basis(4,4,i)
             if x % 2 == 0 and y % 2 == 0:
                 wfn[i,nalpha] = 1.0
-                wfn[i,nup+nalpha] = -1.0
                 nalpha += 1
             elif x % 2 == 0 and y % 2 == 1:
-                #wfn[i,nup+nbeta] = -1.0
+                wfn[i,nup+nbeta] = -1.0
                 nbeta += 1
             elif x % 2 == 1 and y % 2 == 0:
-                #wfn[i,nup+nbeta] = -1.0
+                wfn[i,nup+nbeta] = -1.0
                 nbeta += 1
             elif x % 2 == 1 and y % 2 == 1:
                 wfn[i,nalpha] = 1.0
-                wfn[i,nup+nalpha] = -1.0
                 nalpha += 1
+        print(wfn)
         return wfn, 10
 
 
     def density(self, wfn):
         return numpy.diag(wfn.dot((wfn.conj()).T))
 
-    def density_matrix(self, wfn):
-        return wfn.dot((wfn.conj()).T)
-
     def self_consistant(self, enew, eold, niup, niup_old, nidown, nidown_old,
-                        it, deps=1e-4, verbose=0):
+                        it, deps=1e-8, verbose=0):
         '''Check if system parameters are converged'''
 
         depsn = deps**0.5
@@ -292,11 +248,7 @@ class UHF(object):
         HMFU = system.T[0]  + numpy.diag(ueff*nidown)
         HMFD = system.T[1]  + numpy.diag(ueff*niup)
         (e_up, ev_up) = diagonalise_sorted(HMFU)
-        #print(e_up)
-        #print(ev_up)
         (e_down, ev_down) = diagonalise_sorted(HMFD)
-        #print(e_down)
-        #print(ev_down)
         # Construct new wavefunction given new density.
         self.trial[:,:system.nup] = ev_up[:,:system.nup]
         self.trial[:,system.nup:] = ev_down[:,:system.ndown]

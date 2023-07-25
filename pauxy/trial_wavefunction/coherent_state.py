@@ -134,7 +134,7 @@ def hessian_product(x, p, nbasis, nup, ndown, T, U, g, m, w0, c0):
 
 @jit
 def compute_exp(Ua, tmp, theta_a):
-    for i in range(1,50):
+    for i in range(1,20):#was up to 50 (jiang)
         tmp = np.einsum("ij,jk->ik", theta_a, tmp)
         Ua += tmp / math.factorial(i)
 
@@ -158,16 +158,16 @@ def compute_greens_function_from_x (x, nbasis, nup, ndown, c0, restricted):
     daib = daib.reshape((nvirb, noccb))
 
     if (restricted):
-        daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
+        daib = daib.at[:,:].set(daia)
 
     theta_a = np.zeros((nbsf, nbsf),dtype=np.float64)
     theta_b = np.zeros((nbsf, nbsf),dtype=np.float64)
 
-    theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
-    theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
+    theta_a = theta_a.at[nocca:nbsf,:nocca].set(daia)
+    theta_a = theta_a.at[:nocca, nocca:nbsf].set(-np.transpose(daia))
 
-    theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
-    theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
+    theta_b = theta_b.at[noccb:nbsf,:noccb].set(daib)
+    theta_b = theta_b.at[:noccb, noccb:nbsf].set(-np.transpose(daib))
 
     Ua = np.eye(nbsf,dtype=np.float64)
     tmp = np.eye(nbsf,dtype=np.float64)
@@ -196,7 +196,7 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, r
     nup = int(round(nup))
     ndown = int(round(ndown))
 
-    shift = x[0:nbasis]
+    shift = np.array(x[0:nbasis])
 
     nbsf = nbasis
     nocca = nup
@@ -214,16 +214,16 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, r
     daib = daib.reshape((nvirb, noccb))
 
     if (restricted):
-        daib = jax.ops.index_update(daib, jax.ops.index[:,:], daia)
+        daib = daib.at[:,:].set(daia)
 
     theta_a = np.zeros((nbsf, nbsf),dtype=np.float64)
     theta_b = np.zeros((nbsf, nbsf),dtype=np.float64)
 
-    theta_a = jax.ops.index_update(theta_a, jax.ops.index[nocca:nbsf,:nocca], daia)
-    theta_a = jax.ops.index_update(theta_a, jax.ops.index[:nocca, nocca:nbsf], -np.transpose(daia))
+    theta_a = theta_a.at[nocca:nbsf,:nocca].set(daia)
+    theta_a = theta_a.at[:nocca, nocca:nbsf].set(-np.transpose(daia))
 
-    theta_b = jax.ops.index_update(theta_b, jax.ops.index[noccb:nbsf,:noccb], daib)
-    theta_b = jax.ops.index_update(theta_b, jax.ops.index[:noccb, noccb:nbsf], -np.transpose(daib))
+    theta_b = theta_b.at[noccb:nbsf,:noccb].set(daib)
+    theta_b = theta_b.at[:noccb, noccb:nbsf].set(-np.transpose(daib))
 
     Ua = np.eye(nbsf,dtype=np.float64)
     tmp = np.eye(nbsf,dtype=np.float64)
@@ -246,7 +246,7 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, r
     G = np.array([Ga, Gb],dtype=np.float64)
 
     if (restricted_shift):
-        shift = jax.ops.index_update(shift, jax.ops.index[:nbasis], x[0])
+        shift = shift.at[:nbasis].set(x[0])
 
     phi = HarmonicOscillator(m, w0, order=0, shift = shift)
     Lap = phi.laplacian(shift)
@@ -258,7 +258,7 @@ def objective_function (x, nbasis, nup, ndown, T, U, g, m, w0, c0, restricted, r
 class CoherentState(object):
 
     def __init__(self, system, options, verbose=False):
-        self.verbose = verbose
+        self.verbose = options.get('verbose', False)
         if verbose:
             print ("# Parsing free electron input options.")
         init_time = time.time()
@@ -350,11 +350,11 @@ class CoherentState(object):
 
         else:
             free_electron = options.get('free_electron', False)
+            rhf = options.get('rhf', False)
             if (free_electron):
                 trial_elec = FreeElectron(system, trial=options, verbose=self.verbose)
             else:
                 trial_elec = UHF(system, trial=options, verbose=self.verbose)
-
             self.psi[:, :system.nup] = trial_elec.psi[:, :system.nup]
             if (system.ndown > 0):
                 self.psi[:, system.nup:] = trial_elec.psi[:, system.nup:]
@@ -462,7 +462,13 @@ class CoherentState(object):
 
             self.boson_trial = HarmonicOscillator(m = system.m, w = system.w0, order = 0, shift=self.shift)
 
-        
+        print("twf:", self.psi)
+        print("density matrix:", trial_elec.density_matrix(self.psi))
+        print("density up:", trial_elec.density(self.psi[:,:8]))
+        print("density down:", trial_elec.density(self.psi[:,8:]))
+        numpy.savetxt("dmat2.csv", numpy.real(trial_elec.density_matrix(self.psi)), delimiter = ',')
+
+
         if (not len(self.psi.shape) == 3):
             if (self.symmetrize):
                 self.perms = numpy.array(list(itertools.permutations([i for i in range(system.nbasis)])))
@@ -472,9 +478,9 @@ class CoherentState(object):
                 print("# Number of permutations = {}".format(self.nperms))
             elif (self.coeffs == None):
                 self.coeffs = 1.0
-                
+
         self.calculate_energy(system)
-        
+
         if (self.symmetrize):
             print("# Coherent State energy (symmetrized) = {}".format(self.energy))
         else:
@@ -665,7 +671,7 @@ class CoherentState(object):
                 def update(i, opt_state):
                     params = get_params(opt_state)
                     gradient = jax.grad(objective_function)(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift)
                     return opt_update(i, gradient, opt_state)
 
                 eprev = 10000
@@ -679,7 +685,7 @@ class CoherentState(object):
                     shift_curr = params[:system.nbasis]
                     Gcurr = compute_greens_function_from_x(params, system.nbasis, system.nup, system.ndown, c0, self.restricted)
                     ecurr = objective_function(params, float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted)
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift)
                     opt_state = update(t, opt_state)
 
                     Gdiff = (Gprev-Gcurr).ravel()
@@ -713,13 +719,13 @@ class CoherentState(object):
             daib = x[nbsf+nova:nbsf+nova+novb]
         elif self.algorithm == "basin_hopping":
             from scipy.optimize import basinhopping
-            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted),
+            minimizer_kwargs = {"method":"L-BFGS-B", "jac":True, "args":(float(system.nbasis), float(system.nup), float(system.ndown),system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift),
                                 "options":{ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                                         'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':False}}
 
-            def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted):
-                f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
-                df = gradient(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted)
+            def func(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted, restricted_shift):
+                f = objective_function(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted, restricted_shift)
+                df = gradient(x, nbasis, nup, ndown,T, U, g, m, w0, c0, restricted, restricted_shift)
                 return f, df
             
             def print_fun(x, f, accepted):
@@ -737,7 +743,7 @@ class CoherentState(object):
         elif self.algorithm == "bfgs":
             for i in range (self.maxiter): # Try 10 times
                 res = minimize(objective_function, x, args=(float(system.nbasis), float(system.nup), float(system.ndown),\
-                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted), jac=gradient, tol=1e-10,\
+                        system.T, self.ueff, system.g, system.m, system.w0, c0, self.restricted, self.restricted_shift), jac=gradient, tol=1e-10,\
                     method='L-BFGS-B',\
                     options={ 'maxls': 20, 'iprint': 2, 'gtol': 1e-10, 'eps': 1e-10, 'maxiter': self.maxscf,\
                     'ftol': 1.0e-10, 'maxcor': 1000, 'maxfun': 15000,'disp':True})

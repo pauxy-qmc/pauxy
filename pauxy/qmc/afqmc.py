@@ -220,6 +220,49 @@ class AFQMC(object):
         if verbose:
             self.estimators.estimators['mixed'].print_step(comm, comm.size, 0, 1)
 
+        sum_of_weights = sum([w.weight for w in self.psi.walkers])
+
+        SDW_OP = 0
+        CDW_OP = 0
+
+        for w in self.psi.walkers:
+            print(w)
+            rel_weight = w.weight/sum_of_weights
+            print(rel_weight)
+            wfc = w.phi
+
+            wfc_up = wfc[:,:8]
+            wfc_down = wfc[:,8:]
+
+            density_up = numpy.diag(wfc_up.dot((wfc_up.conj()).T))
+            density_down = numpy.diag(wfc_down.dot((wfc_down.conj()).T))
+
+            print("Up densities:", density_up)
+            print("Down densities:", density_down)
+            print("Sum of Den up", numpy.sum(numpy.sum(density_up)))
+            print("Sum of Den down", numpy.sum(numpy.sum(density_up)))
+
+            niup_final = numpy.reshape(density_up, (4, 4))
+            nidown_final = numpy.reshape(density_down, (4, 4))
+            nitotal_final = niup_final + nidown_final
+
+            for i in range(4):
+                for j in range(4):
+                    SDW_OP += numpy.abs(niup_final[i,j] - nidown_final[i,j])/16*rel_weight
+
+            for i in range(4):
+                for j in range(4):
+                    CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[(i+1)%4,j])/32*rel_weight
+                    CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[i, (j+1)%4])/32*rel_weight
+
+            #for i in range(4):
+            #    for j in range(4):
+            #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[(i+1)%4,j])/64*rel_weight
+            #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[i, (j+1)%4])/64*rel_weight
+
+        print("SDW order parameter:", SDW_OP)
+        print("CDW order parameter:", CDW_OP)
+
         for step in range(1, self.qmc.total_steps + 1):
             start_step = time.time()
             if step % self.qmc.nstblz == 0:
@@ -254,6 +297,56 @@ class AFQMC(object):
                 eshift += (self.estimators.estimators['mixed'].get_shift()-eshift)
             self.tstep += time.time() - start_step
 
+        #Final
+        sum_of_weights = sum([w.weight for w in self.psi.walkers])
+
+        SDW_OP = 0
+        CDW_OP = 0
+
+        for w in self.psi.walkers:
+            print(w)
+            rel_weight = w.weight/sum_of_weights
+            print(rel_weight)
+            wfc = w.phi
+
+
+            wfc_up = wfc[:,:8]
+            wfc_down = wfc[:,8:]
+
+            density_up = numpy.diag(wfc_up.dot((wfc_up.conj()).T))
+            density_down = numpy.diag(wfc_down.dot((wfc_down.conj()).T))
+
+            print("Up densities:", density_up)
+            print("Down densities:", density_down)
+            print("Sum of Den up", numpy.sum(numpy.sum(density_up)))
+            print("Sum of Den down", numpy.sum(numpy.sum(density_up)))
+            print(w.weight)
+
+            niup_final = numpy.reshape(density_up, (4, 4))
+            nidown_final = numpy.reshape(density_down, (4, 4))
+            nitotal_final = niup_final + nidown_final
+
+            for i in range(4):
+                for j in range(4):
+                    SDW_OP += numpy.abs(niup_final[i,j] - nidown_final[i,j])/16*rel_weight
+
+            for i in range(4):
+                for j in range(4):
+                    CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[(i+1)%4,j])/32*rel_weight
+                    CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[i, (j+1)%4])/32*rel_weight
+
+            #for i in range(4):
+            #    for j in range(4):
+            #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[(i+1)%4,j])/64*rel_weight
+            #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[i, (j+1)%4])/64*rel_weight
+
+        final_wf = self.psi.walkers[0].phi
+        final_dmat = final_wf.dot((final_wf.conj()).T)
+
+        print("SDW order parameter final:", SDW_OP)
+        print("CDW order parameter final:", CDW_OP)
+        numpy.savetxt("dmat3.csv", numpy.real(final_dmat), delimiter = ',')
+
     def finalise(self, verbose=False):
         """Tidy up.
 
@@ -277,6 +370,49 @@ class AFQMC(object):
                 print("# - Propagation: {:.6f} s".format(self.tprop/nsteps))
                 print("# - Estimators: {:.6f} s".format(self.testim/nsteps))
                 print("# - Population control: {:.6f} s".format(self.tpopc/npcon))
+
+                sum_of_weights = sum([w.weight for w in self.psi.walkers])
+
+                SDW_OP = 0
+                CDW_OP = 0
+
+                for w in self.psi.walkers:
+                    print(w)
+                    rel_weight = w.weight/sum_of_weights
+                    print(rel_weight)
+                    wfc = w.phi
+
+                    wfc_up = wfc[:,:8]
+                    wfc_down = wfc[:,8:]
+
+                    density_up = numpy.diag(wfc_up.dot((wfc_up.conj()).T))
+                    density_down = numpy.diag(wfc_down.dot((wfc_down.conj()).T))
+
+                    print("Up densities:", density_up)
+                    print("Down densities:", density_down)
+                    #print(w.weight)
+
+                    niup_final = numpy.reshape(density_up, (4, 4))
+                    nidown_final = numpy.reshape(density_down, (4, 4))
+                    nitotal_final = niup_final + nidown_final
+
+                    for i in range(4):
+                        for j in range(4):
+                            SDW_OP += numpy.abs(niup_final[i,j] - nidown_final[i,j])/16*rel_weight
+
+                    for i in range(4):
+                        for j in range(4):
+                            CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[(i+1)%4,j])/32*rel_weight
+                            CDW_OP += numpy.abs(nitotal_final[i,j] - nitotal_final[i, (j+1)%4])/32*rel_weight
+
+                    #for i in range(4):
+                    #    for j in range(4):
+                    #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[(i+1)%4,j])/64*rel_weight
+                    #        CDW_OP += numpy.abs(nidown_final[i,j] - nidown_final[i, (j+1)%4])/64*rel_weight
+
+                print("SDW order parameter:", SDW_OP)
+                print("CDW order parameter:", CDW_OP)
+
 
 
     def determine_dtype(self, propagator, system):

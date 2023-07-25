@@ -62,7 +62,7 @@ class HirschDMC(object):
 
         Ueff = system.U
 
-        self.lang_firsov = inputs.get('lang_firsov', False)
+        self.lang_firsov = False #inputs.get('lang_firsov', False) (Jiang)
         self.gamma_lf = 0.0
         if (self.lang_firsov):
             self.gamma_lf = system.gamma_lf
