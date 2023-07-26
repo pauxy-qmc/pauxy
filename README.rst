@@ -2,6 +2,8 @@
 PAUXY
 =====
 
+NOTE: Pauxy is deprecated in favour of `ipie <https://github.com/linusjoonho/ipie>`_. This repository is no longer maintained.
+
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
 quantum Monte Carlo algorithms with a focus on simplicity rather than speed.
 
