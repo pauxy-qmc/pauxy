@@ -4,6 +4,22 @@ PAUXY
 
 NOTE: Pauxy is deprecated in favour of `ipie <https://github.com/linusjoonho/ipie>`_. This repository is no longer maintained.
 
+If you found pauxy to be helpful please cite ipie:
+
+.. code::block bash
+
+@article{malone2022ipie,
+  title={ipie: A Python-Based Auxiliary-Field Quantum Monte Carlo Program with Flexibility and Efficiency on CPUs and GPUs},
+  author={Malone, Fionn D and Mahajan, Ankit and Spencer, James S and Lee, Joonho},
+  journal={Journal of Chemical Theory and Computation},
+  volume={19},
+  number={1},
+  pages={109--121},
+  year={2022},
+  publisher={ACS Publications}
+}
+
+
 PAUXY is a collection of **P**\ ython implementations of **AUX**\ illiar\ **Y** field
 quantum Monte Carlo algorithms with a focus on simplicity rather than speed.
 
